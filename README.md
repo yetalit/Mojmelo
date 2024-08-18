@@ -1,6 +1,8 @@
 <a id="readme-top"></a>
 
-[![Stargazers](https://img.shields.io/github/stars/yetalit/mojmelo?style=social)](https://github.com/yetalit/mojmelo/stargazers) [![Issues](https://img.shields.io/github/issues/yetalit/mojmelo)](https://github.com/yetalit/mojmelo/issues) [![BSD-3-Clause License](https://img.shields.io/badge/license-BSD%203--Clause-blue)](https://opensource.org/licenses/BSD-3-Clause)
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![BSD-3-Clause License][license-shield]][license-url]
 
 <br />
 <div align="center">
@@ -47,7 +49,7 @@ Following steps let you know how to get started using Mojmelo.
 
 * Mojo compiler
 
-Additionally, you may want to install bellow Python frameworks for a better usability and to run tests:
+Additionally, you may want to install bellow Python packages for a better usability and to run tests:
 1. Numpy
 2. Pandas
 3. Scikit-learn
@@ -55,6 +57,7 @@ Additionally, you may want to install bellow Python frameworks for a better usab
 ### Installation
 
 You can put the compiled version of the package into your project and use it. The file can be found in `releases` folder.
+
 or just download the whole `mojmelo` folder and put it into your project.
 
 ## Usage
@@ -77,3 +80,16 @@ You can contribute to the project in 3 ways:
 1. Apply improvements to the code and Open a Pull Request
 2. Report a bug
 3. Suggest new features
+
+<!-- ACKNOWLEDGMENTS -->
+## Acknowledgments
+
+Inspired from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
+
+
+[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
+[stars-url]: https://github.com/yetalit/mojmelo/stargazers
+[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
+[issues-url]: https://github.com/yetalit/mojmelo/issues
+[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
+[license-url]: https://github.com/yetalit/Mojmelo/blob/main/LICENSE
