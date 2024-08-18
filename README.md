@@ -43,7 +43,7 @@ Here is the list of the algorithms:
 
 ## Getting Started
 
-Following steps let you know how to get started using Mojmelo.
+The following steps let you know how to get started with Mojmelo.
 
 ### Prerequisites
 
@@ -87,9 +87,9 @@ You can contribute to the project in 3 ways:
 Inspired from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
 
 
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
+[stars-shield]: https://img.shields.io/github/stars/yetalit/mojmelo?style=social
 [stars-url]: https://github.com/yetalit/mojmelo/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/yetalit/mojmelo
 [issues-url]: https://github.com/yetalit/mojmelo/issues
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/badge/license-BSD%203--Clause-blue
 [license-url]: https://github.com/yetalit/Mojmelo/blob/main/LICENSE
