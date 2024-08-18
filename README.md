@@ -53,6 +53,7 @@ Additionally, you may want to install bellow Python packages for a better usabil
 1. Numpy
 2. Pandas
 3. Scikit-learn
+4. Matplotlib
 
 ### Installation
 
