@@ -190,6 +190,12 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
             sq_dist.data[i * sq_dist.width + j] = ((X[i] - Z[j]) ** 2).sum()
     return (-sq_dist / (params[0] ** 2)).exp() # e^-(1/ σ2) ||X-y|| ^2
 
+fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
+    return ((y - y_pred) ** 2).mean()
+
+fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+    return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
+
 fn entropy(y: Matrix) -> Float64:
     var histogram = y.bincount()
     var _sum: Float64 = 0
@@ -203,13 +209,13 @@ fn gini(y: Matrix) -> Float64:
     var histogram = y.bincount()
     var _sum: Float64 = 0
     for i in range(histogram.capacity):
-        _sum += (histogram[i] / y.size)**2
+        _sum += (histogram[i] / y.size) ** 2
     return 1 - _sum
 
-fn mse(y: Matrix) -> Float64:
+fn mse_loss(y: Matrix) -> Float64:
     if len(y) == 0:
         return 0.0
-    return ((y - y.mean()) ** 2).mean()
+    return Float64(((y - y.mean()) ** 2).mean())
 
 '''
 fn mse_link(score: Matrix) -> Matrix:

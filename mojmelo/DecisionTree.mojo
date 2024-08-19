@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import entropy, gini, mse
+from mojmelo.utils.utils import entropy, gini, mse_loss
 import math
 
 struct Node:
@@ -40,7 +40,7 @@ struct DecisionTree:
         if self.criterion == 'gini':
             self.loss_func = gini
         elif self.criterion == 'mse':
-            self.loss_func = mse
+            self.loss_func = mse_loss
         else:
             self.loss_func = entropy
         self.min_samples_split = min_samples_split
