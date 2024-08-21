@@ -10,7 +10,7 @@ struct Node:
     var value: Float32
 
     fn __init__(
-        inout self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node] = UnsafePointer[Node](), right: UnsafePointer[Node] = UnsafePointer[Node](), *, value: Float32 = math.inf[DType.float32]()
+        inout self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node] = UnsafePointer[Node](), right: UnsafePointer[Node] = UnsafePointer[Node](), value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
         self.threshold = threshold
@@ -19,7 +19,7 @@ struct Node:
         self.value = value
 
     fn is_leaf_node(self) -> Bool:
-        return self.value != math.inf[DType.float32]()
+        return self.feature == -1
 
     fn __str__(self) -> String:
         if self.is_leaf_node():
@@ -63,12 +63,21 @@ struct DecisionTree:
         return y_predicted
 
     fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
-        var freq = y.unique(y)
+        var unique_targets = 0
+        var freq = Dict[Int, Int]()
+        var freqf = List[Float32]()
+        if self.criterion == 'mse':
+            freqf = y.uniquef()
+            unique_targets = len(freqf)
+        else:
+            freq = y.unique(y)
+            unique_targets = len(freq)
+
         var new_node = UnsafePointer[Node].alloc(1)
         # stopping criteria
         if (
             depth >= self.max_depth
-            or len(freq) == 1
+            or unique_targets == 1
             or X.height < self.min_samples_split
         ):
             new_node[] = Node(value = set_value(y, freq, self.criterion))
@@ -102,7 +111,7 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
 
 fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) -> Float64) raises -> Tuple[Int, Float32]:
     var split_idx = feat_idxs[0]
-    var split_thresh = X[split_idx, 0]
+    var split_thresh = X[0, split_idx]
     var best_gain = -math.inf[DType.float64]()
     for feat_idx in feat_idxs:
         var X_column = X['', feat_idx[]]

@@ -27,7 +27,7 @@ struct KMeans:
         # Optimize clusters
         for _ in range(self.max_iters):
             # Assign samples to closest centroids (create clusters)
-            self.clusters = self._create_clusters(self.centroids)
+            self.clusters = self._create_clusters()
 
             # Calculate new centroids from the clusters
             var centroids_old = self.centroids
@@ -49,17 +49,20 @@ struct KMeans:
                 labels.data[sample_index[]] = cluster_idx
         return labels
 
-    fn _create_clusters(self, centroids: Matrix) raises -> List[List[Int]]:
+    fn _create_clusters(self) raises -> List[List[Int]]:
         # Assign the samples to the closest centroids to create clusters
         var clusters = List[List[Int]](capacity = self.K)
+        for _ in range(self.K):
+            clusters.append(List[Int]())
+
         for idx in range(self.X.height):
-            clusters[self._closest_centroid(self.X[idx], centroids)].append(idx)
+            clusters[self._closest_centroid(self.X[idx], self.centroids)].append(idx)
         return clusters
 
     fn _closest_centroid(self, sample: Matrix, centroids: Matrix) raises -> Int:
         # distance of the current sample to each centroid
         var distances = Matrix(centroids.height, 1)
-        for i in range(centroids.size):
+        for i in range(centroids.height):
             distances.data[i] = euclidean_distance(sample, centroids[i])
         return distances.argmin()
 
@@ -76,3 +79,16 @@ struct KMeans:
         for i in range(self.K):
             distances.data[i] = euclidean_distance(centroids_old[i], centroids[i])
         return distances.sum() == 0
+
+    fn get_clusters_data(self) -> Tuple[Matrix, Matrix]:
+        var row_counts = Matrix(1, len(self.clusters))
+        for i in range(row_counts.size):
+            row_counts.data[i] = len(self.clusters[i])
+        var clusters_raw = Matrix(1, int(row_counts.sum()))
+        var pointer = 0
+        for l in self.clusters:
+            for i in l[]:
+                clusters_raw.data[pointer] = i[]
+                pointer += 1
+
+        return clusters_raw, row_counts

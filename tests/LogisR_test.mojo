@@ -1,5 +1,6 @@
 from mojmelo.LogisticRegression import LogisticRegression
 from mojmelo.utils.Matrix import Matrix
+from mojmelo.utils.utils import accuracy_score
 from python import Python
 
 def main():
@@ -9,4 +10,4 @@ def main():
     lr = LogisticRegression(learning_rate=0.0001, n_iters=1000)
     lr.fit(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[2]).T())
     y_pred = lr.predict(Matrix.from_numpy(data[1]))
-    print("LR classification accuracy:", lr_test.accuracy(data[3], y_pred.T().to_numpy()))
+    print("LR classification accuracy:", accuracy_score(data[3], y_pred))

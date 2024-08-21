@@ -27,12 +27,15 @@ struct LDA:
             var X_c = Matrix(class_freq[i], X.width)
             var pointer: Int = 0
             for j in range(X.height):
-                if y[j] == class_labels[i]:
+                if str(y[j]) == class_labels[i]:
                     X_c[pointer] = X[j]
                     pointer += 1
             var mean_c = X_c.mean(0)
+            var mean_c_reduce = Matrix(X_c.height, X_c.width)
+            for i in range(X_c.height):
+                mean_c_reduce[i] = X[i] - mean_c
             # (4, n_c) * (n_c, 4) = (4,4) -> transpose
-            SW += (X_c - mean_c).T() * (X_c - mean_c)
+            SW += (mean_c_reduce).T() * (mean_c_reduce)
 
             # (4, 1) * (1, 4) = (4,4) -> reshape
             var mean_diff = (mean_c - mean_overall).reshape(X.width, 1)

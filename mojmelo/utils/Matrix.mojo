@@ -45,7 +45,7 @@ struct Matrix:
 
     fn __getitem__(self, row: Int, column: Int) raises -> Float32:
         var loc: Int = (row * self.width) + column
-        if loc > self.size:
+        if loc > self.size - 1:
             raise Error("Error: Location is out of range!")
         return self.data[loc]
 
@@ -109,7 +109,7 @@ struct Matrix:
             
     fn __setitem__(inout self, row: Int, column: Int, val: Float32) raises:
         var loc: Int = (row * self.width) + column
-        if loc > self.size:
+        if loc > self.size - 1:
             raise Error("Error: Location is out of range!")
         self.data[loc] = val
 
@@ -406,6 +406,12 @@ struct Matrix:
             res += self.data[i]
         return res
 
+    fn sum64(self) -> Float64:
+        var res: Float64 = 0.0
+        for i in range(self.size):
+            res += self.data[i].cast[DType.float64]()
+        return res
+
     fn sum(self, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
@@ -420,6 +426,12 @@ struct Matrix:
 
     fn mean(self) -> Float32:
         return self.sum() / self.size
+
+    fn mean64(self) -> Float64:
+        var res: Float64 = 0.0
+        for i in range(self.size):
+            res += self.data[i].cast[DType.float64]() / self.size
+        return res
 
     fn mean(self, axis: Int) raises -> Matrix:
         if axis == 0:
@@ -704,12 +716,16 @@ struct Matrix:
     @staticmethod
     fn rand_choice(arang: Int, size: Int, replace: Bool = True) -> List[Int]:
         random.seed()
+        var cache = Matrix(0, 0)
+        if not replace:
+            cache = Matrix.zeros(1, arang)
         var result = List[Int](capacity = size)
         for _ in range(size):
             var rand_int = int(random.random_ui64(0, arang - 1))
             if not replace:
-                while rand_int in result:
+                while cache.data[rand_int] == 1.0:
                     rand_int = int(random.random_ui64(0, arang - 1))
+                cache.data[rand_int] = 1.0
             result.append(rand_int)
         return result^
 

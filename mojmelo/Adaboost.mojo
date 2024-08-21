@@ -82,7 +82,7 @@ struct Adaboost:
             clf.alpha = 0.5 * math.log((1.0 - min_error + EPS) / (min_error + EPS))
 
             # calculate predictions and update weights
-            w *= (-clf.alpha * y * clf.predict(X)).exp()
+            w = w.ele_mul((-clf.alpha * y.ele_mul(clf.predict(X))).exp())
             # Normalize to one
             w /= w.sum()
 

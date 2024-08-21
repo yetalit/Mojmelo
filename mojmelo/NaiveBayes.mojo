@@ -16,6 +16,7 @@ struct GaussianNB:
         self._priors = InlinedFixedVector[Float32](capacity = 0)
 
     fn fit(inout self, X: Matrix, y: PythonObject) raises:
+        var n_samples = Float32(X.height)
         var _class_freq: List[Int]
         self._classes, _class_freq = Matrix.unique(y)
 
@@ -28,12 +29,12 @@ struct GaussianNB:
             var X_c = Matrix(_class_freq[i], X.width)
             var pointer: Int = 0
             for j in range(X.height):
-                if y[j] == self._classes[i]:
+                if str(y[j]) == self._classes[i]:
                     X_c[pointer] = X[j]
                     pointer += 1
             self._mean[i] = X_c.mean(0)
             self._var[i] = X_c._var(0, self._mean[i])
-            self._priors[i] = X_c.height / Float32(X.height)
+            self._priors[i] = X_c.height / n_samples
 
     fn predict(self, X: Matrix) raises -> List[String]:
         var y_pred = List[String]()
@@ -66,6 +67,7 @@ struct MultinomialNB:
         self._priors = InlinedFixedVector[Float32](capacity = 0)
 
     fn fit(inout self, X: Matrix, y: PythonObject) raises:
+        var n_samples = Float32(X.height)
         var _class_freq: List[Int]
         self._classes, _class_freq = Matrix.unique(y)
 
@@ -78,7 +80,7 @@ struct MultinomialNB:
         for i in range(len(self._classes)):
             var c_histogram = self._class_probs[i] + self._alpha
             self._class_probs[i] = c_histogram / c_histogram.sum()
-            self._priors[i] = _class_freq[i] / Float32(X.height)
+            self._priors[i] = _class_freq[i] / n_samples
 
     fn predict(self, X: Matrix) raises -> List[String]:
         var y_pred = List[String]()
