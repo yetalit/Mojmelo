@@ -470,6 +470,12 @@ struct Matrix:
                 mat.data[i] = self[i]._var(_mean.data[i])
         return mat^
 
+    fn std(self) -> Float32:
+        return (self - self.mean()).mean()
+
+    fn std(self, _mean: Float32) -> Float32:
+        return (self - _mean).mean()
+
     fn abs(self) -> Matrix:
         var mat = Matrix(self.height, self.width)
         for i in range(self.size):
@@ -507,6 +513,12 @@ struct Matrix:
             if self.data[i] > self.data[i_max]:
                 i_max = i
         return i_max
+
+    fn min(self) -> Float32:
+        return self.data[self.argmin()]
+
+    fn max(self) -> Float32:
+        return self.data[self.argmax()]
 
     fn reshape(self, height: Int, width: Int) -> Matrix:
         var mat: Matrix = self
