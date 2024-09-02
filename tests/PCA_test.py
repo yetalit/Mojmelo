@@ -3,10 +3,8 @@ from sklearn import datasets
 
 def get_data():
     data = datasets.load_iris()
-    X = data.data
-    y = data.target
 
-    return[X, y]
+    return[data.data, data.target]
 
 def test(X_projected, y):
     x1 = X_projected[:, 0]

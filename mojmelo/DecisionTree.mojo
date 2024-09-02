@@ -48,6 +48,17 @@ struct DecisionTree:
         self.n_feats = n_feats
         self.root = UnsafePointer[Node]()
 
+    fn _moveinit_(inout self, inout existing: Self):
+        self.criterion = existing.criterion
+        self.loss_func = existing.loss_func
+        self.min_samples_split = existing.min_samples_split
+        self.max_depth = existing.max_depth
+        self.n_feats = existing.n_feats
+        self.root = existing.root
+        existing.criterion = ''
+        existing.min_samples_split = existing.max_depth = existing.n_feats = 0
+        existing.root = UnsafePointer[Node]()
+
     fn __del__(owned self):
         if self.root:
             delTree(self.root)
@@ -135,7 +146,7 @@ fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_fu
     left_idxs, right_idxs = _split(X_column, split_thresh)
 
     if len(left_idxs) == 0 or len(right_idxs) == 0:
-        return 0
+        return 0.0
 
     # compute the weighted avg. of the loss for the children
     var child_loss = (len(left_idxs) / y.size) * loss_func(y[left_idxs]) + (len(right_idxs) / y.size) * loss_func(y[right_idxs])

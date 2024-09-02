@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 import numpy as np
 
 def get_data():
@@ -16,10 +15,7 @@ def get_data():
     noise = np.random.normal(0, 2.0, size=y.shape)
     y += noise
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=1234
-    )
-    return [X, X_train, X_test, y_train, y_test]
+    return [X, y]
 
 def test(X, X_train, X_test, y_train, y_test, y_pred_curve):
     # Plot the data

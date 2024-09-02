@@ -190,21 +190,11 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
             sq_dist.data[i * sq_dist.width + j] = ((X[i] - Z[j]) ** 2).sum()
     return (-sq_dist / (params[0] ** 2)).exp() # e^-(1/ σ2) ||X-y|| ^2
 
-fn normalization(data: Matrix) -> Matrix:
-    var x_min = data.min()
-    # normalize data
-    return (data - x_min) / (data.max() - x_min)
+fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
+    return ((y - y_pred) ** 2).mean()
 
-fn standardization(data: Matrix) -> Matrix:
-    var mu = data.mean()
-    # standardize data
-    return (data - mu) / data.std(mu)
-
-fn mse(y: Matrix, y_pred: Matrix) raises -> Float64:
-    return ((y - y_pred) ** 2).mean64()
-
-fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float64:
-    return 1.0 - (((y_pred - y) ** 2).sum64() / ((y - y.mean()) ** 2).sum64())
+fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+    return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
 fn accuracy_score(y: Matrix, y_pred: Matrix) -> Float16:
     var correct_count = 0
@@ -253,24 +243,24 @@ fn gini(y: Matrix) -> Float64:
 fn mse_loss(y: Matrix) -> Float64:
     if len(y) == 0:
         return 0.0
-    return ((y - y.mean()) ** 2).mean64()
+    return ((y - y.mean()) ** 2).mean().cast[DType.float64]()
 
-'''
+
 fn mse_link(score: Matrix) -> Matrix:
     return score
 fn mse_g(true: Matrix, score: Matrix) raises -> Matrix:
-    return score-true
+    return score - true
 fn mse_h(score: Matrix) raises -> Matrix:
-    return Matrix.ones(score.height, score.width)
+    return Matrix.ones(score.height, 1)
 
 fn log_link(score: Matrix) -> Matrix:
-    return 1/(1+(-score).exp())
+    return 1 / (1 + (-score).exp())
 fn log_g(true: Matrix, score: Matrix) raises -> Matrix:
     return log_link(score) - true
 fn log_h(score: Matrix) raises -> Matrix:
     var pred = log_link(score)
-    return pred * (1 - pred)
-'''
+    return pred.ele_mul(1 - pred)
+
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np = Python.import_module("numpy")

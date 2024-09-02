@@ -1,5 +1,4 @@
 from sklearn.datasets import make_classification
-from sklearn.model_selection import train_test_split
 import numpy as np
 
 def get_data():
@@ -15,10 +14,5 @@ def get_data():
     # Convert continuous features to discrete features
     # Here, we use binning to simulate discrete feature values
     X_binarized = np.digitize(X, bins=np.linspace(X.min(), X.max(), 5))
-    # Split the dataset into training and test sets
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_binarized, y, 
-        test_size=0.2,
-        random_state=42
-    )
-    return [X_train, X_test, y_train, y_test]
+
+    return [X_binarized, y]

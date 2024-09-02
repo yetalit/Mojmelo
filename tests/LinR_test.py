@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
 from sklearn import datasets
 
 def get_data():
@@ -7,10 +6,7 @@ def get_data():
         n_samples=100, n_features=1, noise=20, random_state=4
     )
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=1234
-    )
-    return [X, X_train, X_test, y_train, y_test]
+    return [X, y]
 
 def test(X, X_train, X_test, y_train, y_test, y_pred_line):
     cmap = plt.get_cmap("viridis")

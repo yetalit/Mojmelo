@@ -3,6 +3,7 @@ from collections.vector import InlinedFixedVector
 import math
 from mojmelo.utils.utils import cov_value, gauss_jordan
 from python import Python
+import time
 
 struct Matrix:
     var height: Int
@@ -27,6 +28,25 @@ struct Matrix:
         var rng: Int = len(def_input)
         for i in range(rng):
             self.data[i] = atof(str(def_input[i]))
+
+    fn __init__(inout self, npstyle: String) raises:
+        var mat = npstyle.replace(' ', '')
+        if mat[0] == '[' and mat[1] == '[' and mat[len(mat) - 1] == ']' and mat[len(mat) - 2] == ']':
+            self.width = 0
+            self.size = 0
+            self.data = Pointer[Float32]()
+            var rows = mat[:-1].split(']')
+            self.height = len(rows) - 1
+            for i in range(self.height):
+                var values = rows[i][2:].split(',')
+                if i == 0:
+                    self.width = len(values)
+                    self.size = self.height * self.width
+                    self.data = Pointer[Float32].alloc(self.size)
+                for j in range(self.width):
+                    self.data[i * self.width + j] = atof(values[j])
+        else:
+            raise Error('Error: Matrix is not initialized in the correct form!')
             
     fn __copyinit__(inout self, other: Self):
         self.height = other.height
@@ -328,10 +348,17 @@ struct Matrix:
     fn __ipow__(inout self, rhs: Int):
         self = self ** rhs
 
-    fn ele_mul(self, rhs: Self) raises -> Self:
-        var mat = Self(rhs.height, rhs.width)
-        for i in range(rhs.size):
-            mat.data[i] = self.data[i % self.size] * rhs.data[i]
+    fn ele_mul(self, rhs: Self) -> Self:
+        var mat = Self(0, 0)
+        if self.height == rhs.height:
+            var width = max(self.width, rhs.width)
+            mat = Self(self.height, width)
+            for i in range(mat.size):
+                mat.data[i] = self.data[int(i / width) * self.width + (i % self.width)] * rhs.data[int(i / width) * rhs.width + (i % rhs.width)]
+        elif self.width == rhs.width:
+            mat = Self(max(self.height, rhs.height), self.width)
+            for i in range(mat.size):
+                mat.data[i] = self.data[(int(i / self.width) % self.height) * self.width + (i % self.width)] * rhs.data[(int(i / rhs.width) % rhs.height) * rhs.width + (i % rhs.width)]
         return mat^
 
     fn where(self, cmp: InlinedFixedVector[Bool], _true: Float32, _false: Float32) -> Matrix:
@@ -406,12 +433,6 @@ struct Matrix:
             res += self.data[i]
         return res
 
-    fn sum64(self) -> Float64:
-        var res: Float64 = 0.0
-        for i in range(self.size):
-            res += self.data[i].cast[DType.float64]()
-        return res
-
     fn sum(self, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
@@ -427,18 +448,21 @@ struct Matrix:
     fn mean(self) -> Float32:
         return self.sum() / self.size
 
-    fn mean64(self) -> Float64:
-        var res: Float64 = 0.0
-        for i in range(self.size):
-            res += self.data[i].cast[DType.float64]() / self.size
-        return res
-
     fn mean(self, axis: Int) raises -> Matrix:
         if axis == 0:
             return self.sum(0) / self.height
         elif axis == 1:
             return self.sum(1) / self.width
         raise Error("Error: Wrong axis value is given!")
+
+    fn mean_slow(self) raises -> Float32:
+        return (self / self.size).sum()
+
+    fn mean_slow0(self) raises -> Matrix:
+        var mat = Matrix(1, self.width)
+        for i in range(self.width):
+            mat.data[i] = self['', i].mean_slow()
+        return mat^
 
     fn _var(self) -> Float32:
         return ((self - self.mean()) ** 2).mean()
@@ -471,10 +495,49 @@ struct Matrix:
         return mat^
 
     fn std(self) -> Float32:
-        return (self - self.mean()).mean()
+        return math.sqrt(self._var())
 
-    fn std(self, _mean: Float32) -> Float32:
-        return (self - _mean).mean()
+    fn std(self, _mean: Float32) raises -> Float32:
+        return math.sqrt(self._var(_mean))
+
+    fn std_slow(self, _mean: Float32) raises -> Float32:
+        return math.sqrt(((self - _mean) ** 2).mean_slow())
+
+    fn std(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].std()
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].std()
+        return mat^
+
+    fn std(self, axis: Int, _mean: Matrix) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].std(_mean.data[i])
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].std(_mean.data[i])
+        return mat^
+
+    fn std_slow(self, axis: Int, _mean: Matrix) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].std_slow(_mean.data[i])
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].std_slow(_mean.data[i])
+        return mat^
 
     fn abs(self) -> Matrix:
         var mat = Matrix(self.height, self.width)
@@ -507,6 +570,18 @@ struct Matrix:
                 i_min = i
         return i_min
 
+    fn argmin(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].argmin()
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].argmin()
+        return mat^
+
     fn argmax(self) -> Int:
         var i_max: Int = 0
         for i in range(1, self.size):
@@ -514,11 +589,47 @@ struct Matrix:
                 i_max = i
         return i_max
 
+    fn argmax(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].argmax()
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].argmax()
+        return mat^
+
     fn min(self) -> Float32:
         return self.data[self.argmin()]
 
+    fn min(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].min()
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].min()
+        return mat^
+
     fn max(self) -> Float32:
         return self.data[self.argmax()]
+
+    fn max(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width)
+            for i in range(self.width):
+                mat.data[i] = self['', i].max()
+        elif axis == 1:
+            mat = Matrix(self.height, 1)
+            for i in range(self.height):
+                mat.data[i] = self[i].max()
+        return mat^
 
     fn reshape(self, height: Int, width: Int) -> Matrix:
         var mat: Matrix = self
@@ -543,7 +654,7 @@ struct Matrix:
     fn norm(self) -> Float32:
         var sum: Float32 = 0.0
         for i in range(self.size):
-            sum += self.data[i] * self.data[i]
+            sum += self.data[i] ** 2
         return math.sqrt(sum)
 
     fn qr(self, standard: Bool = False) raises -> Tuple[Matrix, Matrix]:
@@ -742,6 +853,22 @@ struct Matrix:
         return result^
 
     @staticmethod
+    fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) -> List[Int]:
+        random.seed(seed)
+        var cache = Matrix(0, 0)
+        if not replace:
+            cache = Matrix.zeros(1, arang)
+        var result = List[Int](capacity = size)
+        for _ in range(size):
+            var rand_int = int(random.random_ui64(0, arang - 1))
+            if not replace:
+                while cache.data[rand_int] == 1.0:
+                    rand_int = int(random.random_ui64(0, arang - 1))
+                cache.data[rand_int] = 1.0
+            result.append(rand_int)
+        return result^
+
+    @staticmethod
     fn from_numpy(np_arr: PythonObject) raises -> Matrix:
         var mat: Matrix
         var height: Int = int(np_arr.shape[0])
@@ -794,6 +921,4 @@ struct Matrix:
             res += "[" + strings[i] + "]"
             if i != self.height - 1:
                 res += "\n"
-            else:
-                res += "]"
-        return res^
+        return res + "]"

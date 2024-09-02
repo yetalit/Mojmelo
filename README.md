@@ -35,6 +35,7 @@ Here is the list of the algorithms:
     2. MultinomialNB
 * Decision Tree (both Regression/Classification)
 * Random Forest (both Regression/Classification)
+* GBDT (both Regression/Classification)
 * PCA
 * LDA
 * Adaboost

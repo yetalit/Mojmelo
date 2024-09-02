@@ -40,7 +40,7 @@ struct RandomForest:
             self.trees.free()
 
     fn fit(inout self, X: Matrix, y: Matrix) raises:
-        self.trees = UnsafePointer[DecisionTree]().alloc(self.n_trees)
+        self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
         for i in range(self.n_trees):
             var tree = DecisionTree(
                 min_samples_split = self.min_samples_split,
@@ -52,7 +52,7 @@ struct RandomForest:
             var y_samp: Matrix
             X_samp, y_samp = bootstrap_sample(X, y)
             tree.fit(X_samp, y_samp)
-            self.trees[i] = tree^
+            self.trees[i]._moveinit_(tree)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var tree_preds = Matrix(X.height, self.n_trees)
