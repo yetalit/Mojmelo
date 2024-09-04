@@ -36,7 +36,10 @@ struct Adaboost:
         self.n_clf = n_clf
         self.clfs = List[DecisionStump]()
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(inout self, X: Matrix, y: Matrix, class_zero: Bool = False) raises:
+        if class_zero:
+            self.fit(X, y.where(y <= 0.0, -1.0, 1.0))
+            return
         # Initialize weights to 1/N
         var w = Matrix.full(X.height, 1, (1 / X.height))
 

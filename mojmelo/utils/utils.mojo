@@ -196,7 +196,9 @@ fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
-fn accuracy_score(y: Matrix, y_pred: Matrix) -> Float16:
+fn accuracy_score(y: Matrix, y_pred: Matrix, zero_to_negone: Bool = False) -> Float16:
+    if zero_to_negone:
+        return accuracy_score(y.where(y <= 0.0, -1.0, 1.0), y_pred)
     var correct_count = 0
     for i in range(y.size):
         if y.data[i] == y_pred.data[i]:

@@ -5,7 +5,7 @@ import numpy as np
 def get_data():
     X, y = make_blobs(n_samples=200, centers=2,random_state=0, cluster_std=0.60)
 
-    return [X, np.where(y <= 0, -1, 1)]
+    return [X, y]
 
 def test(X, y, w, b):
 

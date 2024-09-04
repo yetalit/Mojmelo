@@ -10,7 +10,7 @@ def main():
     data = svmd_test.get_data() # X, y
     X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[1]).T(), test_size=0.2, random_state=1234)
     svmd = SVM_Dual(kernel = 'rbf')
-    svmd.fit(X_train, y_train)
+    svmd.fit(X_train, y_train, class_zero = True)
     y_pred = svmd.predict(X_test)
-    print("SVM_Primal classification accuracy:", accuracy_score(y_test, y_pred))
+    print("SVM_Primal classification accuracy:", accuracy_score(y_test, y_pred, zero_to_negone = True))
     svmd_test.test(X_train.to_numpy(), y_train.T().to_numpy(), svmd.alpha.T().to_numpy(), svmd.sigma, svmd.bias)

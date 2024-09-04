@@ -17,7 +17,7 @@ struct SVM_Primal:
 
     fn fit(inout self, X: Matrix, y: Matrix, class_zero: Bool = False) raises:
         if class_zero:
-            self.fit(X, y.where(y <= 0, -1.0, 1.0))
+            self.fit(X, y.where(y <= 0.0, -1.0, 1.0))
             return
 
         self.weights = Matrix.zeros(X.width, 1)
@@ -70,7 +70,7 @@ struct SVM_Dual:
     fn fit(inout self, X: Matrix, y: Matrix, class_zero: Bool = False) raises:
         self.X = X
         if class_zero:
-            self.y = y.where(y <= 0, -1.0, 1.0)
+            self.y = y.where(y <= 0.0, -1.0, 1.0)
         else:
             self.y = y
         self.alpha = Matrix.random(X.height, 1)

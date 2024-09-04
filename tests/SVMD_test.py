@@ -5,7 +5,7 @@ import numpy as np
 def get_data():
     X, y = make_moons(n_samples=200, noise=.05)
 
-    return [X, np.where(y <= 0, -1, 1)]
+    return [X, y]
 
 def test(X, y, alpha, sigma, b):
     def gaussian_kernal(sigma, _X,Z):
