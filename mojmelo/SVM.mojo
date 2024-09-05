@@ -25,7 +25,7 @@ struct SVM_Primal:
 
         for _ in range(self.n_iters):
             for i in range(X.height):
-                if y.data[i] * sign(X[i] * self.weights - self.bias)[0, 0] >= 1:
+                if y.data[i] * ((X[i] * self.weights)[0, 0] - self.bias) >= 1:
                     self.weights -= self.lr * (2 * self.lambda_param * self.weights)
                 else:
                     self.weights -= self.lr * (

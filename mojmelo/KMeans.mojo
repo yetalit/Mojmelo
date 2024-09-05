@@ -4,13 +4,17 @@ from mojmelo.utils.utils import euclidean_distance
 struct KMeans:
     var K: Int
     var max_iters: Int
+    var tol: Float32
+    var seed: Int
     var clusters: List[List[Int]]
     var centroids: Matrix
     var X: Matrix
 
-    fn __init__(inout self, K: Int = 5, max_iters: Int = 100):
+    fn __init__(inout self, K: Int = 5, max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
         self.K = K
         self.max_iters = max_iters
+        self.tol = tol
+        self.seed = random_state
 
         # list of sample indices for each cluster
         self.clusters = List[List[Int]](capacity = 0)
@@ -22,7 +26,7 @@ struct KMeans:
         self.X = X
 
         # initialize
-        self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False)]
+        self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = self.seed)]
 
         # Optimize clusters
         for _ in range(self.max_iters):
@@ -78,7 +82,7 @@ struct KMeans:
         var distances = Matrix(self.K, 1)
         for i in range(self.K):
             distances.data[i] = euclidean_distance(centroids_old[i], centroids[i])
-        return distances.sum() == 0
+        return distances.sum() <= self.tol
 
     fn get_clusters_data(self) -> Tuple[Matrix, Matrix]:
         var row_counts = Matrix(1, len(self.clusters))
