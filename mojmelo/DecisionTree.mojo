@@ -29,7 +29,7 @@ struct Node:
 @value
 struct DecisionTree:
     var criterion: String
-    var loss_func: fn(Matrix) -> Float64
+    var loss_func: fn(Matrix) -> Float32
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
@@ -47,17 +47,6 @@ struct DecisionTree:
         self.max_depth = max_depth
         self.n_feats = n_feats
         self.root = UnsafePointer[Node]()
-
-    fn _moveinit_(inout self, inout existing: Self):
-        self.criterion = existing.criterion
-        self.loss_func = existing.loss_func
-        self.min_samples_split = existing.min_samples_split
-        self.max_depth = existing.max_depth
-        self.n_feats = existing.n_feats
-        self.root = existing.root
-        existing.criterion = ''
-        existing.min_samples_split = existing.max_depth = existing.n_feats = 0
-        existing.root = UnsafePointer[Node]()
 
     fn __del__(owned self):
         if self.root:
@@ -120,16 +109,15 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
             most_common = k[]
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) -> Float64) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) -> Float32) raises -> Tuple[Int, Float32]:
     var split_idx = feat_idxs[0]
     var split_thresh = X[0, split_idx]
-    var best_gain = -math.inf[DType.float64]()
+    var best_gain = -math.inf[DType.float32]()
     for feat_idx in feat_idxs:
         var X_column = X['', feat_idx[]]
         var thresholds = X_column.uniquef()
         for threshold in thresholds:
             var gain = _information_gain(y, X_column, threshold[], loss_func)
-
             if gain > best_gain:
                 best_gain = gain
                 split_idx = feat_idx[]
@@ -137,7 +125,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
 
     return split_idx, split_thresh
 
-fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) -> Float64) raises -> Float64:
+fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) -> Float32) raises -> Float32:
     var parent_loss = loss_func(y)
 
     # generate split

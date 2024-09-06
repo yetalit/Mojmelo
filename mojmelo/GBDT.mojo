@@ -11,14 +11,14 @@ struct GBDT():
 	var max_depth: Int
 	var learning_rate: Float32
 	var reg_lambda: Float32
-	var gamma: Float64
+	var gamma: Float32
 	var trees: UnsafePointer[BDecisionTree]
 	var score_start: Float32
 
 	fn __init__(inout self,
 		criterion: String = 'log',
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,
-		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, gamma: Float64 = 0.0
+		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0
 		):
 		self.criterion = criterion.lower()
 		if self.criterion == 'log':
@@ -49,7 +49,7 @@ struct GBDT():
 		for i in range(self.n_trees):
 			var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma)
 			tree.fit(X, g = self.loss_g(y, score), h = self.loss_h(score))
-			self.trees[i]._moveinit_(tree)
+			initialize_pointee_move(self.trees + i, tree)
 			score += self.learning_rate * self.trees[i].predict(X)
 
 	fn predict(self, X: Matrix) raises -> Matrix:

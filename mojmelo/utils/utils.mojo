@@ -226,26 +226,26 @@ fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float16:
             correct_count += 1
     return correct_count / len(y_pred)
 
-fn entropy(y: Matrix) -> Float64:
+fn entropy(y: Matrix) -> Float32:
     var histogram = y.bincount()
-    var _sum: Float64 = 0
+    var _sum: Float32 = 0.0
     for i in range(histogram.capacity):
-        var p = histogram[i] / y.size
+        var p: Float32 = histogram[i] / y.size
         if p > 0 and p != 1.0:
             _sum += p * math.log2(p)
     return -_sum
 
-fn gini(y: Matrix) -> Float64:
+fn gini(y: Matrix) -> Float32:
     var histogram = y.bincount()
-    var _sum: Float64 = 0
+    var _sum: Float32 = 0.0
     for i in range(histogram.capacity):
         _sum += (histogram[i] / y.size) ** 2
     return 1 - _sum
 
-fn mse_loss(y: Matrix) -> Float64:
+fn mse_loss(y: Matrix) -> Float32:
     if len(y) == 0:
         return 0.0
-    return ((y - y.mean()) ** 2).mean().cast[DType.float64]()
+    return ((y - y.mean()) ** 2).mean()
 
 
 fn mse_link(score: Matrix) -> Matrix:
@@ -256,7 +256,7 @@ fn mse_h(score: Matrix) raises -> Matrix:
     return Matrix.ones(score.height, 1)
 
 fn log_link(score: Matrix) -> Matrix:
-    return 1 / (1 + (-score).exp())
+    return sigmoid(score)
 fn log_g(true: Matrix, score: Matrix) raises -> Matrix:
     return log_link(score) - true
 fn log_h(score: Matrix) raises -> Matrix:
