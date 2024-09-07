@@ -272,7 +272,7 @@ struct Matrix:
             mat.data[i] = self.data[i] - rhs
         return mat^
 
-    fn __rsub__(self, lhs: Float32) raises -> Self:
+    fn __rsub__(self, lhs: Float32) -> Self:
         return -(self - lhs)
 
     fn __isub__(inout self, rhs: Float32):

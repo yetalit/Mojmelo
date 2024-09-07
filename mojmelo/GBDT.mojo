@@ -1,11 +1,11 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import log_link, log_g, log_h, mse_link, mse_g, mse_h
+from mojmelo.utils.utils import sigmoid, log_g, log_h, mse_g, mse_h
 
 struct GBDT():
 	var criterion: String
 	var loss_g: fn(Matrix, Matrix) raises -> Matrix
-	var loss_h: fn(Matrix) raises -> Matrix
+	var loss_h: fn(Matrix) -> Matrix
 	var n_trees: Int
 	var min_samples_split: Int
 	var max_depth: Int
@@ -57,8 +57,6 @@ struct GBDT():
 		for i in range(self.n_trees):
 			score += self.learning_rate * self.trees[i].predict(X)
 		if self.criterion == 'mse':
-			return mse_link(score)
-		score = log_link(score)
-		for i in range(score.size):
-			score.data[i] = 1.0 if score.data[i] > 0.5 else 0.0
-		return score^
+			return score^
+		score = sigmoid(score)
+		return score.where(score > 0.5, 1.0, 0.0)

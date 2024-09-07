@@ -17,6 +17,16 @@ struct BDecisionTree:
         self.gamma = gamma
         self.root = UnsafePointer[Node]()
 
+    fn __moveinit__(inout self, owned existing: Self):
+        self.min_samples_split = existing.min_samples_split
+        self.max_depth = existing.max_depth
+        self.reg_lambda = existing.reg_lambda
+        self.gamma = existing.gamma
+        self.root = existing.root
+        existing.min_samples_split = existing.max_depth = 0
+        existing.reg_lambda = existing.gamma = 0.0
+        existing.root = UnsafePointer[Node]()
+
     fn __del__(owned self):
         if self.root:
             delTree(self.root)

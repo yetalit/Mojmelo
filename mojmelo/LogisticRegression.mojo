@@ -26,7 +26,5 @@ struct LogisticRegression:
             self.bias -= self.lr * ((y_predicted - y).sum() / X.height)
 
     fn predict(self, X: Matrix) raises -> Matrix:
-        var y_predicted: Matrix = sigmoid(X * self.weights + self.bias)
-        for i in range(y_predicted.size):
-            y_predicted.data[i] = 1.0 if y_predicted.data[i] > 0.5 else 0.0
-        return y_predicted^
+        var y_predicted = sigmoid(X * self.weights + self.bias)
+        return y_predicted.where(y_predicted > 0.5, 1.0, 0.0)

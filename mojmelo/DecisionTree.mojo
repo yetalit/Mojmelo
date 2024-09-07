@@ -48,6 +48,17 @@ struct DecisionTree:
         self.n_feats = n_feats
         self.root = UnsafePointer[Node]()
 
+    fn __moveinit__(inout self, owned existing: Self):
+        self.criterion = existing.criterion
+        self.loss_func = existing.loss_func
+        self.min_samples_split = existing.min_samples_split
+        self.max_depth = existing.max_depth
+        self.n_feats = existing.n_feats
+        self.root = existing.root
+        existing.criterion = ''
+        existing.min_samples_split = existing.max_depth = existing.n_feats = 0
+        existing.root = UnsafePointer[Node]()
+
     fn __del__(owned self):
         if self.root:
             delTree(self.root)

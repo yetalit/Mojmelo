@@ -248,19 +248,15 @@ fn mse_loss(y: Matrix) -> Float32:
     return ((y - y.mean()) ** 2).mean()
 
 
-fn mse_link(score: Matrix) -> Matrix:
-    return score
 fn mse_g(true: Matrix, score: Matrix) raises -> Matrix:
     return score - true
-fn mse_h(score: Matrix) raises -> Matrix:
+fn mse_h(score: Matrix) -> Matrix:
     return Matrix.ones(score.height, 1)
 
-fn log_link(score: Matrix) -> Matrix:
-    return sigmoid(score)
 fn log_g(true: Matrix, score: Matrix) raises -> Matrix:
-    return log_link(score) - true
-fn log_h(score: Matrix) raises -> Matrix:
-    var pred = log_link(score)
+    return sigmoid(score) - true
+fn log_h(score: Matrix) -> Matrix:
+    var pred = sigmoid(score)
     return pred.ele_mul(1 - pred)
 
 
