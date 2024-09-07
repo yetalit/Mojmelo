@@ -219,11 +219,11 @@ fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float16:
             correct_count += 1
     return correct_count / y_pred.size
 
-fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float16:
-    var correct_count = 0
+fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
+    var correct_count: Float32 = 0.0
     for i in range(len(y_pred)):
         if str(y[i]) == y_pred[i]:
-            correct_count += 1
+            correct_count += 1.0
     return correct_count / len(y_pred)
 
 fn entropy(y: Matrix) -> Float32:

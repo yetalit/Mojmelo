@@ -11,6 +11,13 @@ struct Matrix:
     var size: Int
     var data: Pointer[Float32]
 
+    fn __init__(inout self, height: Int, width: Int, data: Pointer[Float32]):
+        self.height = height
+        self.width = width
+        self.size = height * width
+        self.data = Pointer[Float32].alloc(self.size)
+        memcpy(self.data, data, self.size)
+
     fn __init__(inout self, height: Int, width: Int, def_input: List[Float32] = List[Float32]()):
         self.height = height
         self.width = width
@@ -870,25 +877,22 @@ struct Matrix:
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject) raises -> Matrix:
-        var mat: Matrix
-        var height: Int = int(np_arr.shape[0])
+        var np_arr_f = np_arr.astype('f')
+        var height = int(np_arr_f.shape[0])
+        var width = 0
         try:
-            mat = Matrix(height, int(np_arr.shape[1]))
-            for i in range(mat.height):
-                for j in range(mat.width):
-                    mat.data[i * mat.width + j] = atof(np_arr[i][j])
+            width = int(np_arr_f.shape[1])
         except:
-            mat = Matrix(1, height)
-            for i in range(mat.size):
-                mat.data[i] = atof(np_arr[i])
+            width = height
+            height = 1
+        var mat = Self(height, width, Pointer[Float32](address = (np_arr_f.__array_interface__['data'][0]).__index__()))
+        _ = (np_arr_f.__array_interface__['data'][0]).__index__()
         return mat^
 
     fn to_numpy(self) raises -> PythonObject:
         var np = Python.import_module("numpy")
-        var np_arr = np.empty((self.height, self.width), dtype='f')
-        for i in range(self.height):
-            for j in range(self.width):
-                np_arr[i][j] = self.data[i * self.width + j]
+        var np_arr = np.empty((self.height,self.width), dtype='f')
+        memcpy(Pointer[Float32](address = (np_arr.__array_interface__['data'][0]).__index__()), self.data, self.size)
         return np_arr^
 
     fn apply_fun[func: fn(Float32) -> Float32](self) -> Self:

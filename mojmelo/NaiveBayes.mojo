@@ -55,12 +55,12 @@ struct GaussianNB:
         return normal_distr(x, self._mean[class_idx], self._var[class_idx])
 
 struct MultinomialNB:
-    var _alpha: Int
+    var _alpha: Float32
     var _classes: List[String]
     var _class_probs: Matrix
     var _priors: InlinedFixedVector[Float32]
 
-    fn __init__(inout self, alpha: Int = 0):
+    fn __init__(inout self, alpha: Float32 = 0.0):
         self._alpha = alpha
         self._classes = List[String]()
         self._class_probs = Matrix(0, 0)
@@ -88,17 +88,10 @@ struct MultinomialNB:
             y_pred.append(self._predict(X[i]))
         return y_pred^
 
-    fn _predict(self, x: Matrix) -> String:
+    fn _predict(self, x: Matrix) raises -> String:
         var posteriors = Matrix(1, len(self._classes))
         # calculate posterior probability for each class
         for i in range(len(self._classes)):
-            posteriors.data[i] = self._priors[i] * self._pdf(i, x)
+            posteriors.data[i] = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum()
         # return class with highest posterior probability
         return self._classes[posteriors.argmax()]
-
-    # Probability Density Function
-    fn _pdf(self, class_idx: Int, x: Matrix) -> Float32:
-        var result: Float32 = 1.0
-        for i in range(x.width):
-            result *= self._class_probs.data[(class_idx * self._class_probs.width) + i] ** x.data[i]
-        return result
