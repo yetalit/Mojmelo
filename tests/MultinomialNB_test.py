@@ -1,18 +1,9 @@
-from sklearn.datasets import make_classification
-import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
 
 def get_data():
-    # Generate a dataset with continuous features
-    X, y = make_classification(
-        n_samples=1000,
-        n_features=10,
-        n_classes=3,
-        n_clusters_per_class=1,
-        weights=[0.3, 0.4, 0.3],
-        random_state=42
-    )
-    # Convert continuous features to discrete features
-    # Here, we use binning to simulate discrete feature values
-    X_binarized = np.digitize(X, bins=np.linspace(X.min(), X.max(), 5))
+    # Load the SMS Spam Collection Dataset
+    sms_data = pd.read_csv("spam.csv", encoding='latin-1') # url: https://www.kaggle.com/datasets/uciml/sms-spam-collection-dataset
+    sms_data = sms_data[['v1', 'v2']]
 
-    return [X_binarized, y]
+    return [CountVectorizer().fit_transform(sms_data['v2']).toarray(), sms_data['v1']]

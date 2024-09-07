@@ -23,9 +23,8 @@ struct Matrix:
         self.width = width
         self.size = height * width
         self.data = Pointer[Float32].alloc(self.size)
-        var rng: Int = len(def_input)
-        for i in range(rng):
-            self.data[i] = def_input[i]
+        if len(def_input) > 0:
+            memcpy(self.data, Pointer[Float32](address = def_input.data.address), self.size)
 
     fn __init__(inout self, height: Int, width: Int, def_input: object) raises:
         self.height = height
