@@ -3,7 +3,6 @@ from mojmelo.utils.Matrix import Matrix
 from python import Python
 
 def main():
-    Python.add_to_path(".")
     km_test = Python.import_module("KMeans_test")
     data = km_test.get_data() # X, n_clusters
     k = KMeans(K=data[1], max_iters=150)

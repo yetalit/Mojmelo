@@ -1,4 +1,5 @@
 from collections.vector import InlinedFixedVector
+from utils import Span
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import gt
 
@@ -30,7 +31,7 @@ struct PCA:
         for i in range(eigenvalues.size):
             indices.append(i)
         # sort eigenvectors
-        mojmelo.utils.utils.partition[gt](eigenvalues.data, indices, self.n_components, eigenvalues.size)
+        mojmelo.utils.utils.partition[gt](Span[Float32, __lifetime_of(eigenvalues)](unsafe_ptr= eigenvalues.data, len= eigenvalues.size), indices, self.n_components)
         # store first n eigenvectors
         self.components = Matrix.zeros(self.n_components, eigenvectors.width)
         for i in range(self.n_components):

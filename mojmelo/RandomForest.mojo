@@ -8,7 +8,7 @@ fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
 fn _predict(y: Matrix, criterion: String) raises -> Float32:
     if criterion == 'mse':
         return y.mean()
-    var freq = y.unique(y)
+    var freq = y.unique()
     var max_val: Int = 0
     var most_common: Int = 0
     for k in freq.keys():
@@ -36,7 +36,7 @@ struct RandomForest:
     fn __del__(owned self):
         if self.trees:
             for i in range(self.n_trees):
-                destroy_pointee(self.trees + i)
+                (self.trees + i).destroy_pointee()
             self.trees.free()
 
     fn fit(inout self, X: Matrix, y: Matrix) raises:
@@ -52,7 +52,7 @@ struct RandomForest:
             var y_samp: Matrix
             X_samp, y_samp = bootstrap_sample(X, y)
             tree.fit(X_samp, y_samp)
-            initialize_pointee_move(self.trees + i, tree)
+            (self.trees + i).init_pointee_move(tree)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var tree_preds = Matrix(X.height, self.n_trees)

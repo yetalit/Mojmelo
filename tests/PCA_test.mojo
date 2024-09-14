@@ -3,7 +3,6 @@ from mojmelo.utils.Matrix import Matrix
 from python import Python
 
 def main():
-    Python.add_to_path(".")
     pca_test = Python.import_module("PCA_test")
     data = pca_test.get_data() # X, y
     # Project the data onto the 2 primary principal components

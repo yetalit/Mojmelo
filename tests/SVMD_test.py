@@ -3,7 +3,7 @@ from sklearn.datasets import make_moons
 import numpy as np
 
 def get_data():
-    X, y = make_moons(n_samples=200, noise=.05)
+    X, y = make_moons(n_samples=200, noise=.05, random_state=0)
 
     return [X, y]
 

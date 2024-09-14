@@ -1,4 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
+from mojmelo.utils.utils import unit_step
 
 struct Perceptron:
     var lr: Float32
@@ -26,8 +27,5 @@ struct Perceptron:
                 self.bias += update
 
     fn predict(self, X: Matrix) raises -> Matrix:
-        var y_predicted: Matrix = X * self.weights + self.bias
-        # Unit Step function activation
-        for i in range(y_predicted.size):
-            y_predicted.data[i] = 1.0 if y_predicted.data[i] >= 0.0 else 0.0
-        return y_predicted^
+        # Unit Step as activation
+        return unit_step(X * self.weights + self.bias)

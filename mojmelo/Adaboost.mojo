@@ -41,7 +41,7 @@ struct Adaboost:
             self.fit(X, y.where(y <= 0.0, -1.0, 1.0))
             return
         # Initialize weights to 1/N
-        var w = Matrix.full(X.height, 1, (1 / X.height))
+        var w = Matrix.full(X.height, 1, Float32(1) / X.height)
 
         self.clfs = List[DecisionStump]()
 
@@ -81,7 +81,7 @@ struct Adaboost:
                         min_error = error
 
             # calculate alpha
-            var EPS = 1e-10
+            var EPS: Float32 = 1e-10
             clf.alpha = 0.5 * math.log((1.0 - min_error + EPS) / (min_error + EPS))
 
             # calculate predictions and update weights

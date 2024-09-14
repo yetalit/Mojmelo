@@ -39,7 +39,7 @@ struct GBDT():
 	fn __del__(owned self):
 		if self.trees:
 			for i in range(self.n_trees):
-				destroy_pointee(self.trees + i)
+				(self.trees + i).destroy_pointee()
 			self.trees.free()
 
 	fn fit(inout self, X: Matrix, y: Matrix) raises:
@@ -49,7 +49,7 @@ struct GBDT():
 		for i in range(self.n_trees):
 			var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma)
 			tree.fit(X, g = self.loss_g(y, score), h = self.loss_h(score))
-			initialize_pointee_move(self.trees + i, tree)
+			(self.trees + i).init_pointee_move(tree)
 			score += self.learning_rate * self.trees[i].predict(X)
 
 	fn predict(self, X: Matrix) raises -> Matrix:

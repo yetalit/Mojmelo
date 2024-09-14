@@ -3,7 +3,6 @@ from mojmelo.utils.Matrix import Matrix
 from python import Python
 
 def main():
-    Python.add_to_path(".")
     lda_test = Python.import_module("LDA_test")
     data = lda_test.get_data() # X, y
     # Project the data onto the 2 primary linear discriminants

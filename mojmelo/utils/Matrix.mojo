@@ -1,46 +1,47 @@
-import memory
-from collections.vector import InlinedFixedVector
+from memory import memcpy, memcmp, memset_zero
+from collections import InlinedFixedVector, Dict
 import math
+import random
 from mojmelo.utils.utils import cov_value, gauss_jordan
-from python import Python
+from python import Python, PythonObject
 import time
 
-struct Matrix:
+struct Matrix(Stringable, Formattable):
     var height: Int
     var width: Int
     var size: Int
-    var data: Pointer[Float32]
+    var data: UnsafePointer[Float32]
 
-    fn __init__(inout self, height: Int, width: Int, data: Pointer[Float32]):
+    fn __init__(inout self, height: Int, width: Int, data: UnsafePointer[Float32]):
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = Pointer[Float32].alloc(self.size)
+        self.data = UnsafePointer[Float32].alloc(self.size)
         memcpy(self.data, data, self.size)
 
     fn __init__(inout self, height: Int, width: Int, def_input: List[Float32] = List[Float32]()):
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = Pointer[Float32].alloc(self.size)
+        self.data = UnsafePointer[Float32].alloc(self.size)
         if len(def_input) > 0:
-            memcpy(self.data, Pointer[Float32](address = def_input.data.address), self.size)
+            memcpy(self.data, def_input.data, self.size)
 
     fn __init__(inout self, height: Int, width: Int, def_input: object) raises:
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = Pointer[Float32].alloc(self.size)
+        self.data = UnsafePointer[Float32].alloc(self.size)
         var rng: Int = len(def_input)
         for i in range(rng):
-            self.data[i] = atof(str(def_input[i]))
+            self.data[i] = atof(str(def_input[i])).cast[DType.float32]()
 
     fn __init__(inout self, npstyle: String) raises:
         var mat = npstyle.replace(' ', '')
         if mat[0] == '[' and mat[1] == '[' and mat[len(mat) - 1] == ']' and mat[len(mat) - 2] == ']':
             self.width = 0
             self.size = 0
-            self.data = Pointer[Float32]()
+            self.data = UnsafePointer[Float32]()
             var rows = mat[:-1].split(']')
             self.height = len(rows) - 1
             for i in range(self.height):
@@ -48,9 +49,9 @@ struct Matrix:
                 if i == 0:
                     self.width = len(values)
                     self.size = self.height * self.width
-                    self.data = Pointer[Float32].alloc(self.size)
+                    self.data = UnsafePointer[Float32].alloc(self.size)
                 for j in range(self.width):
-                    self.data[i * self.width + j] = atof(values[j])
+                    self.data[i * self.width + j] = atof(values[j]).cast[DType.float32]()
         else:
             raise Error('Error: Matrix is not initialized in the correct form!')
             
@@ -58,7 +59,7 @@ struct Matrix:
         self.height = other.height
         self.width = other.width
         self.size = other.size
-        self.data = Pointer[Float32].alloc(self.size)
+        self.data = UnsafePointer[Float32].alloc(self.size)
         memcpy(self.data, other.data, self.size)
 
     fn __moveinit__(inout self, owned existing: Self):
@@ -67,7 +68,7 @@ struct Matrix:
         self.size = existing.size
         self.data = existing.data
         existing.height = existing.width = existing.size = 0
-        existing.data = Pointer[Float32]()
+        existing.data = UnsafePointer[Float32]()
 
     fn __getitem__(self, row: Int, column: Int) raises -> Float32:
         var loc: Int = (row * self.width) + column
@@ -163,11 +164,11 @@ struct Matrix:
 
     fn __setitem__(inout self, rows: Matrix, rhs: Matrix) raises:
         for i in range(rows.size):
-            self[rows[i]] = rhs[i]
+            self[int(rows.data[i])] = rhs[i]
 
     fn __setitem__(inout self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
-            self[row, columns[i]] = rhs[row, i]
+            self[row, int(columns.data[i])] = rhs[row, i]
 
     fn __del__(owned self):
         if self.data:
@@ -187,55 +188,37 @@ struct Matrix:
     fn __eq__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
         for i in range(self.size):
-            if self.data[i] == rhs:
-                result[i] = True
-            else:
-                result[i] = False
+            result[i] = self.data[i] == rhs
         return result^
 
     fn __ne__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
         for i in range(self.size):
-            if self.data[i] != rhs:
-                result[i] = True
-            else:
-                result[i] = False
+            result[i] = self.data[i] != rhs
         return result^
 
     fn __gt__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
         for i in range(self.size):
-            if self.data[i] > rhs:
-                result[i] = True
-            else:
-                result[i] = False
+            result[i] = self.data[i] > rhs
         return result^
 
     fn __ge__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
         for i in range(self.size):
-            if self.data[i] == rhs:
-                result[i] = True
-            else:
-                result[i] = False
+            result[i] = self.data[i] >= rhs
         return result^
 
     fn __lt__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
         for i in range(self.size):
-            if self.data[i] < rhs:
-                result[i] = True
-            else:
-                result[i] = False
+            result[i] = self.data[i] < rhs
         return result^
 
     fn __le__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
         for i in range(self.size):
-            if self.data[i] <= rhs:
-                result[i] = True
-            else:
-                result[i] = False
+            result[i] = self.data[i] <= rhs
         return result^
 
     fn __add__(self, rhs: Self) raises -> Self:
@@ -461,7 +444,7 @@ struct Matrix:
             return self.sum(1) / self.width
         raise Error("Error: Wrong axis value is given!")
 
-    fn mean_slow(self) raises -> Float32:
+    fn mean_slow(self) -> Float32:
         return (self / self.size).sum()
 
     fn mean_slow0(self) raises -> Matrix:
@@ -875,8 +858,9 @@ struct Matrix:
         return result^
 
     @staticmethod
-    fn from_numpy(np_arr: PythonObject) raises -> Matrix:
-        var np_arr_f = np_arr.astype('f')
+    fn from_numpy(np_arr: PythonObject, order: String = 'C') raises -> Matrix:
+        var np = Python.import_module("numpy")
+        var np_arr_f = np.array(np_arr, dtype= 'f', order= order)
         var height = int(np_arr_f.shape[0])
         var width = 0
         try:
@@ -884,14 +868,14 @@ struct Matrix:
         except:
             width = height
             height = 1
-        var mat = Self(height, width, Pointer[Float32](address = (np_arr_f.__array_interface__['data'][0]).__index__()))
-        _ = (np_arr_f.__array_interface__['data'][0]).__index__()
+        var mat = Self(height, width, np_arr_f.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32]())
+        _ = np_arr_f.__array_interface__['data'][0].__index__()
         return mat^
 
     fn to_numpy(self) raises -> PythonObject:
         var np = Python.import_module("numpy")
         var np_arr = np.empty((self.height,self.width), dtype='f')
-        memcpy(Pointer[Float32](address = (np_arr.__array_interface__['data'][0]).__index__()), self.data, self.size)
+        memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), self.data, self.size)
         return np_arr^
 
     fn apply_fun[func: fn(Float32) -> Float32](self) -> Self:
@@ -900,7 +884,7 @@ struct Matrix:
             mat.data[i] = func(self.data[i])
         return mat^
 
-    fn __str__(self) -> String:
+    fn format_to(self, inout writer: Formatter):
         var res: String = "["
         var strings = List[String]()
         for i in range(self.width):
@@ -924,4 +908,7 @@ struct Matrix:
             res += "[" + strings[i] + "]"
             if i != self.height - 1:
                 res += "\n"
-        return res + "]"
+        writer.write(res + "]")
+
+    fn __str__(self) -> String:
+        return String.format_sequence(self)

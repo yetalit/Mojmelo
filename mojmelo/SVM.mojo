@@ -73,7 +73,7 @@ struct SVM_Dual:
             self.y = y.where(y <= 0.0, -1.0, 1.0)
         else:
             self.y = y
-        self.alpha = Matrix.random(X.height, 1)
+        self.alpha = Matrix.zeros(X.height, 1)
         self.bias = 0.0
         var ones = Matrix.ones(X.height, 1) 
 

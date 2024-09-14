@@ -1,6 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import gt
 from collections.vector import InlinedFixedVector
+from utils import Span
+from python import PythonObject
 
 struct LDA:
     var n_components: Int
@@ -53,7 +55,7 @@ struct LDA:
         for i in range(v_abs.size):
             indices.append(i)
         # sort eigenvectors
-        mojmelo.utils.utils.partition[gt](v_abs.data, indices, self.n_components, v_abs.size)
+        mojmelo.utils.utils.partition[gt](Span[Float32, __lifetime_of(v_abs)](unsafe_ptr= v_abs.data, len= v_abs.size), indices, self.n_components)
         # store first n eigenvectors
         self.linear_discriminants = Matrix.zeros(self.n_components, eigenvectors.width)
         for i in range(self.n_components):

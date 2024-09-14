@@ -1,8 +1,10 @@
 from collections.vector import InlinedFixedVector
 import math
 from mojmelo.utils.Matrix import Matrix
-from python import Python
-from bit import countl_zero
+from python import Python, PythonObject
+from sys import bitwidthof
+from bit import count_leading_zeros
+from utils import Span
 
 fn eliminate(r1: Matrix, inout r2: Matrix, col: Int, target: Int = 0):
     var fac = (r2.data[col] - target) / r1.data[col]
@@ -47,9 +49,11 @@ fn cov_value(x: Matrix, y: Matrix) -> Float32:
 fn _estimate_initial_height(size: Int) -> Int:
     # Compute the log2 of the size rounded upward.
     var log2 = int(
-        (bitwidthof[DType.index]() - 1) ^ countl_zero(size | 1)
+        (bitwidthof[DType.index]() - 1) ^ count_leading_zeros(size | 1)
     )
-    return max(2, log2)
+    # The number 1.3 was chosen by experimenting the max stack size for random
+    # input. This also depends on insertion_sort_threshold
+    return max(2, int(math.ceil(1.3 * log2)))
 
 @value
 struct _SortWrapper[type: CollectionElement](CollectionElement):
@@ -58,11 +62,18 @@ struct _SortWrapper[type: CollectionElement](CollectionElement):
     fn __init__(inout self, *, other: Self):
         self.data = other.data
 
-@always_inline
-fn _partition[cmp_fn: fn (_SortWrapper[Float32], _SortWrapper[Float32]) capturing -> Bool](array: Pointer[Float32], inout indices: InlinedFixedVector[Int], size: Int) -> Int:
-    if size == 0:
-        return size
 
+@always_inline
+fn _partition[
+    type: CollectionElement,
+    lifetime: MutableLifetime, //,
+    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing -> Bool,
+](span: Span[type, lifetime], inout indices: InlinedFixedVector[Int]) -> Int:
+    var size = len(span)
+    if size <= 1:
+        return 0
+
+    var array = span.unsafe_ptr()
     var pivot = size // 2
 
     var pivot_value = array[pivot]
@@ -86,48 +97,46 @@ fn _partition[cmp_fn: fn (_SortWrapper[Float32], _SortWrapper[Float32]) capturin
         right += 1
     swap(array[size - 1], array[right])
     indices[size - 1], indices[right] = indices[right], indices[size - 1]
-
+    
     return right
 
-fn _partition[cmp_fn: fn (_SortWrapper[Float32], _SortWrapper[Float32]) capturing -> Bool](array: Pointer[Float32], inout indices: InlinedFixedVector[Int], k: Int, size: Int):
-    var stack = List[Int](capacity = _estimate_initial_height(size))
-    stack.append(0)
-    stack.append(size)
-    while len(stack) > 0:
-        var end = stack.pop()
-        var start = stack.pop()
-        var pivot = start + _partition[cmp_fn](array + start, indices, end - start)
+
+fn _partition[
+    type: CollectionElement,
+    lifetime: MutableLifetime, //,
+    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing -> Bool,
+](owned span: Span[type, lifetime], inout indices: InlinedFixedVector[Int], owned k: Int):
+    while True:
+        var pivot = _partition[cmp_fn](span, indices)
         if pivot == k:
-            break
+            return
         elif k < pivot:
-            stack.append(start)
-            stack.append(pivot)
+            span._len = pivot
+            span = span[:pivot]
         else:
-            stack.append(pivot + 1)
-            stack.append(end)
+            span._data += pivot + 1
+            span._len -= pivot + 1
+            k -= pivot + 1
+
 
 fn partition[
-    cmp_fn: fn(Float32, Float32) -> Bool
-](inout array: Pointer[Float32], inout indices: InlinedFixedVector[Int], k: Int, size: Int):
+    lifetime: MutableLifetime, //,
+    cmp_fn: fn (Float32, Float32) capturing -> Bool,
+](span: Span[Float32, lifetime], inout indices: InlinedFixedVector[Int], k: Int):
     """Partition the input buffer inplace such that first k elements are the
     largest (or smallest if cmp_fn is < operator) elements.
     The ordering of the first k elements is undefined.
 
     Parameters:
-        cmp_fn: Comparison functor of (Float32, Float32) capturing -> Bool type.
-
-    Args:
-        array: Input buffer.
-        indices: Indices of array elements.
-        k: Index of the partition element.
-        size: The length of the buffer.
+        lifetime: Lifetime of span.
+        cmp_fn: Comparison functor of (type, type) capturing -> Bool type.
     """
 
     @parameter
     fn _cmp_fn(lhs: _SortWrapper[Float32], rhs: _SortWrapper[Float32]) -> Bool:
         return cmp_fn(lhs.data, rhs.data)
 
-    _partition[_cmp_fn](array, indices, k, size)
+    _partition[_cmp_fn](span, indices, k)
 
 # ===----------------------------------------------------------------------===#
 
@@ -137,31 +146,23 @@ fn euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
 fn manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return (x1 - x2).abs().sum()
 
-fn lt(lhs: Float32, rhs:Float32) -> Bool:
-    if lhs < rhs:
-        return True
-    return False
+fn lt(lhs: Float32, rhs:Float32) capturing -> Bool:
+    return lhs < rhs
 
-fn le(lhs: Float32, rhs:Float32) -> Bool:
-    if lhs <= rhs:
-        return True
-    return False
+fn le(lhs: Float32, rhs:Float32) capturing -> Bool:
+    return lhs <= rhs
 
-fn gt(lhs: Float32, rhs:Float32) -> Bool:
-    if lhs > rhs:
-        return True
-    return False
+fn gt(lhs: Float32, rhs:Float32) capturing -> Bool:
+    return lhs > rhs
 
-fn ge(lhs: Float32, rhs:Float32) -> Bool:
-    if lhs >= rhs:
-        return True
-    return False
+fn ge(lhs: Float32, rhs:Float32) capturing -> Bool:
+    return lhs >= rhs
 
 fn sigmoid(z: Matrix) -> Matrix:
     return 1 / (1 + (-z).exp())
 
 fn normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
-    return (-((x - mean) ** 2) / (2 * _var)).exp() / (2 * 3.1416 * _var).sqrt()
+    return (-((x - mean) ** 2) / (2 * _var)).exp() / (2 * math.pi * _var).sqrt()
 
 fn unit_step(z: Matrix) -> Matrix:
     return z.where(z >= 0.0, 1.0, 0.0)
@@ -196,27 +197,27 @@ fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
-fn accuracy_score(y: Matrix, y_pred: Matrix, zero_to_negone: Bool = False) -> Float16:
+fn accuracy_score(y: Matrix, y_pred: Matrix, zero_to_negone: Bool = False) -> Float32:
     if zero_to_negone:
         return accuracy_score(y.where(y <= 0.0, -1.0, 1.0), y_pred)
-    var correct_count = 0
+    var correct_count: Float32 = 0.0
     for i in range(y.size):
         if y.data[i] == y_pred.data[i]:
-            correct_count += 1
+            correct_count += 1.0
     return correct_count / y.size
 
-fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float16:
-    var correct_count = 0
+fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
+    var correct_count: Float32 = 0.0
     for i in range(len(y)):
         if y[i] == y_pred[i]:
-            correct_count += 1
+            correct_count += 1.0
     return correct_count / len(y)
 
-fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float16:
-    var correct_count = 0
+fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
+    var correct_count: Float32 = 0.0
     for i in range(y_pred.size):
         if y[i] == y_pred.data[i]:
-            correct_count += 1
+            correct_count += 1.0
     return correct_count / y_pred.size
 
 fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
@@ -228,18 +229,20 @@ fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
 
 fn entropy(y: Matrix) -> Float32:
     var histogram = y.bincount()
+    var size = Float32(y.size)
     var _sum: Float32 = 0.0
     for i in range(histogram.capacity):
-        var p: Float32 = histogram[i] / y.size
+        var p: Float32 = histogram[i] / size
         if p > 0 and p != 1.0:
             _sum += p * math.log2(p)
     return -_sum
 
 fn gini(y: Matrix) -> Float32:
     var histogram = y.bincount()
+    var size = Float32(y.size)
     var _sum: Float32 = 0.0
     for i in range(histogram.capacity):
-        _sum += (histogram[i] / y.size) ** 2
+        _sum += (histogram[i] / size) ** 2
     return 1 - _sum
 
 fn mse_loss(y: Matrix) -> Float32:
@@ -266,9 +269,3 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
     for i in range(len(list)):
         np_arr[i] = list[i]
     return np_arr^
-
-fn l_print(list: List[String]):
-    var res: String = "["
-    for i in range(len(list)):
-        res += " " + list[i]
-    print(res + " ]")

@@ -5,7 +5,6 @@ from mojmelo.utils.utils import accuracy_score
 from python import Python
 
 def main():
-    Python.add_to_path(".")
     knn_test = Python.import_module("load_iris")
     data = knn_test.get_data() # X, y
     X_train, X_test, y_ = train_test_split(Matrix.from_numpy(data[0]), data[1], test_size=0.2, random_state=1234)

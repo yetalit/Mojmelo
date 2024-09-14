@@ -5,7 +5,6 @@ from mojmelo.utils.utils import mse, r2_score
 from python import Python
 
 def main():
-    Python.add_to_path(".")
     pr_test = Python.import_module("PolyR_test")
     data = pr_test.get_data() # X, y
     X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]).T(), Matrix.from_numpy(data[1]).T(), test_size=0.2, random_state=1234)

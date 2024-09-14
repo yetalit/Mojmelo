@@ -1,5 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import entropy, gini, mse_loss
+from collections import Dict
 import math
 
 struct Node:
@@ -81,7 +82,7 @@ struct DecisionTree:
             freqf = y.uniquef()
             unique_targets = len(freqf)
         else:
-            freq = y.unique(y)
+            freq = y.unique()
             unique_targets = len(freq)
 
         var new_node = UnsafePointer[Node].alloc(1)
@@ -148,7 +149,7 @@ fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_fu
         return 0.0
 
     # compute the weighted avg. of the loss for the children
-    var child_loss = (len(left_idxs) / y.size) * loss_func(y[left_idxs]) + (len(right_idxs) / y.size) * loss_func(y[right_idxs])
+    var child_loss = (len(left_idxs) / Float32(y.size)) * loss_func(y[left_idxs]) + (len(right_idxs) / Float32(y.size)) * loss_func(y[right_idxs])
     # information gain is difference in loss before vs. after split
     return parent_loss - child_loss
 

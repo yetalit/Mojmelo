@@ -1,6 +1,8 @@
-from collections.vector import InlinedFixedVector
+from collections import InlinedFixedVector, Dict
+from utils import Span
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import euclidean_distance, manhattan_distance, le
+from python import PythonObject
 
 struct KNN:
     var k: Int
@@ -35,12 +37,12 @@ struct KNN:
             dis_indices.append(i)
             distances.data[i] = self.distance(x, self.X_train[i])
         # Sort distances such that first k elements are the smallest
-        mojmelo.utils.utils.partition[le](distances.data, dis_indices, self.k, distances.size)
+        mojmelo.utils.utils.partition[le](Span[Float32, __lifetime_of(distances)](unsafe_ptr= distances.data, len= distances.size), dis_indices, self.k)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[String, Int]()
-        var most_common: String = self.y_train[dis_indices[0]]
+        var most_common: String = str(self.y_train[dis_indices[0]])
         for i in range(self.k):
-            var label: String = self.y_train[dis_indices[i]]
+            var label: String = str(self.y_train[dis_indices[i]])
             if label in k_neighbor_votes:
                 k_neighbor_votes[label] += 1
             else:

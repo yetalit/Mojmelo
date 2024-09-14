@@ -2,6 +2,7 @@ from collections.vector import InlinedFixedVector
 import math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import normal_distr
+from python import PythonObject
 
 struct GaussianNB:
     var _classes: List[String]
@@ -76,7 +77,7 @@ struct MultinomialNB:
         self._priors = InlinedFixedVector[Float32](capacity = len(self._classes))
 
         for i in range(X.height):
-            self._class_probs[self._classes.index(y[i])] += X[i]
+            self._class_probs[self._classes.index(str(y[i]))] += X[i]
         for i in range(len(self._classes)):
             var c_histogram = self._class_probs[i] + self._alpha
             self._class_probs[i] = c_histogram / c_histogram.sum()
