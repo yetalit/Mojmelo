@@ -3,21 +3,17 @@ from python import Python, PythonObject
 import time
 
 fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
-    var z = Matrix(data.height, data.width)
+    var z = Matrix(data.height, data.width, order= data.order)
     var values = Matrix(data.height, 1)
     if norm.lower() == 'l1':
         if data.height == 1 or data.width == 1:
-            var val = data.abs().sum()
-            for i in range(values.height):
-                values.data[i] = val
+            values.fill(data.abs().sum())
         else:
             for i in range(values.height):
                 values.data[i] = data[i].abs().sum()
     else:
         if data.height == 1 or data.width == 1:
-            var val = data.norm()
-            for i in range(values.height):
-                values.data[i] = val
+            values.fill(data.norm())
         else:
             for i in range(values.height):
                 values.data[i] = data[i].norm()
@@ -26,25 +22,21 @@ fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
         if values.data[i] != 0.0:
             z[i] = data[i] / values.data[i]
         else:
-            z[i] = Matrix.zeros(1, z.width)
+            z[i].fill(0.0)
 
     return z^, values^
 
 fn normalize(data: Matrix, values: Matrix, norm: String = 'l2') raises -> Matrix:
-    var z = Matrix(data.height, data.width)
+    var z = Matrix(data.height, data.width, order= data.order)
     if norm.lower() == 'l1':
         if data.height == 1 or data.width == 1:
-            var val = data.abs().sum()
-            for i in range(values.height):
-                values.data[i] = val
+            values.fill(data.abs().sum())
         else:
             for i in range(values.height):
                 values.data[i] = data[i].abs().sum()
     else:
         if data.height == 1 or data.width == 1:
-            var val = data.norm()
-            for i in range(values.height):
-                values.data[i] = val
+            values.fill(data.norm())
         else:
             for i in range(values.height):
                 values.data[i] = data[i].norm()
@@ -53,74 +45,41 @@ fn normalize(data: Matrix, values: Matrix, norm: String = 'l2') raises -> Matrix
         if values.data[i] != 0.0:
             z[i] = data[i] / values.data[i]
         else:
-            z[i] = Matrix.zeros(1, z.width)
+            z[i].fill(0.0)
 
     return z^
 
 fn inv_normalize(z: Matrix, values: Matrix) raises -> Matrix:
-    var data = Matrix(z.height, z.width)
-    for i in range(data.height):
-        data[i] *= values.data[i]
-    return data^
+    return z.ele_mul(values)
 
 fn MinMaxScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
     var x_min = data.min(0)
     var x_max = data.max(0)
-    var x = Matrix(data.height, data.width)
     # normalize data
     var div = x_max - x_min
-    for i in range(x.width):
-        if div.data[i] != 0.0:
-            x['', i] = (data['', i] - x_min.data[i]) / div.data[i]
-        else:
-            x['', i] = data['', i]
-    return x^, x_min^, x_max^
+    return (data - x_min) / div.where(div == 0.0, 1.0, div), x_min^, x_max^
 
 fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix) raises -> Matrix:
-    var x = Matrix(data.height, data.width)
     # normalize data
     var div = x_max - x_min
-    for i in range(x.width):
-        if div.data[i] != 0.0:
-            x['', i] = (data['', i] - x_min.data[i]) / div.data[i]
-        else:
-            x['', i] = data['', i]
-    return x^
+    return (data - x_min) / div.where(div == 0.0, 1.0, div)
 
 fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix) raises -> Matrix:
     var div = x_max - x_min
-    var mat = z.ele_mul(div.where(div == 0.0, 1.0, div))
-    for i in range(mat.width):
-        mat['', i] += x_min.data[i]
-    return mat^
+    return z.ele_mul(div.where(div == 0.0, 1.0, div)) + x_min
 
 fn StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
     var mu = data.mean_slow0()
     var sigma = data.std_slow(0, mu)
-    var x = Matrix(data.height, data.width)
     # standardize data
-    for i in range(x.width):
-        if sigma.data[i] != 0.0:
-            x['', i] = (data['', i] - mu.data[i]) / sigma.data[i]
-        else:
-            x['', i] = data['', i]
-    return x^, mu^, sigma^
+    return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma), mu^, sigma^
 
 fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
-    var x = Matrix(data.height, data.width)
     # standardize data
-    for i in range(x.width):
-        if sigma.data[i] != 0.0:
-            x['', i] = (data['', i] - mu.data[i]) / sigma.data[i]
-        else:
-            x['', i] = data['', i]
-    return x^
+    return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma)
 
 fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
-    var mat = z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma))
-    for i in range(mat.width):
-        mat['', i] += mu.data[i]
-    return mat^
+    return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
 fn train_test_split(X: Matrix, y: Matrix, test_size: Float16 = 0.5, random_state: Int = time.perf_counter_ns()) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     var ids = Matrix.rand_choice(X.height, X.height, False, random_state)

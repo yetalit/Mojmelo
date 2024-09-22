@@ -185,7 +185,7 @@ fn unit_step(z: Matrix) -> Matrix:
 
 @always_inline
 fn sign(z: Matrix) -> Matrix:
-    var mat = Matrix(z.height, z.width)
+    var mat = Matrix(z.height, z.width, order= z.order)
     for i in range(mat.size):
         if z.data[i] > 0.0:
             mat.data[i] = 1.0

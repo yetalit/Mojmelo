@@ -377,7 +377,7 @@ struct Matrix(Stringable, Formattable):
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
                 return self._elemwise_matrix[add](rhs)
-            print("WARN: Inefficient matrix adding!")
+            print("WARN: Inefficient matrix addition!")
             return self._elemwise_matrix[add](rhs.asorder(self.order))
         raise Error("Error: Cannot add matrices with different shapes!")
 
@@ -438,7 +438,7 @@ struct Matrix(Stringable, Formattable):
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
                 return self._elemwise_matrix[sub](rhs)
-            print("WARN: Inefficient matrix subtracting!")
+            print("WARN: Inefficient matrix subtraction!")
             return self._elemwise_matrix[sub](rhs.asorder(self.order))
         raise Error("Error: Cannot subtract matrices with different shapes!")
 
@@ -995,7 +995,7 @@ struct Matrix(Stringable, Formattable):
             Q = Q * H
             R = H * R
 
-        if standard == True:  # A must be square
+        if standard:  # A must be square
             var S = Matrix.zeros(self.width, self.width, order= self.order)  # signs of diagonal
             for i in range(self.width):
                 if R[i, i] < 0.0:
@@ -1028,7 +1028,7 @@ struct Matrix(Stringable, Formattable):
             X = R * Q
             ct += 1
 
-            if X.is_upper_tri(1.0e-8) == True:
+            if X.is_upper_tri(1.0e-8):
                 break
 
         if ct == max_ct:
@@ -1153,8 +1153,12 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn full(height: Int, width: Int, val: Float32, order: String = 'c') -> Matrix:
         var mat = Matrix(height, width, order= order.lower())
-        Buffer[DType.float32](mat.data, mat.size).fill(val)
+        mat.fill(val)
         return mat^
+
+    @always_inline
+    fn fill(self, val: Float32):
+        Buffer[DType.float32](self.data, self.size).fill(val)
 
     @staticmethod
     @always_inline
