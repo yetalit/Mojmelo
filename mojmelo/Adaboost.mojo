@@ -9,12 +9,15 @@ struct DecisionStump:
     var feature_idx: Int
     var threshold: Float32
     var alpha: Float32
+
+    @always_inline
     fn __init__(inout self):
         self.polarity = 1
         self.feature_idx = -1
         self.threshold = -math.inf[DType.float32]()
         self.alpha = 0.0
 
+    @always_inline
     fn predict(self, X: Matrix) raises -> Matrix:
         var X_column = X['', self.feature_idx]
         var predictions = Matrix.ones(X.height, 1)

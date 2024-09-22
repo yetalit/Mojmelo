@@ -29,6 +29,7 @@ struct KNN:
             y_pred.append(self._predict(X[i]))
         return y_pred^
 
+    @always_inline
     fn _predict(self, x: Matrix) raises -> String:
         var distances = Matrix(1, self.X_train.height)
         var dis_indices = InlinedFixedVector[Int](capacity = distances.size)

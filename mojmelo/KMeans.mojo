@@ -1,5 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import euclidean_distance
+import random
+import math
 
 struct KMeans:
     var K: Int
@@ -25,8 +27,8 @@ struct KMeans:
     fn predict(inout self, X: Matrix) raises -> Matrix:
         self.X = X
 
-        # initialize
-        self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = self.seed)]
+        # Initialize centroids using KMeans++
+        self._kmeans_plus_plus()
 
         # Optimize clusters
         for _ in range(self.max_iters):
@@ -43,7 +45,32 @@ struct KMeans:
 
         # Classify samples as the index of their clusters
         return self._get_cluster_labels(self.clusters)
+        
+    fn _kmeans_plus_plus(inout self) raises:
+        # Randomly select the first centroid
+        random.seed(self.seed)
+        self.centroids = Matrix(self.K, self.X.width)
+        self.centroids[0] = self.X[int(random.random_ui64(0, self.X.height - 1))]
 
+        for i in range(1, self.K):
+            var distances = Matrix(self.X.height, 1)
+            # Compute distances to the nearest centroid
+            for idx in range(self.X.height):
+                var min_distance = math.inf[DType.float32]()
+                for idc in range(i): # Only consider the centroids that have been initialized
+                    var distance = euclidean_distance(self.X[idx], self.centroids[idc])
+                    if distance < min_distance:
+                        min_distance = distance
+                distances.data[idx] = min_distance
+            # Select the next centroid with probability proportional to the squared distances
+            var probabilities = (distances / distances.sum()).cumsum()
+            # Select the next centroid based on cumulative probabilities
+            for idp in range(len(probabilities)):
+                if random.random_float64().cast[DType.float32]() < probabilities.data[idp]:
+                    self.centroids[i] = self.X[idp]
+                    break
+
+    @always_inline
     fn _get_cluster_labels(self, clusters: List[List[Int]]) -> Matrix:
         # each sample will get the label of the cluster it was assigned to
         var labels = Matrix(self.X.height, 1)
@@ -53,6 +80,7 @@ struct KMeans:
                 labels.data[sample_index[]] = cluster_idx
         return labels
 
+    @always_inline
     fn _create_clusters(self) raises -> List[List[Int]]:
         # Assign the samples to the closest centroids to create clusters
         var clusters = List[List[Int]](capacity = self.K)
@@ -63,6 +91,7 @@ struct KMeans:
             clusters[self._closest_centroid(self.X[idx], self.centroids)].append(idx)
         return clusters
 
+    @always_inline
     fn _closest_centroid(self, sample: Matrix, centroids: Matrix) raises -> Int:
         # distance of the current sample to each centroid
         var distances = Matrix(centroids.height, 1)
@@ -70,6 +99,7 @@ struct KMeans:
             distances.data[i] = euclidean_distance(sample, centroids[i])
         return distances.argmin()
 
+    @always_inline
     fn _get_centroids(self, clusters: List[List[Int]]) raises -> Matrix:
         # assign mean value of clusters to centroids
         var centroids = Matrix.zeros(self.K, self.X.width)
@@ -77,6 +107,7 @@ struct KMeans:
             centroids[cluster_idx] = (self.X[clusters[cluster_idx]]).mean(0)
         return centroids
 
+    @always_inline
     fn _is_converged(self, centroids_old: Matrix, centroids: Matrix) raises -> Bool:
         # distances between each old and new centroids, fol all centroids
         var distances = Matrix(self.K, 1)

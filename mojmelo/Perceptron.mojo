@@ -26,6 +26,7 @@ struct Perceptron:
                 self.weights += update * X[i].reshape(X.width, 1)
                 self.bias += update
 
+    @always_inline
     fn predict(self, X: Matrix) raises -> Matrix:
         # Unit Step as activation
         return unit_step(X * self.weights + self.bias)

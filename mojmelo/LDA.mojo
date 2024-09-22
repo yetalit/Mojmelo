@@ -7,6 +7,7 @@ from python import PythonObject
 struct LDA:
     var n_components: Int
     var linear_discriminants: Matrix
+
     fn __init__(inout self, n_components: Int):
         self.n_components = n_components
         self.linear_discriminants = Matrix(0, 0)

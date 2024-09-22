@@ -1,6 +1,7 @@
 from mojmelo.DecisionTree import DecisionTree
 from mojmelo.utils.Matrix import Matrix
 
+@always_inline
 fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
     var idxs = Matrix.rand_choice(X.height, X.height, True)
     return X[idxs], y[idxs]

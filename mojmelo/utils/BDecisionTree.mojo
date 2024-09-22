@@ -71,6 +71,7 @@ struct BDecisionTree:
         new_node[] = Node(best_feat, best_thresh, left, right)
         return new_node
 
+@always_inline
 fn leaf_score(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
     '''
     Given the gradient and hessian of a tree leaf,
@@ -79,6 +80,7 @@ fn leaf_score(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
     '''
     return -g.sum() / (h.sum() + reg_lambda)
 
+@always_inline
 fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
     '''
     Given the gradient and hessian of a tree leaf,
@@ -103,6 +105,7 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
 
     return split_idx, split_thresh, best_gain
 
+@always_inline
 fn _information_gain(reg_lambda: Float32, g: Matrix, h: Matrix, X_column: Matrix, split_thresh: Float32) raises -> Float32:
     var parent_loss = leaf_loss(reg_lambda, g, h)
 
@@ -119,6 +122,7 @@ fn _information_gain(reg_lambda: Float32, g: Matrix, h: Matrix, X_column: Matrix
     # information gain is difference in loss before vs. after split
     return parent_loss - child_loss
 
+@always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 

@@ -6,10 +6,10 @@ from sys import bitwidthof
 from bit import count_leading_zeros
 from utils import Span
 
-fn eliminate(r1: Matrix, inout r2: Matrix, col: Int, target: Int = 0):
+@always_inline
+fn eliminate(r1: Matrix, inout r2: Matrix, col: Int, target: Int = 0) raises:
     var fac = (r2.data[col] - target) / r1.data[col]
-    for i in range(r2.size):
-        r2.data[i] -= fac * r1.data[i]
+    r2 -= fac * r1
 
 fn gauss_jordan(owned a: Matrix) raises -> Matrix:
     for i in range(a.height):
@@ -29,17 +29,8 @@ fn gauss_jordan(owned a: Matrix) raises -> Matrix:
         eliminate(a[i], a[i], i, target=1)
     return a^
 
-fn cov_value(x: Matrix, y: Matrix) -> Float32:
-    var mean_x = x.mean()
-    var mean_y = y.mean()
-
-    var sub_x = x - mean_x
-    var sub_y = y - mean_y
-
-    var sum_value: Float32 = 0.0
-    for i in range(x.size):
-        sum_value += sub_y.data[i] * sub_x.data[i]
-    return sum_value / (x.size - 1)
+fn cov_value(x: Matrix, y: Matrix) raises -> Float32:
+    return ((y - y.mean()) * (x - x.mean())).sum() / (x.size - 1)
 
 # ===----------------------------------------------------------------------===#
 # partition
@@ -140,33 +131,59 @@ fn partition[
 
 # ===----------------------------------------------------------------------===#
 
+@always_inline
 fn euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return math.sqrt(((x1 - x2) ** 2).sum())
 
+@always_inline
 fn manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return (x1 - x2).abs().sum()
 
+@always_inline
 fn lt(lhs: Float32, rhs:Float32) capturing -> Bool:
     return lhs < rhs
 
+@always_inline
 fn le(lhs: Float32, rhs:Float32) capturing -> Bool:
     return lhs <= rhs
 
+@always_inline
 fn gt(lhs: Float32, rhs:Float32) capturing -> Bool:
     return lhs > rhs
 
+@always_inline
 fn ge(lhs: Float32, rhs:Float32) capturing -> Bool:
     return lhs >= rhs
 
+@always_inline
+fn add[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+    return a + b
+
+@always_inline
+fn sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+    return a - b
+
+@always_inline
+fn mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+    return a * b
+
+@always_inline
+fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+    return a / b
+
+@always_inline
 fn sigmoid(z: Matrix) -> Matrix:
     return 1 / (1 + (-z).exp())
 
+@always_inline
 fn normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
     return (-((x - mean) ** 2) / (2 * _var)).exp() / (2 * math.pi * _var).sqrt()
 
+@always_inline
 fn unit_step(z: Matrix) -> Matrix:
     return z.where(z >= 0.0, 1.0, 0.0)
 
+@always_inline
 fn sign(z: Matrix) -> Matrix:
     var mat = Matrix(z.height, z.width)
     for i in range(mat.size):
@@ -178,12 +195,15 @@ fn sign(z: Matrix) -> Matrix:
             mat.data[i] = 0.0
     return mat^
 
+@always_inline
 fn ReLu(z: Matrix) -> Matrix:
     return z.where(z > 0.0, z, 0.0)
 
+@always_inline
 fn polynomial_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> Matrix:
     return (params[0] + X * Z.T()) ** params[1] #(c + X.y)^degree
 
+@always_inline
 fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> Matrix:
     var sq_dist = Matrix(X.height, Z.height)
     for i in range(sq_dist.height):  # Loop over each sample in X
@@ -237,6 +257,7 @@ fn entropy(y: Matrix) -> Float32:
             _sum += p * math.log2(p)
     return -_sum
 
+@always_inline
 fn gini(y: Matrix) -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
@@ -245,20 +266,24 @@ fn gini(y: Matrix) -> Float32:
         _sum += (histogram[i] / size) ** 2
     return 1 - _sum
 
+@always_inline
 fn mse_loss(y: Matrix) -> Float32:
     if len(y) == 0:
         return 0.0
     return ((y - y.mean()) ** 2).mean()
 
-
+@always_inline
 fn mse_g(true: Matrix, score: Matrix) raises -> Matrix:
     return score - true
-fn mse_h(score: Matrix) -> Matrix:
+@always_inline
+fn mse_h(score: Matrix) raises -> Matrix:
     return Matrix.ones(score.height, 1)
 
+@always_inline
 fn log_g(true: Matrix, score: Matrix) raises -> Matrix:
     return sigmoid(score) - true
-fn log_h(score: Matrix) -> Matrix:
+@always_inline
+fn log_h(score: Matrix) raises -> Matrix:
     var pred = sigmoid(score)
     return pred.ele_mul(1 - pred)
 

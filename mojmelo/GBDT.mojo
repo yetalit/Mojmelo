@@ -5,7 +5,7 @@ from mojmelo.utils.utils import sigmoid, log_g, log_h, mse_g, mse_h
 struct GBDT():
 	var criterion: String
 	var loss_g: fn(Matrix, Matrix) raises -> Matrix
-	var loss_h: fn(Matrix) -> Matrix
+	var loss_h: fn(Matrix) raises -> Matrix
 	var n_trees: Int
 	var min_samples_split: Int
 	var max_depth: Int

@@ -43,6 +43,7 @@ struct GaussianNB:
             y_pred.append(self._predict(X[i]))
         return y_pred^
 
+    @always_inline
     fn _predict(self, x: Matrix) raises -> String:
         var posteriors = Matrix(1, len(self._classes))
         # calculate posterior probability for each class
@@ -52,6 +53,7 @@ struct GaussianNB:
         return self._classes[posteriors.argmax()]
 
     # Probability Density Function
+    @always_inline
     fn _pdf(self, class_idx: Int, x: Matrix) raises -> Matrix:
         return normal_distr(x, self._mean[class_idx], self._var[class_idx])
 
@@ -89,6 +91,7 @@ struct MultinomialNB:
             y_pred.append(self._predict(X[i]))
         return y_pred^
 
+    @always_inline
     fn _predict(self, x: Matrix) raises -> String:
         var posteriors = Matrix(1, len(self._classes))
         # calculate posterior probability for each class

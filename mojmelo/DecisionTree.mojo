@@ -19,6 +19,7 @@ struct Node:
         self.right = right
         self.value = value
 
+    @always_inline
     fn is_leaf_node(self) -> Bool:
         return self.feature == -1
 
@@ -137,6 +138,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
 
     return split_idx, split_thresh
 
+@always_inline
 fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) -> Float32) raises -> Float32:
     var parent_loss = loss_func(y)
 
@@ -153,6 +155,7 @@ fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_fu
     # information gain is difference in loss before vs. after split
     return parent_loss - child_loss
 
+@always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 
