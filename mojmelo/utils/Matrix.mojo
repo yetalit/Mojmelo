@@ -378,7 +378,7 @@ struct Matrix(Stringable, Formattable):
             if self.order == rhs.order:
                 return self._elemwise_matrix[add](rhs)
             print("WARN: Inefficient matrix adding!")
-            return self + rhs.asorder(self.order)
+            return self._elemwise_matrix[add](rhs.asorder(self.order))
         raise Error("Error: Cannot add matrices with different shapes!")
 
     @always_inline
@@ -439,7 +439,7 @@ struct Matrix(Stringable, Formattable):
             if self.order == rhs.order:
                 return self._elemwise_matrix[sub](rhs)
             print("WARN: Inefficient matrix subtracting!")
-            return self - rhs.asorder(self.order)
+            return self._elemwise_matrix[sub](rhs.asorder(self.order))
         raise Error("Error: Cannot subtract matrices with different shapes!")
 
     @always_inline
@@ -500,7 +500,7 @@ struct Matrix(Stringable, Formattable):
             if self.order == rhs.order:
                 return self._elemwise_matrix[div](rhs)
             print("WARN: Inefficient matrix division!")
-            return self / rhs.asorder(self.order)
+            return self._elemwise_matrix[div](rhs.asorder(self.order))
         raise Error("Error: Cannot divide matrices with different shapes!")
 
     @always_inline
@@ -606,7 +606,7 @@ struct Matrix(Stringable, Formattable):
             if self.order == rhs.order:
                 return self._elemwise_matrix[mul](rhs)
             print("WARN: Inefficient matrix element-wise multiplication!")
-            return self.ele_mul(rhs.asorder(self.order))
+            return self._elemwise_matrix[mul](rhs.asorder(self.order))
         raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
@@ -1036,7 +1036,7 @@ struct Matrix(Stringable, Formattable):
 
         # eigenvalues are diag elements of X
         var e_vals = Matrix.zeros(1, self.height, order= self.order)
-        for i in range(self.size):
+        for i in range(self.height):
             e_vals.data[i] = X[i, i]
 
         # eigenvectors are columns of pq
