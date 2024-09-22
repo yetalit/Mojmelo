@@ -22,7 +22,7 @@ fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
         if values.data[i] != 0.0:
             z[i] = data[i] / values.data[i]
         else:
-            z[i].fill(0.0)
+            z[i].fill_zero()
 
     return z^, values^
 
@@ -45,7 +45,7 @@ fn normalize(data: Matrix, values: Matrix, norm: String = 'l2') raises -> Matrix
         if values.data[i] != 0.0:
             z[i] = data[i] / values.data[i]
         else:
-            z[i].fill(0.0)
+            z[i].fill_zero()
 
     return z^
 

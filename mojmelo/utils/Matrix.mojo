@@ -1157,6 +1157,10 @@ struct Matrix(Stringable, Formattable):
         return mat^
 
     @always_inline
+    fn fill_zero(self):
+        memset_zero(self.data, self.size)
+
+    @always_inline
     fn fill(self, val: Float32):
         Buffer[DType.float32](self.data, self.size).fill(val)
 
