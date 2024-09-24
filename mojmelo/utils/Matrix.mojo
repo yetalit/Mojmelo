@@ -16,7 +16,7 @@ struct Matrix(Stringable, Formattable):
     var size: Int
     var data: UnsafePointer[Float32]
     var order: String
-    alias simd_width: Int = simdwidthof[DType.float32]()
+    alias simd_width: Int = 2 * simdwidthof[DType.float32]()
 
     # initialize from UnsafePointer
     @always_inline
@@ -375,10 +375,7 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[add](mat)
             raise Error("Error: Cannot add matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            if self.order == rhs.order:
-                return self._elemwise_matrix[add](rhs)
-            print("WARN: Inefficient matrix addition!")
-            return self._elemwise_matrix[add](rhs.asorder(self.order))
+            return self._elemwise_matrix[add](rhs)
         raise Error("Error: Cannot add matrices with different shapes!")
 
     @always_inline
@@ -436,10 +433,7 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[sub](mat)
             raise Error("Error: Cannot subtract matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            if self.order == rhs.order:
-                return self._elemwise_matrix[sub](rhs)
-            print("WARN: Inefficient matrix subtraction!")
-            return self._elemwise_matrix[sub](rhs.asorder(self.order))
+            return self._elemwise_matrix[sub](rhs)
         raise Error("Error: Cannot subtract matrices with different shapes!")
 
     @always_inline
@@ -497,10 +491,7 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[div](mat)
             raise Error("Error: Cannot divide matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            if self.order == rhs.order:
-                return self._elemwise_matrix[div](rhs)
-            print("WARN: Inefficient matrix division!")
-            return self._elemwise_matrix[div](rhs.asorder(self.order))
+            return self._elemwise_matrix[div](rhs)
         raise Error("Error: Cannot divide matrices with different shapes!")
 
     @always_inline
@@ -519,13 +510,30 @@ struct Matrix(Stringable, Formattable):
     fn __itruediv__(inout self, rhs: Float32):
         self = self / rhs
 
+    fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]:
+        var loc: Int
+        if self.order == 'c':
+            loc = (y * self.width) + x
+        else:
+            loc = (x * self.height) + y
+        return self.data.load[width=nelts](loc)
+
+    fn store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts]):
+        var loc: Int
+        if self.order == 'c':
+            loc = (y * self.width) + x
+        else:
+            loc = (x * self.height) + y
+        return self.data.store[width=nelts](loc, val)
+
     @always_inline
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + str(self.height) + ', ' + str(self.width) + ') and (' + str(rhs.height) + ', ' + str(rhs.width) + ')')
+        var _rhs = rhs.asorder('f')
         var mat = Self(self.height, rhs.width, order= self.order)
         for i in range(self.height):
-            mat[i] = self[i].reshape(rhs.height, 1).ele_mul(rhs).sum(0)
+            mat[i] = self[i].reshape(rhs.height, 1).ele_mul(_rhs).sum(0)
         return mat^
 
     @always_inline
@@ -603,10 +611,7 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[mul](mat)
             raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            if self.order == rhs.order:
-                return self._elemwise_matrix[mul](rhs)
-            print("WARN: Inefficient matrix element-wise multiplication!")
-            return self._elemwise_matrix[mul](rhs.asorder(self.order))
+            return self._elemwise_matrix[mul](rhs)
         raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
@@ -644,9 +649,9 @@ struct Matrix(Stringable, Formattable):
         var args = List[Float32]()
         for i in range(self.size):
             if cmp[i]:
-                args.append(int(i / self.width))
+                args.append(i // self.width)
                 args.append(i % self.width)
-        return Matrix(int(len(args) / 2), 2, args)
+        return Matrix(len(args) // 2, 2, args)
 
     @always_inline
     fn argwhere_l(self, cmp: InlinedFixedVector[Bool]) -> List[Int]:
@@ -854,7 +859,7 @@ struct Matrix(Stringable, Formattable):
         var index = int(label_mat[0, 0])
         if self.order == 'c':
             return index
-        return (index % self.height) * self.width + int(index / self.height)
+        return (index % self.height) * self.width + index // self.height
 
     @always_inline
     fn argmin(self, axis: Int) raises -> Matrix:
@@ -876,7 +881,7 @@ struct Matrix(Stringable, Formattable):
         var index = int(label_mat[0, 0])
         if self.order == 'c':
             return index
-        return (index % self.height) * self.width + int(index / self.height)
+        return (index % self.height) * self.width + index // self.height
 
     @always_inline
     fn argmax(self, axis: Int) raises -> Matrix:
@@ -1169,7 +1174,7 @@ struct Matrix(Stringable, Formattable):
     fn random(height: Int, width: Int, order: String = 'c') -> Matrix:
         random.seed()
         var mat = Matrix(height, width, order= order.lower())
-        random.rand(mat.data, mat.size)
+        random.rand(mat.data, mat.size, min=0.0, max=1.0)
         return mat^
 
     @staticmethod

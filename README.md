@@ -86,7 +86,7 @@ You can contribute to the project in 3 ways:
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-Inspired from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
+Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
 
 
 [stars-shield]: https://img.shields.io/github/stars/yetalit/mojmelo?style=social
