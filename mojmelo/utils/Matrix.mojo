@@ -375,7 +375,10 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[add](mat)
             raise Error("Error: Cannot add matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            return self._elemwise_matrix[add](rhs)
+            if self.order == rhs.order:
+                return self._elemwise_matrix[add](rhs)
+            print("WARN: Inefficient matrix addition!")
+            return self._elemwise_matrix[add](rhs.asorder(self.order))
         raise Error("Error: Cannot add matrices with different shapes!")
 
     @always_inline
@@ -433,7 +436,10 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[sub](mat)
             raise Error("Error: Cannot subtract matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            return self._elemwise_matrix[sub](rhs)
+            if self.order == rhs.order:
+                return self._elemwise_matrix[sub](rhs)
+            print("WARN: Inefficient matrix subtraction!")
+            return self._elemwise_matrix[sub](rhs.asorder(self.order))
         raise Error("Error: Cannot subtract matrices with different shapes!")
 
     @always_inline
@@ -491,7 +497,10 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[div](mat)
             raise Error("Error: Cannot divide matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            return self._elemwise_matrix[div](rhs)
+            if self.order == rhs.order:
+                return self._elemwise_matrix[div](rhs)
+            print("WARN: Inefficient matrix division!")
+            return self._elemwise_matrix[div](rhs.asorder(self.order))
         raise Error("Error: Cannot divide matrices with different shapes!")
 
     @always_inline
@@ -619,7 +628,10 @@ struct Matrix(Stringable, Formattable):
                 return self._elemwise_matrix[mul](mat)
             raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
-            return self._elemwise_matrix[mul](rhs)
+            if self.order == rhs.order:
+                return self._elemwise_matrix[mul](rhs)
+            print("WARN: Inefficient matrix element-wise multiplication!")
+            return self._elemwise_matrix[mul](rhs.asorder(self.order))
         raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
