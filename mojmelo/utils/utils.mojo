@@ -171,6 +171,14 @@ fn mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -
 fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a / b
 
+fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size: Int) -> SIMD[DType.float32, width]:
+    var simd = SIMD[DType.float32, width](0.0)
+    var point = data + offset
+    var nelts = min(size - offset, width)
+    for i in range(nelts):
+        simd[i] = point[i]
+    return simd
+
 @always_inline
 fn sigmoid(z: Matrix) -> Matrix:
     return 1 / (1 + (-z).exp())
@@ -205,10 +213,10 @@ fn polynomial_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -
 
 @always_inline
 fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> Matrix:
-    var sq_dist = Matrix(X.height, Z.height)
+    var sq_dist = Matrix(X.height, Z.height, order= X.order)
     for i in range(sq_dist.height):  # Loop over each sample in X
         for j in range(sq_dist.width):  # Loop over each sample in Z
-            sq_dist.data[i * sq_dist.width + j] = ((X[i] - Z[j]) ** 2).sum()
+            sq_dist[i, j] = ((X[i] - Z[j]) ** 2).sum()
     return (-sq_dist / (params[0] ** 2)).exp() # e^-(1/ σ2) ||X-y|| ^2
 
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:

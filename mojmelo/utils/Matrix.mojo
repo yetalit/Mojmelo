@@ -6,7 +6,7 @@ from algorithm.reduction import max, min, sum, cumsum, argmin, argmax
 from collections import InlinedFixedVector, Dict
 import math
 import random
-from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
+from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div, partial_simd_load
 from python import Python, PythonObject
 import time
 
@@ -112,7 +112,7 @@ struct Matrix(Stringable, Formattable):
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
             return Matrix(1, self.width, self.data + (row * self.width), self.order)
-        var mat = Matrix(1, self.width, order='f')
+        var mat = Matrix(1, self.width, order= self.order)
         var tmpPtr = self.data + row
         @parameter
         fn convert[simd_width: Int](idx: Int):
@@ -128,7 +128,7 @@ struct Matrix(Stringable, Formattable):
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
             return Matrix(1, self.width - start_i, self.data + (row * self.width) + start_i, self.order)
-        var mat = Matrix(1, self.width - start_i, order='f')
+        var mat = Matrix(1, self.width - start_i, order= self.order)
         var tmpPtr = self.data + row + (start_i * self.height)
         @parameter
         fn convert[simd_width: Int](idx: Int):
@@ -510,6 +510,7 @@ struct Matrix(Stringable, Formattable):
     fn __itruediv__(inout self, rhs: Float32):
         self = self / rhs
 
+    @always_inline
     fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]:
         var loc: Int
         if self.order == 'c':
@@ -518,6 +519,7 @@ struct Matrix(Stringable, Formattable):
             loc = (x * self.height) + y
         return self.data.load[width=nelts](loc)
 
+    @always_inline
     fn store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts]):
         var loc: Int
         if self.order == 'c':
@@ -532,8 +534,14 @@ struct Matrix(Stringable, Formattable):
             raise Error('Error: Cannot multiply matrices with shapes (' + str(self.height) + ', ' + str(self.width) + ') and (' + str(rhs.height) + ', ' + str(rhs.width) + ')')
         var _rhs = rhs.asorder('f')
         var mat = Self(self.height, rhs.width, order= self.order)
+        var n_vects = int(math.ceil(_rhs.height / self.simd_width))
+        var vec: SIMD[DType.float32, self.simd_width]
         for i in range(self.height):
-            mat[i] = self[i].reshape(rhs.height, 1).ele_mul(_rhs).sum(0)
+            for j in range(_rhs.width):
+                vec = SIMD[DType.float32, self.simd_width](0.0)
+                for k in range(n_vects):
+                    vec = math.fma(partial_simd_load[self.simd_width](self.data + i * self.width, k * self.simd_width, _rhs.height), partial_simd_load[self.simd_width](_rhs.data + j * _rhs.height, k * self.simd_width, _rhs.height), vec)
+                mat.data[i * mat.width + j] = vec.reduce_add()
         return mat^
 
     @always_inline
@@ -673,7 +681,7 @@ struct Matrix(Stringable, Formattable):
         return mat^
 
     fn F_transpose(self) -> Matrix:
-        var mat = Matrix(self.width, self.height, order= 'f')
+        var mat = Matrix(self.width, self.height, order= self.order)
         for idx_row in range(self.height):
             var tmpPtr = self.data + idx_row
             @parameter
@@ -854,9 +862,10 @@ struct Matrix(Stringable, Formattable):
 
     @always_inline
     fn argmin(self) raises -> Int:
-        var label_mat = Matrix(1, 1)
-        argmin(NDBuffer[DType.float32, 2](self.data, DimList(1, self.size)), 1, NDBuffer[DType.float32, 2](label_mat.data, DimList(1, 1)))
-        var index = int(label_mat[0, 0])
+        var label = UnsafePointer[Scalar[DType.index]].alloc(1)
+        argmin(NDBuffer[DType.float32, 2](self.data, DimList(1, self.size)), 1, NDBuffer[DType.index, 2](label, DimList(1, 1)))
+        var index = int(label[])
+        label.free()
         if self.order == 'c':
             return index
         return (index % self.height) * self.width + index // self.height
@@ -876,9 +885,10 @@ struct Matrix(Stringable, Formattable):
 
     @always_inline
     fn argmax(self) raises -> Int:
-        var label_mat = Matrix(1, 1)
-        argmax(NDBuffer[DType.float32, 2](self.data, DimList(1, self.width)), 1, NDBuffer[DType.float32, 2](label_mat.data, DimList(1, 1)))
-        var index = int(label_mat[0, 0])
+        var label = UnsafePointer[Scalar[DType.index]].alloc(1)
+        argmax(NDBuffer[DType.float32, 2](self.data, DimList(1, self.size)), 1, NDBuffer[DType.index, 2](label, DimList(1, 1)))
+        var index = int(label[])
+        label.free()
         if self.order == 'c':
             return index
         return (index % self.height) * self.width + index // self.height
@@ -957,7 +967,7 @@ struct Matrix(Stringable, Formattable):
     @staticmethod
     @always_inline
     fn eye(n: Int, order: String = 'c') -> Matrix:
-        var result = Matrix.zeros(n, n, order.lower())
+        var result = Matrix.zeros(n, n, order)
         var tmpPtr = result.data
         @parameter
         fn convert[simd_width: Int](idx: Int):
@@ -1145,19 +1155,19 @@ struct Matrix(Stringable, Formattable):
     @staticmethod
     @always_inline
     fn zeros(height: Int, width: Int, order: String = 'c') -> Matrix:
-        var mat = Matrix(height, width, order= order.lower())
+        var mat = Matrix(height, width, order= order)
         memset_zero(mat.data, mat.size)
         return mat^
 
     @staticmethod
     @always_inline
     fn ones(height: Int, width: Int, order: String = 'c') -> Matrix:
-        return Matrix.full(height, width, 1.0, order.lower())
+        return Matrix.full(height, width, 1.0, order)
 
     @staticmethod
     @always_inline
     fn full(height: Int, width: Int, val: Float32, order: String = 'c') -> Matrix:
-        var mat = Matrix(height, width, order= order.lower())
+        var mat = Matrix(height, width, order= order)
         mat.fill(val)
         return mat^
 
@@ -1173,7 +1183,7 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn random(height: Int, width: Int, order: String = 'c') -> Matrix:
         random.seed()
-        var mat = Matrix(height, width, order= order.lower())
+        var mat = Matrix(height, width, order= order)
         random.rand(mat.data, mat.size, min=0.0, max=1.0)
         return mat^
 
@@ -1222,7 +1232,7 @@ struct Matrix(Stringable, Formattable):
         except:
             width = height
             height = 1
-        var mat = Matrix(height, width, np_arr_f.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32]())
+        var mat = Matrix(height, width, np_arr_f.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), order)
         _ = np_arr_f.__array_interface__['data'][0].__index__()
         return mat^
 
