@@ -542,16 +542,30 @@ struct Matrix(Stringable, Formattable):
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + str(self.height) + ', ' + str(self.width) + ') and (' + str(rhs.height) + ', ' + str(rhs.width) + ')')
         var _rhs = rhs.asorder('f')
-        var mat = Self(self.height, rhs.width, order= self.order)
+        var C = Self(self.height, rhs.width, order= self.order)
         var n_vects = int(math.ceil(_rhs.height / self.simd_width))
+
+        var A = UnsafePointer[SIMD[DType.float32, self.simd_width]].alloc(self.height * n_vects)
+        for i in range(self.height):
+            for j in range(n_vects):
+                A[i * n_vects + j] = partial_simd_load[self.simd_width](self.data + i * self.width, j * self.simd_width, self.width)
+        
+        var B = UnsafePointer[SIMD[DType.float32, self.simd_width]].alloc(_rhs.width * n_vects)
+        for i in range(_rhs.width):
+            for j in range(n_vects):
+                B[i * n_vects + j] = partial_simd_load[self.simd_width](_rhs.data + i * _rhs.height, j * self.simd_width, _rhs.height)
+        
         var vec: SIMD[DType.float32, self.simd_width]
         for i in range(self.height):
             for j in range(_rhs.width):
                 vec = SIMD[DType.float32, self.simd_width](0.0)
                 for k in range(n_vects):
-                    vec = math.fma(partial_simd_load[self.simd_width](self.data + i * self.width, k * self.simd_width, _rhs.height), partial_simd_load[self.simd_width](_rhs.data + j * _rhs.height, k * self.simd_width, _rhs.height), vec)
-                mat.data[i * mat.width + j] = vec.reduce_add()
-        return mat^
+                    vec = math.fma(A[i * n_vects + k], B[j * n_vects + k], vec)
+                C.data[i * C.width + j] = vec.reduce_add()
+
+        A.free()
+        B.free()
+        return C^
 
     @always_inline
     fn __imul__(inout self, rhs: Self) raises:

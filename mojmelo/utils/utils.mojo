@@ -171,10 +171,13 @@ fn mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -
 fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a / b
 
+@always_inline
 fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size: Int) -> SIMD[DType.float32, width]:
-    var simd = SIMD[DType.float32, width](0.0)
-    var point = data + offset
     var nelts = min(size - offset, width)
+    var point = data + offset
+    if nelts == width:
+        return point.load[width=width]()
+    var simd = SIMD[DType.float32, width](0.0)
     for i in range(nelts):
         simd[i] = point[i]
     return simd
