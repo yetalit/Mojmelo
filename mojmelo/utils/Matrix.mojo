@@ -595,7 +595,7 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn math_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=self.simd_width](idx, pow(self.data.load[width=self.simd_width](idx), p))
+                mat.data.store[width=simd_width](idx, pow(self.data.load[width=simd_width](idx), p))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
@@ -880,7 +880,7 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn math_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=self.simd_width](idx, abs(self.data.load[width=self.simd_width](idx)))
+                mat.data.store[width=simd_width](idx, abs(self.data.load[width=simd_width](idx)))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
@@ -1328,7 +1328,7 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn math_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=self.simd_width](idx, func(self.data.load[width=self.simd_width](idx)))
+                mat.data.store[width=simd_width](idx, func(self.data.load[width=simd_width](idx)))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
