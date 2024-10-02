@@ -592,13 +592,19 @@ struct Matrix(Stringable, Formattable):
         if p == 1:
             return self
         var mat = Self(self.height, self.width, order= self.order)
-        var n_vects = int(math.ceil(self.size / self.simd_width))
-        var n_workers = num_physical_cores()
-        @parameter
-        fn math_vectorize(i: Int):
-            var idx = i * self.simd_width
-            mat.data.store[width=self.simd_width](idx, pow(self.data.load[width=self.simd_width](idx), p))
-        parallelize[math_vectorize](n_vects, n_workers)
+        if self.size < 262144:
+            @parameter
+            fn math_vectorize[simd_width: Int](idx: Int):
+                mat.data.store[width=self.simd_width](idx, pow(self.data.load[width=self.simd_width](idx), p))
+            vectorize[math_vectorize, self.simd_width](self.size)
+        else:
+            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_workers = num_physical_cores()
+            @parameter
+            fn math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store[width=self.simd_width](idx, pow(self.data.load[width=self.simd_width](idx), p))
+            parallelize[math_vectorize_parallelize](n_vects, n_workers)
         return mat^
 
     @always_inline
@@ -871,13 +877,19 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn abs(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        var n_vects = int(math.ceil(self.size / self.simd_width))
-        var n_workers = num_physical_cores()
-        @parameter
-        fn math_vectorize(i: Int):
-            var idx = i * self.simd_width
-            mat.data.store[width=self.simd_width](idx, abs(self.data.load[width=self.simd_width](idx)))
-        parallelize[math_vectorize](n_vects, n_workers)
+        if self.size < 262144:
+            @parameter
+            fn math_vectorize[simd_width: Int](idx: Int):
+                mat.data.store[width=self.simd_width](idx, abs(self.data.load[width=self.simd_width](idx)))
+            vectorize[math_vectorize, self.simd_width](self.size)
+        else:
+            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_workers = num_physical_cores()
+            @parameter
+            fn math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store[width=self.simd_width](idx, abs(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects, n_workers)
         return mat^
 
     @always_inline
@@ -1277,37 +1289,55 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn _elemwise_scalar[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
-        var n_vects = int(math.ceil(self.size / self.simd_width))
-        var n_workers = num_physical_cores()
-        @parameter
-        fn scalar_vectorize(i: Int):
-            var idx = i * self.simd_width
-            mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
-        parallelize[scalar_vectorize](n_vects, n_workers)
+        if self.size < 262144:
+            @parameter
+            fn scalar_vectorize[simd_width: Int](idx: Int):
+                mat.data.store[width=simd_width](idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
+            vectorize[scalar_vectorize, self.simd_width](self.size)
+        else:
+            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_workers = num_physical_cores()
+            @parameter
+            fn scalar_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
+            parallelize[scalar_vectorize_parallelize](n_vects, n_workers)
         return mat^
 
     @always_inline
     fn _elemwise_matrix[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
-        var n_vects = int(math.ceil(self.size / self.simd_width))
-        var n_workers = num_physical_cores()
-        @parameter
-        fn matrix_vectorize(i: Int):
-            var idx = i * self.simd_width
-            mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
-        parallelize[matrix_vectorize](n_vects, n_workers)
+        if self.size < 262144:
+            @parameter
+            fn matrix_vectorize[simd_width: Int](idx: Int):
+                mat.data.store[width=simd_width](idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
+            vectorize[matrix_vectorize, self.simd_width](self.size)
+        else:
+            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_workers = num_physical_cores()
+            @parameter
+            fn matrix_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
+            parallelize[matrix_vectorize_parallelize](n_vects, n_workers)
         return mat^
 
     @always_inline
     fn _elemwise_math[func: fn[dtype: DType, width: Int](SIMD[dtype, width])->SIMD[dtype, width]](self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
-        var n_vects = int(math.ceil(self.size / self.simd_width))
-        var n_workers = num_physical_cores()
-        @parameter
-        fn math_vectorize(i: Int):
-            var idx = i * self.simd_width
-            mat.data.store[width=self.simd_width](idx, func(self.data.load[width=self.simd_width](idx)))
-        parallelize[math_vectorize](n_vects, n_workers)
+        if self.size < 262144:
+            @parameter
+            fn math_vectorize[simd_width: Int](idx: Int):
+                mat.data.store[width=self.simd_width](idx, func(self.data.load[width=self.simd_width](idx)))
+            vectorize[math_vectorize, self.simd_width](self.size)
+        else:
+            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_workers = num_physical_cores()
+            @parameter
+            fn math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store[width=self.simd_width](idx, func(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects, n_workers)
         return mat^
 
     fn format_to(self, inout writer: Formatter):
