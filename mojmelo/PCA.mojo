@@ -36,8 +36,5 @@ struct PCA:
             self.components[i] = eigenvectors[indices[i]]
 
     fn transform(self, X: Matrix) raises -> Matrix:
-        var X_mean_reduce = Matrix(X.height, X.width)
-        for i in range(X.height):
-            X_mean_reduce[i] = X[i] - self.mean
         # project data
-        return X_mean_reduce * self.components.T()
+        return (X - self.mean) * self.components.T()
