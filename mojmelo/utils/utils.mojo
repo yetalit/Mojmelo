@@ -30,7 +30,7 @@ fn gauss_jordan(owned a: Matrix) raises -> Matrix:
     return a^
 
 fn cov_value(x: Matrix, y: Matrix) raises -> Float32:
-    return ((y - y.mean()) * (x - x.mean())).sum() / (x.size - 1)
+    return ((y - y.mean()).ele_mul(x - x.mean())).sum() / (x.size - 1)
 
 # ===----------------------------------------------------------------------===#
 # partition

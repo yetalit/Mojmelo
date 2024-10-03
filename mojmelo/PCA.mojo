@@ -16,14 +16,12 @@ struct PCA:
     fn fit(inout self, X: Matrix) raises:
         # Mean centering
         self.mean = X.mean(0)
-        var X_mean_reduce = Matrix(X.height, X.width)
-        for i in range(X.height):
-            X_mean_reduce[i] = X[i] - self.mean
+        
         # eigenvalues, eigenvectors
         var eigenvalues: Matrix
         var eigenvectors: Matrix
         # covariance, function needs samples as columns
-        eigenvalues, eigenvectors = X_mean_reduce.T().cov().eigen()
+        eigenvalues, eigenvectors = (X - self.mean).T().cov().eigen()
         # transpose for easier calculations
         eigenvectors = eigenvectors.T()
 
