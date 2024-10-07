@@ -1,4 +1,4 @@
-from sys.info import simdwidthof, num_physical_cores
+from sys.info import simdwidthof
 from memory import memcpy, memcmp, memset_zero
 from algorithm import vectorize, parallelize
 from buffer import Buffer, NDBuffer, DimList
@@ -344,35 +344,23 @@ struct Matrix(Stringable, Formattable):
             if self.width == 1:
                 return self.data[0] + rhs
             if self.width == rhs.width:
-                var mat = Matrix(rhs.height, self.width, order= rhs.order)
-                for i in range(mat.height):
-                    mat[i] = self
-                return mat._elemwise_matrix[add](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[add](rhs)
             raise Error("Error: Cannot add matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self + rhs.data[0]
             if self.height == rhs.height:
-                var mat = Matrix(self.height, rhs.width, order= rhs.order)
-                for i in range(mat.width):
-                    mat['', i] = self
-                return mat._elemwise_matrix[add](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[add](rhs)
             raise Error("Error: Cannot add matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self + rhs.data[0]
             elif rhs.width == self.width:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.height):
-                    mat[i] = rhs
-                return self._elemwise_matrix[add](mat)
+                return self._elemwise_matrix[add](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Error: Cannot add matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.width):
-                    mat['', i] = rhs
-                return self._elemwise_matrix[add](mat)
+                return self._elemwise_matrix[add](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Error: Cannot add matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
@@ -405,35 +393,23 @@ struct Matrix(Stringable, Formattable):
             if self.width == 1:
                 return self.data[0] - rhs
             if self.width == rhs.width:
-                var mat = Matrix(rhs.height, self.width, order= rhs.order)
-                for i in range(mat.height):
-                    mat[i] = self
-                return mat._elemwise_matrix[sub](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[sub](rhs)
             raise Error("Error: Cannot subtract matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self - rhs.data[0]
             if self.height == rhs.height:
-                var mat = Matrix(self.height, rhs.width, order= rhs.order)
-                for i in range(mat.width):
-                    mat['', i] = self
-                return mat._elemwise_matrix[sub](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[sub](rhs)
             raise Error("Error: Cannot subtract matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self - rhs.data[0]
             elif rhs.width == self.width:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.height):
-                    mat[i] = rhs
-                return self._elemwise_matrix[sub](mat)
+                return self._elemwise_matrix[sub](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Error: Cannot subtract matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.width):
-                    mat['', i] = rhs
-                return self._elemwise_matrix[sub](mat)
+                return self._elemwise_matrix[sub](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Error: Cannot subtract matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
@@ -466,35 +442,23 @@ struct Matrix(Stringable, Formattable):
             if self.width == 1:
                 return self.data[0] / rhs
             if self.width == rhs.width:
-                var mat = Matrix(rhs.height, self.width, order= rhs.order)
-                for i in range(mat.height):
-                    mat[i] = self
-                return mat._elemwise_matrix[div](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[div](rhs)
             raise Error("Error: Cannot divide matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self / rhs.data[0]
             if self.height == rhs.height:
-                var mat = Matrix(self.height, rhs.width, order= rhs.order)
-                for i in range(mat.width):
-                    mat['', i] = self
-                return mat._elemwise_matrix[div](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[div](rhs)
             raise Error("Error: Cannot divide matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self / rhs.data[0]
             elif rhs.width == self.width:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.height):
-                    mat[i] = rhs
-                return self._elemwise_matrix[div](mat)
+                return self._elemwise_matrix[div](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Error: Cannot divide matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.width):
-                    mat['', i] = rhs
-                return self._elemwise_matrix[div](mat)
+                return self._elemwise_matrix[div](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Error: Cannot divide matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
@@ -599,12 +563,11 @@ struct Matrix(Stringable, Formattable):
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
-            var n_workers = num_physical_cores()
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
                 mat.data.store[width=self.simd_width](idx, pow(self.data.load[width=self.simd_width](idx), p))
-            parallelize[math_vectorize_parallelize](n_vects, n_workers)
+            parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
@@ -620,35 +583,23 @@ struct Matrix(Stringable, Formattable):
             if self.width == 1:
                 return self.data[0] * rhs
             if self.width == rhs.width:
-                var mat = Matrix(rhs.height, self.width, order= rhs.order)
-                for i in range(mat.height):
-                    mat[i] = self
-                return mat._elemwise_matrix[mul](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[mul](rhs)
             raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self * rhs.data[0]
             if self.height == rhs.height:
-                var mat = Matrix(self.height, rhs.width, order= rhs.order)
-                for i in range(mat.width):
-                    mat['', i] = self
-                return mat._elemwise_matrix[mul](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[mul](rhs)
             raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self * rhs.data[0]
             elif rhs.width == self.width:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.height):
-                    mat[i] = rhs
-                return self._elemwise_matrix[mul](mat)
+                return self._elemwise_matrix[mul](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                var mat = Matrix(self.height, self.width, order= self.order)
-                for i in range(mat.width):
-                    mat['', i] = rhs
-                return self._elemwise_matrix[mul](mat)
+                return self._elemwise_matrix[mul](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
@@ -884,12 +835,11 @@ struct Matrix(Stringable, Formattable):
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
-            var n_workers = num_physical_cores()
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
                 mat.data.store[width=self.simd_width](idx, abs(self.data.load[width=self.simd_width](idx)))
-            parallelize[math_vectorize_parallelize](n_vects, n_workers)
+            parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
@@ -1287,6 +1237,40 @@ struct Matrix(Stringable, Formattable):
         return np_arr^
 
     @always_inline
+    fn _broadcast_row(self, height: Int, width: Int, order: String) -> Matrix:
+        var mat = Matrix(height, width, order=order)
+        @parameter
+        fn broadcast(i: Int):
+            if mat.order == 'c':
+                memcpy(mat.data + (i * mat.width), self.data, self.size)
+            else:
+                var tmpPtr = mat.data + i
+                @parameter
+                fn convert[simd_width: Int](idx: Int):
+                    tmpPtr.strided_store[width=simd_width](self.data.load[width=simd_width](idx), mat.height)
+                    tmpPtr += simd_width * mat.height
+                vectorize[convert, mat.simd_width](self.size)
+        parallelize[broadcast](mat.height)
+        return mat^
+
+    @always_inline
+    fn _broadcast_column(self, height: Int, width: Int, order: String) -> Matrix:
+        var mat = Matrix(height, width, order=order)
+        @parameter
+        fn broadcast(i: Int):
+            if mat.order == 'c':
+                var tmpPtr = mat.data + i
+                @parameter
+                fn convert[simd_width: Int](idx: Int):
+                    tmpPtr.strided_store[width=simd_width](self.data.load[width=simd_width](idx), mat.width)
+                    tmpPtr += simd_width * mat.width
+                vectorize[convert, mat.simd_width](self.size)
+            else:
+                memcpy(mat.data + (i * mat.height), self.data, self.size)
+        parallelize[broadcast](mat.width)
+        return mat^
+
+    @always_inline
     fn _elemwise_scalar[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
@@ -1296,12 +1280,11 @@ struct Matrix(Stringable, Formattable):
             vectorize[scalar_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
-            var n_workers = num_physical_cores()
             @parameter
             fn scalar_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
                 mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
-            parallelize[scalar_vectorize_parallelize](n_vects, n_workers)
+            parallelize[scalar_vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
@@ -1314,12 +1297,11 @@ struct Matrix(Stringable, Formattable):
             vectorize[matrix_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
-            var n_workers = num_physical_cores()
             @parameter
             fn matrix_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
                 mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
-            parallelize[matrix_vectorize_parallelize](n_vects, n_workers)
+            parallelize[matrix_vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
@@ -1332,12 +1314,11 @@ struct Matrix(Stringable, Formattable):
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
-            var n_workers = num_physical_cores()
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
                 mat.data.store[width=self.simd_width](idx, func(self.data.load[width=self.simd_width](idx)))
-            parallelize[math_vectorize_parallelize](n_vects, n_workers)
+            parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
     fn format_to(self, inout writer: Formatter):
