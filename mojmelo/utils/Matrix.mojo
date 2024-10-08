@@ -1239,7 +1239,7 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn _broadcast_row(self, height: Int, width: Int, order: String) raises -> Matrix:
         var mat = Matrix(height, width, order=order)
-        if height * width < 262144:
+        if height * width < 262144 and height < 1024:
             for i in range(mat.height):
                 mat[i] = self
         else:
@@ -1260,7 +1260,7 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn _broadcast_column(self, height: Int, width: Int, order: String) raises -> Matrix:
         var mat = Matrix(height, width, order=order)
-        if height * width < 262144:
+        if height * width < 262144 and width < 1024:
             for i in range(mat.width):
                 mat['', i] = self
         else:
