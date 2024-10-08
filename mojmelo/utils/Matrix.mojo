@@ -1237,37 +1237,45 @@ struct Matrix(Stringable, Formattable):
         return np_arr^
 
     @always_inline
-    fn _broadcast_row(self, height: Int, width: Int, order: String) -> Matrix:
+    fn _broadcast_row(self, height: Int, width: Int, order: String) raises -> Matrix:
         var mat = Matrix(height, width, order=order)
-        @parameter
-        fn broadcast(i: Int):
-            if mat.order == 'c':
-                memcpy(mat.data + (i * mat.width), self.data, self.size)
-            else:
-                var tmpPtr = mat.data + i
-                @parameter
-                fn convert[simd_width: Int](idx: Int):
-                    tmpPtr.strided_store[width=simd_width](self.data.load[width=simd_width](idx), mat.height)
-                    tmpPtr += simd_width * mat.height
-                vectorize[convert, mat.simd_width](self.size)
-        parallelize[broadcast](mat.height)
+        if height * width < 262144:
+            for i in range(mat.height):
+                mat[i] = self
+        else:
+            @parameter
+            fn broadcast(i: Int):
+                if mat.order == 'c':
+                    memcpy(mat.data + (i * mat.width), self.data, self.size)
+                else:
+                    var tmpPtr = mat.data + i
+                    @parameter
+                    fn convert[simd_width: Int](idx: Int):
+                        tmpPtr.strided_store[width=simd_width](self.data.load[width=simd_width](idx), mat.height)
+                        tmpPtr += simd_width * mat.height
+                    vectorize[convert, mat.simd_width](self.size)
+            parallelize[broadcast](mat.height)
         return mat^
 
     @always_inline
-    fn _broadcast_column(self, height: Int, width: Int, order: String) -> Matrix:
+    fn _broadcast_column(self, height: Int, width: Int, order: String) raises -> Matrix:
         var mat = Matrix(height, width, order=order)
-        @parameter
-        fn broadcast(i: Int):
-            if mat.order == 'c':
-                var tmpPtr = mat.data + i
-                @parameter
-                fn convert[simd_width: Int](idx: Int):
-                    tmpPtr.strided_store[width=simd_width](self.data.load[width=simd_width](idx), mat.width)
-                    tmpPtr += simd_width * mat.width
-                vectorize[convert, mat.simd_width](self.size)
-            else:
-                memcpy(mat.data + (i * mat.height), self.data, self.size)
-        parallelize[broadcast](mat.width)
+        if height * width < 262144:
+            for i in range(mat.width):
+                mat['', i] = self
+        else:
+            @parameter
+            fn broadcast(i: Int):
+                if mat.order == 'c':
+                    var tmpPtr = mat.data + i
+                    @parameter
+                    fn convert[simd_width: Int](idx: Int):
+                        tmpPtr.strided_store[width=simd_width](self.data.load[width=simd_width](idx), mat.width)
+                        tmpPtr += simd_width * mat.width
+                    vectorize[convert, mat.simd_width](self.size)
+                else:
+                    memcpy(mat.data + (i * mat.height), self.data, self.size)
+            parallelize[broadcast](mat.width)
         return mat^
 
     @always_inline

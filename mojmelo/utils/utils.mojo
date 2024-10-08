@@ -258,6 +258,7 @@ fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
             correct_count += 1.0
     return correct_count / len(y_pred)
 
+@always_inline
 fn entropy(y: Matrix) -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
