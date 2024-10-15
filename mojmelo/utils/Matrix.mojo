@@ -1,12 +1,12 @@
-from sys.info import simdwidthof
+from sys.info import simdwidthof, is_apple_silicon
 from memory import memcpy, memcmp, memset_zero
 from algorithm import vectorize, parallelize
 from buffer import Buffer, NDBuffer, DimList
-from algorithm.reduction import max, min, sum, cumsum, argmin, argmax
+from algorithm.reduction import sum, cumsum, argmin, argmax
 from collections import InlinedFixedVector, Dict
 import math
 import random
-from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div, partial_simd_load
+from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div, kernel
 from python import Python, PythonObject
 import time
 
@@ -16,7 +16,7 @@ struct Matrix(Stringable, Formattable):
     var size: Int
     var data: UnsafePointer[Float32]
     var order: String
-    alias simd_width: Int = 2 * simdwidthof[DType.float32]()
+    alias simd_width: Int = 4 * simdwidthof[DType.float32]() if is_apple_silicon() else 2 * simdwidthof[DType.float32]()
 
     # initialize from UnsafePointer
     @always_inline
@@ -505,31 +505,37 @@ struct Matrix(Stringable, Formattable):
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + str(self.height) + ', ' + str(self.width) + ') and (' + str(rhs.height) + ', ' + str(rhs.width) + ')')
-        var _rhs = rhs.asorder('f')
-        var C = Self(self.height, rhs.width, order= self.order)
-        var n_vects = int(math.ceil(_rhs.height / self.simd_width))
+        alias vector_coef = 16 # to be tuned
+        alias kernel_coef = 4 # to be tuned
+        alias vector_width = vector_coef * simdwidthof[DType.float32]()
+        alias padd_row = 6
+        alias padd_width = kernel_coef * vector_width
+        var A = Matrix(int((self.height + padd_row - 1) / padd_row) * padd_row, int((self.width + padd_width - 1) / padd_width) * padd_width)
+        for i in range(A.height):
+            if (i < self.height):
+                memcpy(A.data + i * A.width, self.data + i * self.width, self.width)
+                memset_zero(A.data + i * A.width + self.width, A.width - self.width)
+            else:
+                memset_zero(A.data + i * A.width, A.width)
 
-        var A = UnsafePointer[SIMD[DType.float32, self.simd_width]].alloc(self.height * n_vects)
-        for i in range(self.height):
-            for j in range(n_vects):
-                A[i * n_vects + j] = partial_simd_load[self.simd_width](self.data + i * self.width, j * self.simd_width, self.width)
-        
-        var B = UnsafePointer[SIMD[DType.float32, self.simd_width]].alloc(_rhs.width * n_vects)
-        for i in range(_rhs.width):
-            for j in range(n_vects):
-                B[i * n_vects + j] = partial_simd_load[self.simd_width](_rhs.data + i * _rhs.height, j * self.simd_width, _rhs.height)
-        
-        var vec: SIMD[DType.float32, self.simd_width]
-        for i in range(self.height):
-            for j in range(_rhs.width):
-                vec = SIMD[DType.float32, self.simd_width](0.0)
-                for k in range(n_vects):
-                    vec = math.fma(A[i * n_vects + k], B[j * n_vects + k], vec)
-                C.data[i * C.width + j] = vec.reduce_add()
+        var B = Matrix(int((rhs.height + padd_row - 1) / padd_row) * padd_row, int((rhs.width + padd_width - 1) / padd_width) * padd_width)
+        for i in range(B.height):
+            if (i < rhs.height):
+                memcpy(B.data + i * B.width, rhs.data + i * rhs.width, rhs.width)
+                memset_zero(B.data + i * B.width + rhs.width, B.width - rhs.width)
+            else:
+                memset_zero(B.data + i * B.width, B.width)
 
-        A.free()
-        B.free()
-        return C^
+        var C = Matrix.zeros(A.height, B.width)
+        for x in range(0, A.height, padd_row):
+            for y in range(0, B.width, padd_width):
+                kernel[padd_row, vector_width, kernel_coef](A.data, B.data.bitcast[SIMD[DType.float32, vector_width]](), C.data.bitcast[SIMD[DType.float32, vector_width]](), x, y, 0, self.width, A.width, B.width)
+
+        var mat = Matrix(self.height, rhs.width)
+        for i in range(mat.height):
+            memcpy(mat.data + i * mat.width, C.data + i * C.width, mat.width)
+
+        return mat^
 
     @always_inline
     fn __imul__(inout self, rhs: Self) raises:
@@ -902,7 +908,7 @@ struct Matrix(Stringable, Formattable):
 
     @always_inline
     fn min(self) -> Float32:
-        return min(Buffer[DType.float32](self.data, self.size))
+        return algorithm.reduction.min(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -919,7 +925,7 @@ struct Matrix(Stringable, Formattable):
 
     @always_inline
     fn max(self) -> Float32:
-        return max(Buffer[DType.float32](self.data, self.size))
+        return algorithm.reduction.max(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:
