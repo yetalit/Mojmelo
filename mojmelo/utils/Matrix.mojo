@@ -6,7 +6,8 @@ from algorithm.reduction import sum, cumsum, argmin, argmax
 from collections import InlinedFixedVector, Dict
 import math
 import random
-from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div, kernel
+from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
+from mojmelo.utils import matmul
 from python import Python, PythonObject
 import time
 
@@ -505,36 +506,13 @@ struct Matrix(Stringable, Formattable):
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + str(self.height) + ', ' + str(self.width) + ') and (' + str(rhs.height) + ', ' + str(rhs.width) + ')')
-        alias vector_coef = 16 # to be tuned
-        alias kernel_coef = 4 # to be tuned
-        alias vector_width = vector_coef * simdwidthof[DType.float32]()
-        alias padd_row = 6
-        alias padd_width = kernel_coef * vector_width
-        var A = Matrix(int((self.height + padd_row - 1) / padd_row) * padd_row, int((self.width + padd_width - 1) / padd_width) * padd_width)
-        for i in range(A.height):
-            if (i < self.height):
-                memcpy(A.data + i * A.width, self.data + i * self.width, self.width)
-                memset_zero(A.data + i * A.width + self.width, A.width - self.width)
-            else:
-                memset_zero(A.data + i * A.width, A.width)
-
-        var B = Matrix(int((rhs.height + padd_row - 1) / padd_row) * padd_row, int((rhs.width + padd_width - 1) / padd_width) * padd_width)
-        for i in range(B.height):
-            if (i < rhs.height):
-                memcpy(B.data + i * B.width, rhs.data + i * rhs.width, rhs.width)
-                memset_zero(B.data + i * B.width + rhs.width, B.width - rhs.width)
-            else:
-                memset_zero(B.data + i * B.width, B.width)
-
-        var C = Matrix.zeros(A.height, B.width)
-        for x in range(0, A.height, padd_row):
-            for y in range(0, B.width, padd_width):
-                kernel[padd_row, vector_width, kernel_coef](A.data, B.data.bitcast[SIMD[DType.float32, vector_width]](), C.data.bitcast[SIMD[DType.float32, vector_width]](), x, y, 0, self.width, A.width, B.width)
-
+        var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
+        var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
+        var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
+        memset_zero(C.data, self.height * rhs.width)
+        matmul.matmul(self.height, self.width, rhs.width, C, A, B)
         var mat = Matrix(self.height, rhs.width)
-        for i in range(mat.height):
-            memcpy(mat.data + i * mat.width, C.data + i * C.width, mat.width)
-
+        mat.data = C.data
         return mat^
 
     @always_inline

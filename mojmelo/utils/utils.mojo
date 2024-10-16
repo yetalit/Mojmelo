@@ -184,21 +184,6 @@ fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size
     return simd
 
 @always_inline
-fn kernel[row_size: Int, simd_width: Int, _coef:  Int](a: UnsafePointer[Float32], b: UnsafePointer[SIMD[DType.float32, simd_width]], c: UnsafePointer[SIMD[DType.float32, simd_width]], x: Int, y: Int, l: Int, r: Int, n_a: Int, n_b: Int):
-    var t = UnsafePointer[SIMD[DType.float32, simd_width]].alloc(row_size * _coef)
-    memset_zero(t, row_size * _coef)
-    
-    for k in range(l, r):
-        for i in range(row_size):
-            var alpha = SIMD[DType.float32, simd_width](a[(x + i) * n_a + k])
-            for j in range(_coef):
-                t[i * _coef + j] = math.fma(alpha, b[int((k * n_b + y) / simd_width) + j], t[i * _coef + j])
-
-    for i in range(row_size):
-        for j in range(_coef):
-            c[int(((x + i) * n_b + y) / simd_width) + j] += t[i * _coef + j]
-
-@always_inline
 fn sigmoid(z: Matrix) -> Matrix:
     return 1 / (1 + (-z).exp())
 
