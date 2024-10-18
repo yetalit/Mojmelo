@@ -839,9 +839,12 @@ struct Matrix(Stringable, Formattable):
         return self._elemwise_math[math.exp]()
 
     @always_inline
-    fn argmin(self) raises -> Int:
+    fn argmin(self) -> Int:
         var label = UnsafePointer[Scalar[DType.index]].alloc(1)
-        argmin(NDBuffer[DType.float32, 2](self.data, DimList(1, self.size)), 1, NDBuffer[DType.index, 2](label, DimList(1, 1)))
+        try:
+            argmin(NDBuffer[DType.float32, 1](self.data, DimList(self.size)), 0, NDBuffer[DType.index, 1](label, DimList(1)))
+        except:
+            print('Error finding argmin!')
         var index = int(label[])
         label.free()
         if self.order == 'c':
@@ -849,22 +852,77 @@ struct Matrix(Stringable, Formattable):
         return (index % self.height) * self.width + index // self.height
 
     @always_inline
-    fn argmin(self, axis: Int) raises -> Matrix:
+    fn argmin(self, axis: Int) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i].argmin()
+            if self.width < 512:
+                for i in range(self.width):
+                    if self.order == 'c' and self.width > 1:
+                        var column = Matrix(self.height, 1)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn c0_convert[simd_width: Int](idx: Int):
+                            column.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                            tmpPtr += simd_width * self.width
+                        vectorize[c0_convert, self.simd_width](column.height)
+                        mat.data[i] = column.argmax()
+                    else:
+                        mat.data[i] = Matrix(self.height, 1, self.data + (i * self.height), self.order).argmax()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    if self.order == 'c' and self.width > 1:
+                        var column = Matrix(self.height, 1)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn r0_convert[simd_width: Int](idx: Int):
+                            column.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                            tmpPtr += simd_width * self.width
+                        vectorize[r0_convert, self.simd_width](column.height)
+                        mat.data[i] = column.argmin()
+                    else:
+                        mat.data[i] = Matrix(self.height, 1, self.data + (i * self.height), self.order).argmin()
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i].argmin()
+            if self.height < 512:
+                for i in range(self.height):
+                    if self.order == 'c' or self.height == 1:
+                        mat.data[i] = Matrix(1, self.width, self.data + (i * self.width), self.order).argmin()
+                    else:
+                        var row = Matrix(1, self.width, order= self.order)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn r1_convert[simd_width: Int](idx: Int):
+                            row.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+                            tmpPtr += simd_width * self.height
+                        vectorize[r1_convert, self.simd_width](row.width)
+                        mat.data[i] = row.argmin()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    if self.order == 'c' or self.height == 1:
+                        mat.data[i] = Matrix(1, self.width, self.data + (i * self.width), self.order).argmin()
+                    else:
+                        var row = Matrix(1, self.width, order= self.order)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn c1_convert[simd_width: Int](idx: Int):
+                            row.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+                            tmpPtr += simd_width * self.height
+                        vectorize[c1_convert, self.simd_width](row.width)
+                        mat.data[i] = row.argmin()
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn argmax(self) raises -> Int:
+    fn argmax(self) -> Int:
         var label = UnsafePointer[Scalar[DType.index]].alloc(1)
-        argmax(NDBuffer[DType.float32, 2](self.data, DimList(1, self.size)), 1, NDBuffer[DType.index, 2](label, DimList(1, 1)))
+        try:
+            argmax(NDBuffer[DType.float32, 1](self.data, DimList(self.size)), 0, NDBuffer[DType.index, 1](label, DimList(1)))
+        except:
+            print('Error finding argmax!')
         var index = int(label[])
         label.free()
         if self.order == 'c':
@@ -872,16 +930,68 @@ struct Matrix(Stringable, Formattable):
         return (index % self.height) * self.width + index // self.height
 
     @always_inline
-    fn argmax(self, axis: Int) raises -> Matrix:
+    fn argmax(self, axis: Int) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i].argmax()
+            if self.width < 512:
+                for i in range(self.width):
+                    if self.order == 'c' and self.width > 1:
+                        var column = Matrix(self.height, 1)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn c0_convert[simd_width: Int](idx: Int):
+                            column.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                            tmpPtr += simd_width * self.width
+                        vectorize[c0_convert, self.simd_width](column.height)
+                        mat.data[i] = column.argmax()
+                    else:
+                        mat.data[i] = Matrix(self.height, 1, self.data + (i * self.height), self.order).argmax()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    if self.order == 'c' and self.width > 1:
+                        var column = Matrix(self.height, 1)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn r0_convert[simd_width: Int](idx: Int):
+                            column.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                            tmpPtr += simd_width * self.width
+                        vectorize[r0_convert, self.simd_width](column.height)
+                        mat.data[i] = column.argmax()
+                    else:
+                        mat.data[i] = Matrix(self.height, 1, self.data + (i * self.height), self.order).argmax()
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i].argmax()
+            if self.height < 512:
+                for i in range(self.height):
+                    if self.order == 'c' or self.height == 1:
+                        mat.data[i] = Matrix(1, self.width, self.data + (i * self.width), self.order).argmax()
+                    else:
+                        var row = Matrix(1, self.width, order= self.order)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn r1_convert[simd_width: Int](idx: Int):
+                            row.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+                            tmpPtr += simd_width * self.height
+                        vectorize[r1_convert, self.simd_width](row.width)
+                        mat.data[i] = row.argmax()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    if self.order == 'c' or self.height == 1:
+                        mat.data[i] = Matrix(1, self.width, self.data + (i * self.width), self.order).argmax()
+                    else:
+                        var row = Matrix(1, self.width, order= self.order)
+                        var tmpPtr = self.data + i
+                        @parameter
+                        fn c1_convert[simd_width: Int](idx: Int):
+                            row.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+                            tmpPtr += simd_width * self.height
+                        vectorize[c1_convert, self.simd_width](row.width)
+                        mat.data[i] = row.argmax()
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline

@@ -440,6 +440,7 @@ fn micro_kernel[
                 )
 
 
+@always_inline
 fn matmul_params[Type: DType]() -> StaticIntTuple[5]:
     alias mc = 8192 // sizeof[Type]()  # fix this for simplicity
     alias N = simdwidthof[Type]()
@@ -488,6 +489,7 @@ fn matmul_params[Type: DType]() -> StaticIntTuple[5]:
             return compute_params[Vectors - TempVectors]()
 
 
+@always_inline
 fn matmul[
     Type: DType
 ](m: Int, n: Int, k: Int, inout C: Matrix[Type], A: Matrix[Type], B: Matrix[Type]):
