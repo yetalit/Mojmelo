@@ -245,6 +245,7 @@ struct Matrix(Stringable, Formattable):
         return mat^
     
     # replace an element
+    @always_inline
     fn __setitem__(inout self, row: Int, column: Int, val: Float32) raises:
         var loc: Int
         if self.order == 'c':
@@ -256,6 +257,7 @@ struct Matrix(Stringable, Formattable):
         self.data[loc] = val
     
     # replace the given row
+    @always_inline
     fn __setitem__(inout self, row: Int, val: Matrix) raises:
         if row >= self.height or row < 0:
             raise Error("Error: Index out of range!")
@@ -270,6 +272,7 @@ struct Matrix(Stringable, Formattable):
             vectorize[convert, self.simd_width](val.size)
 
     # replace the given row (unsafe)
+    @always_inline
     fn __setitem__(inout self, row: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' or self.height == 1:
             memcpy(self.data + (row * self.width), val.data, val.size)
@@ -282,6 +285,7 @@ struct Matrix(Stringable, Formattable):
             vectorize[convert, self.simd_width](val.size)
 
     # replace the given row with offset
+    @always_inline
     fn __setitem__(inout self, row: Int, offset: Bool, start_i: Int, val: Matrix) raises:
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
             raise Error("Error: Index out of range!")
@@ -296,6 +300,7 @@ struct Matrix(Stringable, Formattable):
             vectorize[convert, self.simd_width](val.size)
 
     # replace the given column
+    @always_inline
     fn __setitem__(inout self, row: String, column: Int, val: Matrix) raises:
         if column >= self.width or column < 0:
             raise Error("Error: Index out of range!")
@@ -310,6 +315,7 @@ struct Matrix(Stringable, Formattable):
             memcpy(self.data + (column * self.height), val.data, val.size)
 
     # replace the given column (unsafe)
+    @always_inline
     fn __setitem__(inout self, row: String, column: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' and self.width > 1:
             var tmpPtr = self.data + column
@@ -322,6 +328,7 @@ struct Matrix(Stringable, Formattable):
             memcpy(self.data + (column * self.height), val.data, val.size)
 
     # replace the given column with offset
+    @always_inline
     fn __setitem__(inout self, offset: Bool, start_i: Int, column: Int, val: Matrix) raises:
         if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
             raise Error("Error: Index out of range!")
@@ -336,15 +343,18 @@ struct Matrix(Stringable, Formattable):
             memcpy(self.data + (column * self.height) + start_i, val.data, val.size)
 
     # replace given rows (by their indices)
+    @always_inline
     fn __setitem__(inout self, rows: Matrix, rhs: Matrix) raises:
         for i in range(rows.size):
             self[int(rows.data[i])] = rhs[i]
 
     # replace given columns (by their indices)
+    @always_inline
     fn __setitem__(inout self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
             self[row, int(columns.data[i])] = rhs[row, i]
 
+    @always_inline
     fn __del__(owned self):
         if self.data:
             self.data.free()
@@ -691,7 +701,6 @@ struct Matrix(Stringable, Formattable):
             parallelize[p](self.size)
         return mat^
 
-    @always_inline
     fn where(self, cmp: InlinedFixedVector[Bool], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
@@ -710,7 +719,6 @@ struct Matrix(Stringable, Formattable):
             parallelize[p](self.size)
         return mat^
 
-    @always_inline
     fn where(self, cmp: InlinedFixedVector[Bool], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
@@ -746,6 +754,7 @@ struct Matrix(Stringable, Formattable):
                 args.append(i)
         return args^
 
+    @always_inline
     fn C_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height)
         for idx_col in range(self.width):
@@ -757,6 +766,7 @@ struct Matrix(Stringable, Formattable):
             vectorize[convert, self.simd_width](self.height)
         return mat^
 
+    @always_inline
     fn F_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height, order= self.order)
         for idx_row in range(self.height):
@@ -776,7 +786,6 @@ struct Matrix(Stringable, Formattable):
             return self.C_transpose()
         return self.F_transpose()
 
-    @always_inline
     fn asorder(self, order: String) -> Matrix:
         _order = order.lower()
         if _order == self.order:
@@ -796,16 +805,28 @@ struct Matrix(Stringable, Formattable):
         return sum(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
-    fn sum(self, axis: Int) raises -> Matrix:
+    fn sum(self, axis: Int) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i].sum()
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].sum()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True].sum()
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i].sum()
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].sum()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True].sum()
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline
@@ -813,22 +834,24 @@ struct Matrix(Stringable, Formattable):
         return self.sum() / self.size
 
     @always_inline
-    fn mean(self, axis: Int) raises -> Matrix:
+    fn mean(self, axis: Int) -> Matrix:
         if axis == 0:
             return self.sum(0) / self.height
-        elif axis == 1:
-            return self.sum(1) / self.width
-        raise Error("Error: Wrong axis value is given!")
+        return self.sum(1) / self.width
 
-    @always_inline
     fn mean_slow(self) -> Float32:
         return (self / self.size).sum()
 
-    @always_inline
-    fn mean_slow0(self) raises -> Matrix:
+    fn mean_slow0(self) -> Matrix:
         var mat = Matrix(1, self.width, order= self.order)
-        for i in range(self.width):
-            mat.data[i] = self['', i].mean_slow()
+        if self.width < 768:
+            for i in range(self.width):
+                mat.data[i] = self['', i, unsafe=True].mean_slow()
+        else:
+            @parameter
+            fn p0(i: Int):
+                mat.data[i] = self['', i, unsafe=True].mean_slow()
+            parallelize[p0](self.width)
         return mat^
 
     @always_inline
@@ -840,29 +863,53 @@ struct Matrix(Stringable, Formattable):
         return ((self - _mean) ** 2).mean()
 
     @always_inline
-    fn _var(self, axis: Int) raises -> Matrix:
+    fn _var(self, axis: Int) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i]._var()
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True]._var()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True]._var()
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i]._var()
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True]._var()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True]._var()
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn _var(self, axis: Int, _mean: Matrix) raises -> Matrix:
+    fn _var(self, axis: Int, _mean: Matrix) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i]._var(_mean.data[i])
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i]._var(_mean.data[i])
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline
@@ -870,50 +917,84 @@ struct Matrix(Stringable, Formattable):
         return math.sqrt(self._var())
 
     @always_inline
-    fn std(self, _mean: Float32) raises -> Float32:
+    fn std(self, _mean: Float32) -> Float32:
         return math.sqrt(self._var(_mean))
 
-    @always_inline
-    fn std_slow(self, _mean: Float32) raises -> Float32:
+    fn std_slow(self, _mean: Float32) -> Float32:
         return math.sqrt(((self - _mean) ** 2).mean_slow())
 
     @always_inline
-    fn std(self, axis: Int) raises -> Matrix:
+    fn std(self, axis: Int) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i].std()
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True].std()
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i].std()
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True].std()
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn std(self, axis: Int, _mean: Matrix) raises -> Matrix:
+    fn std(self, axis: Int, _mean: Matrix) -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i].std(_mean.data[i])
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i].std(_mean.data[i])
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+                parallelize[p1](self.height)
         return mat^
 
-    @always_inline
     fn std_slow(self, axis: Int, _mean: Matrix) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
-            for i in range(self.width):
-                mat.data[i] = self['', i].std_slow(_mean.data[i])
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+                parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
-            for i in range(self.height):
-                mat.data[i] = self[i].std_slow(_mean.data[i])
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+                parallelize[p1](self.height)
         return mat^
 
     @always_inline
@@ -1086,7 +1167,6 @@ struct Matrix(Stringable, Formattable):
         mat.width = width
         return mat^
     
-    @always_inline
     fn cov(self) raises -> Matrix:
         var c = Matrix(self.height, self.height, order= self.order)
         for i in range(self.height):
@@ -1198,7 +1278,6 @@ struct Matrix(Stringable, Formattable):
 
         return e_vals^, e_vecs^
 
-    @always_inline
     fn outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)
         if mat.order == 'c':
@@ -1209,7 +1288,6 @@ struct Matrix(Stringable, Formattable):
                 mat['', i] = self * rhs.data[i]
         return mat^
 
-    @always_inline
     fn concatenate(self, rhs: Matrix, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
@@ -1304,7 +1382,6 @@ struct Matrix(Stringable, Formattable):
         return Matrix.full(height, width, 1.0, order)
 
     @staticmethod
-    @always_inline
     fn full(height: Int, width: Int, val: Float32, order: String = 'c') -> Matrix:
         var mat = Matrix(height, width, order= order)
         mat.fill(val)
