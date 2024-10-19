@@ -697,14 +697,14 @@ struct Matrix(Stringable, Formattable):
         if self.size < 40960:
             for i in range(self.size):
                 if cmp[i]:
-                    mat.data[i] = _true.data[0]
+                    mat.data[i] = _true.data[i]
                 else:
                     mat.data[i] = _false
         else:
             @parameter
             fn p(i: Int):
                 if cmp[i]:
-                    mat.data[i] = _true.data[0]
+                    mat.data[i] = _true.data[i]
                 else:
                     mat.data[i] = _false
             parallelize[p](self.size)
@@ -718,14 +718,14 @@ struct Matrix(Stringable, Formattable):
                 if cmp[i]:
                     mat.data[i] = _true
                 else:
-                    mat.data[i] = _false.data[0]
+                    mat.data[i] = _false.data[i]
         else:
             @parameter
             fn p(i: Int):
                 if cmp[i]:
                     mat.data[i] = _true
                 else:
-                    mat.data[i] = _false.data[0]
+                    mat.data[i] = _false.data[i]
             parallelize[p](self.size)
         return mat^
 
@@ -1465,7 +1465,7 @@ struct Matrix(Stringable, Formattable):
             var max_len: Int = 0
             for j in range(self.height):
                 strings.append("")
-                var val = self.load[1](i, j)
+                var val = self.load[1](j, i)
                 if val >= 0:
                     strings[j] += " "
                 strings[j] += str(val)
