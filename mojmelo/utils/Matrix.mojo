@@ -356,43 +356,79 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn __eq__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
-        for i in range(self.size):
-            result[i] = self.data[i] == rhs
+        if self.size < 131072:
+            for i in range(self.size):
+                result[i] = self.data[i] == rhs
+        else:
+            @parameter
+            fn cmp(i: Int):
+                result[i] = self.data[i] == rhs
+            parallelize[cmp](self.size)
         return result^
 
     @always_inline
     fn __ne__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
-        for i in range(self.size):
-            result[i] = self.data[i] != rhs
+        if self.size < 131072:
+            for i in range(self.size):
+                result[i] = self.data[i] != rhs
+        else:
+            @parameter
+            fn cmp(i: Int):
+                result[i] = self.data[i] != rhs
+            parallelize[cmp](self.size)
         return result^
 
     @always_inline
     fn __gt__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
-        for i in range(self.size):
-            result[i] = self.data[i] > rhs
+        if self.size < 131072:
+            for i in range(self.size):
+                result[i] = self.data[i] > rhs
+        else:
+            @parameter
+            fn cmp(i: Int):
+                result[i] = self.data[i] > rhs
+            parallelize[cmp](self.size)
         return result^
 
     @always_inline
     fn __ge__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
-        for i in range(self.size):
-            result[i] = self.data[i] >= rhs
+        if self.size < 131072:
+            for i in range(self.size):
+                result[i] = self.data[i] >= rhs
+        else:
+            @parameter
+            fn cmp(i: Int):
+                result[i] = self.data[i] >= rhs
+            parallelize[cmp](self.size)
         return result^
 
     @always_inline
     fn __lt__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
-        for i in range(self.size):
-            result[i] = self.data[i] < rhs
+        if self.size < 131072:
+            for i in range(self.size):
+                result[i] = self.data[i] < rhs
+        else:
+            @parameter
+            fn cmp(i: Int):
+                result[i] = self.data[i] < rhs
+            parallelize[cmp](self.size)
         return result^
 
     @always_inline
     fn __le__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
         var result = InlinedFixedVector[Bool](self.size)
-        for i in range(self.size):
-            result[i] = self.data[i] <= rhs
+        if self.size < 131072:
+            for i in range(self.size):
+                result[i] = self.data[i] <= rhs
+        else:
+            @parameter
+            fn cmp(i: Int):
+                result[i] = self.data[i] <= rhs
+            parallelize[cmp](self.size)
         return result^
 
     @always_inline
@@ -639,31 +675,58 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn where(self, cmp: InlinedFixedVector[Bool], _true: Float32, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        for i in range(self.size):
-            if cmp[i]:
-                mat.data[i] = _true
-            else:
-                mat.data[i] = _false
+        if self.size < 40960:
+            for i in range(self.size):
+                if cmp[i]:
+                    mat.data[i] = _true
+                else:
+                    mat.data[i] = _false
+        else:
+            @parameter
+            fn p(i: Int):
+                if cmp[i]:
+                    mat.data[i] = _true
+                else:
+                    mat.data[i] = _false
+            parallelize[p](self.size)
         return mat^
 
     @always_inline
     fn where(self, cmp: InlinedFixedVector[Bool], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        for i in range(self.size):
-            if cmp[i]:
-                mat.data[i] = _true.data[i]
-            else:
-                mat.data[i] = _false
+        if self.size < 40960:
+            for i in range(self.size):
+                if cmp[i]:
+                    mat.data[i] = _true.data[0]
+                else:
+                    mat.data[i] = _false
+        else:
+            @parameter
+            fn p(i: Int):
+                if cmp[i]:
+                    mat.data[i] = _true.data[0]
+                else:
+                    mat.data[i] = _false
+            parallelize[p](self.size)
         return mat^
 
     @always_inline
     fn where(self, cmp: InlinedFixedVector[Bool], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        for i in range(self.size):
-            if cmp[i]:
-                mat.data[i] = _true
-            else:
-                mat.data[i] = _false.data[i]
+        if self.size < 40960:
+            for i in range(self.size):
+                if cmp[i]:
+                    mat.data[i] = _true
+                else:
+                    mat.data[i] = _false.data[0]
+        else:
+            @parameter
+            fn p(i: Int):
+                if cmp[i]:
+                    mat.data[i] = _true
+                else:
+                    mat.data[i] = _false.data[0]
+            parallelize[p](self.size)
         return mat^
 
     @always_inline
