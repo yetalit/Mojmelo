@@ -88,6 +88,8 @@ You can contribute to the project in 3 ways:
 
 Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
 
+Mojo usage and distribution is licensed under the [MAX & Mojo Community License](https://www.modular.com/legal/max-mojo-license).
+
 
 [stars-shield]: https://img.shields.io/github/stars/yetalit/mojmelo?style=social
 [stars-url]: https://github.com/yetalit/mojmelo/stargazers
