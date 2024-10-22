@@ -123,6 +123,7 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
     return Float32(most_common)
 
 fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) -> Float32) raises -> Tuple[Int, Float32]:
+    var parent_loss = loss_func(y)
     var split_idx = feat_idxs[0]
     var split_thresh = X[0, split_idx]
     var best_gain = -math.inf[DType.float32]()
@@ -130,7 +131,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
         var X_column = X['', feat_idx[]]
         var thresholds = X_column.uniquef()
         for threshold in thresholds:
-            var gain = _information_gain(y, X_column, threshold[], loss_func)
+            var gain = _information_gain(parent_loss, y, X_column, threshold[], loss_func)
             if gain > best_gain:
                 best_gain = gain
                 split_idx = feat_idx[]
@@ -139,9 +140,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
     return split_idx, split_thresh
 
 @always_inline
-fn _information_gain(y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) -> Float32) raises -> Float32:
-    var parent_loss = loss_func(y)
-
+fn _information_gain(parent_loss: Float32, y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) -> Float32) raises -> Float32:
     # generate split
     var left_idxs: List[Int]
     var right_idxs: List[Int]

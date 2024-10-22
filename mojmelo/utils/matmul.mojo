@@ -1,11 +1,11 @@
+# Modified version of YichengDWu's matmul.mojo (https://github.com/YichengDWu/matmul.mojo)
+
 from algorithm import vectorize, parallelize
-from memory.memory import _malloc
-from sys import has_avx512f, num_performance_cores
+from memory.memory import _malloc, stack_allocation
+from sys import has_avx512f, num_performance_cores, simdwidthof, sizeof
 import benchmark
 from testing import assert_equal
-from sys.info import simdwidthof, sizeof
-from memory import stack_allocation
-from utils.index import StaticIntTuple
+from utils import StaticIntTuple
 from collections import InlineArray
 import random
 

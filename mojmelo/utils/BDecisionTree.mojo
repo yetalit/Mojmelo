@@ -90,6 +90,7 @@ fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
     return -0.5 * (g.sum() ** 2) / (h.sum() + reg_lambda)
 
 fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Int]) raises -> Tuple[Int, Float32, Float32]:
+    var parent_loss = leaf_loss(reg_lambda, g, h)
     var split_idx = feat_idxs[0]
     var split_thresh = X[0, split_idx]
     var best_gain = -math.inf[DType.float32]()
@@ -97,7 +98,7 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
         var X_column = X['', feat_idx[]]
         var thresholds = X_column.uniquef()
         for threshold in thresholds:
-            var gain = _information_gain(reg_lambda, g, h, X_column, threshold[])
+            var gain = _information_gain(parent_loss, reg_lambda, g, h, X_column, threshold[])
             if gain > best_gain:
                 best_gain = gain
                 split_idx = feat_idx[]
@@ -106,9 +107,7 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
     return split_idx, split_thresh, best_gain
 
 @always_inline
-fn _information_gain(reg_lambda: Float32, g: Matrix, h: Matrix, X_column: Matrix, split_thresh: Float32) raises -> Float32:
-    var parent_loss = leaf_loss(reg_lambda, g, h)
-
+fn _information_gain(parent_loss: Float32, reg_lambda: Float32, g: Matrix, h: Matrix, X_column: Matrix, split_thresh: Float32) raises -> Float32:
     # generate split
     var left_idxs: List[Int]
     var right_idxs: List[Int]
