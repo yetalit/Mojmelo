@@ -18,6 +18,7 @@ struct LinearRegression:
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
+        
         var X_T = X.T()
         # gradient descent
         for _ in range(self.n_iters):
