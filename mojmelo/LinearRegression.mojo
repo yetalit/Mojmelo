@@ -1,5 +1,4 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import mse
 
 struct LinearRegression:
     var lr: Float32
@@ -22,13 +21,15 @@ struct LinearRegression:
         var X_T = X.T()
         # gradient descent
         for _ in range(self.n_iters):
-            var y_predicted: Matrix = X * self.weights + self.bias
-            if self.tol > 0.0:
-                if mse(y, y_predicted) <= self.tol:
-                    break
+            var y_predicted = X * self.weights + self.bias
             # compute gradients and update parameters
-            self.weights -= self.lr * ((X_T * (y_predicted - y)) / X.height)
-            self.bias -= self.lr * ((y_predicted - y).sum() / X.height)
+            var dw = ((X_T * (y_predicted - y)) / X.height)
+            var db = ((y_predicted - y).sum() / X.height)
+            self.weights -= self.lr * dw
+            self.bias -= self.lr * db
+
+            if self.tol > 0.0 and dw.norm() <= self.tol and abs(db) <= self.tol:
+                break
 
     fn predict(self, X: Matrix) raises -> Matrix:
         return X * self.weights + self.bias
