@@ -5,6 +5,7 @@ import math
 
 struct KMeans:
     var K: Int
+    var init: String
     var max_iters: Int
     var tol: Float32
     var seed: Int
@@ -12,8 +13,9 @@ struct KMeans:
     var centroids: Matrix
     var X: Matrix
 
-    fn __init__(inout self, K: Int = 5, max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
+    fn __init__(inout self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
         self.K = K
+        self.init = init
         self.max_iters = max_iters
         self.tol = tol
         self.seed = random_state
@@ -27,8 +29,11 @@ struct KMeans:
     fn predict(inout self, X: Matrix) raises -> Matrix:
         self.X = X
 
-        # Initialize centroids using KMeans++
-        self._kmeans_plus_plus()
+        if self.init == 'kmeans++':
+            # Initialize centroids using KMeans++
+            self._kmeans_plus_plus()
+        else:
+            self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = self.seed)]
 
         # Optimize clusters
         for _ in range(self.max_iters):
