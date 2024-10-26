@@ -16,7 +16,7 @@ struct LinearRegression:
     var bias: Float32
 
     fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, penalty: String = 'l2', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
-                tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = time.perf_counter_ns()):
+                tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.n_iters = n_iters
         self.penalty = penalty.lower()
@@ -59,7 +59,11 @@ struct LinearRegression:
                 prev_cost = cost
             
             if self.batch_size > 0:
-                var ids = Matrix.rand_choice(X.height, X.height, False, self.random_state)
+                var ids: List[Int]
+                if self.random_state != -1:
+                    ids = Matrix.rand_choice(X.height, X.height, False, self.random_state)
+                else:
+                    ids = Matrix.rand_choice(X.height, X.height, False)
                 # Iterate over mini-batches
                 for start_idx in range(0, X.height, self.batch_size):
                     var end_idx = min(start_idx + self.batch_size, X.height)

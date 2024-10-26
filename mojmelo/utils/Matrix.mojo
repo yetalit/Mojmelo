@@ -9,7 +9,6 @@ import random
 from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
 from mojmelo.utils import matmul
 from python import Python, PythonObject
-import time
 
 struct Matrix(Stringable, Formattable):
     var height: Int
@@ -1407,7 +1406,10 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn rand_choice(arang: Int, size: Int, replace: Bool = True) -> List[Int]:
         random.seed()
-        var result = List[Int](capacity = size)
+        var result = UnsafePointer[Int].alloc(size)
+        if not replace:
+            for i in range(size):
+                result[i] = i
         for i in range(size - 1, 0, -1):
             if not replace:
                 # Fisher-Yates shuffle
@@ -1415,13 +1417,16 @@ struct Matrix(Stringable, Formattable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = int(random.random_ui64(0, arang - 1))
-        return result^
+        return List[Int](unsafe_pointer=result, size=size, capacity=size)
 
     @staticmethod
     @always_inline
     fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) -> List[Int]:
         random.seed(seed)
-        var result = List[Int](capacity = size)
+        var result = UnsafePointer[Int].alloc(size)
+        if not replace:
+            for i in range(size):
+                result[i] = i
         for i in range(size - 1, 0, -1):
             if not replace:
                 # Fisher-Yates shuffle
@@ -1429,7 +1434,7 @@ struct Matrix(Stringable, Formattable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = int(random.random_ui64(0, arang - 1))
-        return result^
+        return List[Int](unsafe_pointer=result, size=size, capacity=size)
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
