@@ -6,6 +6,7 @@ from python import Python, PythonObject
 from sys import bitwidthof
 from bit import count_leading_zeros
 from utils import Span
+from algorithm import parallelize
 
 @always_inline
 fn eliminate(r1: Matrix, inout r2: Matrix, col: Int, target: Int = 0) raises:
@@ -198,13 +199,24 @@ fn unit_step(z: Matrix) -> Matrix:
 @always_inline
 fn sign(z: Matrix) -> Matrix:
     var mat = Matrix(z.height, z.width, order= z.order)
-    for i in range(mat.size):
-        if z.data[i] > 0.0:
-            mat.data[i] = 1.0
-        elif z.data[i] < 0.0:
-            mat.data[i] = -1.0
-        else:
-            mat.data[i] = 0.0
+    if mat.size < 147456:
+        for i in range(mat.size):
+            if z.data[i] > 0.0:
+                mat.data[i] = 1.0
+            elif z.data[i] < 0.0:
+                mat.data[i] = -1.0
+            else:
+                mat.data[i] = 0.0
+    else:
+        @parameter
+        fn p(i: Int):
+            if z.data[i] > 0.0:
+                mat.data[i] = 1.0
+            elif z.data[i] < 0.0:
+                mat.data[i] = -1.0
+            else:
+                mat.data[i] = 0.0
+        parallelize[p](mat.size)
     return mat^
 
 @always_inline

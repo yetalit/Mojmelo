@@ -29,7 +29,7 @@ struct KMeans:
     fn predict(inout self, X: Matrix) raises -> Matrix:
         self.X = X
 
-        if self.init == 'kmeans++':
+        if self.init == 'kmeans++' or self.init == 'k-means++':
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus()
         else:
