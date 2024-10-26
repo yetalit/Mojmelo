@@ -74,6 +74,7 @@ struct PolyRegression:
             
             if self.batch_size > 0:
                 var ids = Matrix.rand_choice(X.height, X.height, False, self.random_state)
+                var dw = Matrix(X.width, self.degree, order='f')
                 # Iterate over mini-batches
                 for start_idx in range(0, X.height, self.batch_size):
                     var end_idx = min(start_idx + self.batch_size, X.height)
@@ -85,7 +86,6 @@ struct PolyRegression:
                     for i in range(1, self.degree):
                         y_batch_predicted += X_poly[i - 1][batch_indices] * self.weights['', i]
                     # compute gradients and update parameters
-                    var dw = Matrix(X.width, self.degree, order='f')
                     dw['', 0] = ((X_T[batch_indices] * (y_batch_predicted - y_batch)) / len(y_batch))
                     for i in range(1, self.degree):
                         dw['', i] = ((X_poly_T[i - 1][batch_indices] * (y_batch_predicted - y_batch)) / len(y_batch))
