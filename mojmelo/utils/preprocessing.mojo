@@ -81,9 +81,15 @@ fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
 fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
-fn train_test_split(X: Matrix, y: Matrix, test_size: Float16 = 0.5, random_state: Int = time.perf_counter_ns()) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.0, train_size: Float16 = 0.0, random_state: Int = time.perf_counter_ns()) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+    var test_count = test_size
+    if test_size + train_size != 1.0:
+        if train_size > 0.0:
+            test_count = 1.0 - train_size
+        elif test_size == 0.0:
+            test_count = 0.5
     var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
-    var split_i = int(X.height - (test_size * X.height))
+    var split_i = int(X.height - (test_count * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 @value
@@ -94,7 +100,13 @@ struct SplittedPO:
         self.train = train
         self.test = test
 
-fn train_test_split(X: Matrix, y: PythonObject, test_size: Float16 = 0.5, random_state: Int = time.perf_counter_ns()) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.0, train_size: Float16 = 0.0, random_state: Int = time.perf_counter_ns()) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+    var test_count = test_size
+    if test_size + train_size != 1.0:
+        if train_size > 0.0:
+            test_count = 1.0 - train_size
+        elif test_size == 0.0:
+            test_count = 0.5
     var np = Python.import_module("numpy")
     var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
     var split_i = int(X.height - (test_size * X.height))

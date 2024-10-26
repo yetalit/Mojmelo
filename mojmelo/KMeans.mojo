@@ -15,7 +15,7 @@ struct KMeans:
 
     fn __init__(inout self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
         self.K = K
-        self.init = init
+        self.init = init.lower()
         self.max_iters = max_iters
         self.tol = tol
         self.seed = random_state

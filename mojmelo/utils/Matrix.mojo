@@ -1407,34 +1407,28 @@ struct Matrix(Stringable, Formattable):
     @always_inline
     fn rand_choice(arang: Int, size: Int, replace: Bool = True) -> List[Int]:
         random.seed()
-        var cache = Matrix(0, 0)
-        if not replace:
-            cache = Matrix.zeros(1, arang)
         var result = List[Int](capacity = size)
-        for _ in range(size):
-            var rand_int = int(random.random_ui64(0, arang - 1))
+        for i in range(size - 1, 0, -1):
             if not replace:
-                while cache.data[rand_int] == 1.0:
-                    rand_int = int(random.random_ui64(0, arang - 1))
-                cache.data[rand_int] = 1.0
-            result.append(rand_int)
+                # Fisher-Yates shuffle
+                var j = int(random.random_ui64(0, i))
+                result[i], result[j] = result[j], result[i]
+            else:
+                result[i] = int(random.random_ui64(0, arang - 1))
         return result^
 
     @staticmethod
     @always_inline
     fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) -> List[Int]:
         random.seed(seed)
-        var cache = Matrix(0, 0)
-        if not replace:
-            cache = Matrix.zeros(1, arang)
         var result = List[Int](capacity = size)
-        for _ in range(size):
-            var rand_int = int(random.random_ui64(0, arang - 1))
+        for i in range(size - 1, 0, -1):
             if not replace:
-                while cache.data[rand_int] == 1.0:
-                    rand_int = int(random.random_ui64(0, arang - 1))
-                cache.data[rand_int] = 1.0
-            result.append(rand_int)
+                # Fisher-Yates shuffle
+                var j = int(random.random_ui64(0, i))
+                result[i], result[j] = result[j], result[i]
+            else:
+                result[i] = int(random.random_ui64(0, arang - 1))
         return result^
 
     @staticmethod

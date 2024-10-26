@@ -235,8 +235,13 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
             sq_dist[i, j] = ((X[i] - Z[j]) ** 2).sum()
     return (-sq_dist / (params[0] ** 2)).exp() # e^-(1/ σ2) ||X-y|| ^2
 
+@always_inline
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
     return ((y - y_pred) ** 2).mean()
+
+@always_inline
+fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
+    return -(y.ele_mul((y_pred + 1e-15).log()) + (1.0 - y).ele_mul((1.0 - y_pred + 1e-15).log())).mean()
 
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
