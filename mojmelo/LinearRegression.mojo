@@ -33,7 +33,12 @@ struct LinearRegression:
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
         
-        var X_T = X.T()
+        var X_T: Matrix
+        if self.batch_size > 0:
+            X_T = X.reshape(X.width, X.height)
+            X_T.order = 'f'
+        else:
+            X_T = X.T()
 
         var l1_lambda = self.reg_alpha
         var l2_lambda = self.reg_alpha
@@ -73,7 +78,7 @@ struct LinearRegression:
 
                     var y_batch_predicted = X[batch_indices] * self.weights + self.bias
                     # compute gradients and update parameters
-                    var dw = ((X_T[batch_indices] * (y_batch_predicted - y_batch)) / len(y_batch))
+                    var dw = ((X_T['', batch_indices].asorder('c') * (y_batch_predicted - y_batch)) / len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)

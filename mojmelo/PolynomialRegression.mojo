@@ -42,9 +42,18 @@ struct PolyRegression:
         self.weights = Matrix.zeros(X.width, self.degree, order='f')
         self.bias = 0.0
 
-        var X_T = X.T()
+        var X_T: Matrix
+        if self.batch_size > 0:
+            X_T = X.reshape(X.width, X.height)
+            X_T.order = 'f'
+        else:
+            X_T = X.T()
         var X_poly_T = List[Matrix]()
         for i in range(1, self.degree):
+            if self.batch_size > 0:
+                X_poly_T.append(X_poly[i - 1].reshape(X_poly[i - 1].width, X_poly[i - 1].height))
+                X_poly_T[i - 1].order = 'f'
+            else:
                 X_poly_T.append(X_poly[i - 1].T())
 
         var l1_lambda = self.reg_alpha
@@ -90,9 +99,9 @@ struct PolyRegression:
                     for i in range(1, self.degree):
                         y_batch_predicted += X_poly[i - 1][batch_indices] * self.weights['', i]
                     # compute gradients and update parameters
-                    dw['', 0] = ((X_T[batch_indices] * (y_batch_predicted - y_batch)) / len(y_batch))
+                    dw['', 0] = ((X_T['', batch_indices].asorder('c') * (y_batch_predicted - y_batch)) / len(y_batch))
                     for i in range(1, self.degree):
-                        dw['', i] = ((X_poly_T[i - 1][batch_indices] * (y_batch_predicted - y_batch)) / len(y_batch))
+                        dw['', i] = ((X_poly_T[i - 1]['', batch_indices].asorder('c') * (y_batch_predicted - y_batch)) / len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
