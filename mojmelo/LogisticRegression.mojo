@@ -33,11 +33,8 @@ struct LogisticRegression:
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
 
-        var X_T: Matrix
-        if self.batch_size > 0:
-            X_T = X.reshape(X.width, X.height)
-            X_T.order = 'f'
-        else:
+        var X_T = Matrix(0, 0)
+        if self.batch_size <= 0:
             X_T = X.T()
 
         var l1_lambda = self.reg_alpha
@@ -75,11 +72,12 @@ struct LogisticRegression:
                     var end_idx = min(start_idx + self.batch_size, X.height)
                     var batch_indices = ids[start_idx:end_idx]
                     
+                    var X_batch = X[batch_indices]
                     var y_batch = y[batch_indices]
 
-                    var y_batch_predicted = sigmoid(X[batch_indices] * self.weights + self.bias)
+                    var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
                     # compute gradients and update parameters
-                    var dw = ((X_T['', batch_indices].asorder('c') * (y_batch_predicted - y_batch)) / len(y_batch))
+                    var dw = ((X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
