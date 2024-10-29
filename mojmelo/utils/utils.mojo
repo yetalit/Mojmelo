@@ -1,4 +1,4 @@
-from collections.vector import InlinedFixedVector
+from collections import InlinedFixedVector, Dict
 from memory import memset_zero
 import math
 from mojmelo.utils.Matrix import Matrix
@@ -7,6 +7,16 @@ from sys import bitwidthof
 from bit import count_leading_zeros
 from utils import Span
 from algorithm import parallelize
+
+trait CV:
+    fn fit(inout self, X: Matrix, y: Matrix) raises:
+        ...
+    fn predict(self, X: Matrix) raises -> Matrix:
+        ...
+    fn set_param(inout self, p_name: String, p_val: String) raises:
+        ...
+    fn set_params_from_dict(inout self, params: Dict[String, String]) raises:
+        ...
 
 @always_inline
 fn eliminate(r1: Matrix, inout r2: Matrix, col: Int, target: Int = 0) raises:
@@ -233,7 +243,7 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
     for i in range(sq_dist.height):  # Loop over each sample in X
         for j in range(sq_dist.width):  # Loop over each sample in Z
             sq_dist[i, j] = ((X[i] - Z[j]) ** 2).sum()
-    return (-sq_dist / (params[0] ** 2)).exp() # e^-(1/ σ2) ||X-y|| ^2
+    return (-sq_dist * params[0]).exp() # e^-(1/ σ2) ||X-y|| ^2
 
 @always_inline
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
@@ -246,9 +256,7 @@ fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
-fn accuracy_score(y: Matrix, y_pred: Matrix, zero_to_negone: Bool = False) -> Float32:
-    if zero_to_negone:
-        return accuracy_score(y.where(y <= 0.0, -1.0, 1.0), y_pred)
+fn accuracy_score(y: Matrix, y_pred: Matrix) -> Float32:
     var correct_count: Float32 = 0.0
     for i in range(y.size):
         if y.data[i] == y_pred.data[i]:
@@ -324,3 +332,19 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
     for i in range(len(list)):
         np_arr[i] = list[i]
     return np_arr^
+
+fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
+    var result = List[List[String]]()
+    if not lists:
+        result.append(List[String]())
+        return result^
+
+    first, rest = lists[0], lists[1:]
+    var rest_product = cartesian_product(rest)
+
+    # Create the Cartesian product
+    for item in first:
+        for prod in rest_product:
+            result.append(List[String](item[]) + prod[])
+
+    return result^

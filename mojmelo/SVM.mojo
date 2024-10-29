@@ -5,21 +5,19 @@ struct SVM_Primal:
     var lr: Float32
     var lambda_param: Float32
     var n_iters: Int
+    var class_zero: Bool
     var weights: Matrix
     var bias: Float32
 
-    fn __init__(inout self, learning_rate: Float32 = 0.001, lambda_param: Float32 = 0.01, n_iters: Int = 1000):
+    fn __init__(inout self, learning_rate: Float32 = 0.001, lambda_param: Float32 = 0.01, n_iters: Int = 1000, class_zero: Bool = False):
         self.lr = learning_rate
         self.lambda_param = lambda_param
         self.n_iters = n_iters
+        self.class_zero = class_zero
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn fit(inout self, X: Matrix, y: Matrix, class_zero: Bool = False) raises:
-        if class_zero:
-            self.fit(X, y.where(y <= 0.0, -1.0, 1.0))
-            return
-
+    fn _fit(inout self, X: Matrix, y: Matrix) raises:
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
 
@@ -33,7 +31,16 @@ struct SVM_Primal:
                     )
                     self.bias -= self.lr * y.data[i]
 
+    fn fit(inout self, X: Matrix, y: Matrix) raises:
+        if self.class_zero:
+            self._fit(X, y.where(y <= 0.0, -1.0, 1.0))
+        else:
+            self._fit(X, y)
+
     fn predict(self, X: Matrix) raises -> Matrix:
+        if self.class_zero:
+            var y_predicted = sign(X * self.weights - self.bias)
+            return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(X * self.weights - self.bias)
 
 
@@ -43,14 +50,15 @@ struct SVM_Dual:
     var C: Float32
     var kernel: fn(Tuple[Float32, Int], Matrix, Matrix) raises -> Matrix
     var degree: Int
-    var sigma: Float32
+    var gamma: Float32
+    var class_zero: Bool
     var k_params: Tuple[Float32, Int]
     var alpha: Matrix
     var bias: Float32
     var X: Matrix
     var y: Matrix
 
-    fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, sigma: Float32 = 0.1):
+    fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, gamma: Float32 = 0.1, class_zero: Bool = False):
         self.learning_rate = learning_rate
         self.epoches = n_iters
         self.C = C
@@ -58,18 +66,19 @@ struct SVM_Dual:
             self.k_params = (C, degree)
             self.kernel = polynomial_kernel
         else:
-            self.k_params = (sigma, 0)
+            self.k_params = (gamma, 0)
             self.kernel = gaussian_kernel
         self.degree = degree
-        self.sigma = sigma
+        self.gamma = gamma
+        self.class_zero = class_zero
         self.alpha = Matrix(0, 0)
         self.bias = 0.0
         self.X = Matrix(0, 0)
         self.y = Matrix(0, 0)
 
-    fn fit(inout self, X: Matrix, y: Matrix, class_zero: Bool = False) raises:
+    fn fit(inout self, X: Matrix, y: Matrix) raises:
         self.X = X
-        if class_zero:
+        if self.class_zero:
             self.y = y.where(y <= 0.0, -1.0, 1.0)
         else:
             self.y = y
@@ -97,4 +106,7 @@ struct SVM_Dual:
         self.bias = (self.y[alpha_index] - (self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel(self.k_params, X, X[alpha_index])).reshape(len(alpha_index), 1)).mean() # avgC≤αi≤0{ yi – ∑αjyj K(xj, xi) }
     
     fn predict(self, X: Matrix) raises -> Matrix:
+        if self.class_zero:
+            var y_predicted = sign(self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel(self.k_params, self.X, X) + self.bias).reshape(X.height, 1)
+            return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel(self.k_params, self.X, X) + self.bias).reshape(X.height, 1)

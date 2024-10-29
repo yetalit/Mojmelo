@@ -33,16 +33,15 @@ struct DecisionStump:
 
 struct Adaboost:
     var n_clf: Int
+    var class_zero: Bool
     var clfs: List[DecisionStump]
 
-    fn __init__(inout self, n_clf: Int = 5):
+    fn __init__(inout self, n_clf: Int = 5, class_zero: Bool = False):
         self.n_clf = n_clf
+        self.class_zero = class_zero
         self.clfs = List[DecisionStump]()
 
-    fn fit(inout self, X: Matrix, y: Matrix, class_zero: Bool = False) raises:
-        if class_zero:
-            self.fit(X, y.where(y <= 0.0, -1.0, 1.0))
-            return
+    fn _fit(inout self, X: Matrix, y: Matrix) raises:
         # Initialize weights to 1/N
         var w = Matrix.full(X.height, 1, Float32(1) / X.height)
 
@@ -95,8 +94,17 @@ struct Adaboost:
             # Save classifier
             self.clfs.append(clf)
 
+    fn fit(inout self, X: Matrix, y: Matrix) raises:
+        if self.class_zero:
+            self._fit(X, y.where(y <= 0.0, -1.0, 1.0))
+        else:
+            self._fit(X, y)
+
     fn predict(self, X: Matrix) raises -> Matrix:
         var clf_preds = Matrix(X.height, self.n_clf)
         for clf_i in range(self.n_clf):
             clf_preds['', clf_i] = self.clfs[clf_i].alpha * self.clfs[clf_i].predict(X)
+        if self.class_zero:
+            var y_predicted = sign(clf_preds.sum(1))
+            return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(clf_preds.sum(1))

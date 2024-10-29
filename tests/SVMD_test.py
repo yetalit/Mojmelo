@@ -7,12 +7,12 @@ def get_data():
 
     return [X, y]
 
-def test(X, y, alpha, sigma, b):
-    def gaussian_kernal(sigma, _X,Z):
-        return np.exp(-(1 / sigma ** 2) * np.linalg.norm(_X[:, np.newaxis] - Z[np.newaxis, :], axis=2) ** 2) #e ^-(1/ σ2) ||X-y|| ^2
+def test(X, y, alpha, gamma, b):
+    def gaussian_kernal(gamma, _X,Z):
+        return np.exp(-gamma * np.linalg.norm(_X[:, np.newaxis] - Z[np.newaxis, :], axis=2) ** 2) #e ^-(1/ σ2) ||X-y|| ^2
 
     def decision_function(_X):
-        return (alpha * y).dot(gaussian_kernal(sigma, X, _X)) + b
+        return (alpha * y).dot(gaussian_kernal(gamma, X, _X)) + b
     
     plt.scatter(X[:, 0], X[:, 1], c=y, s=50, cmap='winter', alpha=.5)
     ax = plt.gca()

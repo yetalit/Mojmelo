@@ -1,9 +1,11 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import sign, mse
+from mojmelo.utils.utils import CV, sign, mse
+from collections import Dict
 import math
 import time
 
-struct LinearRegression:
+@value
+struct LinearRegression(CV):
     var lr: Float32
     var n_iters: Int
     var penalty: String
@@ -76,14 +78,14 @@ struct LinearRegression:
 
                     var y_batch_predicted = X_batch * self.weights + self.bias
                     # compute gradients and update parameters
-                    var dw = ((X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch))
+                    var dw = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = ((y_batch_predicted - y_batch).sum() / len(y_batch))
+                    var db = (y_batch_predicted - y_batch).sum() / len(y_batch)
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
             else:
@@ -101,3 +103,25 @@ struct LinearRegression:
 
     fn predict(self, X: Matrix) raises -> Matrix:
         return X * self.weights + self.bias
+
+    fn set_param(inout self, p_name: String, p_val: String) raises:
+        if p_name == 'learning_rate':
+            self.lr = atof(p_val).cast[DType.float32]()
+        elif p_name == 'n_iters':
+            self.n_iters = atol(p_val)
+        elif p_name == 'penalty':
+            self.penalty = p_val
+        elif p_name == 'reg_alpha':
+            self.reg_alpha = atof(p_val).cast[DType.float32]()
+        elif p_name == 'l1_ratio':
+            self.l1_ratio = atof(p_val).cast[DType.float32]()
+        elif p_name == 'tol':
+            self.tol = atof(p_val).cast[DType.float32]()
+        elif p_name == 'batch_size':
+            self.batch_size = atol(p_val)
+        elif p_name == 'random_state':
+            self.random_state = atol(p_val)
+
+    fn set_params_from_dict(inout self, params: Dict[String, String]) raises:
+        for key in params.keys():
+            self.set_param(key[], params[key[]])

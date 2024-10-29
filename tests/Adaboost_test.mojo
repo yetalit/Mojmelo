@@ -8,7 +8,7 @@ def main():
     ab_test = Python.import_module("load_breast_cancer")
     data = ab_test.get_data() # X, y
     X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[1]).T(), test_size = 0.2, random_state = 5)
-    ab = Adaboost(n_clf = 5)
-    ab.fit(X_train, y_train, class_zero = True)
+    ab = Adaboost(n_clf = 5, class_zero = True)
+    ab.fit(X_train, y_train)
     y_pred = ab.predict(X_test)
-    print("Accuracy:", accuracy_score(y_test, y_pred, zero_to_negone = True))
+    print("Accuracy:", accuracy_score(y_test, y_pred))
