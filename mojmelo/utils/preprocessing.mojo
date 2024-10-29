@@ -137,7 +137,7 @@ fn KFold[m_type: CV](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Matr
     var start_of_test = 0
     var total_score: Float32 = 0.0
     for _ in range(n_splits):
-        var end_of_test = min(start_of_test + test_count, X.height - 1)
+        var end_of_test = min(start_of_test + test_count, X.height)
         model.fit(X[ids[end_of_test:] + ids[:start_of_test]], y[ids[end_of_test:] + ids[:start_of_test]])
         y_pred = model.predict(X[ids[start_of_test:end_of_test]])
         total_score += scoring(y[ids[start_of_test:end_of_test]], y_pred)
