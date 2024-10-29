@@ -58,7 +58,7 @@ struct SVM_Dual:
     var X: Matrix
     var y: Matrix
 
-    fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, gamma: Float32 = 0.1, class_zero: Bool = False):
+    fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, gamma: Float32 = 100.0, class_zero: Bool = False):
         self.learning_rate = learning_rate
         self.epoches = n_iters
         self.C = C
