@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, cartesian_product
+from mojmelo.utils.utils import CVM, CVP, cartesian_product, ids_to_numpy
 from collections import Dict
 from python import Python, PythonObject
 import math
@@ -106,31 +106,17 @@ struct SplittedPO:
 
 fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
-    var np = Python.import_module("numpy")
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = int(X.height - (test_ratio * X.height))
-    var y_train = np.empty(split_i, dtype='object')
-    var y_test = np.empty(X.height - split_i, dtype='object')
-    for i in range(split_i):
-        y_train[i] = y[ids[i]]
-    for i in range(split_i, X.height):
-        y_test[i - split_i] = y[ids[i]]
-    return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y_train, y_test)
+    return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
-    var np = Python.import_module("numpy")
     var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
     var split_i = int(X.height - (test_ratio * X.height))
-    var y_train = np.empty(split_i, dtype='object')
-    var y_test = np.empty(X.height - split_i, dtype='object')
-    for i in range(split_i):
-        y_train[i] = y[ids[i]]
-    for i in range(split_i, X.height):
-        y_test[i - split_i] = y[ids[i]]
-    return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y_train, y_test)
+    return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
-fn KFold[m_type: CV](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+fn KFold[m_type: CVM](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     var test_ratio = 1 / n_splits
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = int(test_ratio * X.height)
@@ -144,7 +130,21 @@ fn KFold[m_type: CV](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Matr
         start_of_test += test_count
     return total_score / n_splits
 
-fn GridSearchCV[m_type: CV](owned model: m_type, X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
+fn KFold[m_type: CVP](inout model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+    var test_ratio = 1 / n_splits
+    var ids = Matrix.rand_choice(X.height, X.height, False)
+    var test_count = int(test_ratio * X.height)
+    var start_of_test = 0
+    var total_score: Float32 = 0.0
+    for _ in range(n_splits):
+        var end_of_test = min(start_of_test + test_count, X.height)
+        model.fit(X[ids[end_of_test:] + ids[:start_of_test]], y[ids_to_numpy(ids[end_of_test:] + ids[:start_of_test])])
+        y_pred = model.predict(X[ids[start_of_test:end_of_test]])
+        total_score += scoring(y[ids_to_numpy(ids[start_of_test:end_of_test])], y_pred)
+        start_of_test += test_count
+    return total_score / n_splits
+
+fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
                             scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
     var best_params = Dict[String, String]()
     var best_score = -math.inf[DType.float32]()
@@ -159,7 +159,33 @@ fn GridSearchCV[m_type: CV](owned model: m_type, X: Matrix, y: Matrix, param_gri
         for key in param_grid.keys():
             current_params[key[]] = comb[][j]
             j += 1
-        model.set_params_from_dict(current_params)
+        var model = m_type(current_params)
+        var score = KFold[m_type](model, X, y, scoring, cv)
+        if neg_score:
+            score *= -1
+        if score > best_score:
+            best_score = score
+            best_params = current_params
+    if neg_score:
+        best_score *= -1
+    return best_params^, best_score
+
+fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String, List[String]],
+                            scoring: fn(PythonObject, List[String]) raises -> Float32, neg_score: Bool = False, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    var best_params = Dict[String, String]()
+    var best_score = -math.inf[DType.float32]()
+    var values = List[List[String]]()
+    for i in range(len(param_grid)):
+        values.append(List[String]())
+        values[i] = param_grid._entries[i].value().value
+    var combinations = cartesian_product(values)
+    for comb in combinations:
+        var current_params = Dict[String, String]()
+        var j = 0
+        for key in param_grid.keys():
+            current_params[key[]] = comb[][j]
+            j += 1
+        var model = m_type(current_params)
         var score = KFold[m_type](model, X, y, scoring, cv)
         if neg_score:
             score *= -1

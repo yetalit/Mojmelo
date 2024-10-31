@@ -1,7 +1,7 @@
-from collections.vector import InlinedFixedVector
+from collections import InlinedFixedVector, Dict
 import math
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import normal_distr
+from mojmelo.utils.utils import CVP, normal_distr
 from python import PythonObject
 
 struct GaussianNB:
@@ -99,3 +99,12 @@ struct MultinomialNB:
             posteriors.data[i] = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum()
         # return class with highest posterior probability
         return self._classes[posteriors.argmax()]
+
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        if '_alpha' in params:
+            self._alpha = atof(params['_alpha']).cast[DType.float32]()
+        else:
+            self._alpha = 0.0
+        self._classes = List[String]()
+        self._class_probs = Matrix(0, 0)
+        self._priors = InlinedFixedVector[Float32](capacity = 0)

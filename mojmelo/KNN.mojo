@@ -1,10 +1,10 @@
 from collections import InlinedFixedVector, Dict
 from utils import Span
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import euclidean_distance, manhattan_distance, le
+from mojmelo.utils.utils import CVP, euclidean_distance, manhattan_distance, le
 from python import PythonObject
 
-struct KNN:
+struct KNN(CVP):
     var k: Int
     var distance: fn(Matrix, Matrix) raises -> Float32
     var X_train: Matrix
@@ -19,7 +19,7 @@ struct KNN:
         self.X_train = Matrix(0, 0)
         self.y_train = None
 
-    fn fit(inout self, X: Matrix, y: PythonObject):
+    fn fit(inout self, X: Matrix, y: PythonObject) raises:
         self.X_train = X
         self.y_train = y
 
@@ -51,3 +51,18 @@ struct KNN:
             if k_neighbor_votes[label] > k_neighbor_votes[most_common]:
                 most_common = label
         return most_common
+
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        if 'k' in params:
+            self.k = atol(params['k'])
+        else:
+            self.k = 3
+        if 'metric' in params:
+            if params['metric'].lower() == 'man':
+                self.distance = manhattan_distance
+            else:
+                self.distance = euclidean_distance
+        else:
+            self.distance = euclidean_distance
+        self.X_train = Matrix(0, 0)
+        self.y_train = None

@@ -8,14 +8,22 @@ from bit import count_leading_zeros
 from utils import Span
 from algorithm import parallelize
 
-trait CV:
+# Cross Validation y as Matrix
+trait CVM:
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        ...
     fn fit(inout self, X: Matrix, y: Matrix) raises:
         ...
     fn predict(self, X: Matrix) raises -> Matrix:
         ...
-    fn set_param(inout self, p_name: String, p_val: String) raises:
+
+# Cross Validation y as PythonObject
+trait CVP:
+    fn __init__(inout self, params: Dict[String, String]) raises:
         ...
-    fn set_params_from_dict(inout self, params: Dict[String, String]) raises:
+    fn fit(inout self, X: Matrix, y: PythonObject) raises:
+        ...
+    fn predict(self, X: Matrix) raises -> List[String]:
         ...
 
 @always_inline
@@ -329,6 +337,13 @@ fn log_h(score: Matrix) raises -> Matrix:
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='object')
+    for i in range(len(list)):
+        np_arr[i] = list[i]
+    return np_arr^
+
+fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
+    var np = Python.import_module("numpy")
+    var np_arr = np.empty(len(list), dtype='int')
     for i in range(len(list)):
         np_arr[i] = list[i]
     return np_arr^

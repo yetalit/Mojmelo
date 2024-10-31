@@ -1,7 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import unit_step
+from mojmelo.utils.utils import CVM, unit_step
+from collections import Dict
 
-struct Perceptron:
+struct Perceptron(CVM):
     var lr: Float32
     var n_iters: Int
     var weights: Matrix
@@ -30,3 +31,15 @@ struct Perceptron:
     fn predict(self, X: Matrix) raises -> Matrix:
         # Unit Step as activation
         return unit_step(X * self.weights + self.bias)
+
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        if 'learning_rate' in params:
+            self.lr = atof(params['learning_rate']).cast[DType.float32]()
+        else:
+            self.lr = 0.01
+        if 'n_iters' in params:
+            self.n_iters = atol(params['n_iters'])
+        else:
+            self.n_iters = 1000
+        self.weights = Matrix(0, 0)
+        self.bias = 0.0

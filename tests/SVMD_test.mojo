@@ -11,5 +11,5 @@ def main():
     svmd = SVM_Dual(kernel = 'rbf', class_zero = True)
     svmd.fit(X_train, y_train)
     y_pred = svmd.predict(X_test)
-    print("SVM_Primal classification accuracy:", accuracy_score(y_test, y_pred))
+    print("SVM_Dual classification accuracy:", accuracy_score(y_test, y_pred))
     svmd_test.test(X_train.to_numpy(), svmd.y.T().to_numpy(), svmd.alpha.T().to_numpy(), svmd.gamma, svmd.bias)
