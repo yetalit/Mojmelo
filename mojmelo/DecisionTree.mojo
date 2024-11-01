@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import entropy, gini, mse_loss
+from mojmelo.utils.utils import CVM, entropy, gini, mse_loss
 from collections import Dict
 import math
 
@@ -29,7 +29,7 @@ struct Node:
         return '<' + str(self.feature) + ': ' + str(self.threshold) + '>'
 
 @value
-struct DecisionTree:
+struct DecisionTree(CVM):
     var criterion: String
     var loss_func: fn(Matrix) -> Float32
     var min_samples_split: Int
@@ -48,6 +48,31 @@ struct DecisionTree:
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
+        self.root = UnsafePointer[Node]()
+
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        if 'criterion' in params:
+            self.criterion = params['criterion'].lower()
+        else:
+            self.criterion = 'gini'
+        if self.criterion == 'gini':
+            self.loss_func = gini
+        elif self.criterion == 'mse':
+            self.loss_func = mse_loss
+        else:
+            self.loss_func = entropy
+        if 'min_samples_split' in params:
+            self.min_samples_split = atol(params['min_samples_split'])
+        else:
+            self.min_samples_split = 2
+        if 'max_depth' in params:
+            self.max_depth = atol(params['max_depth'])
+        else:
+            self.max_depth = 100
+        if 'n_feats' in params:
+            self.n_feats = atol(params['n_feats'])
+        else:
+            self.n_feats = -1
         self.root = UnsafePointer[Node]()
 
     fn __moveinit__(inout self, owned existing: Self):

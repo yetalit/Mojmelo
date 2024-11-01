@@ -1,5 +1,7 @@
 from mojmelo.DecisionTree import DecisionTree
 from mojmelo.utils.Matrix import Matrix
+from mojmelo.utils.utils import CVM
+from collections import Dict
 
 @always_inline
 fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
@@ -18,7 +20,7 @@ fn _predict(y: Matrix, criterion: String) raises -> Float32:
             most_common = k[]
     return Float32(most_common)
 
-struct RandomForest:
+struct RandomForest(CVM):
     var n_trees: Int
     var min_samples_split: Int
     var max_depth: Int
@@ -32,6 +34,29 @@ struct RandomForest:
         self.max_depth = max_depth
         self.n_feats = n_feats
         self.criterion = criterion.lower()
+        self.trees = UnsafePointer[DecisionTree]()
+
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        if 'n_trees' in params:
+            self.n_trees = atol(params['n_trees'])
+        else:
+            self.n_trees = 10
+        if 'min_samples_split' in params:
+            self.min_samples_split = atol(params['min_samples_split'])
+        else:
+            self.min_samples_split = 2
+        if 'max_depth' in params:
+            self.max_depth = atol(params['max_depth'])
+        else:
+            self.max_depth = 100
+        if 'n_feats' in params:
+            self.n_feats = atol(params['n_feats'])
+        else:
+            self.n_feats = -1
+        if 'criterion' in params:
+            self.criterion = params['criterion'].lower()
+        else:
+            self.criterion = 'gini'
         self.trees = UnsafePointer[DecisionTree]()
 
     fn __del__(owned self):

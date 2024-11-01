@@ -1,6 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import sign
+from mojmelo.utils.utils import CVM, sign
 import math
+from collections import Dict
 
 # Decision stump used as weak classifier
 @value
@@ -31,7 +32,7 @@ struct DecisionStump:
         return predictions^
 
 
-struct Adaboost:
+struct Adaboost(CVM):
     var n_clf: Int
     var class_zero: Bool
     var clfs: List[DecisionStump]
@@ -108,3 +109,17 @@ struct Adaboost:
             var y_predicted = sign(clf_preds.sum(1))
             return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(clf_preds.sum(1))
+
+    fn __init__(inout self, params: Dict[String, String]) raises:
+        if 'n_clf' in params:
+            self.n_clf = atol(params['n_clf'])
+        else:
+            self.n_clf = 5
+        if 'class_zero' in params:
+            if params['class_zero'] == 'True':
+                self.class_zero = True
+            else:
+                self.class_zero = False
+        else:
+            self.class_zero = False
+        self.clfs = List[DecisionStump]()

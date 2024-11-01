@@ -264,7 +264,7 @@ fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
-fn accuracy_score(y: Matrix, y_pred: Matrix) -> Float32:
+fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     var correct_count: Float32 = 0.0
     for i in range(y.size):
         if y.data[i] == y_pred.data[i]:
