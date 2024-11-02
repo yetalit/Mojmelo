@@ -1,8 +1,9 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, CVP, cartesian_product, ids_to_numpy
+from algorithm import parallelize
+from sys import num_performance_cores
 from collections import Dict
 from python import Python, PythonObject
-import math
 import time
 
 fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
@@ -117,9 +118,8 @@ fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size:
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn KFold[m_type: CVM](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
-    var test_ratio = 1 / n_splits
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = int(test_ratio * X.height)
+    var test_count = int((1 / n_splits) * X.height)
     var start_of_test = 0
     var total_score: Float32 = 0.0
     for _ in range(n_splits):
@@ -131,9 +131,8 @@ fn KFold[m_type: CVM](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Mat
     return total_score / n_splits
 
 fn KFold[m_type: CVP](inout model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
-    var test_ratio = 1 / n_splits
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = int(test_ratio * X.height)
+    var test_count = int((1 / n_splits) * X.height)
     var start_of_test = 0
     var total_score: Float32 = 0.0
     for _ in range(n_splits):
@@ -145,53 +144,99 @@ fn KFold[m_type: CVP](inout model: m_type, X: Matrix, y: PythonObject, scoring: 
     return total_score / n_splits
 
 fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
-                            scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
-    var best_params = Dict[String, String]()
-    var best_score = -math.inf[DType.float32]()
-    var values = List[List[String]]()
+                            scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
-        values.append(List[String]())
-        values[i] = param_grid._entries[i].value().value
-    var combinations = cartesian_product(values)
-    for comb in combinations:
-        var current_params = Dict[String, String]()
-        var j = 0
-        for key in param_grid.keys():
-            current_params[key[]] = comb[][j]
-            j += 1
-        var model = m_type(current_params)
-        var score = KFold[m_type](model, X, y, scoring, cv)
-        if neg_score:
-            score *= -1
-        if score > best_score:
-            best_score = score
-            best_params = current_params
+        dic_values.append(List[String]())
+        dic_values[i] = param_grid._entries[i].value().value
+    var combinations = cartesian_product(dic_values)
+    var scores = Matrix(1, len(combinations))
+    var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
+    if n_jobs == 0:
+        for i in range(len(combinations)):
+            params[i] = Dict[String, String]()
+            var j = 0
+            for key in param_grid.keys():
+                params[i][key[]] = combinations[i][j]
+                j += 1
+            var model = m_type(params[i])
+            var score = KFold[m_type](model, X, y, scoring, cv)
+            if neg_score:
+                score *= -1
+            scores.data[i] = score
+    else:
+        var n_workers = n_jobs
+        if n_workers == -1:
+            n_workers = num_performance_cores()
+        @parameter
+        fn p(i: Int):
+            params[i] = Dict[String, String]()
+            var j = 0
+            for key in param_grid.keys():
+                params[i][key[]] = combinations[i][j]
+                j += 1
+            try:
+                var model = m_type(params[i])
+                var score = KFold[m_type](model, X, y, scoring, cv)
+                if neg_score:
+                    score *= -1
+                scores.data[i] = score
+            except:
+                print('Error: Failed to perform KFold!')
+        parallelize[p](len(combinations), n_workers)
+    var best = scores.argmax()
+    var best_score = scores.data[best]
+    var best_params = params[best]
+    params.free()
     if neg_score:
         best_score *= -1
     return best_params^, best_score
 
 fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String, List[String]],
-                            scoring: fn(PythonObject, List[String]) raises -> Float32, neg_score: Bool = False, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
-    var best_params = Dict[String, String]()
-    var best_score = -math.inf[DType.float32]()
-    var values = List[List[String]]()
+                            scoring: fn(PythonObject, List[String]) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
-        values.append(List[String]())
-        values[i] = param_grid._entries[i].value().value
-    var combinations = cartesian_product(values)
-    for comb in combinations:
-        var current_params = Dict[String, String]()
-        var j = 0
-        for key in param_grid.keys():
-            current_params[key[]] = comb[][j]
-            j += 1
-        var model = m_type(current_params)
-        var score = KFold[m_type](model, X, y, scoring, cv)
-        if neg_score:
-            score *= -1
-        if score > best_score:
-            best_score = score
-            best_params = current_params
+        dic_values.append(List[String]())
+        dic_values[i] = param_grid._entries[i].value().value
+    var combinations = cartesian_product(dic_values)
+    var scores = Matrix(1, len(combinations))
+    var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
+    if n_jobs == 0:
+        for i in range(len(combinations)):
+            params[i] = Dict[String, String]()
+            var j = 0
+            for key in param_grid.keys():
+                params[i][key[]] = combinations[i][j]
+                j += 1
+            var model = m_type(params[i])
+            var score = KFold[m_type](model, X, y, scoring, cv)
+            if neg_score:
+                score *= -1
+            scores.data[i] = score
+    else:
+        var n_workers = n_jobs
+        if n_workers == -1:
+            n_workers = num_performance_cores()
+        @parameter
+        fn p(i: Int):
+            params[i] = Dict[String, String]()
+            var j = 0
+            for key in param_grid.keys():
+                params[i][key[]] = combinations[i][j]
+                j += 1
+            try:
+                var model = m_type(params[i])
+                var score = KFold[m_type](model, X, y, scoring, cv)
+                if neg_score:
+                    score *= -1
+                scores.data[i] = score
+            except:
+                print('Error: Failed to perform KFold!')
+        parallelize[p](len(combinations), n_workers)
+    var best = scores.argmax()
+    var best_score = scores.data[best]
+    var best_params = params[best]
+    params.free()
     if neg_score:
         best_score *= -1
     return best_params^, best_score

@@ -40,7 +40,14 @@ Here is the list of the algorithms:
 * LDA
 * Adaboost
 
-**The plan is to implement more ML algorithms including neural networks.**
+Preprocessing:
+* normalize
+* MinMaxScaler
+* StandardScaler
+* KFold
+* GridSearchCV
+
+**Mojmelo will not only be limited to above algorithms.**
 
 ## Getting Started
 

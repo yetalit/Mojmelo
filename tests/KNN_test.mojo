@@ -10,9 +10,9 @@ def main():
     data = knn_test.get_data() # X, y
     X = Matrix.from_numpy(data[0])
     y = data[1]
-    grid_params = Dict[String, List[String]]()
-    grid_params['k'] = List[String]('2', '3', '4')
-    best_params, _ = GridSearchCV[KNN](X, y, grid_params, accuracy_score, cv=4)
+    params = Dict[String, List[String]]()
+    params['k'] = List[String]('2', '3', '4')
+    best_params, _ = GridSearchCV[KNN](X, y, params, accuracy_score, cv=4)
     print('tuned parameters: ', best_params.__str__())
     X_train, X_test, y_ = train_test_split(X, y, test_size=0.2, random_state=1234)
     knn = KNN(best_params)
