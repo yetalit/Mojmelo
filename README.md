@@ -26,6 +26,7 @@ Here is the list of the algorithms:
 * Logistic Regression
 * KNN
 * KMeans
+* DBSCAN
 * SVM
     1. Primal
     2. Dual
