@@ -164,6 +164,10 @@ fn manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return (x1 - x2).abs().sum()
 
 @always_inline
+fn manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
+    return (x1 - x2).abs().sum(axis)
+
+@always_inline
 fn lt(lhs: Float32, rhs:Float32) capturing -> Bool:
     return lhs < rhs
 

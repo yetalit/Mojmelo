@@ -94,7 +94,7 @@ You can contribute to the project in 3 ways:
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
+Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a> and Erik Linder-Norén's <a href='https://github.com/eriklindernoren/ML-From-Scratch/'>ML-From-Scratch</a>
 
 Mojo usage and distribution is licensed under the [MAX & Mojo Community License](https://www.modular.com/legal/max-mojo-license).
 
