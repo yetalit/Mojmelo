@@ -121,27 +121,27 @@ fn KFold[m_type: CVM](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Mat
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = int((1 / n_splits) * X.height)
     var start_of_test = 0
-    var total_score: Float32 = 0.0
+    var mean_score: Float32 = 0.0
     for _ in range(n_splits):
         var end_of_test = min(start_of_test + test_count, X.height)
         model.fit(X[ids[end_of_test:] + ids[:start_of_test]], y[ids[end_of_test:] + ids[:start_of_test]])
         y_pred = model.predict(X[ids[start_of_test:end_of_test]])
-        total_score += scoring(y[ids[start_of_test:end_of_test]], y_pred)
+        mean_score += scoring(y[ids[start_of_test:end_of_test]], y_pred) / n_splits
         start_of_test += test_count
-    return total_score / n_splits
+    return mean_score
 
 fn KFold[m_type: CVP](inout model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = int((1 / n_splits) * X.height)
     var start_of_test = 0
-    var total_score: Float32 = 0.0
+    var mean_score: Float32 = 0.0
     for _ in range(n_splits):
         var end_of_test = min(start_of_test + test_count, X.height)
         model.fit(X[ids[end_of_test:] + ids[:start_of_test]], y[ids_to_numpy(ids[end_of_test:] + ids[:start_of_test])])
         y_pred = model.predict(X[ids[start_of_test:end_of_test]])
-        total_score += scoring(y[ids_to_numpy(ids[start_of_test:end_of_test])], y_pred)
+        mean_score += scoring(y[ids_to_numpy(ids[start_of_test:end_of_test])], y_pred) / n_splits
         start_of_test += test_count
-    return total_score / n_splits
+    return mean_score
 
 fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
                             scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:

@@ -156,6 +156,10 @@ fn euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return math.sqrt(((x1 - x2) ** 2).sum())
 
 @always_inline
+fn euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
+    return (((x1 - x2) ** 2).sum(axis)).sqrt()
+
+@always_inline
 fn manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return (x1 - x2).abs().sum()
 
