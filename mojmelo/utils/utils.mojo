@@ -1,5 +1,5 @@
 from collections import InlinedFixedVector, Dict
-from memory import memset_zero
+from memory import memset_zero, memcpy
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
@@ -352,8 +352,7 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    for i in range(len(list)):
-        np_arr[i] = list[i]
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data.bitcast[DType.index](), len(list))
     return np_arr^
 
 fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:

@@ -6,7 +6,7 @@ from python import PythonObject
 
 struct KNN(CVP):
     var k: Int
-    var distance: fn(Matrix, Matrix) raises -> Float32
+    var distance: fn(Matrix, Matrix, Int) raises -> Matrix
     var X_train: Matrix
     var y_train: PythonObject
 
@@ -31,19 +31,18 @@ struct KNN(CVP):
 
     @always_inline
     fn _predict(self, x: Matrix) raises -> String:
-        var distances = Matrix(1, self.X_train.height)
-        var dis_indices = InlinedFixedVector[Int](capacity = distances.size)
         # Compute distances between x and all examples in the training set
+        var distances = self.distance(self.X_train, x, 1)
+        var dis_indices = InlinedFixedVector[Int](capacity = distances.size)
         for i in range(distances.size):
-            dis_indices.append(i)
-            distances.data[i] = self.distance(x, self.X_train[i])
+            dis_indices[i] = i
         # Sort distances such that first k elements are the smallest
         mojmelo.utils.utils.partition[le](Span[Float32, __lifetime_of(distances)](unsafe_ptr= distances.data, len= distances.size), dis_indices, self.k)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[String, Int]()
-        var most_common: String = str(self.y_train[dis_indices[0]])
+        var most_common = str(self.y_train[dis_indices[0]])
         for i in range(self.k):
-            var label: String = str(self.y_train[dis_indices[i]])
+            var label = str(self.y_train[dis_indices[i]])
             if label in k_neighbor_votes:
                 k_neighbor_votes[label] += 1
             else:
