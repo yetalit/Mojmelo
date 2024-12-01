@@ -56,21 +56,21 @@ fn normalize(data: Matrix, values: Matrix, norm: String = 'l2') raises -> Matrix
 fn inv_normalize(z: Matrix, values: Matrix) raises -> Matrix:
     return z.ele_mul(values)
 
-fn MinMaxScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
+fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Tuple[Matrix, Matrix, Matrix]:
     var x_min = data.min(0)
     var x_max = data.max(0)
-    # normalize data
+    # normalize then scale data
     var div = x_max - x_min
-    return (data - x_min) / div.where(div == 0.0, 1.0, div), x_min^, x_max^
+    return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0], x_min^, x_max^
 
-fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix) raises -> Matrix:
-    # normalize data
+fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+    # normalize then scale data
     var div = x_max - x_min
-    return (data - x_min) / div.where(div == 0.0, 1.0, div)
+    return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0]
 
-fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix) raises -> Matrix:
+fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
     var div = x_max - x_min
-    return z.ele_mul(div.where(div == 0.0, 1.0, div)) + x_min
+    return ((z - feature_range[0]) / (feature_range[1] - feature_range[0])).ele_mul(div.where(div == 0.0, 1.0, div)) + x_min
 
 fn StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
     var mu = data.mean_slow0()
