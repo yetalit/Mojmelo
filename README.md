@@ -3,6 +3,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![BSD-3-Clause License][license-shield]][license-url]
+![CodeQL](https://github.com/yetalit/Mojmelo/workflows/CodeQL/badge.svg)
 
 <br />
 <div align="center">
