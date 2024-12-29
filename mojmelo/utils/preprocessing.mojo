@@ -2,6 +2,7 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, CVP, cartesian_product, ids_to_numpy
 from algorithm import parallelize
 from sys import num_performance_cores
+from memory import UnsafePointer
 from collections import Dict
 from python import Python, PythonObject
 import time
@@ -101,7 +102,7 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
 struct SplittedPO:
     var train: PythonObject
     var test: PythonObject
-    fn __init__(inout self, train: PythonObject, test: PythonObject):
+    fn __init__(out self, train: PythonObject, test: PythonObject):
         self.train = train
         self.test = test
 
@@ -117,7 +118,7 @@ fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size:
     var split_i = int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
-fn KFold[m_type: CVM](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = int((1 / n_splits) * X.height)
     var start_of_test = 0
@@ -130,7 +131,7 @@ fn KFold[m_type: CVM](inout model: m_type, X: Matrix, y: Matrix, scoring: fn(Mat
         start_of_test += test_count
     return mean_score
 
-fn KFold[m_type: CVP](inout model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = int((1 / n_splits) * X.height)
     var start_of_test = 0
@@ -184,8 +185,12 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
             except:
                 print('Error: Failed to perform KFold!')
         parallelize[p](len(combinations), n_workers)
-    var best = scores.argmax()
-    var best_score = scores.data[best]
+    var best_score = scores.max()
+    var best = -1
+    for i in range(len(scores)):
+        if scores.data[i] == best_score:
+            best = i
+            break
     var best_params = params[best]
     params.free()
     if neg_score:
@@ -233,8 +238,12 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
             except:
                 print('Error: Failed to perform KFold!')
         parallelize[p](len(combinations), n_workers)
-    var best = scores.argmax()
-    var best_score = scores.data[best]
+    var best_score = scores.max()
+    var best = -1
+    for i in range(len(scores)):
+        if scores.data[i] == best_score:
+            best = i
+            break
     var best_params = params[best]
     params.free()
     if neg_score:

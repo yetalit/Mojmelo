@@ -17,7 +17,7 @@ struct PolyRegression(CVM):
     var weights: Matrix
     var bias: Float32
 
-    fn __init__(inout self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, penalty: String = 'l2', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
+    fn __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, penalty: String = 'l2', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.degree = degree
         self.lr = learning_rate
@@ -37,7 +37,7 @@ struct PolyRegression(CVM):
             X_poly.append(X ** d)
         return X_poly^
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         var X_poly = self._polynomial_features(X)
         # init parameters
         self.weights = Matrix.zeros(X.width, self.degree, order='f')
@@ -136,7 +136,7 @@ struct PolyRegression(CVM):
             y_predicted += X_poly[i - 1] * self.weights['', i]
         return y_predicted^
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'degree' in params:
             self.degree = atol(params['degree'])
         else:

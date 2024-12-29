@@ -1,33 +1,30 @@
 from collections import InlinedFixedVector, Dict
-from memory import memset_zero, memcpy
+from memory import memcpy, UnsafePointer, Span
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
-from sys import bitwidthof
-from bit import count_leading_zeros
-from utils import Span
 from algorithm import parallelize
 
 # Cross Validation y as Matrix
 trait CVM:
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         ...
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         ...
     fn predict(self, X: Matrix) raises -> Matrix:
         ...
 
 # Cross Validation y as PythonObject
 trait CVP:
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         ...
-    fn fit(inout self, X: Matrix, y: PythonObject) raises:
+    fn fit(mut self, X: Matrix, y: PythonObject) raises:
         ...
     fn predict(self, X: Matrix) raises -> List[String]:
         ...
 
 @always_inline
-fn eliminate(r1: Matrix, inout r2: Matrix, col: Int, target: Int = 0) raises:
+fn eliminate(r1: Matrix, mut r2: Matrix, col: Int, target: Int = 0) raises:
     var fac = (r2.data[col] - target) / r1.data[col]
     r2 -= fac * r1
 
@@ -56,30 +53,24 @@ fn cov_value(x: Matrix, y: Matrix) raises -> Float32:
 # partition
 # ===----------------------------------------------------------------------===#
 
-@always_inline
-fn _estimate_initial_height(size: Int) -> Int:
-    # Compute the log2 of the size rounded upward.
-    var log2 = int(
-        (bitwidthof[DType.index]() - 1) ^ count_leading_zeros(size | 1)
-    )
-    # The number 1.3 was chosen by experimenting the max stack size for random
-    # input. This also depends on insertion_sort_threshold
-    return max(2, int(math.ceil(1.3 * log2)))
-
 @value
 struct _SortWrapper[type: CollectionElement](CollectionElement):
     var data: type
 
-    fn __init__(inout self, *, other: Self):
+    @implicit
+    fn __init__(out self, data: type):
+        self.data = data
+
+    fn __init__(out self, *, other: Self):
         self.data = other.data
 
 
 @always_inline
 fn _partition[
     type: CollectionElement,
-    lifetime: MutableLifetime, //,
-    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing -> Bool,
-](span: Span[type, lifetime], inout indices: InlinedFixedVector[Int]) -> Int:
+    origin: MutableOrigin, //,
+    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
+](span: Span[type, origin], mut indices: InlinedFixedVector[Int]) -> Int:
     var size = len(span)
     if size <= 1:
         return 0
@@ -114,9 +105,9 @@ fn _partition[
 
 fn _partition[
     type: CollectionElement,
-    lifetime: MutableLifetime, //,
-    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing -> Bool,
-](owned span: Span[type, lifetime], inout indices: InlinedFixedVector[Int], owned k: Int):
+    origin: MutableOrigin, //,
+    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
+](owned span: Span[type, origin], mut indices: InlinedFixedVector[Int], owned k: Int):
     while True:
         var pivot = _partition[cmp_fn](span, indices)
         if pivot == k:
@@ -131,9 +122,9 @@ fn _partition[
 
 
 fn partition[
-    lifetime: MutableLifetime, //,
-    cmp_fn: fn (Float32, Float32) capturing -> Bool,
-](span: Span[Float32, lifetime], inout indices: InlinedFixedVector[Int], k: Int):
+    lifetime: MutableOrigin, //,
+    cmp_fn: fn (Float32, Float32) capturing [_] -> Bool,
+](span: Span[Float32, lifetime], mut indices: InlinedFixedVector[Int], k: Int):
     """Partition the input buffer inplace such that first k elements are the
     largest (or smallest if cmp_fn is < operator) elements.
     The ordering of the first k elements is undefined.
@@ -301,7 +292,7 @@ fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
     return correct_count / len(y_pred)
 
 @always_inline
-fn entropy(y: Matrix) -> Float32:
+fn entropy(y: Matrix) raises -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
     var _sum: Float32 = 0.0
@@ -312,7 +303,7 @@ fn entropy(y: Matrix) -> Float32:
     return -_sum
 
 @always_inline
-fn gini(y: Matrix) -> Float32:
+fn gini(y: Matrix) raises -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
     var _sum: Float32 = 0.0
@@ -321,7 +312,7 @@ fn gini(y: Matrix) -> Float32:
     return 1 - _sum
 
 @always_inline
-fn mse_loss(y: Matrix) -> Float32:
+fn mse_loss(y: Matrix) raises -> Float32:
     if len(y) == 0:
         return 0.0
     return ((y - y.mean()) ** 2).mean()
@@ -352,7 +343,7 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data.bitcast[DType.index](), len(list))
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data.bitcast[Scalar[DType.index]](), len(list))
     return np_arr^
 
 fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:

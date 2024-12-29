@@ -1,8 +1,8 @@
 from sys.info import simdwidthof, is_apple_silicon
-from memory import memcpy, memcmp, memset_zero
+from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import Buffer, NDBuffer, DimList
-from algorithm.reduction import sum, cumsum, argmin, argmax
+from algorithm.reduction import sum, cumsum, variance
 from collections import InlinedFixedVector, Dict
 import math
 import random
@@ -10,7 +10,7 @@ from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
 from mojmelo.utils import matmul
 from python import Python, PythonObject
 
-struct Matrix(Stringable, Formattable):
+struct Matrix(Stringable, Writable):
     var height: Int
     var width: Int
     var size: Int
@@ -20,7 +20,7 @@ struct Matrix(Stringable, Formattable):
 
     # initialize from UnsafePointer
     @always_inline
-    fn __init__(inout self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32](), order: String = 'c'):
+    fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32](), order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
@@ -30,7 +30,7 @@ struct Matrix(Stringable, Formattable):
             memcpy(self.data, data, self.size)
 
     # initialize from List
-    fn __init__(inout self, height: Int, width: Int, def_input: List[Float32]):
+    fn __init__(out self, height: Int, width: Int, def_input: List[Float32]):
         self.height = height
         self.width = width
         self.size = height * width
@@ -40,7 +40,7 @@ struct Matrix(Stringable, Formattable):
             memcpy(self.data, def_input.data, self.size)
 
     # initialize from list object
-    fn __init__(inout self, height: Int, width: Int, def_input: object) raises:
+    fn __init__(out self, height: Int, width: Int, def_input: object) raises:
         self.height = height
         self.width = width
         self.size = height * width
@@ -51,7 +51,7 @@ struct Matrix(Stringable, Formattable):
             self.data[i] = atof(str(def_input[i])).cast[DType.float32]()
 
     # initialize in 2D numpy style
-    fn __init__(inout self, npstyle: String, order: String = 'c') raises:
+    fn __init__(out self, npstyle: String, order: String = 'c') raises:
         var mat = npstyle.replace(' ', '')
         if mat[0] == '[' and mat[1] == '[' and mat[len(mat) - 1] == ']' and mat[len(mat) - 2] == ']':
             self.width = 0
@@ -71,7 +71,7 @@ struct Matrix(Stringable, Formattable):
         else:
             raise Error('Error: Matrix is not initialized in the correct form!')
 
-    fn __copyinit__(inout self, other: Self):
+    fn __copyinit__(out self, other: Self):
         self.height = other.height
         self.width = other.width
         self.size = other.size
@@ -79,7 +79,7 @@ struct Matrix(Stringable, Formattable):
         self.order = other.order
         memcpy(self.data, other.data, self.size)
 
-    fn __moveinit__(inout self, owned existing: Self):
+    fn __moveinit__(out self, owned existing: Self):
         self.height = existing.height
         self.width = existing.width
         self.size = existing.size
@@ -105,7 +105,7 @@ struct Matrix(Stringable, Formattable):
             loc = (y * self.width) + x
         else:
             loc = (x * self.height) + y
-        return self.data.store[width=nelts](loc, val)
+        return self.data.store(loc, val)
 
     # access an element
     @always_inline
@@ -130,7 +130,7 @@ struct Matrix(Stringable, Formattable):
         var tmpPtr = self.data + row
         @parameter
         fn convert[simd_width: Int](idx: Int):
-            mat.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](self.height))
             tmpPtr += simd_width * self.height
         vectorize[convert, self.simd_width](mat.width)
         return mat^
@@ -144,7 +144,7 @@ struct Matrix(Stringable, Formattable):
         var tmpPtr = self.data + row
         @parameter
         fn convert[simd_width: Int](idx: Int):
-            mat.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](self.height))
             tmpPtr += simd_width * self.height
         vectorize[convert, self.simd_width](mat.width)
         return mat^
@@ -160,7 +160,7 @@ struct Matrix(Stringable, Formattable):
         var tmpPtr = self.data + row + (start_i * self.height)
         @parameter
         fn convert[simd_width: Int](idx: Int):
-            mat.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.height))
+            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](self.height))
             tmpPtr += simd_width * self.height
         vectorize[convert, self.simd_width](mat.width)
         return mat^
@@ -175,7 +175,7 @@ struct Matrix(Stringable, Formattable):
             var tmpPtr = self.data + column
             @parameter
             fn convert[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](self.width))
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](mat.height)
             return mat^
@@ -189,7 +189,7 @@ struct Matrix(Stringable, Formattable):
             var tmpPtr = self.data + column
             @parameter
             fn convert[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](self.width))
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](mat.height)
             return mat^
@@ -205,7 +205,7 @@ struct Matrix(Stringable, Formattable):
             var tmpPtr = self.data + column + (start_i * self.width)
             @parameter
             fn convert[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, tmpPtr.strided_load[width=simd_width](self.width))
+                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](self.width))
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](mat.height)
             return mat^
@@ -245,7 +245,7 @@ struct Matrix(Stringable, Formattable):
     
     # replace an element
     @always_inline
-    fn __setitem__(inout self, row: Int, column: Int, val: Float32) raises:
+    fn __setitem__(mut self, row: Int, column: Int, val: Float32) raises:
         var loc: Int
         if self.order == 'c':
             loc = (row * self.width) + column
@@ -257,7 +257,7 @@ struct Matrix(Stringable, Formattable):
     
     # replace the given row
     @always_inline
-    fn __setitem__(inout self, row: Int, val: Matrix) raises:
+    fn __setitem__(mut self, row: Int, val: Matrix) raises:
         if row >= self.height or row < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
@@ -272,7 +272,7 @@ struct Matrix(Stringable, Formattable):
 
     # replace the given row (unsafe)
     @always_inline
-    fn __setitem__(inout self, row: Int, val: Matrix, *, unsafe: Bool):
+    fn __setitem__(mut self, row: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' or self.height == 1:
             memcpy(self.data + (row * self.width), val.data, val.size)
         else:
@@ -285,7 +285,7 @@ struct Matrix(Stringable, Formattable):
 
     # replace the given row with offset
     @always_inline
-    fn __setitem__(inout self, row: Int, offset: Bool, start_i: Int, val: Matrix) raises:
+    fn __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Matrix) raises:
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
@@ -300,7 +300,7 @@ struct Matrix(Stringable, Formattable):
 
     # replace the given column
     @always_inline
-    fn __setitem__(inout self, row: String, column: Int, val: Matrix) raises:
+    fn __setitem__(mut self, row: String, column: Int, val: Matrix) raises:
         if column >= self.width or column < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' and self.width > 1:
@@ -315,7 +315,7 @@ struct Matrix(Stringable, Formattable):
 
     # replace the given column (unsafe)
     @always_inline
-    fn __setitem__(inout self, row: String, column: Int, val: Matrix, *, unsafe: Bool):
+    fn __setitem__(mut self, row: String, column: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' and self.width > 1:
             var tmpPtr = self.data + column
             @parameter
@@ -328,7 +328,7 @@ struct Matrix(Stringable, Formattable):
 
     # replace the given column with offset
     @always_inline
-    fn __setitem__(inout self, offset: Bool, start_i: Int, column: Int, val: Matrix) raises:
+    fn __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Matrix) raises:
         if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' and self.width > 1:
@@ -343,13 +343,13 @@ struct Matrix(Stringable, Formattable):
 
     # replace given rows (by their indices)
     @always_inline
-    fn __setitem__(inout self, rows: Matrix, rhs: Matrix) raises:
+    fn __setitem__(mut self, rows: Matrix, rhs: Matrix) raises:
         for i in range(rows.size):
             self[int(rows.data[i])] = rhs[i]
 
     # replace given columns (by their indices)
     @always_inline
-    fn __setitem__(inout self, row: String, columns: Matrix, rhs: Matrix) raises:
+    fn __setitem__(mut self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
             self[row, int(columns.data[i])] = rhs[row, i]
 
@@ -481,7 +481,7 @@ struct Matrix(Stringable, Formattable):
         raise Error("Error: Cannot add matrices with different shapes!")
 
     @always_inline
-    fn __iadd__(inout self, rhs: Self) raises:
+    fn __iadd__(mut self, rhs: Self) raises:
         self = self + rhs
 
     @always_inline
@@ -493,7 +493,7 @@ struct Matrix(Stringable, Formattable):
         return self + lhs
 
     @always_inline
-    fn __iadd__(inout self, rhs: Float32):
+    fn __iadd__(mut self, rhs: Float32):
         self = self + rhs
 
     @always_inline
@@ -529,7 +529,7 @@ struct Matrix(Stringable, Formattable):
         raise Error("Error: Cannot subtract matrices with different shapes!")
 
     @always_inline
-    fn __isub__(inout self, rhs: Self) raises:
+    fn __isub__(mut self, rhs: Self) raises:
         self = self - rhs
 
     @always_inline
@@ -541,7 +541,7 @@ struct Matrix(Stringable, Formattable):
         return -(self - lhs)
 
     @always_inline
-    fn __isub__(inout self, rhs: Float32):
+    fn __isub__(mut self, rhs: Float32):
         self = self - rhs
 
     @always_inline
@@ -577,7 +577,7 @@ struct Matrix(Stringable, Formattable):
         raise Error("Error: Cannot divide matrices with different shapes!")
 
     @always_inline
-    fn __itruediv__(inout self, rhs: Self) raises:
+    fn __itruediv__(mut self, rhs: Self) raises:
         self = self / rhs
 
     @always_inline
@@ -589,7 +589,7 @@ struct Matrix(Stringable, Formattable):
         return lhs * (self ** -1)
 
     @always_inline
-    fn __itruediv__(inout self, rhs: Float32):
+    fn __itruediv__(mut self, rhs: Float32):
         self = self / rhs
 
     @always_inline
@@ -606,7 +606,7 @@ struct Matrix(Stringable, Formattable):
         return mat^
 
     @always_inline
-    fn __imul__(inout self, rhs: Self) raises:
+    fn __imul__(mut self, rhs: Self) raises:
         self = self * rhs
 
     @always_inline
@@ -618,7 +618,7 @@ struct Matrix(Stringable, Formattable):
         return self * lhs
 
     @always_inline
-    fn __imul__(inout self, rhs: Float32):
+    fn __imul__(mut self, rhs: Float32):
         self = self * rhs
 
     @always_inline
@@ -633,19 +633,19 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn math_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, pow(self.data.load[width=simd_width](idx), p))
+                mat.data.store(idx, pow(self.data.load[width=simd_width](idx), p))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store[width=self.simd_width](idx, pow(self.data.load[width=self.simd_width](idx), p))
+                mat.data.store(idx, pow(self.data.load[width=self.simd_width](idx), p))
             parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
-    fn __ipow__(inout self, rhs: Int):
+    fn __ipow__(mut self, rhs: Int):
         self = self ** rhs
 
     @always_inline
@@ -760,7 +760,7 @@ struct Matrix(Stringable, Formattable):
             var tmpPtr = self.data + idx_col
             @parameter
             fn convert[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
+                mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](self.height)
         return mat^
@@ -772,7 +772,7 @@ struct Matrix(Stringable, Formattable):
             var tmpPtr = self.data + idx_row
             @parameter
             fn convert[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
+                mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
                 tmpPtr += simd_width * self.height
             vectorize[convert, self.simd_width](self.width)
         return mat^
@@ -800,11 +800,11 @@ struct Matrix(Stringable, Formattable):
         return mat^
 
     @always_inline
-    fn sum(self) -> Float32:
+    fn sum(self) raises -> Float32:
         return sum(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
-    fn sum(self, axis: Int) -> Matrix:
+    fn sum(self, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
@@ -814,7 +814,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].sum()
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].sum()
+                    except:
+                        print('Error: failed to find sum!')
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -824,24 +827,27 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].sum()
+                    try:
+                        mat.data[i] = self[i, unsafe=True].sum()
+                    except:
+                        print('Error: failed to find sum!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn mean(self) -> Float32:
+    fn mean(self) raises -> Float32:
         return self.sum() / self.size
 
     @always_inline
-    fn mean(self, axis: Int) -> Matrix:
+    fn mean(self, axis: Int) raises -> Matrix:
         if axis == 0:
             return self.sum(0) / self.height
         return self.sum(1) / self.width
 
-    fn mean_slow(self) -> Float32:
+    fn mean_slow(self) raises -> Float32:
         return (self / self.size).sum()
 
-    fn mean_slow0(self) -> Matrix:
+    fn mean_slow0(self) raises -> Matrix:
         var mat = Matrix(1, self.width, order= self.order)
         if self.width < 768:
             for i in range(self.width):
@@ -849,20 +855,23 @@ struct Matrix(Stringable, Formattable):
         else:
             @parameter
             fn p0(i: Int):
-                mat.data[i] = self['', i, unsafe=True].mean_slow()
+                try:
+                    mat.data[i] = self['', i, unsafe=True].mean_slow()
+                except:
+                    print('Error: failed to find mean!')
             parallelize[p0](self.width)
         return mat^
 
     @always_inline
-    fn _var(self) -> Float32:
-        return ((self - self.mean()) ** 2).mean()
+    fn _var(self) raises -> Float32:
+        return variance(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
-    fn _var(self, _mean: Float32) -> Float32:
-        return ((self - _mean) ** 2).mean()
+    fn _var(self, _mean: Float32) raises -> Float32:
+        return variance(Buffer[DType.float32](self.data, self.size), _mean)
 
     @always_inline
-    fn _var(self, axis: Int) -> Matrix:
+    fn _var(self, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
@@ -872,7 +881,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True]._var()
+                    try:
+                        mat.data[i] = self['', i, unsafe=True]._var()
+                    except:
+                        print('Error: failed to find variance!')
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -882,12 +894,15 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True]._var()
+                    try:
+                        mat.data[i] = self[i, unsafe=True]._var()
+                    except:
+                        print('Error: failed to find variance!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn _var(self, axis: Int, _mean: Matrix) -> Matrix:
+    fn _var(self, axis: Int, _mean: Matrix) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
@@ -897,7 +912,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                    try:
+                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                    except:
+                        print('Error: failed to find variance!')
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -907,70 +925,85 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                    try:
+                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                    except:
+                        print('Error: failed to find variance!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn std(self) -> Float32:
+    fn std(self) raises -> Float32:
         return math.sqrt(self._var())
 
     @always_inline
-    fn std(self, _mean: Float32) -> Float32:
+    fn std(self, _mean: Float32) raises -> Float32:
         return math.sqrt(self._var(_mean))
 
-    fn std_slow(self, _mean: Float32) -> Float32:
+    @always_inline
+    fn std(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].std()
+                    except:
+                        print('Error: failed to find std!')
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].std()
+                    except:
+                        print('Error: failed to find std!')
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    fn std(self, axis: Int, _mean: Matrix) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+            else:
+                @parameter
+                fn p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+                    except:
+                        print('Error: failed to find std!')
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+            else:
+                @parameter
+                fn p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+                    except:
+                        print('Error: failed to find std!')
+                parallelize[p1](self.height)
+        return mat^
+
+    fn std_slow(self, _mean: Float32) raises -> Float32:
         return math.sqrt(((self - _mean) ** 2).mean_slow())
-
-    @always_inline
-    fn std(self, axis: Int) -> Matrix:
-        var mat = Matrix(0, 0)
-        if axis == 0:
-            mat = Matrix(1, self.width, order= self.order)
-            if self.width < 768:
-                for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std()
-            else:
-                @parameter
-                fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].std()
-                parallelize[p0](self.width)
-        elif axis == 1:
-            mat = Matrix(self.height, 1, order= self.order)
-            if self.height < 768:
-                for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std()
-            else:
-                @parameter
-                fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].std()
-                parallelize[p1](self.height)
-        return mat^
-
-    @always_inline
-    fn std(self, axis: Int, _mean: Matrix) -> Matrix:
-        var mat = Matrix(0, 0)
-        if axis == 0:
-            mat = Matrix(1, self.width, order= self.order)
-            if self.width < 768:
-                for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
-            else:
-                @parameter
-                fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
-                parallelize[p0](self.width)
-        elif axis == 1:
-            mat = Matrix(self.height, 1, order= self.order)
-            if self.height < 768:
-                for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
-            else:
-                @parameter
-                fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
-                parallelize[p1](self.height)
-        return mat^
 
     fn std_slow(self, axis: Int, _mean: Matrix) raises -> Matrix:
         var mat = Matrix(0, 0)
@@ -982,7 +1015,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+                    except:
+                        print('Error: failed to find std!')
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -992,7 +1028,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+                    try:
+                        mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+                    except:
+                        print('Error: failed to find std!')
                 parallelize[p1](self.height)
         return mat^
 
@@ -1002,14 +1041,14 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn math_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, abs(self.data.load[width=simd_width](idx)))
+                mat.data.store(idx, abs(self.data.load[width=simd_width](idx)))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store[width=self.simd_width](idx, abs(self.data.load[width=self.simd_width](idx)))
+                mat.data.store(idx, abs(self.data.load[width=self.simd_width](idx)))
             parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
@@ -1026,87 +1065,11 @@ struct Matrix(Stringable, Formattable):
         return self._elemwise_math[math.exp]()
 
     @always_inline
-    fn argmin(self) -> Int:
-        var label = UnsafePointer[Scalar[DType.index]].alloc(1)
-        try:
-            argmin(NDBuffer[DType.float32, 1](self.data, DimList(self.size)), 0, NDBuffer[DType.index, 1](label, DimList(1)))
-        except:
-            print('Error finding argmin!')
-        var index = int(label[])
-        label.free()
-        if self.order == 'c':
-            return index
-        return (index % self.height) * self.width + index // self.height
-
-    @always_inline
-    fn argmin(self, axis: Int) -> Matrix:
-        var mat = Matrix(0, 0)
-        if axis == 0:
-            mat = Matrix(1, self.width, order= self.order)
-            if self.width < 768:
-                for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].argmin()
-            else:
-                @parameter
-                fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].argmin()
-                parallelize[p0](self.width)
-        elif axis == 1:
-            mat = Matrix(self.height, 1, order= self.order)
-            if self.height < 768:
-                for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].argmin()
-            else:
-                @parameter
-                fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].argmin()
-                parallelize[p1](self.height)
-        return mat^
-
-    @always_inline
-    fn argmax(self) -> Int:
-        var label = UnsafePointer[Scalar[DType.index]].alloc(1)
-        try:
-            argmax(NDBuffer[DType.float32, 1](self.data, DimList(self.size)), 0, NDBuffer[DType.index, 1](label, DimList(1)))
-        except:
-            print('Error finding argmax!')
-        var index = int(label[])
-        label.free()
-        if self.order == 'c':
-            return index
-        return (index % self.height) * self.width + index // self.height
-
-    @always_inline
-    fn argmax(self, axis: Int) -> Matrix:
-        var mat = Matrix(0, 0)
-        if axis == 0:
-            mat = Matrix(1, self.width, order= self.order)
-            if self.width < 768:
-                for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].argmax()
-            else:
-                @parameter
-                fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].argmax()
-                parallelize[p0](self.width)
-        elif axis == 1:
-            mat = Matrix(self.height, 1, order= self.order)
-            if self.height < 768:
-                for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].argmax()
-            else:
-                @parameter
-                fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].argmax()
-                parallelize[p1](self.height)
-        return mat^
-
-    @always_inline
-    fn min(self) -> Float32:
+    fn min(self) raises -> Float32:
         return algorithm.reduction.min(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
-    fn min(self, axis: Int) -> Matrix:
+    fn min(self, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
@@ -1116,7 +1079,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].min()
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].min()
+                    except:
+                        print('Error: failed to find min!')
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1126,16 +1092,19 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].min()
+                    try:
+                        mat.data[i] = self[i, unsafe=True].min()
+                    except:
+                        print('Error: failed to find min!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn max(self) -> Float32:
+    fn max(self) raises -> Float32:
         return algorithm.reduction.max(Buffer[DType.float32](self.data, self.size))
 
     @always_inline
-    fn max(self, axis: Int) -> Matrix:
+    fn max(self, axis: Int) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
@@ -1145,7 +1114,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].max()
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].max()
+                    except:
+                        print('Error: failed to find max!')
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1155,7 +1127,10 @@ struct Matrix(Stringable, Formattable):
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].max()
+                    try:
+                        mat.data[i] = self[i, unsafe=True].max()
+                    except:
+                        print('Error: failed to find max!')
                 parallelize[p1](self.height)
         return mat^
 
@@ -1195,7 +1170,7 @@ struct Matrix(Stringable, Formattable):
         return result^
 
     @always_inline
-    fn norm(self) -> Float32:
+    fn norm(self) raises -> Float32:
         return math.sqrt((self ** 2).sum())
 
     @always_inline
@@ -1310,24 +1285,14 @@ struct Matrix(Stringable, Formattable):
         return mat^
 
     @always_inline
-    fn bincount(self) -> InlinedFixedVector[Int]:
-        var freq = Dict[Int, Int]()
-        var max_val: Int = 0
-        for i in range(self.size):
-            var d = int(self.data[i])
-            try:
-                freq[d] += 1
-            except:
-                freq[d] = 1
-                if d > max_val:
-                    max_val = d
-
+    fn bincount(self) raises -> InlinedFixedVector[Int]:
+        var max_val = int(self.max())
         var vect = InlinedFixedVector[Int](capacity = max_val + 1)
-        for i in range(max_val + 1):
-            try:
-                vect[i] = freq[i]
-            except:
-                vect[i] = 0
+        memset_zero(vect.dynamic_data, max_val + 1)
+
+        for i in range(self.size):
+            vect[int(self.data[i])] += 1
+    
         return vect^
 
     @staticmethod
@@ -1346,13 +1311,13 @@ struct Matrix(Stringable, Formattable):
         return list^, freq^
 
     @always_inline
-    fn unique(self) -> Dict[Int, Int]:
+    fn unique(self) raises -> Dict[Int, Int]:
         var freq = Dict[Int, Int]()
         for i in range(self.size):
             var d = int(self.data[i])
-            try:
+            if d in freq:
                 freq[d] += 1
-            except:
+            else:
                 freq[d] = 1
         return freq^
 
@@ -1417,7 +1382,7 @@ struct Matrix(Stringable, Formattable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = int(random.random_ui64(0, arang - 1))
-        return List[Int](unsafe_pointer=result, size=size, capacity=size)
+        return List[Int](ptr=result, length=size, capacity=size)
 
     @staticmethod
     @always_inline
@@ -1434,7 +1399,7 @@ struct Matrix(Stringable, Formattable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = int(random.random_ui64(0, arang - 1))
-        return List[Int](unsafe_pointer=result, size=size, capacity=size)
+        return List[Int](ptr=result, length=size, capacity=size)
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
@@ -1489,14 +1454,14 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn scalar_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
+                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
             vectorize[scalar_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
             @parameter
             fn scalar_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
+                mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
             parallelize[scalar_vectorize_parallelize](n_vects)
         return mat^
 
@@ -1506,14 +1471,14 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn matrix_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
+                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
             vectorize[matrix_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
             @parameter
             fn matrix_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store[width=self.simd_width](idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
+                mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
             parallelize[matrix_vectorize_parallelize](n_vects)
         return mat^
 
@@ -1523,18 +1488,18 @@ struct Matrix(Stringable, Formattable):
         if self.size < 262144:
             @parameter
             fn math_vectorize[simd_width: Int](idx: Int):
-                mat.data.store[width=simd_width](idx, func(self.data.load[width=simd_width](idx)))
+                mat.data.store(idx, func(self.data.load[width=simd_width](idx)))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
             var n_vects = int(math.ceil(self.size / self.simd_width))
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store[width=self.simd_width](idx, func(self.data.load[width=self.simd_width](idx)))
+                mat.data.store(idx, func(self.data.load[width=self.simd_width](idx)))
             parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
-    fn format_to(self, inout writer: Formatter):
+    fn write_to[W: Writer](self, mut writer: W):
         var res: String = "["
         var strings = List[String]()
         for i in range(self.width):
@@ -1561,4 +1526,4 @@ struct Matrix(Stringable, Formattable):
         writer.write(res + "]")
 
     fn __str__(self) -> String:
-        return String.format_sequence(self)
+        return String.write(self)

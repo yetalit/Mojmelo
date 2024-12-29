@@ -1,5 +1,5 @@
 from collections import InlinedFixedVector, Dict
-from utils import Span
+from memory import Span
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVP, euclidean_distance, manhattan_distance, le
 from python import PythonObject
@@ -10,7 +10,7 @@ struct KNN(CVP):
     var X_train: Matrix
     var y_train: PythonObject
 
-    fn __init__(inout self, k: Int = 3, metric: String = 'euc'):
+    fn __init__(out self, k: Int = 3, metric: String = 'euc'):
         self.k = k
         if metric.lower() == 'man':
             self.distance = manhattan_distance
@@ -19,7 +19,7 @@ struct KNN(CVP):
         self.X_train = Matrix(0, 0)
         self.y_train = None
 
-    fn fit(inout self, X: Matrix, y: PythonObject) raises:
+    fn fit(mut self, X: Matrix, y: PythonObject) raises:
         self.X_train = X
         self.y_train = y
 
@@ -37,7 +37,7 @@ struct KNN(CVP):
         for i in range(distances.size):
             dis_indices[i] = i
         # Sort distances such that first k elements are the smallest
-        mojmelo.utils.utils.partition[le](Span[Float32, __lifetime_of(distances)](unsafe_ptr= distances.data, len= distances.size), dis_indices, self.k)
+        mojmelo.utils.utils.partition[le](Span[Float32, __origin_of(distances)](ptr= distances.data, length= distances.size), dis_indices, self.k)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[String, Int]()
         var most_common = str(self.y_train[dis_indices[0]])
@@ -51,7 +51,7 @@ struct KNN(CVP):
                 most_common = label
         return most_common
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'k' in params:
             self.k = atol(params['k'])
         else:

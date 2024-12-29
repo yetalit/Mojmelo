@@ -1,6 +1,7 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h
+from memory import UnsafePointer
 from collections import Dict
 
 struct GBDT(CVM):
@@ -16,7 +17,7 @@ struct GBDT(CVM):
 	var trees: UnsafePointer[BDecisionTree]
 	var score_start: Float32
 
-	fn __init__(inout self,
+	fn __init__(out self,
 		criterion: String = 'log',
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,
 		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0
@@ -37,7 +38,7 @@ struct GBDT(CVM):
 		self.trees = UnsafePointer[BDecisionTree]()
 		self.score_start = 0.0
 
-	fn __init__(inout self, params: Dict[String, String]) raises:
+	fn __init__(out self, params: Dict[String, String]) raises:
 		if 'criterion' in params:
 			self.criterion = params['criterion'].lower()
 		else:
@@ -81,7 +82,7 @@ struct GBDT(CVM):
 				(self.trees + i).destroy_pointee()
 			self.trees.free()
 
-	fn fit(inout self, X: Matrix, y: Matrix) raises:
+	fn fit(mut self, X: Matrix, y: Matrix) raises:
 		self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees)
 		self.score_start = y.mean()
 		var score = Matrix.full(X.height, 1, self.score_start)

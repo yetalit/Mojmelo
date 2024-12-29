@@ -10,13 +10,13 @@ struct GaussianNB:
     var _var: Matrix
     var _priors: InlinedFixedVector[Float32]
 
-    fn __init__(inout self):
+    fn __init__(out self):
         self._classes = List[String]()
         self._mean = Matrix(0, 0)
         self._var = Matrix(0, 0)
         self._priors = InlinedFixedVector[Float32](capacity = 0)
 
-    fn fit(inout self, X: Matrix, y: PythonObject) raises:
+    fn fit(mut self, X: Matrix, y: PythonObject) raises:
         var n_samples = Float32(X.height)
         var _class_freq: List[Int]
         self._classes, _class_freq = Matrix.unique(y)
@@ -45,12 +45,14 @@ struct GaussianNB:
 
     @always_inline
     fn _predict(self, x: Matrix) raises -> String:
-        var posteriors = Matrix(1, len(self._classes))
+        var max_posterior = math.log(self._priors[0]) + self._pdf(0, x).log().sum()
+        var argmax = 0
         # calculate posterior probability for each class
-        for i in range(len(self._classes)):
-            posteriors.data[i] = math.log(self._priors[i]) + self._pdf(i, x).log().sum()
+        for i in range(1, len(self._classes)):
+            if math.log(self._priors[i]) + self._pdf(i, x).log().sum() > max_posterior:
+                argmax = i
         # return class with highest posterior probability
-        return self._classes[posteriors.argmax()]
+        return self._classes[argmax]
 
     # Probability Density Function
     @always_inline
@@ -63,13 +65,13 @@ struct MultinomialNB:
     var _class_probs: Matrix
     var _priors: InlinedFixedVector[Float32]
 
-    fn __init__(inout self, alpha: Float32 = 0.0):
+    fn __init__(out self, alpha: Float32 = 0.0):
         self._alpha = alpha
         self._classes = List[String]()
         self._class_probs = Matrix(0, 0)
         self._priors = InlinedFixedVector[Float32](capacity = 0)
 
-    fn fit(inout self, X: Matrix, y: PythonObject) raises:
+    fn fit(mut self, X: Matrix, y: PythonObject) raises:
         var n_samples = Float32(X.height)
         var _class_freq: List[Int]
         self._classes, _class_freq = Matrix.unique(y)
@@ -93,14 +95,16 @@ struct MultinomialNB:
 
     @always_inline
     fn _predict(self, x: Matrix) raises -> String:
-        var posteriors = Matrix(1, len(self._classes))
+        var max_posterior = math.log(self._priors[0]) + self._class_probs[0].log().ele_mul(x).sum()
+        var argmax = 0
         # calculate posterior probability for each class
         for i in range(len(self._classes)):
-            posteriors.data[i] = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum()
+            if math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum() > max_posterior:
+                argmax = i
         # return class with highest posterior probability
-        return self._classes[posteriors.argmax()]
+        return self._classes[argmax]
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if '_alpha' in params:
             self._alpha = atof(params['_alpha']).cast[DType.float32]()
         else:

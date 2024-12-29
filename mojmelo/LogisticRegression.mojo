@@ -17,7 +17,7 @@ struct LogisticRegression(CVM):
     var weights: Matrix
     var bias: Float32
 
-    fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, method: String = 'gradient', penalty: String = 'l2', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
+    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, method: String = 'gradient', penalty: String = 'l2', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.n_iters = n_iters
@@ -31,7 +31,7 @@ struct LogisticRegression(CVM):
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
@@ -126,7 +126,7 @@ struct LogisticRegression(CVM):
         var y_predicted = sigmoid(X * self.weights + self.bias)
         return y_predicted.where(y_predicted > 0.5, 1.0, 0.0)
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(params['learning_rate']).cast[DType.float32]()
         else:

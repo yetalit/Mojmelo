@@ -8,13 +8,13 @@ struct Perceptron(CVM):
     var weights: Matrix
     var bias: Float32
 
-    fn __init__(inout self, learning_rate: Float32 = 0.01, n_iters: Int = 1000):
+    fn __init__(out self, learning_rate: Float32 = 0.01, n_iters: Int = 1000):
         self.lr = learning_rate
         self.n_iters = n_iters
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
@@ -32,7 +32,7 @@ struct Perceptron(CVM):
         # Unit Step as activation
         return unit_step(X * self.weights + self.bias)
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(params['learning_rate']).cast[DType.float32]()
         else:

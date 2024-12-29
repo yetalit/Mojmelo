@@ -1,5 +1,5 @@
 from collections.vector import InlinedFixedVector
-from utils import Span
+from memory import Span
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import gt
 
@@ -8,12 +8,12 @@ struct PCA:
     var components: Matrix
     var mean: Matrix
 
-    fn __init__(inout self, n_components: Int):
+    fn __init__(out self, n_components: Int):
         self.n_components = n_components
         self.components = Matrix(0, 0)
         self.mean = Matrix(0, 0)
 
-    fn fit(inout self, X: Matrix) raises:
+    fn fit(mut self, X: Matrix) raises:
         # Mean centering
         self.mean = X.mean(0)
         
@@ -29,7 +29,7 @@ struct PCA:
         for i in range(eigenvalues.size):
             indices.append(i)
         # sort eigenvectors
-        mojmelo.utils.utils.partition[gt](Span[Float32, __lifetime_of(eigenvalues)](unsafe_ptr= eigenvalues.data, len= eigenvalues.size), indices, self.n_components)
+        mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
         # store first n eigenvectors
         self.components = Matrix.zeros(self.n_components, eigenvectors.width)
         for i in range(self.n_components):

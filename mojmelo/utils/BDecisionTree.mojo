@@ -1,5 +1,6 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
+from memory import UnsafePointer
 import math
 
 @value
@@ -10,14 +11,14 @@ struct BDecisionTree:
     var gamma: Float32
     var root: UnsafePointer[Node]
     
-    fn __init__(inout self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0):
+    fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.reg_lambda = reg_lambda
         self.gamma = gamma
         self.root = UnsafePointer[Node]()
 
-    fn __moveinit__(inout self, owned existing: Self):
+    fn __moveinit__(out self, owned existing: Self):
         self.min_samples_split = existing.min_samples_split
         self.max_depth = existing.max_depth
         self.reg_lambda = existing.reg_lambda
@@ -31,7 +32,7 @@ struct BDecisionTree:
         if self.root:
             delTree(self.root)
 
-    fn fit(inout self, X: Matrix, g: Matrix, h: Matrix) raises:
+    fn fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
         self.root = self._grow_tree(X, g, h)
 
     fn predict(self, X: Matrix) raises -> Matrix:
@@ -72,7 +73,7 @@ struct BDecisionTree:
         return new_node
 
 @always_inline
-fn leaf_score(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
+fn leaf_score(reg_lambda: Float32, g: Matrix, h: Matrix) raises -> Float32:
     '''
     Given the gradient and hessian of a tree leaf,
     return the prediction (score) at this leaf.
@@ -81,7 +82,7 @@ fn leaf_score(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
     return -g.sum() / (h.sum() + reg_lambda)
 
 @always_inline
-fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) -> Float32:
+fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) raises -> Float32:
     '''
     Given the gradient and hessian of a tree leaf,
     return the minimized loss at this leaf.

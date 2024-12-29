@@ -10,7 +10,7 @@ struct SVM_Primal(CVM):
     var weights: Matrix
     var bias: Float32
 
-    fn __init__(inout self, learning_rate: Float32 = 0.001, lambda_param: Float32 = 0.01, n_iters: Int = 1000, class_zero: Bool = False):
+    fn __init__(out self, learning_rate: Float32 = 0.001, lambda_param: Float32 = 0.01, n_iters: Int = 1000, class_zero: Bool = False):
         self.lr = learning_rate
         self.lambda_param = lambda_param
         self.n_iters = n_iters
@@ -18,7 +18,7 @@ struct SVM_Primal(CVM):
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn _fit(inout self, X: Matrix, y: Matrix) raises:
+    fn _fit(mut self, X: Matrix, y: Matrix) raises:
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
 
@@ -32,7 +32,7 @@ struct SVM_Primal(CVM):
                     )
                     self.bias -= self.lr * y.data[i]
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         if self.class_zero:
             self._fit(X, y.where(y <= 0.0, -1.0, 1.0))
         else:
@@ -44,7 +44,7 @@ struct SVM_Primal(CVM):
             return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(X * self.weights - self.bias)
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(params['learning_rate']).cast[DType.float32]()
         else:
@@ -83,7 +83,7 @@ struct SVM_Dual(CVM):
     var X: Matrix
     var y: Matrix
 
-    fn __init__(inout self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, gamma: Float32 = -1.0, class_zero: Bool = False):
+    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, gamma: Float32 = -1.0, class_zero: Bool = False):
         self.lr = learning_rate
         self.epoches = n_iters
         self.C = C
@@ -102,7 +102,7 @@ struct SVM_Dual(CVM):
         self.X = Matrix(0, 0)
         self.y = Matrix(0, 0)
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.X = X
         if self.kernel == 'rbf' and self.gamma < 0.0:
             self.gamma = 1.0 / (self.X.width * self.X._var())
@@ -140,7 +140,7 @@ struct SVM_Dual(CVM):
             return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel_func(self.k_params, self.X, X) + self.bias).reshape(X.height, 1)
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(params['learning_rate']).cast[DType.float32]()
         else:

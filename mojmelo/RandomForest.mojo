@@ -1,6 +1,7 @@
 from mojmelo.DecisionTree import DecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM
+from memory import UnsafePointer
 from collections import Dict
 
 @always_inline
@@ -28,7 +29,7 @@ struct RandomForest(CVM):
     var criterion: String
     var trees: UnsafePointer[DecisionTree]
 
-    fn __init__(inout self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini'):
+    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini'):
         self.n_trees = n_trees
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
@@ -36,7 +37,7 @@ struct RandomForest(CVM):
         self.criterion = criterion.lower()
         self.trees = UnsafePointer[DecisionTree]()
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'n_trees' in params:
             self.n_trees = atol(params['n_trees'])
         else:
@@ -65,7 +66,7 @@ struct RandomForest(CVM):
                 (self.trees + i).destroy_pointee()
             self.trees.free()
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
         for i in range(self.n_trees):
             var tree = DecisionTree(

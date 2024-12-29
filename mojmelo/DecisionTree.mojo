@@ -1,5 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, entropy, gini, mse_loss
+from memory import UnsafePointer
 from collections import Dict
 import math
 
@@ -11,7 +12,7 @@ struct Node:
     var value: Float32
 
     fn __init__(
-        inout self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node] = UnsafePointer[Node](), right: UnsafePointer[Node] = UnsafePointer[Node](), value: Float32 = math.inf[DType.float32]()
+        out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node] = UnsafePointer[Node](), right: UnsafePointer[Node] = UnsafePointer[Node](), value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
         self.threshold = threshold
@@ -31,13 +32,13 @@ struct Node:
 @value
 struct DecisionTree(CVM):
     var criterion: String
-    var loss_func: fn(Matrix) -> Float32
+    var loss_func: fn(Matrix) raises -> Float32
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
     var root: UnsafePointer[Node]
     
-    fn __init__(inout self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1):
+    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
@@ -50,7 +51,7 @@ struct DecisionTree(CVM):
         self.n_feats = n_feats
         self.root = UnsafePointer[Node]()
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'criterion' in params:
             self.criterion = params['criterion'].lower()
         else:
@@ -75,7 +76,7 @@ struct DecisionTree(CVM):
             self.n_feats = -1
         self.root = UnsafePointer[Node]()
 
-    fn __moveinit__(inout self, owned existing: Self):
+    fn __moveinit__(out self, owned existing: Self):
         self.criterion = existing.criterion
         self.loss_func = existing.loss_func
         self.min_samples_split = existing.min_samples_split
@@ -90,7 +91,7 @@ struct DecisionTree(CVM):
         if self.root:
             delTree(self.root)
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.n_feats = X.width if self.n_feats == -1 else min(self.n_feats, X.width)
         self.root = self._grow_tree(X, y)
 
@@ -147,7 +148,7 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
             most_common = k[]
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) -> Float32) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
     var parent_loss = loss_func(y)
     var split_idx = feat_idxs[0]
     var split_thresh = X[0, split_idx]
@@ -165,7 +166,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
     return split_idx, split_thresh
 
 @always_inline
-fn _information_gain(parent_loss: Float32, y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) -> Float32) raises -> Float32:
+fn _information_gain(parent_loss: Float32, y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) raises -> Float32) raises -> Float32:
     # generate split
     var left_idxs: List[Int]
     var right_idxs: List[Int]

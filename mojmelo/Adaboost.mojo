@@ -12,7 +12,7 @@ struct DecisionStump:
     var alpha: Float32
 
     @always_inline
-    fn __init__(inout self):
+    fn __init__(out self):
         self.polarity = 1
         self.feature_idx = -1
         self.threshold = -math.inf[DType.float32]()
@@ -37,12 +37,12 @@ struct Adaboost(CVM):
     var class_zero: Bool
     var clfs: List[DecisionStump]
 
-    fn __init__(inout self, n_clf: Int = 5, class_zero: Bool = False):
+    fn __init__(out self, n_clf: Int = 5, class_zero: Bool = False):
         self.n_clf = n_clf
         self.class_zero = class_zero
         self.clfs = List[DecisionStump]()
 
-    fn _fit(inout self, X: Matrix, y: Matrix) raises:
+    fn _fit(mut self, X: Matrix, y: Matrix) raises:
         # Initialize weights to 1/N
         var w = Matrix.full(X.height, 1, Float32(1) / X.height)
 
@@ -95,7 +95,7 @@ struct Adaboost(CVM):
             # Save classifier
             self.clfs.append(clf)
 
-    fn fit(inout self, X: Matrix, y: Matrix) raises:
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
         if self.class_zero:
             self._fit(X, y.where(y <= 0.0, -1.0, 1.0))
         else:
@@ -110,7 +110,7 @@ struct Adaboost(CVM):
             return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
         return sign(clf_preds.sum(1))
 
-    fn __init__(inout self, params: Dict[String, String]) raises:
+    fn __init__(out self, params: Dict[String, String]) raises:
         if 'n_clf' in params:
             self.n_clf = atol(params['n_clf'])
         else:

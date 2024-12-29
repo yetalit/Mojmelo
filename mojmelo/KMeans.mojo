@@ -13,7 +13,7 @@ struct KMeans:
     var centroids: Matrix
     var X: Matrix
 
-    fn __init__(inout self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
+    fn __init__(out self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
         self.K = K
         self.init = init.lower()
         self.max_iters = max_iters
@@ -26,7 +26,7 @@ struct KMeans:
         self.centroids = Matrix(0, 0)
         self.X = Matrix(0, 0)
 
-    fn predict(inout self, X: Matrix) raises -> Matrix:
+    fn predict(mut self, X: Matrix) raises -> Matrix:
         self.X = X
 
         if self.init == 'kmeans++' or self.init == 'k-means++':
@@ -51,7 +51,7 @@ struct KMeans:
         # Classify samples as the index of their clusters
         return self._get_cluster_labels(self.clusters)
         
-    fn _kmeans_plus_plus(inout self) raises:
+    fn _kmeans_plus_plus(mut self) raises:
         # Randomly select the first centroid
         random.seed(self.seed)
         self.centroids = Matrix(self.K, self.X.width)
@@ -99,10 +99,12 @@ struct KMeans:
     @always_inline
     fn _closest_centroid(self, sample: Matrix, centroids: Matrix) raises -> Int:
         # distance of the current sample to each centroid
-        var distances = Matrix(centroids.height, 1)
-        for i in range(centroids.height):
-            distances.data[i] = euclidean_distance(sample, centroids[i])
-        return distances.argmin()
+        var min_distance = euclidean_distance(sample, centroids[0])
+        var argmin = 0
+        for i in range(1, centroids.height):
+            if euclidean_distance(sample, centroids[i]) < min_distance:
+                argmin = i
+        return argmin
 
     @always_inline
     fn _get_centroids(self, clusters: List[List[Int]]) raises -> Matrix:
@@ -120,7 +122,7 @@ struct KMeans:
             distances.data[i] = euclidean_distance(centroids_old[i], centroids[i])
         return distances.sum() <= self.tol
 
-    fn get_clusters_data(self) -> Tuple[Matrix, Matrix]:
+    fn get_clusters_data(self) raises -> Tuple[Matrix, Matrix]:
         var row_counts = Matrix(1, len(self.clusters))
         for i in range(row_counts.size):
             row_counts.data[i] = len(self.clusters[i])

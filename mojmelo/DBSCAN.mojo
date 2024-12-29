@@ -10,7 +10,7 @@ struct DBSCAN:
     var neighbors: Dict[Int, List[Int]]
     var X: Matrix
 
-    fn __init__(inout self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc'):
+    fn __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc'):
         self.eps = eps
         self.min_samples = min_samples
         if metric.lower() == 'man':
@@ -30,7 +30,7 @@ struct DBSCAN:
                 neighbors.append(i)
         return neighbors^
 
-    fn _expand_cluster(inout self, idx: Int, neighbors: List[Int], inout visited_samples: List[Int]) raises -> List[Int]:
+    fn _expand_cluster(mut self, idx: Int, mut neighbors: List[Int], mut visited_samples: List[Int]) raises -> List[Int]:
         var cluster = List[Int](idx)
         # Iterate through neighbors
         for neighbor_i in neighbors:
@@ -55,7 +55,7 @@ struct DBSCAN:
                 labels.data[sample_i[]] = cluster_i
         return labels^
 
-    fn predict(inout self, X: Matrix) raises -> Matrix:
+    fn predict(mut self, X: Matrix) raises -> Matrix:
         self.X = X
         var visited_samples = List[Int]()
         # Iterate through samples and expand clusters from them

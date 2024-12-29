@@ -1,18 +1,18 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import gt
 from collections.vector import InlinedFixedVector
-from utils import Span
+from memory import Span
 from python import PythonObject
 
 struct LDA:
     var n_components: Int
     var linear_discriminants: Matrix
 
-    fn __init__(inout self, n_components: Int):
+    fn __init__(out self, n_components: Int):
         self.n_components = n_components
         self.linear_discriminants = Matrix(0, 0)
 
-    fn fit(inout self, X: Matrix, y: PythonObject) raises:
+    fn fit(mut self, X: Matrix, y: PythonObject) raises:
         var class_labels: List[String]
         var class_freq: List[Int]
         class_labels, class_freq = Matrix.unique(y)
@@ -54,7 +54,7 @@ struct LDA:
         for i in range(v_abs.size):
             indices.append(i)
         # sort eigenvectors
-        mojmelo.utils.utils.partition[gt](Span[Float32, __lifetime_of(v_abs)](unsafe_ptr= v_abs.data, len= v_abs.size), indices, self.n_components)
+        mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(v_abs)](ptr= v_abs.data, length= v_abs.size), indices, self.n_components)
         # store first n eigenvectors
         self.linear_discriminants = Matrix.zeros(self.n_components, eigenvectors.width)
         for i in range(self.n_components):
