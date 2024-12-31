@@ -3,7 +3,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![BSD-3-Clause License][license-shield]][license-url]
-![CodeQL](https://github.com/yetalit/Mojmelo/workflows/CodeQL/badge.svg)
+![CodeQL](https://github.com/yetalit/Mojmelo/actions/workflows/codeql.yml/badge.svg)
 
 <br />
 <div align="center">
