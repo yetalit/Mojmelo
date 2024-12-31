@@ -6,7 +6,7 @@ int cachel1() {
 
     // Get L1 Cache Size
     if (sysctlbyname("hw.l1dcachesize", &l1_cache_size, &len, NULL, 0) == 0) {
-        if (l1_cache_size) <= 1 {
+        if (l1_cache_size <= 1) {
 			return 65536;
 		}
 		return l1_cache_size;
@@ -21,7 +21,7 @@ int cachel2() {
 
     // Get L2 Cache Size
     if (sysctlbyname("hw.l2cachesize", &l2_cache_size, &len, NULL, 0) == 0) {
-        if (l2_cache_size) <= 1 {
+        if (l2_cache_size <= 1) {
 			return 4194304;
 		}
 		return l2_cache_size;
