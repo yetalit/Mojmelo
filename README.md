@@ -67,9 +67,44 @@ Additionally, you may want to install bellow Python packages for a better usabil
 
 ### Installation
 
-You can put the compiled version of the package into your project and use it. The file can be found in `releases` folder.
+You can easily install mojmelo through Magic CLI.
 
-or just download the whole `mojmelo` folder and put it into your project.
+First, Add the Modular community channel (https://repo.prefix.dev/modular-community) to your `mojoproject.toml` file or `pixi.toml file` in the channels section:
+```
+channels = ["conda-forge", "https://conda.modular.com/max", "https://repo.prefix.dev/modular-community"]
+```
+
+Then Run following command:
+```
+magic add mojmelo
+```
+
+If you want to have the source code in your project, you should install it manually.
+
+First, Download `mojmelo` folder and `setup.mojo` file. Then Add following tasks to your `mojoproject.toml` file or `pixi.toml file` in the tasks section:
+```
+[tasks]
+linux = "mojo <path_to_mojmelo_location>/setup.mojo"
+mac = """
+clang -shared -o <path_to_mojmelo_location>/mojmelo/utils/macOS/libparams.dylib -fPIC <path_to_mojmelo_location>/mojmelo/utils/macOS/params.c &&
+mojo <path_to_mojmelo_location>/setup.mojo &&
+mojo <path_to_mojmelo_location>/setup.mojo 1 &&
+mojo <path_to_mojmelo_location>/setup.mojo 2 &&
+mojo <path_to_mojmelo_location>/setup.mojo 3 &&
+mojo <path_to_mojmelo_location>/setup.mojo 4 &&
+mojo <path_to_mojmelo_location>/setup.mojo 5 &&
+mojo <path_to_mojmelo_location>/setup.mojo 6 &&
+mojo <path_to_mojmelo_location>/setup.mojo 7 &&
+mojo <path_to_mojmelo_location>/setup.mojo 8 &&
+mojo <path_to_mojmelo_location>/setup.mojo 9"""
+```
+
+Don't forget to change the `<path_to_mojmelo_location>` parts according to where `mojmelo` folder and `setup.mojo` file are stored.
+
+Then Run the task according to your operating system:
+```
+magic run linux/mac
+```
 
 ## Usage
 
