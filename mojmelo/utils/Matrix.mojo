@@ -1322,13 +1322,14 @@ struct Matrix(Stringable, Writable):
         return freq^
 
     @always_inline
-    fn uniquef(self) -> List[Float32]:
+    fn uniquef(self, tol: Float32 = 0.01) -> List[Float32]:
         var list = List[Float32]()
         for i in range(self.size):
             var contains = False
             for j in list:
-                if j[] == self.data[i]:
+                if abs(j[] - self.data[i]) <= tol:
                     contains = True
+					break
             if not contains:
                 list.append(self.data[i])
         return list^

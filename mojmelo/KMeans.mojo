@@ -98,11 +98,12 @@ struct KMeans:
 
     @always_inline
     fn _closest_centroid(self, sample: Matrix, centroids: Matrix) raises -> Int:
-        # distance of the current sample to each centroid
         var min_distance = euclidean_distance(sample, centroids[0])
         var argmin = 0
         for i in range(1, centroids.height):
-            if euclidean_distance(sample, centroids[i]) < min_distance:
+			var current_dist = euclidean_distance(sample, centroids[i])
+            if current_dist < min_distance:
+				min_distance = current_dist
                 argmin = i
         return argmin
 
