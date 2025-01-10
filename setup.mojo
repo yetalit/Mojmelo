@@ -55,14 +55,14 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
     if cache_l1_associativity <= 1 or cache_l2_associativity <= 1:
         possible_l1_associativities = InlineArray[Int, 3](fill=0)
         if cache_l1_associativity > 1:
-            possible_l1_associativities[0] = possible_l1_associativities[1] =  possible_l1_associativities[2] = cache_l1_associativity
+            possible_l1_associativities[0] = possible_l1_associativities[1] = possible_l1_associativities[2] = cache_l1_associativity
         else:
             possible_l1_associativities[0] = 4 if cache_l1_size < 65534 else 8
             possible_l1_associativities[1] = possible_l1_associativities[0] * 2
             possible_l1_associativities[2] = 12
         possible_l2_associativities = InlineArray[Int, 3](fill=0)
         if cache_l2_associativity > 1:
-            possible_l2_associativities[0] = possible_l2_associativities[1] =  possible_l2_associativities[2] = cache_l2_associativity
+            possible_l2_associativities[0] = possible_l2_associativities[1] = possible_l2_associativities[2] = cache_l2_associativity
         else:
             possible_l2_associativities[0] = 4 if cache_l2_size <= 2097154 else 8
             possible_l2_associativities[1] = possible_l2_associativities[0] * 2
