@@ -74,18 +74,17 @@ First, Add the Modular community channel (https://repo.prefix.dev/modular-commun
 channels = ["conda-forge", "https://conda.modular.com/max", "https://repo.prefix.dev/modular-community"]
 ```
 
-Then Run following command:
+Then Run the following command:
 ```
 magic add mojmelo
 ```
 
 If you want to have the source code in your project, you should install it manually.
 
-First, Download `mojmelo` folder and `setup.mojo` file. Then Add following tasks to your `mojoproject.toml` file or `pixi.toml file` in the tasks section:
+First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `mojoproject.toml` file or `pixi.toml file` in the tasks section:
 ```
 [tasks]
-linux = "mojo <path_to_mojmelo_location>/setup.mojo"
-mac = """
+setup = """
 mojo <path_to_mojmelo_location>/setup.mojo &&
 mojo <path_to_mojmelo_location>/setup.mojo 1 &&
 mojo <path_to_mojmelo_location>/setup.mojo 2 &&
@@ -100,9 +99,9 @@ mojo <path_to_mojmelo_location>/setup.mojo 9"""
 
 Don't forget to change the `<path_to_mojmelo_location>` parts according to where `mojmelo` folder and `setup.mojo` file are stored.
 
-Then Run the task according to your operating system:
+Then Run the following command:
 ```
-magic run linux/mac
+magic run setup
 ```
 
 ## Usage
