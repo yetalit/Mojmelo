@@ -64,7 +64,7 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
         if cache_l2_associativity > 1:
             possible_l2_associativities[0] = possible_l2_associativities[1] =  possible_l2_associativities[2] = cache_l2_associativity
         else:
-            possible_l2_associativities[0] = 4 if cache_l2_size < 1048574 else 8
+            possible_l2_associativities[0] = 4 if cache_l2_size <= 2097154 else 8
             possible_l2_associativities[1] = possible_l2_associativities[0] * 2
             possible_l2_associativities[2] = possible_l2_associativities[0] * 4
         with open("./mojmelo/utils/params.mojo", "w") as f:
@@ -100,14 +100,22 @@ fn main() raises:
         cache_l2_associativity = 0
         if os_is_linux():
             with open("/sys/devices/system/cpu/cpu0/cache/index0/size", "r") as f:
-                cache_l1_size = atol(f.read().split('K')[0]) * 1024
+				txt = f.read()
+				if txt.find('K') != -1:
+					cache_l1_size = atol(txt.split('K')[0]) * 1024
+				else:
+					cache_l1_size = atol(txt.split('M')[0]) * 1048576
             try:
                 with open("/sys/devices/system/cpu/cpu0/cache/index0/ways_of_associativity", "r") as f:
                     cache_l1_associativity = atol(f.read())
             except:
                 cache_l1_associativity = 0
             with open("/sys/devices/system/cpu/cpu0/cache/index2/size", "r") as f:
-                cache_l2_size = atol(f.read().split('K')[0]) * 1024
+				txt = f.read()
+				if txt.find('K') != -1:
+					cache_l2_size = atol(txt.split('K')[0]) * 1024
+				else:
+					cache_l2_size = atol(txt.split('M')[0]) * 1048576
             try:
                 with open("/sys/devices/system/cpu/cpu0/cache/index2/ways_of_associativity", "r") as f:
                     cache_l2_associativity = atol(f.read())
