@@ -49,9 +49,9 @@ struct GaussianNB:
         var argmax = 0
         # calculate posterior probability for each class
         for i in range(1, len(self._classes)):
-			var current_posterior = math.log(self._priors[i]) + self._pdf(i, x).log().sum()
+            var current_posterior = math.log(self._priors[i]) + self._pdf(i, x).log().sum()
             if current_posterior > max_posterior:
-				max_posterior = current_posterior
+                max_posterior = current_posterior
                 argmax = i
         # return class with highest posterior probability
         return self._classes[argmax]
@@ -101,9 +101,9 @@ struct MultinomialNB:
         var argmax = 0
         # calculate posterior probability for each class
         for i in range(1, len(self._classes)):
-			var current_posterior = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum()
+            var current_posterior = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum()
             if current_posterior > max_posterior:
-				max_posterior = current_posterior
+                max_posterior = current_posterior
                 argmax = i
         # return class with highest posterior probability
         return self._classes[argmax]

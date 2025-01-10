@@ -1329,7 +1329,7 @@ struct Matrix(Stringable, Writable):
             for j in list:
                 if abs(j[] - self.data[i]) <= tol:
                     contains = True
-					break
+                    break
             if not contains:
                 list.append(self.data[i])
         return list^

@@ -101,9 +101,9 @@ struct KMeans:
         var min_distance = euclidean_distance(sample, centroids[0])
         var argmin = 0
         for i in range(1, centroids.height):
-			var current_dist = euclidean_distance(sample, centroids[i])
+            var current_dist = euclidean_distance(sample, centroids[i])
             if current_dist < min_distance:
-				min_distance = current_dist
+                min_distance = current_dist
                 argmin = i
         return argmin
 
