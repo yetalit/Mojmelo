@@ -30,8 +30,8 @@ fn cachel1() -> Int32:
 fn cachel2() -> Int32:
     var l2_cache_size: c_int = 0
     alias length: c_size_t = 4
-    alias hw_perflevel0_l2dcachesize = InlineArray[Int8, 27](104,119,46,112,101,114,102,108,101,118,101,108,48,46,108,50,100,99,97,99,104,101,115,105,122,101,0)
-    alias hw_l2dcachesize = InlineArray[Int8, 16](104,119,46,108,50,100,99,97,99,104,101,115,105,122,101,0)
+    alias hw_perflevel0_l2cachesize = InlineArray[Int8, 26](104,119,46,112,101,114,102,108,101,118,101,108,48,46,108,50,99,97,99,104,101,115,105,122,101,0)
+    alias hw_l2cachesize = InlineArray[Int8, 15](104,119,46,108,50,99,97,99,104,101,115,105,122,101,0)
     # Get L2 Cache Size
     if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_perflevel0_l2dcachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
         if l2_cache_size <= 1:
