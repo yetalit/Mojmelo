@@ -1,9 +1,60 @@
-from sys import DLHandle, os_is_linux, os_is_macos, argv
+from sys import external_call, os_is_linux, os_is_macos, argv
+from sys.ffi import *
+from memory import UnsafePointer
+from collections import InlineArray
 import math
 
 fn is_power_of_2(x: Float64) -> Bool:
     _x = int(x)
     return (_x & (_x - 1)) == 0
+
+fn cachel1() -> Int32:
+    var l1_cache_size: c_int = 0
+    alias length: c_size_t = 4
+    alias hw_perflevel0_l1dcachesize = InlineArray[Int8, 27](104,119,46,112,101,114,102,108,101,118,101,108,48,46,108,49,100,99,97,99,104,101,115,105,122,101,0)
+    alias hw_l1dcachesize = InlineArray[Int8, 16](104,119,46,108,49,100,99,97,99,104,101,115,105,122,101,0)
+    # Get L1 Cache Size
+    if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_perflevel0_l1dcachesize.unsafe_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+        if l1_cache_size <= 1:
+            if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l1dcachesize.unsafe_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+                if l1_cache_size <= 1:
+                    return 65536
+                return l1_cache_size
+            else:
+                return 65536
+        return l1_cache_size
+    else:
+        if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l1dcachesize.unsafe_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+            if l1_cache_size <= 1:
+                return 65536
+            return l1_cache_size
+        else:
+            return 65536
+
+
+fn cachel2() -> Int32:
+    var l2_cache_size: c_int = 0
+    alias length: c_size_t = 4
+    alias hw_perflevel0_l2dcachesize = InlineArray[Int8, 27](104,119,46,112,101,114,102,108,101,118,101,108,48,46,108,50,100,99,97,99,104,101,115,105,122,101,0)
+    alias hw_l2dcachesize = InlineArray[Int8, 16](104,119,46,108,50,100,99,97,99,104,101,115,105,122,101,0)
+    # Get L2 Cache Size
+    if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_perflevel0_l2dcachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+        if l2_cache_size <= 1:
+            if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l2dcachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+                if l2_cache_size <= 1:
+                    return 4194304
+                return l2_cache_size
+            else:
+                return 4194304
+        return l2_cache_size
+    else:
+        if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l2dcachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+            if l2_cache_size <= 1:
+                return 4194304
+            return l2_cache_size
+        else:
+            return 4194304
+
 
 fn main() raises:
     if os_is_linux():
@@ -24,9 +75,8 @@ fn main() raises:
             print('Setup Done!')
     if os_is_macos():
         if len(argv()) == 1:
-            macParams = DLHandle('./mojmelo/utils/macOS/libparams.dylib')
-            cache_l1_size = macParams.get_function[fn() -> Int]('cachel1')()
-            cache_l2_size = macParams.get_function[fn() -> Int]('cachel2')()
+            cache_l1_size = int(cachel1())
+            cache_l2_size = int(cachel2())
             possible_l1_associativity = cache_l1_size / 4096
             possible_l2_associativity = cache_l2_size / 65536
             possible_l1_associativities = List[Int](

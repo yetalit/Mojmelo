@@ -3,7 +3,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![BSD-3-Clause License][license-shield]][license-url]
-![CodeQL](https://github.com/yetalit/Mojmelo/actions/workflows/codeql.yml/badge.svg)
+![CodeQL](https://github.com/yetalit/Mojmelo/workflows/CodeQL/badge.svg)
 
 <br />
 <div align="center">
@@ -86,7 +86,6 @@ First, Download `mojmelo` folder and `setup.mojo` file. Then Add following tasks
 [tasks]
 linux = "mojo <path_to_mojmelo_location>/setup.mojo"
 mac = """
-clang -shared -o <path_to_mojmelo_location>/mojmelo/utils/macOS/libparams.dylib -fPIC <path_to_mojmelo_location>/mojmelo/utils/macOS/params.c &&
 mojo <path_to_mojmelo_location>/setup.mojo &&
 mojo <path_to_mojmelo_location>/setup.mojo 1 &&
 mojo <path_to_mojmelo_location>/setup.mojo 2 &&
