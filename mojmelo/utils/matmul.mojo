@@ -1,3 +1,5 @@
+from mojmelo_params.params import *
+
 # Modified version of YichengDWu's matmul.mojo (https://github.com/YichengDWu/matmul.mojo)
 
 from algorithm import vectorize, parallelize
@@ -9,7 +11,6 @@ from testing import assert_equal
 from utils import IndexList
 from collections import InlineArray
 import random
-from mojmelo.utils.params import *
 
 
 @always_inline

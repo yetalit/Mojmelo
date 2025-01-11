@@ -69,7 +69,7 @@ Additionally, you may want to install bellow Python packages for a better usabil
 
 You can easily install mojmelo through Magic CLI.
 
-First, Add the Modular community channel (https://repo.prefix.dev/modular-community) to your `mojoproject.toml` file or `pixi.toml file` in the channels section:
+First, Add the Modular community channel (https://repo.prefix.dev/modular-community) to your `mojoproject.toml` file or `pixi.toml` file in the channels section:
 ```
 channels = ["conda-forge", "https://conda.modular.com/max", "https://repo.prefix.dev/modular-community"]
 ```
@@ -81,7 +81,7 @@ magic add mojmelo
 
 If you want to have the source code in your project, you should install it manually.
 
-First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `mojoproject.toml` file or `pixi.toml file` in the tasks section:
+First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `mojoproject.toml` file or `pixi.toml` file in the tasks section:
 ```
 [tasks]
 setup = """
