@@ -6,12 +6,10 @@ from collections import InlineArray
 fn cachel1() -> Int32:
     var l1_cache_size: c_int = 0
     alias length: c_size_t = 4
-    alias hw_perflevel0_l1dcachesize = InlineArray[Int8, 27](104,119,46,112,101,114,102,108,101,118,101,108,48,46,108,49,100,99,97,99,104,101,115,105,122,101,0)
-    alias hw_l1dcachesize = InlineArray[Int8, 16](104,119,46,108,49,100,99,97,99,104,101,115,105,122,101,0)
     # Get L1 Cache Size
-    if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_perflevel0_l1dcachesize.unsafe_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), OpaquePointer(), 0) == 0:
         if l1_cache_size <= 1:
-            if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l1dcachesize.unsafe_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), OpaquePointer(), 0) == 0:
                 if l1_cache_size <= 1:
                     return 65536
                 return l1_cache_size
@@ -19,7 +17,7 @@ fn cachel1() -> Int32:
                 return 65536
         return l1_cache_size
     else:
-        if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l1dcachesize.unsafe_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer.address_of(l1_cache_size), UnsafePointer.address_of(length), OpaquePointer(), 0) == 0:
             if l1_cache_size <= 1:
                 return 65536
             return l1_cache_size
@@ -30,12 +28,10 @@ fn cachel1() -> Int32:
 fn cachel2() -> Int32:
     var l2_cache_size: c_int = 0
     alias length: c_size_t = 4
-    alias hw_perflevel0_l2cachesize = InlineArray[Int8, 26](104,119,46,112,101,114,102,108,101,118,101,108,48,46,108,50,99,97,99,104,101,115,105,122,101,0)
-    alias hw_l2cachesize = InlineArray[Int8, 15](104,119,46,108,50,99,97,99,104,101,115,105,122,101,0)
     # Get L2 Cache Size
-    if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_perflevel0_l2cachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".unsafe_cstr_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), OpaquePointer(), 0) == 0:
         if l2_cache_size <= 1:
-            if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l2cachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), OpaquePointer(), 0) == 0:
                 if l2_cache_size <= 1:
                     return 4194304
                 return l2_cache_size
@@ -43,7 +39,7 @@ fn cachel2() -> Int32:
                 return 4194304
         return l2_cache_size
     else:
-        if external_call["sysctlbyname", c_int, UnsafePointer[c_char], UnsafePointer[c_int], UnsafePointer[c_size_t], OpaquePointer, c_size_t](hw_l2cachesize.unsafe_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), UnsafePointer[NoneType](), 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer.address_of(l2_cache_size), UnsafePointer.address_of(length), OpaquePointer(), 0) == 0:
             if l2_cache_size <= 1:
                 return 4194304
             return l2_cache_size
@@ -67,7 +63,7 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
             possible_l2_associativities[0] = 4 if cache_l2_size <= 2097154 else 8
             possible_l2_associativities[1] = possible_l2_associativities[0] * 2
             possible_l2_associativities[2] = possible_l2_associativities[0] * 4
-        with open("./mojmelo/utils/mojmelo_params/params.mojo", "w") as f:
+        with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
             code = 'alias L1_CACHE_SIZE = ' + str(cache_l1_size) + '\n'
             code += 'alias L1_ASSOCIATIVITY = ' + str(possible_l1_associativities[0]) + '\n'
             code += 'alias L2_CACHE_SIZE = ' + str(cache_l2_size) + '\n'
@@ -82,7 +78,7 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
                     code += 'alias L2_ASSOCIATIVITY = ' + str(possible_l2_associativities[j - 1]) + '\n'
                     f.write(code)
     else:
-        with open("./mojmelo/utils/mojmelo_params/params.mojo", "w") as f:
+        with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
             code = 'alias L1_CACHE_SIZE = ' + str(cache_l1_size) + '\n'
             code += 'alias L1_ASSOCIATIVITY = ' + str(cache_l1_associativity) + '\n'
             code += 'alias L2_CACHE_SIZE = ' + str(cache_l2_size) + '\n'
@@ -94,11 +90,6 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
 
 fn main() raises:
     if len(argv()) == 1:
-        var code: String
-        with open("./mojmelo/utils/matmul.mojo", "r") as f:
-            code = f.read()
-        with open("./mojmelo/utils/matmul.mojo", "w") as f:
-            f.write("from mojmelo.utils.mojmelo_params.params import *\n#" + code)
         cache_l1_size = 0
         cache_l2_size = 0
         cache_l1_associativity = 0
@@ -184,7 +175,7 @@ fn main() raises:
             var code: String
             with open("./param" + str(int(command) + 1), "r") as f:
                 code = f.read()
-            with open("./mojmelo/utils/mojmelo_params/params.mojo", "w") as f:
+            with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
                 f.write(code)
             print('Setup', command + '/8', 'done!')
         else:
@@ -213,7 +204,7 @@ fn main() raises:
             var code: String
             with open("./param" + str(Counter[Int](votes).most_common(1)[0]._value + 1), "r") as f:
                 code = f.read()
-            with open("./mojmelo/utils/mojmelo_params/params.mojo", "w") as f:
+            with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
                 f.write(code)
 
             for i in range(1, 10):

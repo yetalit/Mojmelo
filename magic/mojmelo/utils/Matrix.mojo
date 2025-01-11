@@ -1,4 +1,4 @@
-from .mojmelo_matmul import matmul
+from mojmelo_matmul import matmul
 from sys.info import simdwidthof, is_apple_silicon
 from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize

@@ -1,5 +1,3 @@
-from mojmelo_params.params import *
-
 # Modified version of YichengDWu's matmul.mojo (https://github.com/YichengDWu/matmul.mojo)
 
 from algorithm import vectorize, parallelize
@@ -11,7 +9,7 @@ from testing import assert_equal
 from utils import IndexList
 from collections import InlineArray
 import random
-
+from .params import *
 
 @always_inline
 fn roundup(a: Int, b: Int) -> Int:
@@ -488,7 +486,6 @@ fn matmul_params[Type: DType]() -> IndexList[5]:
             return compute_params[Vectors - TempVectors]()
 
 
-@always_inline
 fn matmul[
     Type: DType
 ](m: Int, n: Int, k: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type]):

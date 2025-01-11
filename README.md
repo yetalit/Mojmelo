@@ -85,6 +85,7 @@ First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following t
 ```
 [tasks]
 setup = """
+cd <path_to_mojmelo_location> &&
 mojo <path_to_mojmelo_location>/setup.mojo &&
 mojo <path_to_mojmelo_location>/setup.mojo 1 &&
 mojo <path_to_mojmelo_location>/setup.mojo 2 &&
