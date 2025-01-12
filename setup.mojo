@@ -145,30 +145,30 @@ fn main() raises:
         a = Matrix.random(512, 4096)
         b = Matrix.random(4096, 512)
         for i in range(NUM_ITER):
-            t = time.perf_counter_ns()
+            start = time.perf_counter_ns()
             c = a * b
-            seconds = time.perf_counter_ns() - t
+            finish = time.perf_counter_ns() - t
             junk += c[0, 0]
             if i != 0:
-                results[0] += seconds // (NUM_ITER - 1)
+                results[0] += (finish - start) // (NUM_ITER - 1)
         a = Matrix.random(4096, 4096)
         b = Matrix.random(4096, 4096)
         for i in range(NUM_ITER):
-            t = time.perf_counter_ns()
+            start = time.perf_counter_ns()
             c = a * b
-            seconds = time.perf_counter_ns() - t
+            finish = time.perf_counter_ns() - t
             junk += c[0, 0]
             if i != 0:
-                results[1] += seconds // (NUM_ITER - 1)
+                results[1] += (finish - start) // (NUM_ITER - 1)
         a = Matrix.random(4096, 512)
         b = Matrix.random(512, 4096)
         for i in range(NUM_ITER):
-            t = time.perf_counter_ns()
+            start = time.perf_counter_ns()
             c = a * b
-            seconds = time.perf_counter_ns() - t
+            finish = time.perf_counter_ns() - t
             junk += c[0, 0]
             if i != 0:
-                results[2] += seconds // (NUM_ITER - 1)
+                results[2] += (finish - start) // (NUM_ITER - 1)
         if command != '9':
             with open("./results" + command, "w") as f:
                 f.write(str(results[0]) + ',' + str(results[1]) + ',' + str(results[2]) + ',' + str(junk))
@@ -188,7 +188,7 @@ fn main() raises:
                     results_list[i - 1][1] = atol(res[1])
                     results_list[i - 1][2] = atol(res[2])
             results_list.append(results)
-            
+
             from collections import Counter
 
             votes = List[Int]()
