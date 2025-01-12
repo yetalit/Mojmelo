@@ -147,7 +147,7 @@ fn main() raises:
         for i in range(NUM_ITER):
             start = time.perf_counter_ns()
             c = a * b
-            finish = time.perf_counter_ns() - t
+            finish = time.perf_counter_ns()
             junk += c[0, 0]
             if i != 0:
                 results[0] += (finish - start) // (NUM_ITER - 1)
@@ -156,7 +156,7 @@ fn main() raises:
         for i in range(NUM_ITER):
             start = time.perf_counter_ns()
             c = a * b
-            finish = time.perf_counter_ns() - t
+            finish = time.perf_counter_ns()
             junk += c[0, 0]
             if i != 0:
                 results[1] += (finish - start) // (NUM_ITER - 1)
@@ -165,7 +165,7 @@ fn main() raises:
         for i in range(NUM_ITER):
             start = time.perf_counter_ns()
             c = a * b
-            finish = time.perf_counter_ns() - t
+            finish = time.perf_counter_ns()
             junk += c[0, 0]
             if i != 0:
                 results[2] += (finish - start) // (NUM_ITER - 1)
