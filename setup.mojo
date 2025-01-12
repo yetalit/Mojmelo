@@ -139,7 +139,7 @@ fn main() raises:
         from collections import InlineArray
         import time
 
-        alias NUM_ITER = 25
+        alias NUM_ITER = 20
         results = InlineArray[Int, 3](fill=0)
         var junk: Float32 = 0.0
         a = Matrix.random(512, 4096)
