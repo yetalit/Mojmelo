@@ -67,7 +67,11 @@ Additionally, you may want to install bellow Python packages for a better usabil
 
 ### Installation
 
-You can easily install mojmelo through Magic CLI.
+There are two ways you can install mojmelo: Using Magic CLI or through the source code.
+
+To complete the installation, you should also finish the setup process which will be discussed later.
+
+#### Magic CLI
 
 First, Add the Modular community channel (https://repo.prefix.dev/modular-community) to your `mojoproject.toml` file or `pixi.toml` file in the channels section:
 ```
@@ -79,7 +83,16 @@ Then Run the following command:
 magic add mojmelo
 ```
 
-If you want to have the source code in your project, you should install it manually.
+To start the setup process, Run the following command from the `main folder` of your project:
+```
+bash ./.magic/envs/default/etc/conda/test-files/mojmelo/0/tests/setup.sh
+```
+
+Note: For better results, please try not to run other tasks on your pc during the setup process.
+
+#### Source Code
+
+You can also install mojmelo through the source code. This way, you will have the source code in your project.
 
 First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `mojoproject.toml` file or `pixi.toml` file in the tasks section:
 ```
@@ -100,10 +113,12 @@ mojo ./setup.mojo 9"""
 
 Don't forget to change `<path_to_mojmelo_location>` according to where `mojmelo` folder and `setup.mojo` file are stored.
 
-Then Run the following command:
+Then Run the following command to start the setup process:
 ```
 magic run setup
 ```
+
+Note: For better results, please try not to run other tasks on your pc during the setup process.
 
 ## Usage
 
