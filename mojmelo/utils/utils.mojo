@@ -296,7 +296,7 @@ fn entropy(y: Matrix) raises -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
     var _sum: Float32 = 0.0
-    for i in range(histogram.capacity):
+    for i in range(len(histogram)):
         var p: Float32 = histogram[i] / size
         if p > 0 and p != 1.0:
             _sum += p * math.log2(p)
@@ -307,7 +307,7 @@ fn gini(y: Matrix) raises -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
     var _sum: Float32 = 0.0
-    for i in range(histogram.capacity):
+    for i in range(len(histogram)):
         _sum += (histogram[i] / size) ** 2
     return 1 - _sum
 

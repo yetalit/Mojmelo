@@ -1285,15 +1285,15 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn bincount(self) raises -> InlinedFixedVector[Int]:
+    fn bincount(self) raises -> List[Int]:
         var max_val = int(self.max())
-        var vect = InlinedFixedVector[Int](capacity = max_val + 1)
-        memset_zero(vect.dynamic_data, max_val + 1)
+        var vect = UnsafePointer[Int].alloc(max_val + 1)
+        memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
             vect[int(self.data[i])] += 1
     
-        return vect^
+        return List[Int](ptr=vect, length=max_val + 1, capacity= max_val + 1)
 
     @staticmethod
     @always_inline
