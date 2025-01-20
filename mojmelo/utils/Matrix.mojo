@@ -20,6 +20,15 @@ struct Matrix(Stringable, Writable):
 
     # initialize from UnsafePointer
     @always_inline
+    fn __init__(out self, data: UnsafePointer[Float32], height: Int, width: Int, order: String = 'c'):
+        self.height = height
+        self.width = width
+        self.size = height * width
+        self.data = data
+        self.order = order.lower()
+
+    # initialize by copying from UnsafePointer
+    @always_inline
     fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32](), order: String = 'c'):
         self.height = height
         self.width = width
@@ -601,9 +610,7 @@ struct Matrix(Stringable, Writable):
         var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
         memset_zero(C.data, self.height * rhs.width)
         matmul.matmul(self.height, self.width, rhs.width, C, A, B)
-        var mat = Matrix(self.height, rhs.width)
-        mat.data = C.data
-        return mat^
+        return Matrix(C.data, self.height, rhs.width)
 
     @always_inline
     fn __imul__(mut self, rhs: Self) raises:
