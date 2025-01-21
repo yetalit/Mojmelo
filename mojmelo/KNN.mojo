@@ -1,7 +1,7 @@
 from collections import InlinedFixedVector, Dict
 from memory import Span
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVP, euclidean_distance, manhattan_distance, le
+from mojmelo.utils.utils import CVP, squared_euclidean_distance, manhattan_distance, le
 from python import PythonObject
 
 struct KNN(CVP):
@@ -15,7 +15,7 @@ struct KNN(CVP):
         if metric.lower() == 'man':
             self.distance = manhattan_distance
         else:
-            self.distance = euclidean_distance
+            self.distance = squared_euclidean_distance
         self.X_train = Matrix(0, 0)
         self.y_train = None
 
@@ -60,8 +60,8 @@ struct KNN(CVP):
             if params['metric'].lower() == 'man':
                 self.distance = manhattan_distance
             else:
-                self.distance = euclidean_distance
+                self.distance = squared_euclidean_distance
         else:
-            self.distance = euclidean_distance
+            self.distance = squared_euclidean_distance
         self.X_train = Matrix(0, 0)
         self.y_train = None

@@ -1072,6 +1072,43 @@ struct Matrix(Stringable, Writable):
         return self._elemwise_math[math.exp]()
 
     @always_inline
+    fn argmin_slow(self) -> Int:
+        var min_index = 0
+        var min_val = self.data[0]
+        for i in range(1, self.size):
+            if self.data[i] < min_val:
+                min_val = self.data[i]
+                min_index = i
+        if self.order == 'c':
+            return min_index
+        return (min_index % self.height) * self.width + min_index // self.height
+
+    @always_inline
+    fn argmin_slow(self, axis: Int) -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].argmin_slow()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    mat.data[i] = self['', i, unsafe=True].argmin_slow()
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].argmin_slow()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    mat.data[i] = self[i, unsafe=True].argmin_slow()
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
     fn min(self) raises -> Float32:
         return algorithm.reduction.min(Buffer[DType.float32](self.data, self.size))
 
@@ -1329,7 +1366,7 @@ struct Matrix(Stringable, Writable):
         return freq^
 
     @always_inline
-    fn uniquef(self, tol: Float32 = 0.01) -> List[Float32]:
+    fn uniquef(self, tol: Float32 = 0.001) -> List[Float32]:
         var list = List[Float32]()
         for i in range(self.size):
             var contains = False

@@ -27,14 +27,16 @@ struct RandomForest(CVM):
     var max_depth: Int
     var n_feats: Int
     var criterion: String
+    var threshold_precision: Float32
     var trees: UnsafePointer[DecisionTree]
 
-    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini'):
+    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini', threshold_precision: Float32 = 0.001):
         self.n_trees = n_trees
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
         self.criterion = criterion.lower()
+        self.threshold_precision = threshold_precision
         self.trees = UnsafePointer[DecisionTree]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -58,6 +60,10 @@ struct RandomForest(CVM):
             self.criterion = params['criterion'].lower()
         else:
             self.criterion = 'gini'
+        if 'threshold_precision' in params:
+            self.threshold_precision = atof(params['threshold_precision']).cast[DType.float32]()
+        else:
+            self.threshold_precision = 0.001
         self.trees = UnsafePointer[DecisionTree]()
 
     fn __del__(owned self):
@@ -73,6 +79,7 @@ struct RandomForest(CVM):
                 min_samples_split = self.min_samples_split,
                 max_depth = self.max_depth,
                 n_feats = self.n_feats,
+                threshold_precision = self.threshold_precision,
                 criterion = self.criterion
             )
             var X_samp: Matrix

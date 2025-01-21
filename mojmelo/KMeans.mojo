@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import euclidean_distance
+from mojmelo.utils.utils import squared_euclidean_distance, euclidean_distance
 import random
 import math
 
@@ -7,16 +7,19 @@ struct KMeans:
     var K: Int
     var init: String
     var max_iters: Int
+    var converge: String
     var tol: Float32
     var seed: Int
     var clusters: List[List[Int]]
     var centroids: Matrix
+    var inertia: Float32
     var X: Matrix
 
-    fn __init__(out self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, tol: Float32 = 1e-4, random_state: Int = 42):
+    fn __init__(out self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 42):
         self.K = K
         self.init = init.lower()
         self.max_iters = max_iters
+        self.converge = converge.lower()
         self.tol = tol
         self.seed = random_state
 
@@ -24,20 +27,22 @@ struct KMeans:
         self.clusters = List[List[Int]](capacity = 0)
         # the centers (mean feature vector) for each cluster
         self.centroids = Matrix(0, 0)
+        self.inertia = 0.0
         self.X = Matrix(0, 0)
 
     fn predict(mut self, X: Matrix) raises -> Matrix:
         self.X = X
 
-        if self.init == 'kmeans++' or self.init == 'k-means++':
+        if self.init == 'random':
+            self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = self.seed)]
+        else:
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus()
-        else:
-            self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = self.seed)]
 
         # Optimize clusters
         for _ in range(self.max_iters):
             # Assign samples to closest centroids (create clusters)
+            var clusters_old = self.clusters
             self.clusters = self._create_clusters()
 
             # Calculate new centroids from the clusters
@@ -45,7 +50,7 @@ struct KMeans:
             self.centroids = self._get_centroids(self.clusters)
 
             # check if clusters have changed
-            if self._is_converged(centroids_old, self.centroids):
+            if (self.converge == 'label' and self._is_converged(clusters_old)) or (self.converge != 'label' and self._is_converged(centroids_old)):
                 break
 
         # Classify samples as the index of their clusters
@@ -58,17 +63,14 @@ struct KMeans:
         self.centroids[0] = self.X[int(random.random_ui64(0, self.X.height - 1))]
 
         for i in range(1, self.K):
-            var distances = Matrix(self.X.height, 1)
+            # Only consider the centroids that have been initialized
+            var dist_from_centroids = Matrix(self.X.height, i, order='f')
             # Compute distances to the nearest centroid
-            for idx in range(self.X.height):
-                var min_distance = math.inf[DType.float32]()
-                for idc in range(i): # Only consider the centroids that have been initialized
-                    var distance = euclidean_distance(self.X[idx], self.centroids[idc])
-                    if distance < min_distance:
-                        min_distance = distance
-                distances.data[idx] = min_distance
+            for idc in range(i):
+                dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
+            var min_distances = dist_from_centroids.min(axis=1)
             # Select the next centroid with probability proportional to the squared distances
-            var probabilities = (distances / distances.sum()).cumsum()
+            var probabilities = (min_distances / min_distances.sum()).cumsum()
             # Select the next centroid based on cumulative probabilities
             for idp in range(len(probabilities)):
                 if random.random_float64().cast[DType.float32]() < probabilities.data[idp]:
@@ -83,7 +85,7 @@ struct KMeans:
         for cluster_idx in range(len(clusters)):
             for sample_index in clusters[cluster_idx]:
                 labels.data[sample_index[]] = cluster_idx
-        return labels
+        return labels^
 
     @always_inline
     fn _create_clusters(self) raises -> List[List[Int]]:
@@ -92,20 +94,19 @@ struct KMeans:
         for _ in range(self.K):
             clusters.append(List[Int]())
 
+        var closest_centroid = self._closest_centroid()
+
         for idx in range(self.X.height):
-            clusters[self._closest_centroid(self.X[idx], self.centroids)].append(idx)
-        return clusters
+            clusters[int(closest_centroid.data[idx])].append(idx)
+        return clusters^
 
     @always_inline
-    fn _closest_centroid(self, sample: Matrix, centroids: Matrix) raises -> Int:
-        var min_distance = euclidean_distance(sample, centroids[0])
-        var argmin = 0
-        for i in range(1, centroids.height):
-            var current_dist = euclidean_distance(sample, centroids[i])
-            if current_dist < min_distance:
-                min_distance = current_dist
-                argmin = i
-        return argmin
+    fn _closest_centroid(self) raises -> Matrix:
+        var dist_from_centroids = Matrix(self.X.height, self.K, order='f')
+        # Compute distances to the nearest centroid
+        for idc in range(self.K):
+            dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
+        return dist_from_centroids.argmin_slow(axis=1)
 
     @always_inline
     fn _get_centroids(self, clusters: List[List[Int]]) raises -> Matrix:
@@ -113,25 +114,42 @@ struct KMeans:
         var centroids = Matrix.zeros(self.K, self.X.width)
         for cluster_idx in range(len(clusters)):
             centroids[cluster_idx] = (self.X[clusters[cluster_idx]]).mean(0)
-        return centroids
+        return centroids^
 
     @always_inline
-    fn _is_converged(self, centroids_old: Matrix, centroids: Matrix) raises -> Bool:
-        # distances between each old and new centroids, fol all centroids
-        var distances = Matrix(self.K, 1)
-        for i in range(self.K):
-            distances.data[i] = euclidean_distance(centroids_old[i], centroids[i])
-        return distances.sum() <= self.tol
+    fn _is_converged(mut self, centroids_old: Matrix) raises -> Bool:
+        var old_inertia: Float32 = 0.0
+        if self.converge == 'inertia' or self.init == 'random':
+            old_inertia = self.inertia
+            self.inertia = 0.0
+            for idc in range(len(self.clusters)):
+                self.inertia += squared_euclidean_distance(self.X[self.clusters[idc]], self.centroids[idc])
+        if self.converge == 'centroid':
+            return euclidean_distance(centroids_old, self.centroids, 1).sum() <= self.tol
+        return abs(old_inertia - self.inertia) <= self.tol
+        
+    @always_inline
+    fn _is_converged(mut self, labels_old: List[List[Int]]) raises -> Bool:
+        var old_inertia: Float32 = 0.0
+        if self.init == 'random':
+            old_inertia = self.inertia
+            self.inertia = 0.0
+            for idc in range(len(self.clusters)):
+                self.inertia += squared_euclidean_distance(self.X[self.clusters[idc]], self.centroids[idc])
+        for idc in range(len(self.clusters)):
+            if labels_old[idc] != self.clusters[idc]:
+                return False
+        return True
 
     fn get_clusters_data(self) raises -> Tuple[Matrix, Matrix]:
         var row_counts = Matrix(1, len(self.clusters))
         for i in range(row_counts.size):
             row_counts.data[i] = len(self.clusters[i])
-        var clusters_raw = Matrix(1, int(row_counts.sum()))
+        var clusters_raw = Matrix(1, self.X.height)
         var pointer = 0
-        for l in self.clusters:
-            for i in l[]:
-                clusters_raw.data[pointer] = i[]
+        for cluster in self.clusters:
+            for idx in cluster[]:
+                clusters_raw.data[pointer] = idx[]
                 pointer += 1
 
-        return clusters_raw, row_counts
+        return clusters_raw^, row_counts^

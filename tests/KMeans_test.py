@@ -12,11 +12,10 @@ def test(X, clusters_raw, row_counts, centroids):
     clusters_raw = clusters_raw.flatten().astype(int)
     row_counts = row_counts.flatten().astype(int)
     clusters = [[] for _ in range(len(row_counts))]
+    prev_index = 0
     for i in range(len(row_counts)):
-        prev_index = 0
-        if i != 0:
-            prev_index = row_counts[i - 1]
-        clusters[i] = clusters_raw[prev_index : prev_index + row_counts[i] - 1]
+        clusters[i] = clusters_raw[prev_index : prev_index + row_counts[i]]
+        prev_index += row_counts[i]
 
     fig, ax = plt.subplots(figsize=(12, 8))
 

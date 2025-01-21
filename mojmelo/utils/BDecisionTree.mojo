@@ -9,13 +9,15 @@ struct BDecisionTree:
     var max_depth: Int
     var reg_lambda: Float32 
     var gamma: Float32
+    var threshold_precision: Float32
     var root: UnsafePointer[Node]
     
-    fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0):
+    fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0, threshold_precision: Float32 = 0.001):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.reg_lambda = reg_lambda
         self.gamma = gamma
+        self.threshold_precision = threshold_precision
         self.root = UnsafePointer[Node]()
 
     fn __moveinit__(out self, owned existing: Self):
@@ -23,6 +25,7 @@ struct BDecisionTree:
         self.max_depth = existing.max_depth
         self.reg_lambda = existing.reg_lambda
         self.gamma = existing.gamma
+        self.threshold_precision = existing.threshold_precision
         self.root = existing.root
         existing.min_samples_split = existing.max_depth = 0
         existing.reg_lambda = existing.gamma = 0.0
@@ -57,7 +60,7 @@ struct BDecisionTree:
         var best_feat: Int
         var best_thresh: Float32
         var best_gain: Float32
-        best_feat, best_thresh, best_gain = _best_criteria(self.reg_lambda, X, g, h, feat_idxs)
+        best_feat, best_thresh, best_gain = _best_criteria(self.reg_lambda, X, g, h, feat_idxs, self.threshold_precision)
         if best_gain <= self.gamma:
             # The best gain is less than gamma
             new_node[] = Node(value = leaf_score(self.reg_lambda, g, h))
@@ -90,14 +93,14 @@ fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) raises -> Float32:
     .'''
     return -0.5 * (g.sum() ** 2) / (h.sum() + reg_lambda)
 
-fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Int]) raises -> Tuple[Int, Float32, Float32]:
+fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Int], threshold_precision: Float32) raises -> Tuple[Int, Float32, Float32]:
     var parent_loss = leaf_loss(reg_lambda, g, h)
     var split_idx = feat_idxs[0]
     var split_thresh = X[0, split_idx]
     var best_gain = -math.inf[DType.float32]()
     for feat_idx in feat_idxs:
         var X_column = X['', feat_idx[]]
-        var thresholds = X_column.uniquef()
+        var thresholds = X_column.uniquef(threshold_precision)
         for threshold in thresholds:
             var gain = _information_gain(parent_loss, reg_lambda, g, h, X_column, threshold[])
             if gain > best_gain:
