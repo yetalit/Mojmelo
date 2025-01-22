@@ -8,14 +8,10 @@ def get_data():
     )
     return [X, len(np.unique(y))]
 
-def test(X, clusters_raw, row_counts, centroids):
-    clusters_raw = clusters_raw.flatten().astype(int)
-    row_counts = row_counts.flatten().astype(int)
-    clusters = [[] for _ in range(len(row_counts))]
-    prev_index = 0
-    for i in range(len(row_counts)):
-        clusters[i] = clusters_raw[prev_index : prev_index + row_counts[i]]
-        prev_index += row_counts[i]
+def test(X, labels, centroids):
+    clusters = [[] for _ in range(centroids.shape[0])]
+    for i in range(centroids.shape[0]):
+        clusters[i] = np.argwhere(labels == i).tolist()
 
     fig, ax = plt.subplots(figsize=(12, 8))
 
