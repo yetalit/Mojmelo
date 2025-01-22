@@ -24,7 +24,9 @@ struct KMeans:
         self.seed = random_state
 
         # list of sample indices for each cluster
-        self.clusters = List[List[Int]](capacity = 0)
+        self.clusters = List[List[Int]](capacity = self.K)
+        for _ in range(self.K):
+            self.clusters.append(List[Int]())
         # the centers (mean feature vector) for each cluster
         self.centroids = Matrix(0, 0)
         self.inertia = 0.0
@@ -41,8 +43,10 @@ struct KMeans:
 
         # Optimize clusters
         for _ in range(self.max_iters):
+            var clusters_old = List[List[Int]]()
+            if self.converge == 'label':
+                clusters_old = self.clusters
             # Assign samples to closest centroids (create clusters)
-            var clusters_old = self.clusters
             self.clusters = self._create_clusters()
 
             # Calculate new centroids from the clusters
@@ -97,11 +101,11 @@ struct KMeans:
         var closest_centroid = self._closest_centroid()
 
         for idx in range(self.X.height):
-            clusters[int(closest_centroid.data[idx])].append(idx)
+            clusters[closest_centroid.data[idx]].append(idx)
         return clusters^
 
     @always_inline
-    fn _closest_centroid(self) raises -> Matrix:
+    fn _closest_centroid(self) raises -> List[Int]:
         var dist_from_centroids = Matrix(self.X.height, self.K, order='f')
         # Compute distances to the nearest centroid
         for idc in range(self.K):

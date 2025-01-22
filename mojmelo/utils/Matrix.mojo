@@ -224,32 +224,56 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn __getitem__(self, rows: Matrix) raises -> Matrix:
         var mat = Matrix(rows.size, self.width, order= self.order)
-        for i in range(rows.size):
-            mat[i] = self[int(rows.data[i])]
+        if rows.size > 96:
+            @parameter
+            fn p(i: Int):
+                mat[i, unsafe=True] = self[int(rows.data[i]), unsafe=True]
+            parallelize[p](rows.size)
+        else:
+            for i in range(rows.size):
+                mat[i] = self[int(rows.data[i])]
         return mat^
 
     # access given columns (by their indices)
     @always_inline
     fn __getitem__(self, row: String, columns: Matrix) raises -> Matrix:
         var mat = Matrix(self.height, columns.size, order= self.order)
-        for i in range(columns.size):
-            mat[row, i] = self[row, int(columns.data[i])]
+        if columns.size > 96 or (self.order == 'c' and self.height * columns.size > 24576):
+            @parameter
+            fn p(i: Int):
+                mat[row, i, unsafe=True] = self[row, int(columns.data[i]), unsafe=True]
+            parallelize[p](columns.size)
+        else:
+            for i in range(columns.size):
+                mat[row, i] = self[row, int(columns.data[i])]
         return mat^
 
     # access given rows (by their indices)
     @always_inline
     fn __getitem__(self, rows: List[Int]) raises -> Matrix:
         var mat = Matrix(len(rows), self.width, order= self.order)
-        for i in range(mat.height):
-            mat[i] = self[rows[i]]
+        if len(rows) > 96:
+            @parameter
+            fn p(i: Int):
+                mat[i, unsafe=True] = self[rows[i], unsafe=True]
+            parallelize[p](len(rows))
+        else:
+            for i in range(mat.height):
+                mat[i] = self[rows[i]]
         return mat^
 
     # access given columns (by their indices)
     @always_inline
     fn __getitem__(self, row: String, columns: List[Int]) raises -> Matrix:
         var mat = Matrix(self.height, len(columns), order= self.order)
-        for i in range(mat.width):
-            mat[row, i] = self[row, columns[i]]
+        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
+            @parameter
+            fn p(i: Int):
+                mat[row, i, unsafe=True] = self[row, columns[i], unsafe=True]
+            parallelize[p](len(columns))
+        else:
+            for i in range(mat.width):
+                mat[row, i] = self[row, columns[i]]
         return mat^
     
     # replace an element
@@ -1084,29 +1108,32 @@ struct Matrix(Stringable, Writable):
         return (min_index % self.height) * self.width + min_index // self.height
 
     @always_inline
-    fn argmin_slow(self, axis: Int) -> Matrix:
-        var mat = Matrix(0, 0)
+    fn argmin_slow(self, axis: Int) -> List[Int]:
+        var vect = UnsafePointer[Int]()
+        var length = 0
         if axis == 0:
-            mat = Matrix(1, self.width, order= self.order)
+            vect = UnsafePointer[Int].alloc(self.width)
+            length = self.width
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].argmin_slow()
+                    vect[i] = self['', i, unsafe=True].argmin_slow()
             else:
                 @parameter
                 fn p0(i: Int):
-                    mat.data[i] = self['', i, unsafe=True].argmin_slow()
+                    vect[i] = self['', i, unsafe=True].argmin_slow()
                 parallelize[p0](self.width)
         elif axis == 1:
-            mat = Matrix(self.height, 1, order= self.order)
+            vect = UnsafePointer[Int].alloc(self.height)
+            length = self.height
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].argmin_slow()
+                    vect[i] = self[i, unsafe=True].argmin_slow()
             else:
                 @parameter
                 fn p1(i: Int):
-                    mat.data[i] = self[i, unsafe=True].argmin_slow()
+                    vect[i] = self[i, unsafe=True].argmin_slow()
                 parallelize[p1](self.height)
-        return mat^
+        return List[Int](ptr=vect, length=length, capacity=length)
 
     @always_inline
     fn min(self) raises -> Float32:
