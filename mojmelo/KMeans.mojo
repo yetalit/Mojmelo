@@ -57,9 +57,7 @@ struct KMeans:
             labels_old = self.labels
             inertia_old = self.inertia
             if i == self.max_iters - 1:
-                self.inertia = 0.0
-                for idx in range(self.X.height):
-                    self.inertia += self.dist_from_centroids[idx, self.labels[idx]]            
+                self.inertia = self.dist_from_centroids.min(axis=1).sum()         
 
         return self.labels
         
@@ -107,9 +105,7 @@ struct KMeans:
     fn _is_converged(mut self, centroids_old: Matrix, labels_old: List[Int], inertia_old: Float32) raises -> Bool:
         if self.converge == 'centroid':
             if euclidean_distance(centroids_old, self.centroids, 1).sum() <= self.tol:
-                self.inertia = 0.0
-                for idx in range(self.X.height):
-                    self.inertia += self.dist_from_centroids[idx, self.labels[idx]]
+                self.inertia = self.dist_from_centroids.min(axis=1).sum()  
                 return True
             return False
         if self.converge == 'inertia':
