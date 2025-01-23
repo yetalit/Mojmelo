@@ -45,7 +45,7 @@ struct KMeans:
         var labels_old = self.labels
         var inertia_old = self.inertia
         # Optimize clusters
-        for _ in range(self.max_iters):
+        for i in range(self.max_iters):
             # Calculate new centroids from the clusters
             self.centroids = self._get_centroids()
             # Assign samples to closest centroids (create labels)
@@ -56,7 +56,11 @@ struct KMeans:
             centroids_old = self.centroids
             labels_old = self.labels
             inertia_old = self.inertia
-        # Classify samples as the index of their clusters
+            if i == self.max_iters - 1:
+                self.inertia = 0.0
+                for idx in range(self.X.height):
+                    self.inertia += self.dist_from_centroids[idx, self.labels[idx]]            
+
         return self.labels
         
     fn _kmeans_plus_plus(mut self) raises:
