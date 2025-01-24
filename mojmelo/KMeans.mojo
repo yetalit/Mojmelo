@@ -81,7 +81,7 @@ struct KMeans:
                     break
 
     @always_inline
-    fn _create_labels(mut self, mut dist_from_centroids: Matrix) raises -> List[Int]:
+    fn _create_labels(self, mut dist_from_centroids: Matrix) raises -> List[Int]:
         # Compute distances to the nearest centroid
         for idc in range(self.K):
             dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
