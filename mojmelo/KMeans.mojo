@@ -12,7 +12,6 @@ struct KMeans:
     var seed: Int
     var labels: List[Int]
     var centroids: Matrix
-    var dist_from_centroids: Matrix
     var inertia: Float32
     var X: Matrix
 
@@ -26,7 +25,6 @@ struct KMeans:
 
         self.labels = List[Int]()
         self.centroids = Matrix(0, 0)
-        self.dist_from_centroids = Matrix(0, 0)
         self.inertia = 0.0
         self.X = Matrix(0, 0)
 
@@ -39,25 +37,25 @@ struct KMeans:
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus()
 
+        var dist_from_centroids = Matrix(self.X.height, self.K, order='f')
+        self.labels = self._create_labels(dist_from_centroids)
         var centroids_old = self.centroids
-        self.dist_from_centroids = Matrix(self.X.height, self.K, order='f')
-        self.labels = self._create_labels()
         var labels_old = self.labels
         var inertia_old = self.inertia
         # Optimize clusters
         for i in range(self.max_iters):
             # Calculate new centroids from the clusters
-            self.centroids = self._get_centroids()
+            self.centroids = self._get_centroids(dist_from_centroids)
             # Assign samples to closest centroids (create labels)
-            self.labels = self._create_labels()
+            self.labels = self._create_labels(dist_from_centroids)
             # check if clusters have changed
-            if self._is_converged(centroids_old, labels_old, inertia_old):
+            if self._is_converged(dist_from_centroids, centroids_old, labels_old, inertia_old):
                 break
             centroids_old = self.centroids
             labels_old = self.labels
             inertia_old = self.inertia
             if i == self.max_iters - 1:
-                self.inertia = self.dist_from_centroids.min(axis=1).sum()         
+                self.inertia = dist_from_centroids.min(axis=1).sum()
 
         return self.labels
         
@@ -83,29 +81,29 @@ struct KMeans:
                     break
 
     @always_inline
-    fn _create_labels(mut self) raises -> List[Int]:
+    fn _create_labels(mut self, mut dist_from_centroids: Matrix) raises -> List[Int]:
         # Compute distances to the nearest centroid
         for idc in range(self.K):
-            self.dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
-        return self.dist_from_centroids.argmin_slow(axis=1)
+            dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
+        return dist_from_centroids.argmin_slow(axis=1)
 
     @always_inline
-    fn _get_centroids(mut self) raises -> Matrix:
+    fn _get_centroids(mut self, dist_from_centroids: Matrix) raises -> Matrix:
         # assign mean value of clusters to centroids
         var centroids = Matrix.zeros(self.K, self.X.width)
         var cluster_sizes = Matrix.zeros(self.K, 1)
         self.inertia = 0.0
         for idx in range(self.X.height):
-            self.inertia += self.dist_from_centroids[idx, self.labels[idx]]
+            self.inertia += dist_from_centroids[idx, self.labels[idx]]
             centroids[self.labels[idx]] += self.X[idx]
             cluster_sizes.data[self.labels[idx]] += 1
         return centroids / cluster_sizes
 
     @always_inline
-    fn _is_converged(mut self, centroids_old: Matrix, labels_old: List[Int], inertia_old: Float32) raises -> Bool:
+    fn _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, labels_old: List[Int], inertia_old: Float32) raises -> Bool:
         if self.converge == 'centroid':
             if euclidean_distance(centroids_old, self.centroids, 1).sum() <= self.tol:
-                self.inertia = self.dist_from_centroids.min(axis=1).sum()  
+                self.inertia = dist_from_centroids.min(axis=1).sum()  
                 return True
             return False
         if self.converge == 'inertia':
@@ -115,3 +113,4 @@ struct KMeans:
                 return True
             return False
         return labels_old == self.labels
+
