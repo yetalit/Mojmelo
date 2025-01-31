@@ -20,6 +20,15 @@ struct Matrix(Stringable, Writable):
 
     # initialize from UnsafePointer
     @always_inline
+    fn __init__(out self, data: UnsafePointer[Float32], height: Int, width: Int, order: String = 'c'):
+        self.height = height
+        self.width = width
+        self.size = height * width
+        self.data = data
+        self.order = order.lower()
+
+    # initialize by copying from UnsafePointer
+    @always_inline
     fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32](), order: String = 'c'):
         self.height = height
         self.width = width
@@ -215,32 +224,56 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn __getitem__(self, rows: Matrix) raises -> Matrix:
         var mat = Matrix(rows.size, self.width, order= self.order)
-        for i in range(rows.size):
-            mat[i] = self[int(rows.data[i])]
+        if rows.size > 96:
+            @parameter
+            fn p(i: Int):
+                mat[i, unsafe=True] = self[int(rows.data[i]), unsafe=True]
+            parallelize[p](rows.size)
+        else:
+            for i in range(rows.size):
+                mat[i] = self[int(rows.data[i])]
         return mat^
 
     # access given columns (by their indices)
     @always_inline
     fn __getitem__(self, row: String, columns: Matrix) raises -> Matrix:
         var mat = Matrix(self.height, columns.size, order= self.order)
-        for i in range(columns.size):
-            mat[row, i] = self[row, int(columns.data[i])]
+        if columns.size > 96 or (self.order == 'c' and self.height * columns.size > 24576):
+            @parameter
+            fn p(i: Int):
+                mat[row, i, unsafe=True] = self[row, int(columns.data[i]), unsafe=True]
+            parallelize[p](columns.size)
+        else:
+            for i in range(columns.size):
+                mat[row, i] = self[row, int(columns.data[i])]
         return mat^
 
     # access given rows (by their indices)
     @always_inline
     fn __getitem__(self, rows: List[Int]) raises -> Matrix:
         var mat = Matrix(len(rows), self.width, order= self.order)
-        for i in range(mat.height):
-            mat[i] = self[rows[i]]
+        if len(rows) > 96:
+            @parameter
+            fn p(i: Int):
+                mat[i, unsafe=True] = self[rows[i], unsafe=True]
+            parallelize[p](len(rows))
+        else:
+            for i in range(mat.height):
+                mat[i] = self[rows[i]]
         return mat^
 
     # access given columns (by their indices)
     @always_inline
     fn __getitem__(self, row: String, columns: List[Int]) raises -> Matrix:
         var mat = Matrix(self.height, len(columns), order= self.order)
-        for i in range(mat.width):
-            mat[row, i] = self[row, columns[i]]
+        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
+            @parameter
+            fn p(i: Int):
+                mat[row, i, unsafe=True] = self[row, columns[i], unsafe=True]
+            parallelize[p](len(columns))
+        else:
+            for i in range(mat.width):
+                mat[row, i] = self[row, columns[i]]
         return mat^
     
     # replace an element
@@ -601,9 +634,7 @@ struct Matrix(Stringable, Writable):
         var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
         memset_zero(C.data, self.height * rhs.width)
         matmul.matmul(self.height, self.width, rhs.width, C, A, B)
-        var mat = Matrix(self.height, rhs.width)
-        mat.data = C.data
-        return mat^
+        return Matrix(C.data, self.height, rhs.width)
 
     @always_inline
     fn __imul__(mut self, rhs: Self) raises:
@@ -1065,6 +1096,46 @@ struct Matrix(Stringable, Writable):
         return self._elemwise_math[math.exp]()
 
     @always_inline
+    fn argmin_slow(self) -> Int:
+        var min_index = 0
+        var min_val = self.data[0]
+        for i in range(1, self.size):
+            if self.data[i] < min_val:
+                min_val = self.data[i]
+                min_index = i
+        if self.order == 'c':
+            return min_index
+        return (min_index % self.height) * self.width + min_index // self.height
+
+    @always_inline
+    fn argmin_slow(self, axis: Int) -> List[Int]:
+        var vect = UnsafePointer[Int]()
+        var length = 0
+        if axis == 0:
+            vect = UnsafePointer[Int].alloc(self.width)
+            length = self.width
+            if self.width < 768:
+                for i in range(self.width):
+                    vect[i] = self['', i, unsafe=True].argmin_slow()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    vect[i] = self['', i, unsafe=True].argmin_slow()
+                parallelize[p0](self.width)
+        elif axis == 1:
+            vect = UnsafePointer[Int].alloc(self.height)
+            length = self.height
+            if self.height < 768:
+                for i in range(self.height):
+                    vect[i] = self[i, unsafe=True].argmin_slow()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    vect[i] = self[i, unsafe=True].argmin_slow()
+                parallelize[p1](self.height)
+        return List[Int](ptr=vect, length=length, capacity=length)
+
+    @always_inline
     fn min(self) raises -> Float32:
         return algorithm.reduction.min(Buffer[DType.float32](self.data, self.size))
 
@@ -1285,15 +1356,15 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn bincount(self) raises -> InlinedFixedVector[Int]:
+    fn bincount(self) raises -> List[Int]:
         var max_val = int(self.max())
-        var vect = InlinedFixedVector[Int](capacity = max_val + 1)
-        memset_zero(vect.dynamic_data, max_val + 1)
+        var vect = UnsafePointer[Int].alloc(max_val + 1)
+        memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
             vect[int(self.data[i])] += 1
     
-        return vect^
+        return List[Int](ptr=vect, length=max_val + 1, capacity= max_val + 1)
 
     @staticmethod
     @always_inline
@@ -1322,7 +1393,7 @@ struct Matrix(Stringable, Writable):
         return freq^
 
     @always_inline
-    fn uniquef(self, tol: Float32 = 0.01) -> List[Float32]:
+    fn uniquef(self, tol: Float32 = 0.001) -> List[Float32]:
         var list = List[Float32]()
         for i in range(self.size):
             var contains = False
