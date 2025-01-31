@@ -113,4 +113,3 @@ struct KMeans:
                 return True
             return False
         return labels_old == self.labels
-
