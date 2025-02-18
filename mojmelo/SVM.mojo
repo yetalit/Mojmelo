@@ -46,15 +46,15 @@ struct SVM_Primal(CVM):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
-            self.lr = atof(params['learning_rate']).cast[DType.float32]()
+            self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:
             self.lr = 0.001
         if 'lambda_param' in params:
-            self.lambda_param = atof(params['lambda_param']).cast[DType.float32]()
+            self.lambda_param = atof(String(params['lambda_param'])).cast[DType.float32]()
         else:
             self.lambda_param = 0.01
         if 'n_iters' in params:
-            self.n_iters = atol(params['n_iters'])
+            self.n_iters = atol(String(params['n_iters']))
         else:
             self.n_iters = 1000
         if 'class_zero' in params:
@@ -142,15 +142,15 @@ struct SVM_Dual(CVM):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
-            self.lr = atof(params['learning_rate']).cast[DType.float32]()
+            self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:
             self.lr = 0.001
         if 'n_iters' in params:
-            self.epoches = atol(params['n_iters'])
+            self.epoches = atol(String(params['n_iters']))
         else:
             self.epoches = 1000
         if 'C' in params:
-            self.C = atof(params['C']).cast[DType.float32]()
+            self.C = atof(String(params['C'])).cast[DType.float32]()
         else:
             self.C = 1.0
         if 'kernel' in params:
@@ -158,11 +158,11 @@ struct SVM_Dual(CVM):
         else:
             self.kernel = 'poly'
         if 'degree' in params:
-            self.degree = atol(params['degree'])
+            self.degree = atol(String(params['degree']))
         else:
             self.degree = 2
         if 'gamma' in params:
-            self.gamma = atof(params['gamma']).cast[DType.float32]()
+            self.gamma = atof(String(params['gamma'])).cast[DType.float32]()
         else:
             self.gamma = -1.0
         if self.kernel == 'poly':

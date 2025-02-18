@@ -1,6 +1,5 @@
 <a id="readme-top"></a>
 
-[![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![BSD-3-Clause License][license-shield]][license-url]
 ![CodeQL](https://github.com/yetalit/Mojmelo/workflows/CodeQL/badge.svg)
@@ -149,8 +148,6 @@ Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber
 Mojo usage and distribution is licensed under the [MAX & Mojo Community License](https://www.modular.com/legal/max-mojo-license).
 
 
-[stars-shield]: https://img.shields.io/github/stars/yetalit/mojmelo?style=social
-[stars-url]: https://github.com/yetalit/mojmelo/stargazers
 [issues-shield]: https://img.shields.io/github/issues/yetalit/mojmelo
 [issues-url]: https://github.com/yetalit/mojmelo/issues
 [license-shield]: https://img.shields.io/badge/license-BSD%203--Clause-blue

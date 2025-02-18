@@ -52,31 +52,31 @@ struct GBDT(CVM):
 			self.loss_g = mse_g
 			self.loss_h = mse_h
 		if 'n_trees' in params:
-			self.n_trees = atol(params['n_trees'])
+			self.n_trees = atol(String(params['n_trees']))
 		else:
 			self.n_trees = 10
 		if 'min_samples_split' in params:
-			self.min_samples_split = atol(params['min_samples_split'])
+			self.min_samples_split = atol(String(params['min_samples_split']))
 		else:
 			self.min_samples_split = 10
 		if 'max_depth' in params:
-			self.max_depth = atol(params['max_depth'])
+			self.max_depth = atol(String(params['max_depth']))
 		else:
 			self.max_depth = 3
 		if 'learning_rate' in params:
-			self.learning_rate = atof(params['learning_rate']).cast[DType.float32]()
+			self.learning_rate = atof(String(params['learning_rate'])).cast[DType.float32]()
 		else:
 			self.learning_rate = 0.1
 		if 'reg_lambda' in params:
-			self.reg_lambda = atof(params['reg_lambda']).cast[DType.float32]()
+			self.reg_lambda = atof(String(params['reg_lambda'])).cast[DType.float32]()
 		else:
 			self.reg_lambda = 1.0
 		if 'gamma' in params:
-			self.gamma = atof(params['gamma']).cast[DType.float32]()
+			self.gamma = atof(String(params['gamma'])).cast[DType.float32]()
 		else:
 			self.gamma = 0.0
 		if 'threshold_precision' in params:
-			self.threshold_precision = atof(params['threshold_precision']).cast[DType.float32]()
+			self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
 		else:
 			self.threshold_precision = 0.001
 		self.trees = UnsafePointer[BDecisionTree]()

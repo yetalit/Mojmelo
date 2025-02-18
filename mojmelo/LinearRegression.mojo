@@ -105,11 +105,11 @@ struct LinearRegression(CVM):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
-            self.lr = atof(params['learning_rate']).cast[DType.float32]()
+            self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:
             self.lr = 0.01
         if 'n_iters' in params:
-            self.n_iters = atol(params['n_iters'])
+            self.n_iters = atol(String(params['n_iters']))
         else:
             self.n_iters = 1000
         if 'penalty' in params:
@@ -117,23 +117,23 @@ struct LinearRegression(CVM):
         else:
             self.penalty = 'l2'
         if 'reg_alpha' in params:
-            self.reg_alpha = atof(params['reg_alpha']).cast[DType.float32]()
+            self.reg_alpha = atof(String(params['reg_alpha'])).cast[DType.float32]()
         else:
             self.reg_alpha = 0.0
         if 'l1_ratio' in params:
-            self.l1_ratio = atof(params['l1_ratio']).cast[DType.float32]()
+            self.l1_ratio = atof(String(params['l1_ratio'])).cast[DType.float32]()
         else:
             self.l1_ratio = -1.0
         if 'tol' in params:
-            self.tol = atof(params['tol']).cast[DType.float32]()
+            self.tol = atof(String(params['tol'])).cast[DType.float32]()
         else:
             self.tol = 0.0
         if 'batch_size' in params:
-            self.batch_size = atol(params['batch_size'])
+            self.batch_size = atol(String(params['batch_size']))
         else:
             self.batch_size = 0
         if 'random_state' in params:
-            self.random_state = atol(params['random_state'])
+            self.random_state = atol(String(params['random_state']))
         else:
             self.random_state = -1
         self.weights = Matrix(0, 0)

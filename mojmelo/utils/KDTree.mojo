@@ -315,6 +315,7 @@ struct KDTreeNode:
             var e = KDTreeResult(dis, indexofi)
             sr.result[]._self.append(e)
 
+@value
 struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
     var _data: Matrix
     var N: Int   # number of data points
@@ -326,7 +327,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
     var metric: fn(Float32) -> Float32
     alias bucketsize = 12
 
-    fn __init__(out self, X: Matrix, metric: String = 'euc', build: Bool = True):
+    fn __init__(out self, X: Matrix, metric: String = 'euc', *, build: Bool = True):
         self._data = X
         self.N = self._data.height
         self.dim = self._data.width
@@ -349,6 +350,16 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
                     for j in range(self.dim):
                         rearranged_data.store[1](i, j, self._data.load[1](self.ind[i], j))
                 self._data = rearranged_data^
+
+    fn __moveinit__(out self, owned existing: Self):
+        self._data = existing._data^
+        self.N = existing.N
+        self.dim = existing.dim
+        self.root = existing.root
+        self.ind = existing.ind^
+        self.metric = existing.metric
+        existing.N = existing.dim = 0
+        existing.root = UnsafePointer[KDTreeNode]()
 
     fn build_tree(mut self): # builds the tree.  Used upon construction
         for i in range(self.N):
@@ -605,7 +616,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         sr.nn = 0
         self.root[].search(sr)
 
-        _ = buf.free()
+        buf.free()
 
         if (sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
@@ -625,7 +636,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         sr.ballsize = r2
         sr.nn = 0
         self.root[].search(sr)
-        _ = buf.free()
+        buf.free()
 
         return len(result)
 

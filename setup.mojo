@@ -64,25 +64,25 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
             possible_l2_associativities[1] = possible_l2_associativities[0] * 2
             possible_l2_associativities[2] = possible_l2_associativities[0] * 4
         with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
-            code = 'alias L1_CACHE_SIZE = ' + str(cache_l1_size) + '\n'
-            code += 'alias L1_ASSOCIATIVITY = ' + str(possible_l1_associativities[0]) + '\n'
-            code += 'alias L2_CACHE_SIZE = ' + str(cache_l2_size) + '\n'
-            code += 'alias L2_ASSOCIATIVITY = ' + str(possible_l2_associativities[0]) + '\n'
+            code = 'alias L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
+            code += 'alias L1_ASSOCIATIVITY = ' + String(possible_l1_associativities[0]) + '\n'
+            code += 'alias L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
+            code += 'alias L2_ASSOCIATIVITY = ' + String(possible_l2_associativities[0]) + '\n'
             f.write(code)
         for i in range(3):
             for j in range(1, 4):
-                with open("./param" + str(i * 3 + j), "w") as f:
-                    code = 'alias L1_CACHE_SIZE = ' + str(cache_l1_size) + '\n'
-                    code += 'alias L1_ASSOCIATIVITY = ' + str(possible_l1_associativities[i]) + '\n'
-                    code += 'alias L2_CACHE_SIZE = ' + str(cache_l2_size) + '\n'
-                    code += 'alias L2_ASSOCIATIVITY = ' + str(possible_l2_associativities[j - 1]) + '\n'
+                with open("./param" + String(i * 3 + j), "w") as f:
+                    code = 'alias L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
+                    code += 'alias L1_ASSOCIATIVITY = ' + String(possible_l1_associativities[i]) + '\n'
+                    code += 'alias L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
+                    code += 'alias L2_ASSOCIATIVITY = ' + String(possible_l2_associativities[j - 1]) + '\n'
                     f.write(code)
     else:
         with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
-            code = 'alias L1_CACHE_SIZE = ' + str(cache_l1_size) + '\n'
-            code += 'alias L1_ASSOCIATIVITY = ' + str(cache_l1_associativity) + '\n'
-            code += 'alias L2_CACHE_SIZE = ' + str(cache_l2_size) + '\n'
-            code += 'alias L2_ASSOCIATIVITY = ' + str(cache_l2_associativity) + '\n'
+            code = 'alias L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
+            code += 'alias L1_ASSOCIATIVITY = ' + String(cache_l1_associativity) + '\n'
+            code += 'alias L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
+            code += 'alias L2_ASSOCIATIVITY = ' + String(cache_l2_associativity) + '\n'
             f.write(code)
         with open("./done", "w") as f:
             f.write("done")
@@ -118,11 +118,11 @@ fn main() raises:
             except:
                 cache_l2_associativity = 0
         elif os_is_macos():
-            cache_l1_size = int(cachel1())
-            cache_l2_size = int(cachel2())
+            cache_l1_size = Int(cachel1())
+            cache_l2_size = Int(cachel2())
         initialize(cache_l1_size, cache_l1_associativity, cache_l2_size, cache_l2_associativity)
     else:
-        command = str(argv()[1])
+        command = String(argv()[1])
 
         from python import Python
         os_py = Python.import_module("os")
@@ -171,9 +171,9 @@ fn main() raises:
                 results[2] += (finish - start) // (NUM_ITER - 1)
         if command != '9':
             with open("./results" + command, "w") as f:
-                f.write(str(results[0]) + ',' + str(results[1]) + ',' + str(results[2]) + ',' + str(junk))
+                f.write(String(results[0]) + ',' + String(results[1]) + ',' + String(results[2]) + ',' + String(junk))
             var code: String
-            with open("./param" + str(int(command) + 1), "r") as f:
+            with open("./param" + String(Int(command) + 1), "r") as f:
                 code = f.read()
             with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
                 f.write(code)
@@ -181,7 +181,7 @@ fn main() raises:
         else:
             results_list = List[InlineArray[Int, 3]]()
             for i in range(1, 9):
-                with open("./results" + str(i), "r") as f:
+                with open("./results" + String(i), "r") as f:
                     res = f.read().split(',')
                     results_list.append(InlineArray[Int, 3](fill=0))
                     results_list[i - 1][0] = atol(res[0])
@@ -202,13 +202,13 @@ fn main() raises:
                 votes.append(m_index)
 
             var code: String
-            with open("./param" + str(Counter[Int](votes).most_common(1)[0]._value + 1), "r") as f:
+            with open("./param" + String(Counter[Int](votes).most_common(1)[0]._value + 1), "r") as f:
                 code = f.read()
             with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
                 f.write(code)
 
             for i in range(1, 10):
-                os_py.remove("./param" + str(i))
+                os_py.remove("./param" + String(i))
                 if i != 9:
-                    os_py.remove("./results" + str(i))
+                    os_py.remove("./results" + String(i))
             print('Setup done!')

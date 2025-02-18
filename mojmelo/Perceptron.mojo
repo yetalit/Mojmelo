@@ -34,11 +34,11 @@ struct Perceptron(CVM):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
-            self.lr = atof(params['learning_rate']).cast[DType.float32]()
+            self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:
             self.lr = 0.01
         if 'n_iters' in params:
-            self.n_iters = atol(params['n_iters'])
+            self.n_iters = atol(String(params['n_iters']))
         else:
             self.n_iters = 1000
         self.weights = Matrix(0, 0)

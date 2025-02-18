@@ -75,7 +75,7 @@ fn _partition[
     if size <= 1:
         return 0
 
-    var array = span.unsafe_ptr()
+    var array = span.unsafe_ptr().origin_cast[origin=MutableAnyOrigin]()
     var pivot = size // 2
 
     var pivot_value = array[pivot]
@@ -295,7 +295,7 @@ fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
 fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
     var correct_count: Float32 = 0.0
     for i in range(len(y_pred)):
-        if str(y[i]) == y_pred[i]:
+        if String(y[i]) == y_pred[i]:
             correct_count += 1.0
     return correct_count / len(y_pred)
 

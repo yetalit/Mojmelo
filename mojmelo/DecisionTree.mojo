@@ -26,8 +26,8 @@ struct Node:
 
     fn __str__(self) -> String:
         if self.is_leaf_node():
-            return '{' + str(self.value) + '}'
-        return '<' + str(self.feature) + ': ' + str(self.threshold) + '>'
+            return '{' + String(self.value) + '}'
+        return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
 @value
 struct DecisionTree(CVM):
@@ -65,19 +65,19 @@ struct DecisionTree(CVM):
         else:
             self.loss_func = entropy
         if 'min_samples_split' in params:
-            self.min_samples_split = atol(params['min_samples_split'])
+            self.min_samples_split = atol(String(params['min_samples_split']))
         else:
             self.min_samples_split = 2
         if 'max_depth' in params:
-            self.max_depth = atol(params['max_depth'])
+            self.max_depth = atol(String(params['max_depth']))
         else:
             self.max_depth = 100
         if 'n_feats' in params:
-            self.n_feats = atol(params['n_feats'])
+            self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
         if 'threshold_precision' in params:
-            self.threshold_precision = atof(params['threshold_precision']).cast[DType.float32]()
+            self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
         else:
             self.threshold_precision = 0.001
         self.root = UnsafePointer[Node]()

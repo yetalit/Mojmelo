@@ -57,7 +57,7 @@ struct Matrix(Stringable, Writable):
         self.order = 'c'
         var rng: Int = len(def_input)
         for i in range(rng):
-            self.data[i] = atof(str(def_input[i])).cast[DType.float32]()
+            self.data[i] = atof(String(def_input[i])).cast[DType.float32]()
 
     # initialize in 2D numpy style
     fn __init__(out self, npstyle: String, order: String = 'c') raises:
@@ -227,11 +227,11 @@ struct Matrix(Stringable, Writable):
         if rows.size > 96:
             @parameter
             fn p(i: Int):
-                mat[i, unsafe=True] = self[int(rows.data[i]), unsafe=True]
+                mat[i, unsafe=True] = self[Int(rows.data[i]), unsafe=True]
             parallelize[p](rows.size)
         else:
             for i in range(rows.size):
-                mat[i] = self[int(rows.data[i])]
+                mat[i] = self[Int(rows.data[i])]
         return mat^
 
     # access given columns (by their indices)
@@ -241,11 +241,11 @@ struct Matrix(Stringable, Writable):
         if columns.size > 96 or (self.order == 'c' and self.height * columns.size > 24576):
             @parameter
             fn p(i: Int):
-                mat[row, i, unsafe=True] = self[row, int(columns.data[i]), unsafe=True]
+                mat[row, i, unsafe=True] = self[row, Int(columns.data[i]), unsafe=True]
             parallelize[p](columns.size)
         else:
             for i in range(columns.size):
-                mat[row, i] = self[row, int(columns.data[i])]
+                mat[row, i] = self[row, Int(columns.data[i])]
         return mat^
 
     # access given rows (by their indices)
@@ -378,13 +378,13 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn __setitem__(mut self, rows: Matrix, rhs: Matrix) raises:
         for i in range(rows.size):
-            self[int(rows.data[i])] = rhs[i]
+            self[Int(rows.data[i])] = rhs[i]
 
     # replace given columns (by their indices)
     @always_inline
     fn __setitem__(mut self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
-            self[row, int(columns.data[i])] = rhs[row, i]
+            self[row, Int(columns.data[i])] = rhs[row, i]
 
     @always_inline
     fn __del__(owned self):
@@ -628,7 +628,7 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
-            raise Error('Error: Cannot multiply matrices with shapes (' + str(self.height) + ', ' + str(self.width) + ') and (' + str(rhs.height) + ', ' + str(rhs.width) + ')')
+            raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
         var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
         var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
         var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
@@ -667,7 +667,7 @@ struct Matrix(Stringable, Writable):
                 mat.data.store(idx, pow(self.data.load[width=simd_width](idx), p))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
-            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
@@ -1075,7 +1075,7 @@ struct Matrix(Stringable, Writable):
                 mat.data.store(idx, abs(self.data.load[width=simd_width](idx)))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
-            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
@@ -1357,12 +1357,12 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn bincount(self) raises -> List[Int]:
-        var max_val = int(self.max())
+        var max_val = Int(self.max())
         var vect = UnsafePointer[Int].alloc(max_val + 1)
         memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
-            vect[int(self.data[i])] += 1
+            vect[Int(self.data[i])] += 1
     
         return List[Int](ptr=vect, length=max_val + 1, capacity= max_val + 1)
 
@@ -1373,7 +1373,7 @@ struct Matrix(Stringable, Writable):
         var freq = List[Int]()
         var rng = len(data)
         for i in range(rng):
-            var d = str(data[i])
+            var d = String(data[i])
             if d in list:
                 freq[list.index(d)] += 1
             else:
@@ -1385,7 +1385,7 @@ struct Matrix(Stringable, Writable):
     fn unique(self) raises -> Dict[Int, Int]:
         var freq = Dict[Int, Int]()
         for i in range(self.size):
-            var d = int(self.data[i])
+            var d = Int(self.data[i])
             if d in freq:
                 freq[d] += 1
             else:
@@ -1450,10 +1450,10 @@ struct Matrix(Stringable, Writable):
         for i in range(size - 1, 0, -1):
             if not replace:
                 # Fisher-Yates shuffle
-                var j = int(random.random_ui64(0, i))
+                var j = Int(random.random_ui64(0, i))
                 result[i], result[j] = result[j], result[i]
             else:
-                result[i] = int(random.random_ui64(0, arang - 1))
+                result[i] = Int(random.random_ui64(0, arang - 1))
         return List[Int](ptr=result, length=size, capacity=size)
 
     @staticmethod
@@ -1467,20 +1467,20 @@ struct Matrix(Stringable, Writable):
         for i in range(size - 1, 0, -1):
             if not replace:
                 # Fisher-Yates shuffle
-                var j = int(random.random_ui64(0, i))
+                var j = Int(random.random_ui64(0, i))
                 result[i], result[j] = result[j], result[i]
             else:
-                result[i] = int(random.random_ui64(0, arang - 1))
+                result[i] = Int(random.random_ui64(0, arang - 1))
         return List[Int](ptr=result, length=size, capacity=size)
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
         var np = Python.import_module("numpy")
         var np_arr_f = np.array(np_arr, dtype= 'f', order= order.upper())
-        var height = int(np_arr_f.shape[0])
+        var height = Int(np_arr_f.shape[0])
         var width = 0
         try:
-            width = int(np_arr_f.shape[1])
+            width = Int(np_arr_f.shape[1])
         except:
             width = height
             height = 1
@@ -1529,7 +1529,7 @@ struct Matrix(Stringable, Writable):
                 mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
             vectorize[scalar_vectorize, self.simd_width](self.size)
         else:
-            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             fn scalar_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
@@ -1546,7 +1546,7 @@ struct Matrix(Stringable, Writable):
                 mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
             vectorize[matrix_vectorize, self.simd_width](self.size)
         else:
-            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             fn matrix_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
@@ -1563,7 +1563,7 @@ struct Matrix(Stringable, Writable):
                 mat.data.store(idx, func(self.data.load[width=simd_width](idx)))
             vectorize[math_vectorize, self.simd_width](self.size)
         else:
-            var n_vects = int(math.ceil(self.size / self.simd_width))
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             fn math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
@@ -1581,7 +1581,7 @@ struct Matrix(Stringable, Writable):
                 var val = self.load[1](j, i)
                 if val >= 0:
                     strings[j] += " "
-                strings[j] += str(val)
+                strings[j] += String(val)
                 if len(strings[j]) > max_len:
                     max_len = len(strings[j])
             for j in range(self.height):

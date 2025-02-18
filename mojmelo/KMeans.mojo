@@ -63,7 +63,7 @@ struct KMeans:
         # Randomly select the first centroid
         random.seed(self.seed)
         self.centroids = Matrix(self.K, self.X.width)
-        self.centroids[0] = self.X[int(random.random_ui64(0, self.X.height - 1))]
+        self.centroids[0] = self.X[Int(random.random_ui64(0, self.X.height - 1))]
 
         for i in range(1, self.K):
             # Only consider the centroids that have been initialized
