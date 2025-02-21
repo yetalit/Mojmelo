@@ -41,19 +41,19 @@ struct RandomForest(CVM):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'n_trees' in params:
-            self.n_trees = atol(params['n_trees'])
+            self.n_trees = atol(String(params['n_trees']))
         else:
             self.n_trees = 10
         if 'min_samples_split' in params:
-            self.min_samples_split = atol(params['min_samples_split'])
+            self.min_samples_split = atol(String(params['min_samples_split']))
         else:
             self.min_samples_split = 2
         if 'max_depth' in params:
-            self.max_depth = atol(params['max_depth'])
+            self.max_depth = atol(String(params['max_depth']))
         else:
             self.max_depth = 100
         if 'n_feats' in params:
-            self.n_feats = atol(params['n_feats'])
+            self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
         if 'criterion' in params:
@@ -61,7 +61,7 @@ struct RandomForest(CVM):
         else:
             self.criterion = 'gini'
         if 'threshold_precision' in params:
-            self.threshold_precision = atof(params['threshold_precision']).cast[DType.float32]()
+            self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
         else:
             self.threshold_precision = 0.001
         self.trees = UnsafePointer[DecisionTree]()

@@ -30,7 +30,7 @@ struct LDA:
             var X_c = Matrix(class_freq[i], X.width)
             var pointer: Int = 0
             for j in range(X.height):
-                if str(y[j]) == class_labels[i]:
+                if String(y[j]) == class_labels[i]:
                     X_c[pointer] = X[j]
                     pointer += 1
             var mean_c = X_c.mean(0)

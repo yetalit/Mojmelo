@@ -30,7 +30,7 @@ struct GaussianNB:
             var X_c = Matrix(_class_freq[i], X.width)
             var pointer: Int = 0
             for j in range(X.height):
-                if str(y[j]) == self._classes[i]:
+                if String(y[j]) == self._classes[i]:
                     X_c[pointer] = X[j]
                     pointer += 1
             self._mean[i] = X_c.mean(0)
@@ -83,7 +83,7 @@ struct MultinomialNB:
         self._priors = InlinedFixedVector[Float32](capacity = len(self._classes))
 
         for i in range(X.height):
-            self._class_probs[self._classes.index(str(y[i]))] += X[i]
+            self._class_probs[self._classes.index(String(y[i]))] += X[i]
         for i in range(len(self._classes)):
             var c_histogram = self._class_probs[i] + self._alpha
             self._class_probs[i] = c_histogram / c_histogram.sum()
@@ -110,7 +110,7 @@ struct MultinomialNB:
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if '_alpha' in params:
-            self._alpha = atof(params['_alpha']).cast[DType.float32]()
+            self._alpha = atof(String(params['_alpha'])).cast[DType.float32]()
         else:
             self._alpha = 0.0
         self._classes = List[String]()

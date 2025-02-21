@@ -52,7 +52,7 @@ Preprocessing:
 
 ## Getting Started
 
-The following steps let you know how to get started with Mojmelo.
+If you are not familiar with Magic CLI and Mojo projects, here are some links to get you started: (Magic CLI) https://docs.modular.com/magic/ , (Mojo) https://docs.modular.com/mojo/manual/get-started/
 
 ### Prerequisites
 
@@ -72,12 +72,7 @@ To complete the installation, you should also finish the setup process which wil
 
 #### Magic CLI
 
-First, Add the Modular community channel (https://repo.prefix.dev/modular-community) to your `mojoproject.toml` file or `pixi.toml` file in the channels section:
-```
-channels = ["conda-forge", "https://conda.modular.com/max", "https://repo.prefix.dev/modular-community"]
-```
-
-Then Run the following command:
+Make sure you have the Modular community channel (https://repo.prefix.dev/modular-community) in your `mojoproject.toml` file or `pixi.toml` file in the channels section, then Run the following command:
 ```
 magic add mojmelo
 ```

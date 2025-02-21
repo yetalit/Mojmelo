@@ -1,4 +1,4 @@
-from mojmelo.utils.preprocessing import normalize, StandardScaler, MinMaxScaler
+from mojmelo.preprocessing import normalize, StandardScaler, MinMaxScaler
 from mojmelo.utils.Matrix import Matrix
 
 # Testing preprocessing algorithms with the samples from scikit-learn docs.

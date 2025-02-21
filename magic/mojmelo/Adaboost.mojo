@@ -112,7 +112,7 @@ struct Adaboost(CVM):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'n_clf' in params:
-            self.n_clf = atol(params['n_clf'])
+            self.n_clf = atol(String(params['n_clf']))
         else:
             self.n_clf = 5
         if 'class_zero' in params:

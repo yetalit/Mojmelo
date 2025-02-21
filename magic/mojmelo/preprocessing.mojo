@@ -89,13 +89,13 @@ fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
 fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var split_i = int(X.height - (test_ratio * X.height))
+    var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
-    var split_i = int(X.height - (test_ratio * X.height))
+    var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 @value
@@ -109,18 +109,18 @@ struct SplittedPO:
 fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var split_i = int(X.height - (test_ratio * X.height))
+    var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
-    var split_i = int(X.height - (test_ratio * X.height))
+    var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = int((1 / n_splits) * X.height)
+    var test_count = Int((1 / n_splits) * X.height)
     var start_of_test = 0
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):
@@ -133,7 +133,7 @@ fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matri
 
 fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = int((1 / n_splits) * X.height)
+    var test_count = Int((1 / n_splits) * X.height)
     var start_of_test = 0
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):

@@ -33,9 +33,9 @@ struct KNN(CVP):
         self.kdtree.n_nearest(Buffer[DType.float32](x.data, x.size), self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[String, Int]()
-        var most_common = str(self.y_train[kd_results[0].idx])
+        var most_common = String(self.y_train[kd_results[0].idx])
         for i in range(self.k):
-            var label = str(self.y_train[kd_results[i].idx])
+            var label = String(self.y_train[kd_results[i].idx])
             if label in k_neighbor_votes:
                 k_neighbor_votes[label] += 1
             else:
@@ -46,7 +46,7 @@ struct KNN(CVP):
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'k' in params:
-            self.k = atol(params['k'])
+            self.k = atol(String(params['k']))
         else:
             self.k = 3
         if 'metric' in params:
