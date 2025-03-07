@@ -629,6 +629,19 @@ struct Matrix(Stringable, Writable):
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
+        if self.height * self.width * rhs.width <= 373248:
+            # matmul naive
+            var mat = Self(self.height, rhs.width)
+            for i in range(self.size):
+                var rhsr = i % self.width
+                var j_s = rhsr * rhs.width
+                var j_e = rhsr * rhs.width + rhs.width
+                for j in range(j_s, j_e):
+                    if rhsr != 0:
+                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[i] * rhs.data[j]
+                    else:
+                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] = self.data[i] * rhs.data[j]
+            return mat^
         var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
         var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
         var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
