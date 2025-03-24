@@ -71,7 +71,8 @@ struct LogisticRegression(CVM):
                     var y_batch = y[batch_indices]
 
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
-
+                    if self.tol > 0.0:
+                        cost += cross_entropy(y_batch, y_batch_predicted) / num_b_iters
                     var dw = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
                     if self.method == 'newton':
                         var H = (X_batch.T() * X_batch.ele_mul(y_batch_predicted.ele_mul(1.0 - y_batch_predicted))) / len(y_batch)
@@ -92,8 +93,6 @@ struct LogisticRegression(CVM):
                     
                     var db = ((y_batch_predicted - y_batch).sum() / len(y_batch))
                     self.bias -= self.lr * db
-                    if self.tol > 0.0:
-                        cost += cross_entropy(y_batch, sigmoid(X_batch * self.weights + self.bias)) / num_b_iters
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break

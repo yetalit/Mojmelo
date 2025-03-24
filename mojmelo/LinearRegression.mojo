@@ -69,6 +69,8 @@ struct LinearRegression(CVM):
                     var y_batch = y[batch_indices]
 
                     var y_batch_predicted = X_batch * self.weights + self.bias
+                    if self.tol > 0.0:
+                        cost += mse(y_batch, y_batch_predicted) / num_b_iters
                     # compute gradients and update parameters
                     var dw = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
                     if l1_lambda > 0.0:
@@ -80,8 +82,6 @@ struct LinearRegression(CVM):
                     var db = (y_batch_predicted - y_batch).sum() / len(y_batch)
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
-                    if self.tol > 0.0:
-                        cost += mse(y_batch, X_batch * self.weights + self.bias) / num_b_iters
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break

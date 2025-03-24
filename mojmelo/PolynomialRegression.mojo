@@ -87,6 +87,8 @@ struct PolyRegression(CVM):
                     var y_batch_predicted = X_batch * self.weights['', 0] + self.bias
                     for i in range(1, self.degree):
                         y_batch_predicted += X_poly[i - 1][batch_indices] * self.weights['', i]
+                    if self.tol > 0.0:
+                        cost += mse(y_batch, y_batch_predicted) / num_b_iters
                     # compute gradients and update parameters
                     dw['', 0] = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
                     for i in range(1, self.degree):
@@ -102,11 +104,6 @@ struct PolyRegression(CVM):
                     self.bias -= self.lr * db
                     for i in range(1, self.degree):
                         self.weights['', i] -= self.lr * dw['', i]
-                    if self.tol > 0.0:
-                        y_batch_predicted = X_batch * self.weights['', 0] + self.bias
-                        for i in range(1, self.degree):
-                            y_batch_predicted += X_poly[i - 1][batch_indices] * self.weights['', i]
-                        cost += mse(y_batch, y_batch_predicted) / num_b_iters
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break
