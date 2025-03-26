@@ -53,33 +53,26 @@ struct LogisticRegression(CVM):
                 l2_lambda = 0.0
 
         var prev_cost = math.inf[DType.float32]()
+        var num_b_iters = X.height // self.batch_size if self.batch_size > 0 else 0
         var _reg = (1e-5 + l2_lambda) * Matrix.eye(X.width)
         for _ in range(self.n_iters):
-            # approximate y with sigmoid function
-            var y_predicted = sigmoid(X * self.weights + self.bias)
-
-            if self.tol > 0.0:
-                var cost = cross_entropy(y, y_predicted)
-                if abs(prev_cost - cost) <= self.tol:
-                    break
-                prev_cost = cost
-
             if self.batch_size > 0:
                 var ids: List[Int]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, self.random_state)
                 else:
                     ids = Matrix.rand_choice(X.height, X.height, False)
+                var cost: Float32 = 0.0
                 # Iterate over mini-batches
                 for start_idx in range(0, X.height, self.batch_size):
-                    var end_idx = min(start_idx + self.batch_size, X.height)
-                    var batch_indices = ids[start_idx:end_idx]
+                    var batch_indices = ids[start_idx:start_idx + self.batch_size]
                     
                     var X_batch = X[batch_indices]
                     var y_batch = y[batch_indices]
 
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
-
+                    if self.tol > 0.0:
+                        cost += cross_entropy(y_batch, y_batch_predicted) / num_b_iters
                     var dw = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
                     if self.method == 'newton':
                         var H = (X_batch.T() * X_batch.ele_mul(y_batch_predicted.ele_mul(1.0 - y_batch_predicted))) / len(y_batch)
@@ -100,7 +93,20 @@ struct LogisticRegression(CVM):
                     
                     var db = ((y_batch_predicted - y_batch).sum() / len(y_batch))
                     self.bias -= self.lr * db
+                if self.tol > 0.0:
+                    if abs(prev_cost - cost) <= self.tol:
+                        break
+                    prev_cost = cost
             else:
+                # approximate y with sigmoid function
+                var y_predicted = sigmoid(X * self.weights + self.bias)
+
+                if self.tol > 0.0:
+                    var cost = cross_entropy(y, y_predicted)
+                    if abs(prev_cost - cost) <= self.tol:
+                        break
+                    prev_cost = cost
+
                 var dw = ((X_T * (y_predicted - y)) / X.height)
                 if self.method == 'newton':
                     var H = (X_T * X.ele_mul(y_predicted.ele_mul(1.0 - y_predicted))) / X.height

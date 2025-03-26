@@ -3,7 +3,6 @@ from mojmelo.utils.Matrix import Matrix
 from memory import UnsafePointer
 import math
 
-@value
 struct BDecisionTree:
     var min_samples_split: Int
     var max_depth: Int
@@ -20,7 +19,7 @@ struct BDecisionTree:
         self.threshold_precision = threshold_precision
         self.root = UnsafePointer[Node]()
 
-    fn __moveinit__(out self, owned existing: Self):
+    fn _moveinit_(mut self, mut existing: Self):
         self.min_samples_split = existing.min_samples_split
         self.max_depth = existing.max_depth
         self.reg_lambda = existing.reg_lambda
@@ -51,7 +50,7 @@ struct BDecisionTree:
             depth >= self.max_depth
             or X.height < self.min_samples_split
         ):
-            new_node[] = Node(value = leaf_score(self.reg_lambda, g, h))
+            new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, g, h)))
             return new_node
 
         var feat_idxs = Matrix.rand_choice(X.width, X.width, False)
@@ -63,7 +62,7 @@ struct BDecisionTree:
         best_feat, best_thresh, best_gain = _best_criteria(self.reg_lambda, X, g, h, feat_idxs, self.threshold_precision)
         if best_gain <= self.gamma:
             # The best gain is less than gamma
-            new_node[] = Node(value = leaf_score(self.reg_lambda, g, h))
+            new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, g, h)))
             return new_node
         
         # grow the children that result from the split
@@ -72,7 +71,7 @@ struct BDecisionTree:
         left_idxs, right_idxs = _split(X['', best_feat], best_thresh)
         var left = self._grow_tree(X[left_idxs], g[left_idxs], h[left_idxs], depth + 1)
         var right = self._grow_tree(X[right_idxs], g[right_idxs], h[right_idxs], depth + 1)
-        new_node[] = Node(best_feat, best_thresh, left, right)
+        new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
 @always_inline

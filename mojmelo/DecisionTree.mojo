@@ -4,6 +4,7 @@ from memory import UnsafePointer
 from collections import Dict
 import math
 
+@value
 struct Node:
     var feature: Int
     var threshold: Float32
@@ -125,7 +126,7 @@ struct DecisionTree(CVM):
             or unique_targets == 1
             or X.height < self.min_samples_split
         ):
-            new_node[] = Node(value = set_value(y, freq, self.criterion))
+            new_node.init_pointee_move(Node(value = set_value(y, freq, self.criterion)))
             return new_node
 
         var feat_idxs = Matrix.rand_choice(X.width, self.n_feats, False)
@@ -140,7 +141,7 @@ struct DecisionTree(CVM):
         left_idxs, right_idxs = _split(X['', best_feat], best_thresh)
         var left = self._grow_tree(X[left_idxs], y[left_idxs], depth + 1)
         var right = self._grow_tree(X[right_idxs], y[right_idxs], depth + 1)
-        new_node[] = Node(best_feat, best_thresh, left, right)
+        new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
 fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float32:

@@ -39,6 +39,38 @@ struct RandomForest(CVM):
         self.threshold_precision = threshold_precision
         self.trees = UnsafePointer[DecisionTree]()
 
+    fn __del__(owned self):
+        if self.trees:
+            for i in range(self.n_trees):
+                (self.trees + i).destroy_pointee()
+            self.trees.free()
+
+    fn fit(mut self, X: Matrix, y: Matrix) raises:
+        self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
+        for i in range(self.n_trees):
+            var tree = DecisionTree(
+                min_samples_split = self.min_samples_split,
+                max_depth = self.max_depth,
+                n_feats = self.n_feats,
+                threshold_precision = self.threshold_precision,
+                criterion = self.criterion
+            )
+            var X_samp: Matrix
+            var y_samp: Matrix
+            X_samp, y_samp = bootstrap_sample(X, y)
+            tree.fit(X_samp, y_samp)
+            (self.trees + i)[]._moveinit_(tree)
+
+    fn predict(self, X: Matrix) raises -> Matrix:
+        var tree_preds = Matrix(X.height, self.n_trees)
+        for i in range(self.n_trees):
+            tree_preds['', i] = self.trees[i].predict(X)
+        
+        var y_predicted = Matrix(X.height, 1)
+        for i in range(tree_preds.height):
+            y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
+        return y_predicted^
+
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'n_trees' in params:
             self.n_trees = atol(String(params['n_trees']))
@@ -65,35 +97,3 @@ struct RandomForest(CVM):
         else:
             self.threshold_precision = 0.001
         self.trees = UnsafePointer[DecisionTree]()
-
-    fn __del__(owned self):
-        if self.trees:
-            for i in range(self.n_trees):
-                (self.trees + i).destroy_pointee()
-            self.trees.free()
-
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
-        self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
-        for i in range(self.n_trees):
-            var tree = DecisionTree(
-                min_samples_split = self.min_samples_split,
-                max_depth = self.max_depth,
-                n_feats = self.n_feats,
-                threshold_precision = self.threshold_precision,
-                criterion = self.criterion
-            )
-            var X_samp: Matrix
-            var y_samp: Matrix
-            X_samp, y_samp = bootstrap_sample(X, y)
-            tree.fit(X_samp, y_samp)
-            (self.trees + i).init_pointee_move(tree)
-
-    fn predict(self, X: Matrix) raises -> Matrix:
-        var tree_preds = Matrix(X.height, self.n_trees)
-        for i in range(self.n_trees):
-            tree_preds['', i] = self.trees[i].predict(X)
-        
-        var y_predicted = Matrix(X.height, 1)
-        for i in range(tree_preds.height):
-            y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
-        return y_predicted^

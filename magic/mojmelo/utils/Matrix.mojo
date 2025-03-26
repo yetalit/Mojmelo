@@ -2,9 +2,9 @@ from mojmelo_matmul import matmul
 from sys.info import simdwidthof, is_apple_silicon
 from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
-from buffer import Buffer, NDBuffer, DimList
+from buffer import NDBuffer
 from algorithm.reduction import sum, cumsum, variance
-from collections import InlinedFixedVector, Dict
+from collections import Dict
 import math
 import random
 from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
@@ -396,8 +396,9 @@ struct Matrix(Stringable, Writable):
         return self.size
 
     @always_inline
-    fn __eq__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
-        var result = InlinedFixedVector[Bool](self.size)
+    fn __eq__(self, rhs: Float32) -> List[Bool]:
+        var result = List[Bool](capacity=self.size)
+        result.resize(self.size, False)
         if self.size < 131072:
             for i in range(self.size):
                 result[i] = self.data[i] == rhs
@@ -409,8 +410,9 @@ struct Matrix(Stringable, Writable):
         return result^
 
     @always_inline
-    fn __ne__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
-        var result = InlinedFixedVector[Bool](self.size)
+    fn __ne__(self, rhs: Float32) -> List[Bool]:
+        var result = List[Bool](capacity=self.size)
+        result.resize(self.size, False)
         if self.size < 131072:
             for i in range(self.size):
                 result[i] = self.data[i] != rhs
@@ -422,8 +424,9 @@ struct Matrix(Stringable, Writable):
         return result^
 
     @always_inline
-    fn __gt__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
-        var result = InlinedFixedVector[Bool](self.size)
+    fn __gt__(self, rhs: Float32) -> List[Bool]:
+        var result = List[Bool](capacity=self.size)
+        result.resize(self.size, False)
         if self.size < 131072:
             for i in range(self.size):
                 result[i] = self.data[i] > rhs
@@ -435,8 +438,9 @@ struct Matrix(Stringable, Writable):
         return result^
 
     @always_inline
-    fn __ge__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
-        var result = InlinedFixedVector[Bool](self.size)
+    fn __ge__(self, rhs: Float32) -> List[Bool]:
+        var result = List[Bool](capacity=self.size)
+        result.resize(self.size, False)
         if self.size < 131072:
             for i in range(self.size):
                 result[i] = self.data[i] >= rhs
@@ -448,8 +452,9 @@ struct Matrix(Stringable, Writable):
         return result^
 
     @always_inline
-    fn __lt__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
-        var result = InlinedFixedVector[Bool](self.size)
+    fn __lt__(self, rhs: Float32) -> List[Bool]:
+        var result = List[Bool](capacity=self.size)
+        result.resize(self.size, False)
         if self.size < 131072:
             for i in range(self.size):
                 result[i] = self.data[i] < rhs
@@ -461,8 +466,9 @@ struct Matrix(Stringable, Writable):
         return result^
 
     @always_inline
-    fn __le__(self, rhs: Float32) -> InlinedFixedVector[Bool]:
-        var result = InlinedFixedVector[Bool](self.size)
+    fn __le__(self, rhs: Float32) -> List[Bool]:
+        var result = List[Bool](capacity=self.size)
+        result.resize(self.size, False)
         if self.size < 131072:
             for i in range(self.size):
                 result[i] = self.data[i] <= rhs
@@ -629,6 +635,19 @@ struct Matrix(Stringable, Writable):
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
+        if self.height * self.width * rhs.width <= 373248:
+            # matmul naive
+            var mat = Self(self.height, rhs.width)
+            for i in range(self.size):
+                var rhsr = i % self.width
+                var j_s = rhsr * rhs.width
+                var j_e = rhsr * rhs.width + rhs.width
+                for j in range(j_s, j_e):
+                    if rhsr != 0:
+                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[i] * rhs.data[j]
+                    else:
+                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] = self.data[i] * rhs.data[j]
+            return mat^
         var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
         var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
         var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
@@ -713,7 +732,7 @@ struct Matrix(Stringable, Writable):
         raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
-    fn where(self, cmp: InlinedFixedVector[Bool], _true: Float32, _false: Float32) -> Matrix:
+    fn where(self, cmp: List[Bool], _true: Float32, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -731,7 +750,7 @@ struct Matrix(Stringable, Writable):
             parallelize[p](self.size)
         return mat^
 
-    fn where(self, cmp: InlinedFixedVector[Bool], _true: Matrix, _false: Float32) -> Matrix:
+    fn where(self, cmp: List[Bool], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -749,7 +768,7 @@ struct Matrix(Stringable, Writable):
             parallelize[p](self.size)
         return mat^
 
-    fn where(self, cmp: InlinedFixedVector[Bool], _true: Float32, _false: Matrix) -> Matrix:
+    fn where(self, cmp: List[Bool], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -768,7 +787,7 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn argwhere(self, cmp: InlinedFixedVector[Bool]) -> Matrix:
+    fn argwhere(self, cmp: List[Bool]) -> Matrix:
         var args = List[Float32]()
         for i in range(self.size):
             if cmp[i]:
@@ -777,7 +796,7 @@ struct Matrix(Stringable, Writable):
         return Matrix(len(args) // 2, 2, args)
 
     @always_inline
-    fn argwhere_l(self, cmp: InlinedFixedVector[Bool]) -> List[Int]:
+    fn argwhere_l(self, cmp: List[Bool]) -> List[Int]:
         var args = List[Int]()
         for i in range(self.size):
             if cmp[i]:
@@ -827,12 +846,12 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        cumsum(Buffer[DType.float32](mat.data, self.size), Buffer[DType.float32](self.data, self.size))
+        cumsum(NDBuffer[type=DType.float32, rank=1](mat.data, self.size), NDBuffer[type=DType.float32, rank=1](self.data, self.size))
         return mat^
 
     @always_inline
     fn sum(self) raises -> Float32:
-        return sum(Buffer[DType.float32](self.data, self.size))
+        return sum(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn sum(self, axis: Int) raises -> Matrix:
@@ -895,11 +914,11 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn _var(self) raises -> Float32:
-        return variance(Buffer[DType.float32](self.data, self.size))
+        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn _var(self, _mean: Float32) raises -> Float32:
-        return variance(Buffer[DType.float32](self.data, self.size), _mean)
+        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), _mean)
 
     @always_inline
     fn _var(self, axis: Int) raises -> Matrix:
@@ -1137,7 +1156,7 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn min(self) raises -> Float32:
-        return algorithm.reduction.min(Buffer[DType.float32](self.data, self.size))
+        return algorithm.reduction.min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -1172,7 +1191,7 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn max(self) raises -> Float32:
-        return algorithm.reduction.max(Buffer[DType.float32](self.data, self.size))
+        return algorithm.reduction.max(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:
@@ -1429,7 +1448,7 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn fill(self, val: Float32):
-        Buffer[DType.float32](self.data, self.size).fill(val)
+        NDBuffer[type=DType.float32, rank=1](self.data, self.size).fill(val)
 
     @staticmethod
     @always_inline
@@ -1447,7 +1466,7 @@ struct Matrix(Stringable, Writable):
         if not replace:
             for i in range(size):
                 result[i] = i
-        for i in range(size - 1, 0, -1):
+        for i in range(size - 1, -1, -1):
             if not replace:
                 # Fisher-Yates shuffle
                 var j = Int(random.random_ui64(0, i))
