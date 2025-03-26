@@ -1,7 +1,6 @@
 from sys import external_call, os_is_linux, os_is_macos, argv
 from sys.ffi import *
 from memory import UnsafePointer
-from collections import InlineArray
 
 fn cachel1() -> Int32:
     var l1_cache_size: c_int = 0
@@ -136,7 +135,6 @@ fn main() raises:
             return
 
         from mojmelo.utils.Matrix import Matrix
-        from collections import InlineArray
         import time
 
         alias NUM_ITER = 16

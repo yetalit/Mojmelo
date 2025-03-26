@@ -7,7 +7,6 @@ from sys import has_avx512f, num_performance_cores, simdwidthof, sizeof
 import benchmark
 from testing import assert_equal
 from utils import IndexList
-from collections import InlineArray
 import random
 from .params import *
 

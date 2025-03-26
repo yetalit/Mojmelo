@@ -6,4 +6,4 @@ def get_data():
     sms_data = pd.read_csv("spam.csv", encoding='latin-1') # url: https://www.kaggle.com/datasets/uciml/sms-spam-collection-dataset
     sms_data = sms_data[['v1', 'v2']]
 
-    return [CountVectorizer().fit_transform(sms_data['v2']).toarray(), sms_data['v1']]
+    return [CountVectorizer().fit_transform(sms_data['v2']).toarray(), sms_data['v1'].to_numpy()]

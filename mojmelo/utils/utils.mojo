@@ -1,5 +1,5 @@
-from collections import InlinedFixedVector, Dict
-from memory import memcpy, UnsafePointer, Span
+from collections import Dict
+from memory import memcpy, UnsafePointer
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
@@ -70,7 +70,7 @@ fn _partition[
     type: CollectionElement,
     origin: MutableOrigin, //,
     cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
-](span: Span[type, origin], mut indices: InlinedFixedVector[Int]) -> Int:
+](span: Span[type, origin], mut indices: List[Int]) -> Int:
     var size = len(span)
     if size <= 1:
         return 0
@@ -107,7 +107,7 @@ fn _partition[
     type: CollectionElement,
     origin: MutableOrigin, //,
     cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
-](owned span: Span[type, origin], mut indices: InlinedFixedVector[Int], owned k: Int):
+](owned span: Span[type, origin], mut indices: List[Int], owned k: Int):
     while True:
         var pivot = _partition[cmp_fn](span, indices)
         if pivot == k:
@@ -124,7 +124,7 @@ fn _partition[
 fn partition[
     lifetime: MutableOrigin, //,
     cmp_fn: fn (Float32, Float32) capturing [_] -> Bool,
-](span: Span[Float32, lifetime], mut indices: InlinedFixedVector[Int], k: Int):
+](span: Span[Float32, lifetime], mut indices: List[Int], k: Int):
     """Partition the input buffer inplace such that first k elements are the
     largest (or smallest if cmp_fn is < operator) elements.
     The ordering of the first k elements is undefined.

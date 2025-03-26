@@ -1,4 +1,4 @@
-from collections import InlinedFixedVector, Dict
+from collections import Dict
 import math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVP, normal_distr
@@ -8,13 +8,13 @@ struct GaussianNB:
     var _classes: List[String]
     var _mean: Matrix
     var _var: Matrix
-    var _priors: InlinedFixedVector[Float32]
+    var _priors: List[Float32]
 
     fn __init__(out self):
         self._classes = List[String]()
         self._mean = Matrix(0, 0)
         self._var = Matrix(0, 0)
-        self._priors = InlinedFixedVector[Float32](capacity = 0)
+        self._priors = List[Float32]()
 
     fn fit(mut self, X: Matrix, y: PythonObject) raises:
         var n_samples = Float32(X.height)
@@ -24,7 +24,8 @@ struct GaussianNB:
         # calculate mean, var, and prior for each class
         self._mean = Matrix.zeros(len(self._classes), X.width)
         self._var = Matrix.zeros(len(self._classes), X.width)
-        self._priors = InlinedFixedVector[Float32](capacity = len(self._classes))
+        self._priors = List[Float32](capacity=len(self._classes))
+        self._priors.resize(len(self._classes), 0.0)
 
         for i in range(len(self._classes)):
             var X_c = Matrix(_class_freq[i], X.width)
@@ -65,13 +66,13 @@ struct MultinomialNB:
     var _alpha: Float32
     var _classes: List[String]
     var _class_probs: Matrix
-    var _priors: InlinedFixedVector[Float32]
+    var _priors: List[Float32]
 
     fn __init__(out self, alpha: Float32 = 0.0):
         self._alpha = alpha
         self._classes = List[String]()
         self._class_probs = Matrix(0, 0)
-        self._priors = InlinedFixedVector[Float32](capacity = 0)
+        self._priors = List[Float32]()
 
     fn fit(mut self, X: Matrix, y: PythonObject) raises:
         var n_samples = Float32(X.height)
@@ -80,7 +81,8 @@ struct MultinomialNB:
 
         # calculate feature probabilities and prior for each class
         self._class_probs = Matrix.zeros(len(self._classes), X.width)
-        self._priors = InlinedFixedVector[Float32](capacity = len(self._classes))
+        self._priors = List[Float32](capacity=len(self._classes))
+        self._priors.resize(len(self._classes), 0.0)
 
         for i in range(X.height):
             self._class_probs[self._classes.index(String(y[i]))] += X[i]
@@ -115,4 +117,4 @@ struct MultinomialNB:
             self._alpha = 0.0
         self._classes = List[String]()
         self._class_probs = Matrix(0, 0)
-        self._priors = InlinedFixedVector[Float32](capacity = 0)
+        self._priors = List[Float32]()

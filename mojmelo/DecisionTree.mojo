@@ -29,7 +29,6 @@ struct Node:
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-@value
 struct DecisionTree(CVM):
     var criterion: String
     var loss_func: fn(Matrix) raises -> Float32
@@ -82,7 +81,7 @@ struct DecisionTree(CVM):
             self.threshold_precision = 0.001
         self.root = UnsafePointer[Node]()
 
-    fn __moveinit__(out self, owned existing: Self):
+    fn _moveinit_(mut self, mut existing: Self):
         self.criterion = existing.criterion
         self.loss_func = existing.loss_func
         self.min_samples_split = existing.min_samples_split

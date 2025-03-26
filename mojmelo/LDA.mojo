@@ -1,7 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import gt
-from collections.vector import InlinedFixedVector
-from memory import Span
 from python import PythonObject
 
 struct LDA:
@@ -50,9 +48,10 @@ struct LDA:
         eigenvectors = eigenvectors.T()
         # sort eigenvalues high to low
         var v_abs = eigenvalues.abs()
-        var indices = InlinedFixedVector[Int](capacity = v_abs.size)
+        var indices = List[Int](capacity=v_abs.size)
+        indices.resize(v_abs.size, 0)
         for i in range(v_abs.size):
-            indices.append(i)
+            indices[i] = i
         # sort eigenvectors
         mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(v_abs)](ptr= v_abs.data, length= v_abs.size), indices, self.n_components)
         # store first n eigenvectors

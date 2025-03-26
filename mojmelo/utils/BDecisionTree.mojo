@@ -3,7 +3,6 @@ from mojmelo.utils.Matrix import Matrix
 from memory import UnsafePointer
 import math
 
-@value
 struct BDecisionTree:
     var min_samples_split: Int
     var max_depth: Int
@@ -20,7 +19,7 @@ struct BDecisionTree:
         self.threshold_precision = threshold_precision
         self.root = UnsafePointer[Node]()
 
-    fn __moveinit__(out self, owned existing: Self):
+    fn _moveinit_(mut self, mut existing: Self):
         self.min_samples_split = existing.min_samples_split
         self.max_depth = existing.max_depth
         self.reg_lambda = existing.reg_lambda
