@@ -806,25 +806,47 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn C_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height)
-        for idx_col in range(self.width):
-            var tmpPtr = self.data + idx_col
+        if self.size < 98304:
+            for idx_col in range(self.width):
+                var tmpPtr = self.data + idx_col
+                @parameter
+                fn convert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
+                    tmpPtr += simd_width * self.width
+                vectorize[convert, self.simd_width](self.height)
+        else:
             @parameter
-            fn convert[simd_width: Int](idx: Int):
-                mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
-                tmpPtr += simd_width * self.width
-            vectorize[convert, self.simd_width](self.height)
+            fn p(idx_col: Int):
+                var tmpPtr = self.data + idx_col
+                @parameter
+                fn pconvert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
+                    tmpPtr += simd_width * self.width
+                vectorize[pconvert, self.simd_width](self.height)
+            parallelize[p](self.width)
         return mat^
 
     @always_inline
     fn F_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height, order= self.order)
-        for idx_row in range(self.height):
-            var tmpPtr = self.data + idx_row
+        if self.size < 98304:
+            for idx_row in range(self.height):
+                var tmpPtr = self.data + idx_row
+                @parameter
+                fn convert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
+                    tmpPtr += simd_width * self.height
+                vectorize[convert, self.simd_width](self.width)
+        else:
             @parameter
-            fn convert[simd_width: Int](idx: Int):
-                mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
-                tmpPtr += simd_width * self.height
-            vectorize[convert, self.simd_width](self.width)
+            fn p(idx_row: Int):
+                var tmpPtr = self.data + idx_row
+                @parameter
+                fn pconvert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
+                    tmpPtr += simd_width * self.height
+                vectorize[pconvert, self.simd_width](self.width)
+            parallelize[p](self.height)
         return mat^
     
     @always_inline
