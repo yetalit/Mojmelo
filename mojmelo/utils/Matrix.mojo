@@ -635,7 +635,7 @@ struct Matrix(Stringable, Writable):
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
-        if self.height * self.width * rhs.width <= 373248:
+        if self.height * self.width * rhs.width <= 4096:
             # matmul naive
             var mat = Self(self.height, rhs.width)
             for i in range(self.size):
