@@ -935,26 +935,26 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn _var(self) raises -> Float32:
-        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+    fn _var(self, correction: Bool = False) raises -> Float32:
+        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), correction=correction)
 
     @always_inline
-    fn _var(self, _mean: Float32) raises -> Float32:
-        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), _mean)
+    fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
+        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
 
     @always_inline
-    fn _var(self, axis: Int) raises -> Matrix:
+    fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True]._var()
+                    mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True]._var()
+                        mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p0](self.width)
@@ -962,30 +962,30 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True]._var()
+                    mat.data[i] = self[i, unsafe=True]._var(correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True]._var()
+                        mat.data[i] = self[i, unsafe=True]._var(correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn _var(self, axis: Int, _mean: Matrix) raises -> Matrix:
+    fn _var(self, axis: Int, _mean: Matrix, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p0](self.width)
@@ -993,12 +993,12 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p1](self.height)
@@ -1254,10 +1254,11 @@ struct Matrix(Stringable, Writable):
         return mat^
     
     fn cov(self) raises -> Matrix:
-        var c = Matrix(self.height, self.height, order= self.order)
+        var c = Matrix(self.height, self.height, order=self.order)
+        var mean_diff = self - self.mean(axis=1)
         for i in range(self.height):
             for j in range(self.height):
-                c[i, j] = cov_value(self[j], self[i])
+                c[i, j] = cov_value(mean_diff[j], mean_diff[i])
         return c^
 
     fn inv(self) raises -> Matrix:

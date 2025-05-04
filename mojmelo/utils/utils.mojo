@@ -46,8 +46,8 @@ fn gauss_jordan(owned a: Matrix) raises -> Matrix:
         eliminate(a[i], a[i], i, target=1)
     return a^
 
-fn cov_value(x: Matrix, y: Matrix) raises -> Float32:
-    return ((y - y.mean()).ele_mul(x - x.mean())).sum() / (x.size - 1)
+fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
+    return (y_mean_diff.ele_mul(x_mean_diff)).sum() / (x_mean_diff.size - 1)
 
 # ===----------------------------------------------------------------------===#
 # partition
