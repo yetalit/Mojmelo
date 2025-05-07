@@ -3,7 +3,7 @@ from sys.info import simdwidthof, is_apple_silicon
 from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
-from algorithm.reduction import sum, cumsum, variance
+from algorithm.reduction import sum, cumsum, variance, min, max
 from collections import Dict
 import math
 import random
@@ -49,7 +49,7 @@ struct Matrix(Stringable, Writable):
             memcpy(self.data, def_input.data, self.size)
 
     # initialize from list object
-    fn __init__(out self, height: Int, width: Int, def_input: object) raises:
+    fn __init__(out self, height: Int, width: Int, def_input: PythonObject) raises:
         self.height = height
         self.width = width
         self.size = height * width
@@ -1005,26 +1005,26 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn std(self) raises -> Float32:
-        return math.sqrt(self._var())
+    fn std(self, correction: Bool = False) raises -> Float32:
+        return math.sqrt(self._var(correction=correction))
 
     @always_inline
-    fn std(self, _mean: Float32) raises -> Float32:
-        return math.sqrt(self._var(_mean))
+    fn std(self, _mean: Float32, correction: Bool = False) raises -> Float32:
+        return math.sqrt(self._var(_mean, correction=correction))
 
     @always_inline
-    fn std(self, axis: Int) raises -> Matrix:
+    fn std(self, axis: Int, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std()
+                    mat.data[i] = self['', i, unsafe=True].std(correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std()
+                        mat.data[i] = self['', i, unsafe=True].std(correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p0](self.width)
@@ -1032,30 +1032,30 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std()
+                    mat.data[i] = self[i, unsafe=True].std(correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std()
+                        mat.data[i] = self[i, unsafe=True].std(correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn std(self, axis: Int, _mean: Matrix) raises -> Matrix:
+    fn std(self, axis: Int, _mean: Matrix, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p0](self.width)
@@ -1063,12 +1063,12 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p1](self.height)
@@ -1174,11 +1174,13 @@ struct Matrix(Stringable, Writable):
                 fn p1(i: Int):
                     vect[i] = self[i, unsafe=True].argmin_slow()
                 parallelize[p1](self.height)
-        return List[Int](ptr=vect, length=length, capacity=length)
+        var list = List[Int](unsafe_uninit_length=length)
+        list.data=vect
+        return list^
 
     @always_inline
     fn min(self) raises -> Float32:
-        return algorithm.reduction.min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -1213,7 +1215,7 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn max(self) raises -> Float32:
-        return algorithm.reduction.max(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return max(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:
@@ -1256,9 +1258,14 @@ struct Matrix(Stringable, Writable):
     fn cov(self) raises -> Matrix:
         var c = Matrix(self.height, self.height, order=self.order)
         var mean_diff = self - self.mean(axis=1)
-        for i in range(self.height):
-            for j in range(self.height):
-                c[i, j] = cov_value(mean_diff[j], mean_diff[i])
+        @parameter
+        fn p(i: Int):
+            try:
+                for j in range(self.height):
+                    c[i, j] = cov_value(mean_diff[j], mean_diff[i])
+            except:
+                print('Error: failed to find cov!')
+        parallelize[p](self.height)
         return c^
 
     fn inv(self) raises -> Matrix:
@@ -1361,18 +1368,26 @@ struct Matrix(Stringable, Writable):
             e_vals.data[i] = X[i, i]
 
         # eigenvectors are columns of pq
-        var e_vecs = pq
-
-        return e_vals^, e_vecs^
+        return e_vals^, pq^
 
     fn outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)
         if mat.order == 'c':
-            for i in range(mat.height):
-                mat[i] = self.data[i] * rhs
+            @parameter
+            fn p1(i: Int):
+                try:
+                    mat[i] = self.data[i] * rhs
+                except:
+                    print('Error: failed to find outer!')
+            parallelize[p1](mat.height)
         else:
-            for i in range(mat.width):
-                mat['', i] = self * rhs.data[i]
+            @parameter
+            fn p2(i: Int):
+                try:
+                    mat['', i] = self * rhs.data[i]
+                except:
+                    print('Error: failed to find outer!')
+            parallelize[p2](mat.width)
         return mat^
 
     fn concatenate(self, rhs: Matrix, axis: Int) raises -> Matrix:
@@ -1405,8 +1420,9 @@ struct Matrix(Stringable, Writable):
 
         for i in range(self.size):
             vect[Int(self.data[i])] += 1
-    
-        return List[Int](ptr=vect, length=max_val + 1, capacity= max_val + 1)
+        var list = List[Int](unsafe_uninit_length=max_val + 1)
+        list.data=vect
+        return list^
 
     @staticmethod
     @always_inline
@@ -1496,7 +1512,9 @@ struct Matrix(Stringable, Writable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = Int(random.random_ui64(0, arang - 1))
-        return List[Int](ptr=result, length=size, capacity=size)
+        var list = List[Int](unsafe_uninit_length=size)
+        list.data=result
+        return list^
 
     @staticmethod
     @always_inline
@@ -1513,14 +1531,16 @@ struct Matrix(Stringable, Writable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = Int(random.random_ui64(0, arang - 1))
-        return List[Int](ptr=result, length=size, capacity=size)
+        var list = List[Int](unsafe_uninit_length=size)
+        list.data=result
+        return list^
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
         var np = Python.import_module("numpy")
         var np_arr_f = np.array(np_arr, dtype= 'f', order= order.upper())
         var height = Int(np_arr_f.shape[0])
-        var width = 0
+        var width: Int
         try:
             width = Int(np_arr_f.shape[1])
         except:
@@ -1532,7 +1552,7 @@ struct Matrix(Stringable, Writable):
 
     fn to_numpy(self) raises -> PythonObject:
         var np = Python.import_module("numpy")
-        var np_arr = np.empty((self.height,self.width), dtype='f', order= self.order.upper())
+        var np_arr = np.empty(Python.tuple(self.height,self.width), dtype='f', order= self.order.upper())
         memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), self.data, self.size)
         return np_arr^
 
