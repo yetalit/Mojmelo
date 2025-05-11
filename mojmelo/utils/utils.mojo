@@ -23,29 +23,6 @@ trait CVP:
     fn predict(self, X: Matrix) raises -> List[String]:
         ...
 
-@always_inline
-fn eliminate(r1: Matrix, mut r2: Matrix, col: Int, target: Int = 0) raises:
-    var fac = (r2.data[col] - target) / r1.data[col]
-    r2 -= fac * r1
-
-fn gauss_jordan(owned a: Matrix) raises -> Matrix:
-    for i in range(a.height):
-        if a.data[i * a.width + i] == 0:
-            for j in range(i+1, a.height):
-                if a.data[i * a.width + j] != 0:
-                    a[i], a[j] = a[j], a[i]
-                    break
-            else:
-                raise Error("Error: Matrix is not invertible!")
-        for j in range(i + 1, a.height):
-            eliminate(a[i], a[j], i)
-    for i in range(a.height - 1, -1, -1):
-        for j in range(i - 1, -1, -1):
-            eliminate(a[i], a[j], i)
-    for i in range(a.height):
-        eliminate(a[i], a[i], i, target=1)
-    return a^
-
 fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
     return (y_mean_diff.ele_mul(x_mean_diff)).sum() / (x_mean_diff.size - 1)
 

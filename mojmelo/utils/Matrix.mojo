@@ -7,7 +7,7 @@ from algorithm.reduction import sum, cumsum, variance, min, max
 from collections import Dict
 import math
 import random
-from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
+from mojmelo.utils.utils import cov_value, add, sub, mul, div
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable):
@@ -1268,14 +1268,74 @@ struct Matrix(Stringable, Writable):
         parallelize[p](self.height)
         return c^
 
+    @staticmethod
+    @always_inline
+    fn lu_factor(mut A: Matrix, piv: UnsafePointer[Int], N: Int) raises:
+        for i in range(N):
+            piv[i] = i
+
+        for k in range(N - 1):
+            var max_row = k
+            for i in range(k + 1, N):
+                if (abs(A[i, k]) > abs(A[max_row, k])):
+                    max_row = i
+
+            if k != max_row:
+                for j in range(N):
+                    swap(A[k, j], A[max_row, j])
+
+                var temp = piv[k]
+                piv[k] = piv[max_row]
+                piv[max_row] = temp
+
+            # LU decomposition (Gaussian elimination)
+            for i in range(k + 1, N):
+                A[i, k] /= A[k, k]
+                for j in range(k + 1, N):
+                    A[i, j] -= A[i, k] * A[k, j]
+
+    @staticmethod
+    @always_inline
+    fn lu_solve(A: Matrix, piv: UnsafePointer[Int], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
+        var y = Matrix(1, N)
+
+        # Forward substitution: solve L * y = P * b
+        for i in range(N):
+            y.data[i] = b[piv[i], Mi]
+            for j in range(i):
+                y.data[i] -= A[i, j] * y.data[j]
+
+        # Backward substitution: solve U * x = y
+        for i in range(N - 1, -1, -1):
+            x[i, Mi] = y.data[i]
+            for j in range(i + 1, N):
+                x[i, Mi] -= A[i, j] * x[j, Mi]
+            x[i, Mi] /= A[i, i]
+    
+    @staticmethod
+    @always_inline
+    fn solve(owned A: Matrix, b: Matrix) raises -> Matrix:
+        if A.height != A.width:
+            raise Error("Error: \"A\" must be square!")
+        if A.width != b.height:
+            raise Error("Error: \"B\" has an unrelated shape to \"A\"!")
+        var N = A.height
+        var M = b.width
+        var X = Matrix(N, M, order=A.order)
+        var piv = UnsafePointer[Int].alloc(N)
+
+        Matrix.lu_factor(A, piv, N)
+        for i in range(M):
+            Matrix.lu_solve(A, piv, b, X, N, i)
+
+        piv.free()
+
+        return X^
+
     fn inv(self) raises -> Matrix:
         if self.height != self.width:
             raise Error("Error: Matrix must be square to inverse!")
-        var tmp = gauss_jordan(self.concatenate(Matrix.eye(self.height, self.order), 1))
-        var mat = Matrix(self.height, self.height, order= self.order)
-        for i in range(tmp.height):
-            mat[i] = tmp[i, True, tmp[i].size//2]
-        return mat^
+        return Matrix.solve(self, Matrix.eye(self.height))
 
     @staticmethod
     @always_inline
