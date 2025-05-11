@@ -30,6 +30,7 @@ struct Node:
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
+@value
 struct DecisionTree(CVM):
     var criterion: String
     var loss_func: fn(Matrix) raises -> Float32

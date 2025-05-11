@@ -3,6 +3,7 @@ from mojmelo.utils.Matrix import Matrix
 from memory import UnsafePointer
 import math
 
+@value
 struct BDecisionTree:
     var min_samples_split: Int
     var max_depth: Int
