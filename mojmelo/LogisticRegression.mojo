@@ -77,9 +77,8 @@ struct LogisticRegression(CVM):
                     if self.method == 'newton':
                         var H = (X_batch.T() * X_batch.ele_mul(y_batch_predicted.ele_mul(1.0 - y_batch_predicted))) / len(y_batch)
                         # Add regularization to Hessian for L2 only
-                        var H_inv = (H + _reg).inv()
                         # Update weights using Newton's method
-                        self.weights -= H_inv * dw
+                        self.weights -= Matrix.solve((H + _reg), dw)
                     else:
                         # gradient descent
                         if l1_lambda > 0.0:
@@ -111,9 +110,8 @@ struct LogisticRegression(CVM):
                 if self.method == 'newton':
                     var H = (X_T * X.ele_mul(y_predicted.ele_mul(1.0 - y_predicted))) / X.height
                     # Add regularization to Hessian for L2 only
-                    var H_inv = (H + _reg).inv()
                     # Update weights using Newton's method
-                    self.weights -= H_inv * dw
+                    self.weights -= Matrix.solve((H + _reg), dw)
                 else:
                     # gradient descent
                     if l1_lambda > 0.0:
