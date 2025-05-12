@@ -1281,8 +1281,7 @@ struct Matrix(Stringable, Writable):
                     max_row = i
 
             if k != max_row:
-                for j in range(N):
-                    swap(A[k, j], A[max_row, j])
+                swap(A[k], A[max_row])
 
                 var temp = piv[k]
                 piv[k] = piv[max_row]
@@ -1291,8 +1290,7 @@ struct Matrix(Stringable, Writable):
             # LU decomposition (Gaussian elimination)
             for i in range(k + 1, N):
                 A[i, k] /= A[k, k]
-                for j in range(k + 1, N):
-                    A[i, j] -= A[i, k] * A[k, j]
+                A[i, True, k + 1] -= A[i, k] * A[k, True, k + 1]
 
     @staticmethod
     @always_inline
@@ -1325,8 +1323,16 @@ struct Matrix(Stringable, Writable):
         var piv = UnsafePointer[Int].alloc(N)
 
         Matrix.lu_factor(A, piv, N)
-        for i in range(M):
-            Matrix.lu_solve(A, piv, b, X, N, i)
+        if M > 1:
+            @parameter
+            fn p(i: Int):
+                try:
+                    Matrix.lu_solve(A, piv, b, X, N, i)
+                except:
+                    print('Error: failed to find LU solution!')
+            parallelize[p](M)
+        else:
+            Matrix.lu_solve(A, piv, b, X, N, 0)
 
         piv.free()
 
