@@ -32,9 +32,9 @@ struct LDA:
                     X_c[pointer] = X[j]
                     pointer += 1
             var mean_c = X_c.mean(0)
-            var X_sub_mean_c = X - mean_c
+            var X_c_sub_mean_c = X_c - mean_c
             # (4, n_c) * (n_c, 4) = (4,4) -> transpose
-            SW += (X_sub_mean_c).T() * (X_sub_mean_c)
+            SW += (X_c_sub_mean_c).T() * (X_c_sub_mean_c)
 
             # (4, 1) * (1, 4) = (4,4) -> reshape
             var mean_diff = (mean_c - mean_overall).reshape(X.width, 1)
@@ -43,7 +43,7 @@ struct LDA:
         # Get eigenvalues and eigenvectors of SW^-1 * SB
         var eigenvalues: Matrix
         var eigenvectors: Matrix
-        eigenvalues, eigenvectors = (SW.inv() * SB).eigen()
+        eigenvalues, eigenvectors = (Matrix.solve(SW, SB)).eigen()
         # transpose for easier calculations
         eigenvectors = eigenvectors.T()
         # sort eigenvalues high to low
