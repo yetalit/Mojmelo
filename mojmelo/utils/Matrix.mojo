@@ -3,7 +3,7 @@ from sys.info import simdwidthof, is_apple_silicon
 from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
-from algorithm.reduction import sum, cumsum, variance, min, max
+import algorithm
 from collections import Dict
 import math
 import random
@@ -385,6 +385,30 @@ struct Matrix(Stringable, Writable):
     fn __setitem__(mut self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
             self[row, Int(columns.data[i])] = rhs[row, i]
+    
+    @always_inline
+    fn load_columns(self, _range: Int) raises -> Matrix:
+        if _range > self.width:
+            raise Error("Error: Index out of range!")
+        var mat = Matrix(self.height, _range, order=self.order)
+        if self.order == 'c' or self.height == 1:
+            for i in range(self.height):
+                memcpy(mat.data + i * _range, self.data + i * self.width, _range)
+        else:
+            memcpy(mat.data, self.data, mat.size)
+        return mat^
+
+    @always_inline
+    fn load_rows(self, _range: Int) raises -> Matrix:
+        if _range > self.height:
+            raise Error("Error: Index out of range!")
+        var mat = Matrix(_range, self.width, order=self.order)
+        if self.order == 'f' or self.width == 1:
+            for i in range(self.width):
+                memcpy(mat.data + i * _range, self.data + i * self.height, _range)
+        else:
+            memcpy(mat.data, self.data, mat.size)
+        return mat^
 
     @always_inline
     fn __del__(owned self):
@@ -868,12 +892,12 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        cumsum(NDBuffer[type=DType.float32, rank=1](mat.data, self.size), NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        algorithm.reduction.cumsum(NDBuffer[type=DType.float32, rank=1](mat.data, self.size), NDBuffer[type=DType.float32, rank=1](self.data, self.size))
         return mat^
 
     @always_inline
     fn sum(self) raises -> Float32:
-        return sum(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.sum(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn sum(self, axis: Int) raises -> Matrix:
@@ -936,11 +960,11 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn _var(self, correction: Bool = False) raises -> Float32:
-        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), correction=correction)
+        return algorithm.reduction.variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), correction=correction)
 
     @always_inline
     fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
-        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
+        return algorithm.reduction.variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
 
     @always_inline
     fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
@@ -1180,7 +1204,7 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn min(self) raises -> Float32:
-        return min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -1215,7 +1239,7 @@ struct Matrix(Stringable, Writable):
 
     @always_inline
     fn max(self) raises -> Float32:
-        return max(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.max(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:
@@ -1402,27 +1426,166 @@ struct Matrix(Stringable, Writable):
         return Q^, R^
 
     @always_inline
-    fn is_upper_tri(self, tol: Float32) raises -> Bool:
+    fn is_upper_tri(self, tol: Float32 = 1.0e-8) raises -> Bool:
         for i in range(self.height):
             for j in range(i):
                 if abs(self[i, j]) > tol:
                     return False
         return True
 
-    fn eigen(self, max_ct: Int = 10000) raises -> Tuple[Matrix, Matrix]:
+    fn svd(self, EPSILON: Float32 = 1.0e-08) raises -> Tuple[Matrix, Matrix, Matrix]:
+        var A = self  # working copy U
+        var m = A.height
+        var n = A.width
+
+        var Q = Matrix.eye(n)  # working copy V
+        var t = Matrix.zeros(1, n)  # working copy s
+
+        # init counters
+        var count = 1
+        var sweep = 0
+        var sweep_max = max(5 * n, 12)  # heuristic
+
+        var tolerance = 10 * m * EPSILON  # heuristic
+        # store the column error estimates in t
+        for j in range(n):
+            t.data[j] = EPSILON * A['', j].norm()
+
+        # orthogonalize A by plane rotations
+        while (count > 0 and sweep <= sweep_max):
+            # initialize rotation counter
+            count = n * (n - 1) // 2
+            for j in range(n-1):
+                for k in range(j+1, n):
+                    var cj = A['', j]
+                    var ck = A['', k]
+                    var p = 2 * cj.ele_mul(ck).sum()
+                    var a = cj.norm()
+                    var b = ck.norm()
+
+                    # test for columns j,k orthogonal,
+                    # or dominant errors 
+                    var abserr_a = t.data[j]
+                    var abserr_b = t.data[k]
+
+                    var q = (a * a) - (b * b)
+                    var v = math.sqrt(p**2 + q**2)  # hypot()
+            
+                    var sorted = (a >= b)
+                    var orthog = (abs(p) <= tolerance * (a*b))
+                    var noisya = (a < abserr_a)
+                    var noisyb = (b < abserr_b)
+
+                    if sorted and (orthog or \
+                    noisya or noisyb):
+                        count -= 1
+                        continue
+
+                    var cosine: Float32
+                    var sine: Float32
+                    # calculate rotation angles
+                    if v == 0 or sorted == False:
+                        cosine = 0.0
+                        sine = 1.0
+                    else:
+                        cosine = math.sqrt((v + q) / (2.0 * v))
+                        sine = p / (2.0 * v * cosine)
+
+                    # apply rotation to A (U)
+                    for i in range(m):
+                        var Aik = A[i, k]
+                        var Aij = A[i, j]
+                        A[i, j] = Aij * cosine + Aik * sine
+                        A[i, k] = -Aij * sine + Aik * cosine
+
+                    # update singular values
+                    t.data[j] = abs(cosine) * abserr_a + \
+                    abs(sine) * abserr_b
+                    t.data[k] = abs(sine) * abserr_a + \
+                    abs(cosine) * abserr_b
+
+                    # apply rotation to Q (V)
+                    for i in range(n):
+                        Qij = Q[i, j]
+                        Qik = Q[i, k]
+                        Q[i, j] = Qij * cosine + Qik * sine
+                        Q[i, k] = -Qij * sine + Qik * cosine
+
+            sweep += 1
+        # while
+
+        # compute singular values
+        var prev_norm: Float32 = -1.0
+        for j in range(n):
+            var column = A['', j]  # by ref
+            var norm = column.norm()
+            # determine if singular value is zero
+            if norm == 0.0 or prev_norm == 0.0 or \
+            (j > 0 and norm <= tolerance * prev_norm):
+                t.data[j] = 0.0
+                for i in range(len(column)):
+                    column.data[i] = 0.0  # updates A indirectly
+                prev_norm = 0.0
+            else:
+                t.data[j] = norm
+                for i in range(len(column)):
+                    column.data[i] = column.data[i] * (1.0 / norm)
+                prev_norm = norm
+
+        if count > 0:
+            print("WARN: Jacobi iterations no converge!")
+
+        var U = A  # mxn
+        var s = t
+        var Vh = Q.T()
+
+        if m < n:
+            U = U.load_columns(m)
+            s = t.load_columns(m)
+            Vh = Vh.load_rows(m)
+
+        return U^, s^, Vh^
+
+    fn eigvectors_from_eigvalues(self, eigenvalues: Matrix, tol: Float32) raises -> Matrix:
+        var n = self.height
+        eigvecs = Matrix.zeros(n, len(eigenvalues), order=self.order)
+
+        for i in range(len(eigenvalues)):
+            # Construct (A - lambda * I)
+            var B = self - eigenvalues.data[i] * Matrix.eye(n)
+
+            # Compute SVD
+            _, S, Vh = B.svd()
+
+            # Identify right-singular vectors corresponding to zero singular values
+            var null_space = Vh[S.argwhere_l(S < tol)]
+
+            # If no null vectors found, fallback to smallest singular vector
+            if null_space.size == 0:
+                vec = Vh[Vh.height - 1]
+            else:
+                vec = null_space[0]
+
+            # Normalize and assign as eigenvector
+            vec /= vec.norm()
+            eigvecs['', i] = vec
+
+        return eigvecs^
+
+    fn eigen(self, tol: Float32 = 1.0e-8, max_ct: Int = 10000) raises -> Tuple[Matrix, Matrix]:
         var X = self
-        var pq = Matrix.eye(self.height, self.order)
+        #var pq = Matrix.eye(self.height, self.order)
 
         var ct: Int = 0
         while ct < max_ct:
             var Q: Matrix
             var R: Matrix
             Q, R = X.qr()
-            pq = pq * Q  # accum Q
+            #pq = pq * Q  # accum Q
             X = R * Q
             ct += 1
 
-            if X.is_upper_tri(1.0e-8):
+            if X.is_upper_tri(tol):
                 break
 
         if ct == max_ct:
@@ -1434,7 +1597,7 @@ struct Matrix(Stringable, Writable):
             e_vals.data[i] = X[i, i]
 
         # eigenvectors are columns of pq
-        return e_vals^, pq^
+        return e_vals^, self.eigvectors_from_eigvalues(e_vals, tol)
 
     fn outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)
