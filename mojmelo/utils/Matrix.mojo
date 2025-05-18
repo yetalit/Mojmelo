@@ -1567,8 +1567,7 @@ struct Matrix(Stringable, Writable):
                 vec = null_space[0]
 
             # Normalize and assign as eigenvector
-            vec /= vec.norm()
-            eigvecs['', i] = vec
+            eigvecs['', i] = vec / vec.norm()
 
         return eigvecs^
 
