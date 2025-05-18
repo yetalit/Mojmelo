@@ -3,11 +3,11 @@ from sys.info import simdwidthof, is_apple_silicon
 from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
-from algorithm.reduction import sum, cumsum, variance
+import algorithm
 from collections import Dict
 import math
 import random
-from mojmelo.utils.utils import cov_value, gauss_jordan, add, sub, mul, div
+from mojmelo.utils.utils import cov_value, add, sub, mul, div
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable):
@@ -49,7 +49,7 @@ struct Matrix(Stringable, Writable):
             memcpy(self.data, def_input.data, self.size)
 
     # initialize from list object
-    fn __init__(out self, height: Int, width: Int, def_input: object) raises:
+    fn __init__(out self, height: Int, width: Int, def_input: PythonObject) raises:
         self.height = height
         self.width = width
         self.size = height * width
@@ -385,6 +385,30 @@ struct Matrix(Stringable, Writable):
     fn __setitem__(mut self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
             self[row, Int(columns.data[i])] = rhs[row, i]
+    
+    @always_inline
+    fn load_columns(self, _range: Int) raises -> Matrix:
+        if _range > self.width:
+            raise Error("Error: Index out of range!")
+        var mat = Matrix(self.height, _range, order=self.order)
+        if self.order == 'c' or self.height == 1:
+            for i in range(self.height):
+                memcpy(mat.data + i * _range, self.data + i * self.width, _range)
+        else:
+            memcpy(mat.data, self.data, mat.size)
+        return mat^
+
+    @always_inline
+    fn load_rows(self, _range: Int) raises -> Matrix:
+        if _range > self.height:
+            raise Error("Error: Index out of range!")
+        var mat = Matrix(_range, self.width, order=self.order)
+        if self.order == 'f' or self.width == 1:
+            for i in range(self.width):
+                memcpy(mat.data + i * _range, self.data + i * self.height, _range)
+        else:
+            memcpy(mat.data, self.data, mat.size)
+        return mat^
 
     @always_inline
     fn __del__(owned self):
@@ -635,7 +659,7 @@ struct Matrix(Stringable, Writable):
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
-        if self.height * self.width * rhs.width <= 373248:
+        if self.height * self.width * rhs.width <= 4096:
             # matmul naive
             var mat = Self(self.height, rhs.width)
             for i in range(self.size):
@@ -806,25 +830,47 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn C_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height)
-        for idx_col in range(self.width):
-            var tmpPtr = self.data + idx_col
+        if self.size < 98304:
+            for idx_col in range(self.width):
+                var tmpPtr = self.data + idx_col
+                @parameter
+                fn convert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
+                    tmpPtr += simd_width * self.width
+                vectorize[convert, self.simd_width](self.height)
+        else:
             @parameter
-            fn convert[simd_width: Int](idx: Int):
-                mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
-                tmpPtr += simd_width * self.width
-            vectorize[convert, self.simd_width](self.height)
+            fn p(idx_col: Int):
+                var tmpPtr = self.data + idx_col
+                @parameter
+                fn pconvert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_col * self.height, tmpPtr.strided_load[width=simd_width](self.width))
+                    tmpPtr += simd_width * self.width
+                vectorize[pconvert, self.simd_width](self.height)
+            parallelize[p](self.width)
         return mat^
 
     @always_inline
     fn F_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height, order= self.order)
-        for idx_row in range(self.height):
-            var tmpPtr = self.data + idx_row
+        if self.size < 98304:
+            for idx_row in range(self.height):
+                var tmpPtr = self.data + idx_row
+                @parameter
+                fn convert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
+                    tmpPtr += simd_width * self.height
+                vectorize[convert, self.simd_width](self.width)
+        else:
             @parameter
-            fn convert[simd_width: Int](idx: Int):
-                mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
-                tmpPtr += simd_width * self.height
-            vectorize[convert, self.simd_width](self.width)
+            fn p(idx_row: Int):
+                var tmpPtr = self.data + idx_row
+                @parameter
+                fn pconvert[simd_width: Int](idx: Int):
+                    mat.data.store(idx + idx_row * self.width, tmpPtr.strided_load[width=simd_width](self.height))
+                    tmpPtr += simd_width * self.height
+                vectorize[pconvert, self.simd_width](self.width)
+            parallelize[p](self.height)
         return mat^
     
     @always_inline
@@ -846,12 +892,12 @@ struct Matrix(Stringable, Writable):
     @always_inline
     fn cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        cumsum(NDBuffer[type=DType.float32, rank=1](mat.data, self.size), NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        algorithm.reduction.cumsum(NDBuffer[type=DType.float32, rank=1](mat.data, self.size), NDBuffer[type=DType.float32, rank=1](self.data, self.size))
         return mat^
 
     @always_inline
     fn sum(self) raises -> Float32:
-        return sum(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.sum(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn sum(self, axis: Int) raises -> Matrix:
@@ -913,26 +959,26 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn _var(self) raises -> Float32:
-        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+    fn _var(self, correction: Bool = False) raises -> Float32:
+        return algorithm.reduction.variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), correction=correction)
 
     @always_inline
-    fn _var(self, _mean: Float32) raises -> Float32:
-        return variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), _mean)
+    fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
+        return algorithm.reduction.variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
 
     @always_inline
-    fn _var(self, axis: Int) raises -> Matrix:
+    fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True]._var()
+                    mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True]._var()
+                        mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p0](self.width)
@@ -940,30 +986,30 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True]._var()
+                    mat.data[i] = self[i, unsafe=True]._var(correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True]._var()
+                        mat.data[i] = self[i, unsafe=True]._var(correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn _var(self, axis: Int, _mean: Matrix) raises -> Matrix:
+    fn _var(self, axis: Int, _mean: Matrix, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i])
+                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p0](self.width)
@@ -971,38 +1017,38 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i])
+                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find variance!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn std(self) raises -> Float32:
-        return math.sqrt(self._var())
+    fn std(self, correction: Bool = False) raises -> Float32:
+        return math.sqrt(self._var(correction=correction))
 
     @always_inline
-    fn std(self, _mean: Float32) raises -> Float32:
-        return math.sqrt(self._var(_mean))
+    fn std(self, _mean: Float32, correction: Bool = False) raises -> Float32:
+        return math.sqrt(self._var(_mean, correction=correction))
 
     @always_inline
-    fn std(self, axis: Int) raises -> Matrix:
+    fn std(self, axis: Int, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std()
+                    mat.data[i] = self['', i, unsafe=True].std(correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std()
+                        mat.data[i] = self['', i, unsafe=True].std(correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p0](self.width)
@@ -1010,30 +1056,30 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std()
+                    mat.data[i] = self[i, unsafe=True].std(correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std()
+                        mat.data[i] = self[i, unsafe=True].std(correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p1](self.height)
         return mat^
 
     @always_inline
-    fn std(self, axis: Int, _mean: Matrix) raises -> Matrix:
+    fn std(self, axis: Int, _mean: Matrix, correction: Bool = False) raises -> Matrix:
         var mat = Matrix(0, 0)
         if axis == 0:
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i])
+                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p0](self.width)
@@ -1041,12 +1087,12 @@ struct Matrix(Stringable, Writable):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
             else:
                 @parameter
                 fn p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i])
+                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
                     except:
                         print('Error: failed to find std!')
                 parallelize[p1](self.height)
@@ -1152,7 +1198,9 @@ struct Matrix(Stringable, Writable):
                 fn p1(i: Int):
                     vect[i] = self[i, unsafe=True].argmin_slow()
                 parallelize[p1](self.height)
-        return List[Int](ptr=vect, length=length, capacity=length)
+        var list = List[Int](unsafe_uninit_length=length)
+        list.data=vect
+        return list^
 
     @always_inline
     fn min(self) raises -> Float32:
@@ -1232,20 +1280,92 @@ struct Matrix(Stringable, Writable):
         return mat^
     
     fn cov(self) raises -> Matrix:
-        var c = Matrix(self.height, self.height, order= self.order)
-        for i in range(self.height):
-            for j in range(self.height):
-                c[i, j] = cov_value(self[j], self[i])
+        var c = Matrix(self.height, self.height, order=self.order)
+        var mean_diff = self - self.mean(axis=1)
+        @parameter
+        fn p(i: Int):
+            try:
+                for j in range(self.height):
+                    c[i, j] = cov_value(mean_diff[j], mean_diff[i])
+            except:
+                print('Error: failed to find cov!')
+        parallelize[p](self.height)
         return c^
+
+    @staticmethod
+    @always_inline
+    fn lu_factor(mut A: Matrix, piv: UnsafePointer[Int], N: Int) raises:
+        for i in range(N):
+            piv[i] = i
+
+        for k in range(N - 1):
+            var max_row = k
+            for i in range(k + 1, N):
+                if (abs(A[i, k]) > abs(A[max_row, k])):
+                    max_row = i
+
+            if k != max_row:
+                swap(A[k], A[max_row])
+
+                var temp = piv[k]
+                piv[k] = piv[max_row]
+                piv[max_row] = temp
+
+            # LU decomposition (Gaussian elimination)
+            for i in range(k + 1, N):
+                A[i, k] /= A[k, k]
+                A[i, True, k + 1] -= A[i, k] * A[k, True, k + 1]
+
+    @staticmethod
+    @always_inline
+    fn lu_solve(A: Matrix, piv: UnsafePointer[Int], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
+        var y = Matrix(1, N)
+
+        # Forward substitution: solve L * y = P * b
+        for i in range(N):
+            y.data[i] = b[piv[i], Mi]
+            for j in range(i):
+                y.data[i] -= A[i, j] * y.data[j]
+
+        # Backward substitution: solve U * x = y
+        for i in range(N - 1, -1, -1):
+            x[i, Mi] = y.data[i]
+            for j in range(i + 1, N):
+                x[i, Mi] -= A[i, j] * x[j, Mi]
+            x[i, Mi] /= A[i, i]
+    
+    @staticmethod
+    @always_inline
+    fn solve(owned A: Matrix, b: Matrix) raises -> Matrix:
+        if A.height != A.width:
+            raise Error("Error: \"A\" must be square!")
+        if A.width != b.height:
+            raise Error("Error: \"B\" has an unrelated shape to \"A\"!")
+        var N = A.height
+        var M = b.width
+        var X = Matrix(N, M, order=A.order)
+        var piv = UnsafePointer[Int].alloc(N)
+
+        Matrix.lu_factor(A, piv, N)
+        if M > 1:
+            @parameter
+            fn p(i: Int):
+                try:
+                    Matrix.lu_solve(A, piv, b, X, N, i)
+                except:
+                    print('Error: failed to find LU solution!')
+            parallelize[p](M)
+        else:
+            Matrix.lu_solve(A, piv, b, X, N, 0)
+
+        piv.free()
+
+        return X^
 
     fn inv(self) raises -> Matrix:
         if self.height != self.width:
             raise Error("Error: Matrix must be square to inverse!")
-        var tmp = gauss_jordan(self.concatenate(Matrix.eye(self.height, self.order), 1))
-        var mat = Matrix(self.height, self.height, order= self.order)
-        for i in range(tmp.height):
-            mat[i] = tmp[i, True, tmp[i].size//2]
-        return mat^
+        return Matrix.solve(self, Matrix.eye(self.height))
 
     @staticmethod
     @always_inline
@@ -1306,27 +1426,165 @@ struct Matrix(Stringable, Writable):
         return Q^, R^
 
     @always_inline
-    fn is_upper_tri(self, tol: Float32) raises -> Bool:
+    fn is_upper_tri(self, tol: Float32 = 1.0e-8) raises -> Bool:
         for i in range(self.height):
             for j in range(i):
                 if abs(self[i, j]) > tol:
                     return False
         return True
 
-    fn eigen(self, max_ct: Int = 10000) raises -> Tuple[Matrix, Matrix]:
+    fn svd(self, EPSILON: Float32 = 1.0e-08) raises -> Tuple[Matrix, Matrix, Matrix]:
+        var A = self  # working copy U
+        var m = A.height
+        var n = A.width
+
+        var Q = Matrix.eye(n)  # working copy V
+        var t = Matrix.zeros(1, n)  # working copy s
+
+        # init counters
+        var count = 1
+        var sweep = 0
+        var sweep_max = max(5 * n, 12)  # heuristic
+
+        var tolerance = 10 * m * EPSILON  # heuristic
+        # store the column error estimates in t
+        for j in range(n):
+            t.data[j] = EPSILON * A['', j].norm()
+
+        # orthogonalize A by plane rotations
+        while (count > 0 and sweep <= sweep_max):
+            # initialize rotation counter
+            count = n * (n - 1) // 2
+            for j in range(n-1):
+                for k in range(j+1, n):
+                    var cj = A['', j]
+                    var ck = A['', k]
+                    var p = 2 * cj.ele_mul(ck).sum()
+                    var a = cj.norm()
+                    var b = ck.norm()
+
+                    # test for columns j,k orthogonal,
+                    # or dominant errors 
+                    var abserr_a = t.data[j]
+                    var abserr_b = t.data[k]
+
+                    var q = (a * a) - (b * b)
+                    var v = math.sqrt(p**2 + q**2)  # hypot()
+            
+                    var sorted = (a >= b)
+                    var orthog = (abs(p) <= tolerance * (a*b))
+                    var noisya = (a < abserr_a)
+                    var noisyb = (b < abserr_b)
+
+                    if sorted and (orthog or \
+                    noisya or noisyb):
+                        count -= 1
+                        continue
+
+                    var cosine: Float32
+                    var sine: Float32
+                    # calculate rotation angles
+                    if v == 0 or sorted == False:
+                        cosine = 0.0
+                        sine = 1.0
+                    else:
+                        cosine = math.sqrt((v + q) / (2.0 * v))
+                        sine = p / (2.0 * v * cosine)
+
+                    # apply rotation to A (U)
+                    for i in range(m):
+                        var Aik = A[i, k]
+                        var Aij = A[i, j]
+                        A[i, j] = Aij * cosine + Aik * sine
+                        A[i, k] = -Aij * sine + Aik * cosine
+
+                    # update singular values
+                    t.data[j] = abs(cosine) * abserr_a + \
+                    abs(sine) * abserr_b
+                    t.data[k] = abs(sine) * abserr_a + \
+                    abs(cosine) * abserr_b
+
+                    # apply rotation to Q (V)
+                    for i in range(n):
+                        Qij = Q[i, j]
+                        Qik = Q[i, k]
+                        Q[i, j] = Qij * cosine + Qik * sine
+                        Q[i, k] = -Qij * sine + Qik * cosine
+
+            sweep += 1
+        # while
+
+        # compute singular values
+        var prev_norm: Float32 = -1.0
+        for j in range(n):
+            var column = A['', j]  # by ref
+            var norm = column.norm()
+            # determine if singular value is zero
+            if norm == 0.0 or prev_norm == 0.0 or \
+            (j > 0 and norm <= tolerance * prev_norm):
+                t.data[j] = 0.0
+                for i in range(len(column)):
+                    column.data[i] = 0.0  # updates A indirectly
+                prev_norm = 0.0
+            else:
+                t.data[j] = norm
+                for i in range(len(column)):
+                    column.data[i] = column.data[i] * (1.0 / norm)
+                prev_norm = norm
+
+        if count > 0:
+            print("WARN: Jacobi iterations no converge!")
+
+        var U = A  # mxn
+        var s = t
+        var Vh = Q.T()
+
+        if m < n:
+            U = U.load_columns(m)
+            s = t.load_columns(m)
+            Vh = Vh.load_rows(m)
+
+        return U^, s^, Vh^
+
+    fn eigvectors_from_eigvalues(self, eigenvalues: Matrix, tol: Float32) raises -> Matrix:
+        var n = self.height
+        eigvecs = Matrix.zeros(n, len(eigenvalues), order=self.order)
+
+        for i in range(len(eigenvalues)):
+            # Construct (A - lambda * I)
+            var B = self - eigenvalues.data[i] * Matrix.eye(n)
+
+            # Compute SVD
+            _, S, Vh = B.svd()
+
+            # Identify right-singular vectors corresponding to zero singular values
+            var null_space = Vh[S.argwhere_l(S < tol)]
+
+            # If no null vectors found, fallback to smallest singular vector
+            if null_space.size == 0:
+                vec = Vh[Vh.height - 1]
+            else:
+                vec = null_space[0]
+
+            # Normalize and assign as eigenvector
+            eigvecs['', i] = vec / vec.norm()
+
+        return eigvecs^
+
+    fn eigen(self, tol: Float32 = 1.0e-8, max_ct: Int = 10000) raises -> Tuple[Matrix, Matrix]:
         var X = self
-        var pq = Matrix.eye(self.height, self.order)
+        #var pq = Matrix.eye(self.height, self.order)
 
         var ct: Int = 0
         while ct < max_ct:
             var Q: Matrix
             var R: Matrix
             Q, R = X.qr()
-            pq = pq * Q  # accum Q
+            #pq = pq * Q  # accum Q
             X = R * Q
             ct += 1
 
-            if X.is_upper_tri(1.0e-8):
+            if X.is_upper_tri(tol):
                 break
 
         if ct == max_ct:
@@ -1338,18 +1596,26 @@ struct Matrix(Stringable, Writable):
             e_vals.data[i] = X[i, i]
 
         # eigenvectors are columns of pq
-        var e_vecs = pq
-
-        return e_vals^, e_vecs^
+        return e_vals^, self.eigvectors_from_eigvalues(e_vals, tol)
 
     fn outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)
         if mat.order == 'c':
-            for i in range(mat.height):
-                mat[i] = self.data[i] * rhs
+            @parameter
+            fn p1(i: Int):
+                try:
+                    mat[i] = self.data[i] * rhs
+                except:
+                    print('Error: failed to find outer!')
+            parallelize[p1](mat.height)
         else:
-            for i in range(mat.width):
-                mat['', i] = self * rhs.data[i]
+            @parameter
+            fn p2(i: Int):
+                try:
+                    mat['', i] = self * rhs.data[i]
+                except:
+                    print('Error: failed to find outer!')
+            parallelize[p2](mat.width)
         return mat^
 
     fn concatenate(self, rhs: Matrix, axis: Int) raises -> Matrix:
@@ -1382,8 +1648,9 @@ struct Matrix(Stringable, Writable):
 
         for i in range(self.size):
             vect[Int(self.data[i])] += 1
-    
-        return List[Int](ptr=vect, length=max_val + 1, capacity= max_val + 1)
+        var list = List[Int](unsafe_uninit_length=max_val + 1)
+        list.data=vect
+        return list^
 
     @staticmethod
     @always_inline
@@ -1473,7 +1740,9 @@ struct Matrix(Stringable, Writable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = Int(random.random_ui64(0, arang - 1))
-        return List[Int](ptr=result, length=size, capacity=size)
+        var list = List[Int](unsafe_uninit_length=size)
+        list.data=result
+        return list^
 
     @staticmethod
     @always_inline
@@ -1490,14 +1759,16 @@ struct Matrix(Stringable, Writable):
                 result[i], result[j] = result[j], result[i]
             else:
                 result[i] = Int(random.random_ui64(0, arang - 1))
-        return List[Int](ptr=result, length=size, capacity=size)
+        var list = List[Int](unsafe_uninit_length=size)
+        list.data=result
+        return list^
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
         var np = Python.import_module("numpy")
         var np_arr_f = np.array(np_arr, dtype= 'f', order= order.upper())
         var height = Int(np_arr_f.shape[0])
-        var width = 0
+        var width: Int
         try:
             width = Int(np_arr_f.shape[1])
         except:
@@ -1509,7 +1780,7 @@ struct Matrix(Stringable, Writable):
 
     fn to_numpy(self) raises -> PythonObject:
         var np = Python.import_module("numpy")
-        var np_arr = np.empty((self.height,self.width), dtype='f', order= self.order.upper())
+        var np_arr = np.empty(Python.tuple(self.height,self.width), dtype='f', order= self.order.upper())
         memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), self.data, self.size)
         return np_arr^
 

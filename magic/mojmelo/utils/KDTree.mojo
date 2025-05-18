@@ -122,9 +122,9 @@ struct SearchRecord:
 
     fn __init__(out self, qv_in: NDBuffer[type=DType.float32, rank=1], tree_in: KDTree, result_in: KDTreeResultVector):  
         self.qv = qv_in.data
-        self.result = UnsafePointer.address_of(result_in)
-        self.data = UnsafePointer[Matrix].address_of(tree_in._data)
-        self.ind = UnsafePointer.address_of(tree_in.ind) 
+        self.result = UnsafePointer(to=result_in)
+        self.data = UnsafePointer(to=tree_in._data)
+        self.ind = UnsafePointer(to=tree_in.ind) 
         self.dim = tree_in.dim
         self.rearrange = tree_in.rearrange
         self.ballsize = math.inf[DType.float32]() 

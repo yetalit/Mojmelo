@@ -59,7 +59,8 @@ struct RandomForest(CVM):
             var y_samp: Matrix
             X_samp, y_samp = bootstrap_sample(X, y)
             tree.fit(X_samp, y_samp)
-            (self.trees + i)[]._moveinit_(tree)
+            (self.trees + i).init_pointee_move(tree)
+            self.trees[i]._moveinit_(tree)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var tree_preds = Matrix(X.height, self.n_trees)

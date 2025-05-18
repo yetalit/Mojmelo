@@ -30,6 +30,7 @@ struct Node:
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
+@value
 struct DecisionTree(CVM):
     var criterion: String
     var loss_func: fn(Matrix) raises -> Float32
@@ -109,7 +110,7 @@ struct DecisionTree(CVM):
         return y_predicted
 
     fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
-        var unique_targets = 0
+        var unique_targets: Int
         var freq = Dict[Int, Int]()
         var freqf = List[Float32]()
         if self.criterion == 'mse':
