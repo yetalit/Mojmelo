@@ -7,7 +7,7 @@ import algorithm
 from collections import Dict
 import math
 import random
-from mojmelo.utils.utils import cov_value, add, sub, mul, div
+from mojmelo.utils.utils import cov_value, complete_orthonormal_basis, add, sub, mul, div
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable):
@@ -392,8 +392,10 @@ struct Matrix(Stringable, Writable):
             raise Error("Error: Index out of range!")
         var mat = Matrix(self.height, _range, order=self.order)
         if self.order == 'c' or self.height == 1:
-            for i in range(self.height):
+            @parameter
+            fn p(i: Int):
                 memcpy(mat.data + i * _range, self.data + i * self.width, _range)
+            parallelize[p](self.height)
         else:
             memcpy(mat.data, self.data, mat.size)
         return mat^
@@ -404,8 +406,10 @@ struct Matrix(Stringable, Writable):
             raise Error("Error: Index out of range!")
         var mat = Matrix(_range, self.width, order=self.order)
         if self.order == 'f' or self.width == 1:
-            for i in range(self.width):
+            @parameter
+            fn p(i: Int):
                 memcpy(mat.data + i * _range, self.data + i * self.height, _range)
+            parallelize[p](self.width)
         else:
             memcpy(mat.data, self.data, mat.size)
         return mat^
@@ -1365,7 +1369,7 @@ struct Matrix(Stringable, Writable):
     fn inv(self) raises -> Matrix:
         if self.height != self.width:
             raise Error("Error: Matrix must be square to inverse!")
-        return Matrix.solve(self, Matrix.eye(self.height))
+        return Matrix.solve(self, Matrix.eye(self.height, self.order))
 
     @staticmethod
     @always_inline
@@ -1433,12 +1437,12 @@ struct Matrix(Stringable, Writable):
                     return False
         return True
 
-    fn svd(self, EPSILON: Float32 = 1.0e-08) raises -> Tuple[Matrix, Matrix, Matrix]:
+    fn svd(self, EPSILON: Float32 = 1.0e-08, full_matrices: Bool = True) raises -> Tuple[Matrix, Matrix, Matrix]:
         var A = self  # working copy U
         var m = A.height
         var n = A.width
 
-        var Q = Matrix.eye(n)  # working copy V
+        var Q = Matrix.eye(n, self.order)  # working copy V
         var t = Matrix.zeros(1, n)  # working copy s
 
         # init counters
@@ -1535,15 +1539,16 @@ struct Matrix(Stringable, Writable):
         if count > 0:
             print("WARN: Jacobi iterations no converge!")
 
-        var U = A  # mxn
-        var s = t
-        var Vh = Q.T()
+        # Trim near-zero singular values
+        var nonzero = t.argwhere_l(t > EPSILON)
+        U = A['', nonzero]
+        s = t['', nonzero]
+        Vh = Q.T()[nonzero]
 
-        if m < n:
-            U = U.load_columns(m)
-            s = t.load_columns(m)
-            Vh = Vh.load_rows(m)
-
+        if full_matrices:
+            # Complete U to m x m
+            # Complete Vh to n x n
+            return complete_orthonormal_basis(U, m), s^, complete_orthonormal_basis(Vh.T(), n).T()
         return U^, s^, Vh^
 
     fn eigvectors_from_eigvalues(self, eigenvalues: Matrix, tol: Float32) raises -> Matrix:
@@ -1552,7 +1557,7 @@ struct Matrix(Stringable, Writable):
 
         for i in range(len(eigenvalues)):
             # Construct (A - lambda * I)
-            var B = self - eigenvalues.data[i] * Matrix.eye(n)
+            var B = self - eigenvalues.data[i] * Matrix.eye(n, self.order)
 
             # Compute SVD
             _, S, Vh = B.svd()
@@ -1626,15 +1631,19 @@ struct Matrix(Stringable, Writable):
                 memcpy(mat.data, self.data, self.size)
                 memcpy(mat.data + self.size, rhs.data, rhs.size)
             else:
-                for i in range(self.width):
+                @parameter
+                fn pf(i: Int):
                     memcpy(mat.data + i * mat.height, self.data + i * self.height, self.height)
                     memcpy(mat.data + i * mat.height + self.height, rhs.data + i * rhs.height, rhs.height)
+                parallelize[pf](self.width)
         elif axis == 1:
             mat = Matrix(self.height, self.width + rhs.width, order= self.order)
             if self.order == 'c' and self.width > 1:
-                for i in range(self.height):
+                @parameter
+                fn pc(i: Int):
                     memcpy(mat.data + i * mat.width, self.data + i * self.width, self.width)
                     memcpy(mat.data + i * mat.width + self.width, rhs.data + i * rhs.width, rhs.width)
+                parallelize[pc](self.height)
             else:
                 memcpy(mat.data, self.data, self.size)
                 memcpy(mat.data + self.size, rhs.data, rhs.size)
