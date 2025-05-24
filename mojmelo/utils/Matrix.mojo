@@ -1443,7 +1443,7 @@ struct Matrix(Stringable, Writable):
         var n = A.width
 
         var Q = Matrix.eye(n, self.order)  # working copy V
-        var t = Matrix.zeros(1, n)  # working copy s
+        var t = Matrix.zeros(1, n, order=self.order)  # working copy s
 
         # init counters
         var count = 1
@@ -1451,9 +1451,16 @@ struct Matrix(Stringable, Writable):
         var sweep_max = max(5 * n, 12)  # heuristic
 
         var tolerance = 10 * m * EPSILON  # heuristic
+
         # store the column error estimates in t
-        for j in range(n):
-            t.data[j] = EPSILON * A['', j].norm()
+        @parameter
+        fn p(j: Int):
+            try:
+                t.data[j] = A['', j].norm()
+            except:
+                print('Error: Failed to find norm of columns!')
+        parallelize[p](n)
+        t *= EPSILON
 
         # orthogonalize A by plane rotations
         while (count > 0 and sweep <= sweep_max):
@@ -1464,21 +1471,21 @@ struct Matrix(Stringable, Writable):
                     var cj = A['', j]
                     var ck = A['', k]
                     var p = 2 * cj.ele_mul(ck).sum()
-                    var a = cj.norm()
-                    var b = ck.norm()
+                    var aj = cj.norm()
+                    var ak = ck.norm()
 
                     # test for columns j,k orthogonal,
                     # or dominant errors 
                     var abserr_a = t.data[j]
                     var abserr_b = t.data[k]
 
-                    var q = (a * a) - (b * b)
+                    var q = (aj * aj) - (ak * ak)
                     var v = math.sqrt(p**2 + q**2)  # hypot()
             
-                    var sorted = (a >= b)
-                    var orthog = (abs(p) <= tolerance * (a*b))
-                    var noisya = (a < abserr_a)
-                    var noisyb = (b < abserr_b)
+                    var sorted = (aj >= ak)
+                    var orthog = (abs(p) <= tolerance * (aj*ak))
+                    var noisya = (aj < abserr_a)
+                    var noisyb = (ak < abserr_b)
 
                     if sorted and (orthog or \
                     noisya or noisyb):
@@ -1496,11 +1503,10 @@ struct Matrix(Stringable, Writable):
                         sine = p / (2.0 * v * cosine)
 
                     # apply rotation to A (U)
-                    for i in range(m):
-                        var Aik = A[i, k]
-                        var Aij = A[i, j]
-                        A[i, j] = Aij * cosine + Aik * sine
-                        A[i, k] = -Aij * sine + Aik * cosine
+                    var Aik = A['', k]
+                    var Aij = A['', j]
+                    A['', j] = Aij * cosine + Aik * sine
+                    A['', k] = -Aij * sine + Aik * cosine
 
                     # update singular values
                     t.data[j] = abs(cosine) * abserr_a + \
@@ -1509,11 +1515,10 @@ struct Matrix(Stringable, Writable):
                     abs(cosine) * abserr_b
 
                     # apply rotation to Q (V)
-                    for i in range(n):
-                        Qij = Q[i, j]
-                        Qik = Q[i, k]
-                        Q[i, j] = Qij * cosine + Qik * sine
-                        Q[i, k] = -Qij * sine + Qik * cosine
+                    Qij = Q['', j]
+                    Qik = Q['', k]
+                    Q['', j] = Qij * cosine + Qik * sine
+                    Q['', k] = -Qij * sine + Qik * cosine
 
             sweep += 1
         # while
@@ -1521,19 +1526,16 @@ struct Matrix(Stringable, Writable):
         # compute singular values
         var prev_norm: Float32 = -1.0
         for j in range(n):
-            var column = A['', j]  # by ref
-            var norm = column.norm()
+            var norm = A['', j].norm()
             # determine if singular value is zero
             if norm == 0.0 or prev_norm == 0.0 or \
             (j > 0 and norm <= tolerance * prev_norm):
                 t.data[j] = 0.0
-                for i in range(len(column)):
-                    column.data[i] = 0.0  # updates A indirectly
+                A['', j].fill_zero()
                 prev_norm = 0.0
             else:
                 t.data[j] = norm
-                for i in range(len(column)):
-                    column.data[i] = column.data[i] * (1.0 / norm)
+                A['', j] /= norm
                 prev_norm = norm
 
         if count > 0:
