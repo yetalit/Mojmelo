@@ -1545,13 +1545,12 @@ struct Matrix(Stringable, Writable):
         var nonzero = t.argwhere_l(t > EPSILON)
         U = A['', nonzero]
         s = t['', nonzero]
-        Vh = Q.T()[nonzero]
 
         if full_matrices:
             # Complete U to m x m
             # Complete Vh to n x n
-            return complete_orthonormal_basis(U, m), s^, complete_orthonormal_basis(Vh.T(), n).T()
-        return U^, s^, Vh^
+            return complete_orthonormal_basis(U, m), s^, complete_orthonormal_basis(Q['', nonzero], n).T()
+        return U^, s^, Q.T()[nonzero]
 
     fn eigvectors_from_eigvalues(self, eigenvalues: Matrix, tol: Float32) raises -> Matrix:
         var n = self.height

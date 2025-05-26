@@ -1,5 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import gt
+from algorithm import parallelize
 from python import PythonObject
 
 struct LDA:
@@ -14,13 +15,11 @@ struct LDA:
         var class_labels: List[String]
         var class_freq: List[Int]
         class_labels, class_freq = Matrix.unique(y)
-
         # Within class scatter matrix:
         # SW = sum((X_c - mean_X_c)^2 )
 
         # Between class scatter:
         # SB = sum( n_c * (mean_X_c - mean_overall)^2 )
-
         var mean_overall = X.mean(0)
         var SW = Matrix.zeros(X.width, X.width)
         var SB = Matrix.zeros(X.width, X.width)
@@ -33,10 +32,8 @@ struct LDA:
                     pointer += 1
             var mean_c = X_c.mean(0)
             var X_c_sub_mean_c = X_c - mean_c
-            # (4, n_c) * (n_c, 4) = (4,4) -> transpose
             SW += (X_c_sub_mean_c).T() * (X_c_sub_mean_c)
 
-            # (4, 1) * (1, 4) = (4,4) -> reshape
             var mean_diff = (mean_c - mean_overall).reshape(X.width, 1)
             SB += X_c.height * (mean_diff * mean_diff.T())
 
@@ -55,9 +52,11 @@ struct LDA:
         # sort eigenvectors
         mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(v_abs)](ptr= v_abs.data, length= v_abs.size), indices, self.n_components)
         # store first n eigenvectors
-        self.linear_discriminants = Matrix.zeros(self.n_components, eigenvectors.width)
-        for i in range(self.n_components):
-            self.linear_discriminants[i] = eigenvectors[indices[i]]
+        self.linear_discriminants = Matrix(self.n_components, eigenvectors.width)
+        @parameter
+        fn p(i: Int):
+            self.linear_discriminants[i, unsafe=True] = eigenvectors[indices[i], unsafe=True]
+        parallelize[p](self.n_components)
 
     fn transform(self, X: Matrix) raises -> Matrix:
         # project data
