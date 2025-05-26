@@ -37,10 +37,9 @@ struct DecisionTree(CVM):
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
-    var threshold_precision: Float32
     var root: UnsafePointer[Node]
     
-    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, threshold_precision: Float32 = 0.001):
+    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
@@ -51,7 +50,6 @@ struct DecisionTree(CVM):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
-        self.threshold_precision = threshold_precision
         self.root = UnsafePointer[Node]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -77,10 +75,6 @@ struct DecisionTree(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
-        if 'threshold_precision' in params:
-            self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
-        else:
-            self.threshold_precision = 0.001
         self.root = UnsafePointer[Node]()
 
     fn _moveinit_(mut self, mut existing: Self):
@@ -89,7 +83,6 @@ struct DecisionTree(CVM):
         self.min_samples_split = existing.min_samples_split
         self.max_depth = existing.max_depth
         self.n_feats = existing.n_feats
-        self.threshold_precision = existing.threshold_precision
         self.root = existing.root
         existing.criterion = ''
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
@@ -112,10 +105,8 @@ struct DecisionTree(CVM):
     fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
         var unique_targets: Int
         var freq = Dict[Int, Int]()
-        var freqf = List[Float32]()
         if self.criterion == 'mse':
-            freqf = y.uniquef(self.threshold_precision)
-            unique_targets = len(freqf)
+            unique_targets = len(y.uniquef())
         else:
             freq = y.unique()
             unique_targets = len(freq)
@@ -135,7 +126,7 @@ struct DecisionTree(CVM):
         # greedily select the best split according to information gain
         var best_feat: Int
         var best_thresh: Float32
-        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.threshold_precision, self.loss_func)
+        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.loss_func)
         # grow the children that result from the split
         var left_idxs: List[Int]
         var right_idxs: List[Int]
@@ -156,20 +147,22 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
             most_common = k[]
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], threshold_precision: Float32, loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
     var parent_loss = loss_func(y)
     var split_idx = feat_idxs[0]
     var split_thresh = X[0, split_idx]
     var best_gain = -math.inf[DType.float32]()
     for feat_idx in feat_idxs:
         var X_column = X['', feat_idx[]]
-        var thresholds = X_column.uniquef(threshold_precision)
-        for threshold in thresholds:
-            var gain = _information_gain(parent_loss, y, X_column, threshold[], loss_func)
+        var thresholds = X_column.uniquef()
+        for threshold_bytes in thresholds:
+            var bytes = threshold_bytes[].as_bytes()
+            var threshold = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
+            var gain = _information_gain(parent_loss, y, X_column, threshold, loss_func)
             if gain > best_gain:
                 best_gain = gain
                 split_idx = feat_idx[]
-                split_thresh = threshold[]
+                split_thresh = threshold
 
     return split_idx, split_thresh
 

@@ -4,7 +4,7 @@ from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
 import algorithm
-from collections import Dict
+from collections import Dict, Set
 import math
 import random
 from mojmelo.utils.utils import cov_value, complete_orthonormal_basis, add, sub, mul, div
@@ -1689,17 +1689,13 @@ struct Matrix(Stringable, Writable):
         return freq^
 
     @always_inline
-    fn uniquef(self, tol: Float32 = 0.001) -> List[Float32]:
-        var list = List[Float32]()
+    fn uniquef(self) -> Set[String]:
+        var list = List[String](capacity=self.size)
+        list.resize(self.size, '')
         for i in range(self.size):
-            var contains = False
-            for j in list:
-                if abs(j[] - self.data[i]) <= tol:
-                    contains = True
-                    break
-            if not contains:
-                list.append(self.data[i])
-        return list^
+            var bytes = self.data[i].as_bytes().unsafe_ptr()
+            list[i] = String(bytes=Span[UInt8, __origin_of(bytes)](ptr=bytes, length=DType.float32.sizeof()))
+        return Set(list)
 
     @staticmethod
     @always_inline
