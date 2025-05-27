@@ -1,7 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, gini, mse_loss
+from mojmelo.utils.utils import CVM, entropy, gini, mse_loss, lt
 from memory import UnsafePointer
 from collections import Dict
+from algorithm import parallelize
 import math
 
 @value
@@ -94,7 +95,13 @@ struct DecisionTree(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.n_feats = X.width if self.n_feats == -1 else min(self.n_feats, X.width)
-        self.root = self._grow_tree(X, y)
+        var X_sorted = X
+        @parameter
+        fn p(i: Int):
+            var X_column = X_sorted['', i, unsafe=True]
+            sort[lt](Span[Float32, __origin_of(X_column)](ptr= X_column.data, length= X_column.size))
+        parallelize[p](X_sorted.width)
+        self.root = self._grow_tree(X_sorted, y)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -154,15 +161,14 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
     var best_gain = -math.inf[DType.float32]()
     for feat_idx in feat_idxs:
         var X_column = X['', feat_idx[]]
-        var thresholds = X_column.uniquef()
-        for threshold_bytes in thresholds:
-            var bytes = threshold_bytes[].as_bytes()
-            var threshold = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
-            var gain = _information_gain(parent_loss, y, X_column, threshold, loss_func)
+        var unique_vals = X_column.uniquef()
+        var thresholds = (unique_vals.load_rows(unique_vals.size - 1) + unique_vals[True, 1, 0]) / 2
+        for i_t in range(len(thresholds)):
+            var gain = _information_gain(parent_loss, y, X_column, thresholds.data[i_t], loss_func)
             if gain > best_gain:
                 best_gain = gain
                 split_idx = feat_idx[]
-                split_thresh = threshold
+                split_thresh = thresholds.data[i_t]
 
     return split_idx, split_thresh
 

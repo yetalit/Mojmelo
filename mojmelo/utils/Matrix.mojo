@@ -391,13 +391,13 @@ struct Matrix(Stringable, Writable):
         if _range > self.width:
             raise Error("Error: Index out of range!")
         var mat = Matrix(self.height, _range, order=self.order)
-        if self.order == 'c' or self.height == 1:
+        if self.order == 'f' or self.height == 1:
+            memcpy(mat.data, self.data, mat.size)
+        else:
             @parameter
             fn p(i: Int):
                 memcpy(mat.data + i * _range, self.data + i * self.width, _range)
             parallelize[p](self.height)
-        else:
-            memcpy(mat.data, self.data, mat.size)
         return mat^
 
     @always_inline
@@ -405,13 +405,13 @@ struct Matrix(Stringable, Writable):
         if _range > self.height:
             raise Error("Error: Index out of range!")
         var mat = Matrix(_range, self.width, order=self.order)
-        if self.order == 'f' or self.width == 1:
+        if self.order == 'c' or self.width == 1:
+            memcpy(mat.data, self.data, mat.size)
+        else:
             @parameter
             fn p(i: Int):
                 memcpy(mat.data + i * _range, self.data + i * self.height, _range)
             parallelize[p](self.width)
-        else:
-            memcpy(mat.data, self.data, mat.size)
         return mat^
 
     @always_inline
@@ -1689,13 +1689,20 @@ struct Matrix(Stringable, Writable):
         return freq^
 
     @always_inline
-    fn uniquef(self) -> Set[String]:
+    fn uniquef(self) -> Matrix:
         var list = List[String](capacity=self.size)
         list.resize(self.size, '')
         for i in range(self.size):
             var bytes = self.data[i].as_bytes().unsafe_ptr()
             list[i] = String(bytes=Span[UInt8, __origin_of(bytes)](ptr=bytes, length=DType.float32.sizeof()))
-        return Set(list)
+        var u_vals = Set(list)
+        var result = Matrix(len(u_vals), 1, order=self.order)
+        var index = 0
+        for val in u_vals:
+            var bytes = val[].as_bytes()
+            result.data[index] = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
+            index += 1
+        return result^
 
     @staticmethod
     @always_inline

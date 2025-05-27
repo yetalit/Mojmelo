@@ -1,6 +1,8 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
+from mojmelo.utils.utils import lt
 from memory import UnsafePointer
+from algorithm import parallelize
 import math
 
 @value
@@ -33,7 +35,13 @@ struct BDecisionTree:
             delTree(self.root)
 
     fn fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
-        self.root = self._grow_tree(X, g, h)
+        var X_sorted = X
+        @parameter
+        fn p(i: Int):
+            var X_column = X_sorted['', i, unsafe=True]
+            sort[lt](Span[Float32, __origin_of(X_column)](ptr= X_column.data, length= X_column.size))
+        parallelize[p](X_sorted.width)
+        self.root = self._grow_tree(X_sorted, g, h)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -97,15 +105,14 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
     var best_gain = -math.inf[DType.float32]()
     for feat_idx in feat_idxs:
         var X_column = X['', feat_idx[]]
-        var thresholds = X_column.uniquef()
-        for threshold_bytes in thresholds:
-            var bytes = threshold_bytes[].as_bytes()
-            var threshold = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
-            var gain = _information_gain(parent_loss, reg_lambda, g, h, X_column, threshold)
+        var unique_vals = X_column.uniquef()
+        var thresholds = (unique_vals.load_rows(unique_vals.size - 1) + unique_vals[True, 1, 0]) / 2
+        for i_t in range(len(thresholds)):
+            var gain = _information_gain(parent_loss, reg_lambda, g, h, X_column, thresholds.data[i_t])
             if gain > best_gain:
                 best_gain = gain
                 split_idx = feat_idx[]
-                split_thresh = threshold
+                split_thresh = thresholds.data[i_t]
 
     return split_idx, split_thresh, best_gain
 
