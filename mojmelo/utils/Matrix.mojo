@@ -1813,6 +1813,15 @@ struct Matrix(Stringable, Writable):
         return list^
 
     @staticmethod
+    @always_inline
+    fn linspace(start: Float32, stop: Float32, num: Int, order: String = 'c') raises -> Matrix:
+        var result = Matrix(1, num, order= order.lower())
+        var jump = (stop - start) / (num - 1)
+        for i in range(num):
+            result.data[i] = start + i * jump
+        return result^
+
+    @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
         var np = Python.import_module("numpy")
         var np_arr_f = np.array(np_arr, dtype= 'f', order= order.upper())

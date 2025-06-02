@@ -38,9 +38,10 @@ struct DecisionTree(CVM):
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
+    var n_bins: Int
     var root: UnsafePointer[Node]
     
-    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1):
+    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, n_bins: Int = 0):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
@@ -51,6 +52,7 @@ struct DecisionTree(CVM):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
+        self.n_bins = n_bins
         self.root = UnsafePointer[Node]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -76,6 +78,10 @@ struct DecisionTree(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
+        if 'n_bins' in params:
+            self.n_bins = atol(String(params['n_bins']))
+        else:
+            self.n_bins = 0
         self.root = UnsafePointer[Node]()
 
     fn _moveinit_(mut self, mut existing: Self):
@@ -135,7 +141,7 @@ struct DecisionTree(CVM):
         # greedily select the best split according to information gain
         var best_feat: Int
         var best_thresh: Float32
-        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.loss_func)
+        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.n_bins, self.loss_func)
         # grow the children that result from the split
         var left_idxs: List[Int]
         var right_idxs: List[Int]
@@ -156,7 +162,7 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
             most_common = k[]
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], n_bins: Int, loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
     var parent_loss = loss_func(y)
     var max_gains = Matrix(1, len(feat_idxs))
     var best_thresholds = Matrix(1, len(feat_idxs))
@@ -168,14 +174,19 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
     @parameter
     fn prepare(i: Int):
         columns[i] = X['', feat_idxs[i], unsafe=True]
-        var unique_vals = columns[i].uniquef()
-        if unique_vals.size == 1:
-            thresholds_list[i] = unique_vals^
-        else:
-            try:
-                thresholds_list[i] = (unique_vals.load_rows(unique_vals.size - 1) + unique_vals[True, 1, 0]) / 2
-            except:
-                print('Error: Loading values failed!')
+        var vals: Matrix
+        try:
+            if n_bins <= 0:
+                vals = columns[i].uniquef()
+                if vals.size == 1:
+                    vals = vals.concatenate(vals, axis=0)
+            else:
+                vals = Matrix.linspace(columns[i].data[0], columns[i].data[columns[i].height - 1], n_bins + 1).T()
+                if columns[i].data[0] == columns[i].data[columns[i].height - 1]:
+                    vals = vals.load_rows(2)
+            thresholds_list[i] = (vals.load_rows(vals.size - 1) + vals[True, 1, 0]) / 2
+        except e:
+            print('Error:', e)
     parallelize[prepare](len(feat_idxs))
 
     for i in range(len(feat_idxs)):
