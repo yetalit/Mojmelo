@@ -3,6 +3,7 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM
 from memory import UnsafePointer
 from collections import Dict
+from algorithm import parallelize
 
 @always_inline
 fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
@@ -26,17 +27,17 @@ struct RandomForest(CVM):
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
+    var n_bins: Int
     var criterion: String
-    var threshold_precision: Float32
     var trees: UnsafePointer[DecisionTree]
 
-    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini', threshold_precision: Float32 = 0.001):
+    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, n_bins: Int = 0, criterion: String = 'gini'):
         self.n_trees = n_trees
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
+        self.n_bins = n_bins
         self.criterion = criterion.lower()
-        self.threshold_precision = threshold_precision
         self.trees = UnsafePointer[DecisionTree]()
 
     fn __del__(owned self):
@@ -47,20 +48,23 @@ struct RandomForest(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
-        for i in range(self.n_trees):
+        @parameter
+        fn p(i: Int):
             var tree = DecisionTree(
                 min_samples_split = self.min_samples_split,
                 max_depth = self.max_depth,
                 n_feats = self.n_feats,
-                threshold_precision = self.threshold_precision,
+                n_bins = self.n_bins,
                 criterion = self.criterion
             )
-            var X_samp: Matrix
-            var y_samp: Matrix
-            X_samp, y_samp = bootstrap_sample(X, y)
-            tree.fit(X_samp, y_samp)
+            try:
+                X_samp, y_samp = bootstrap_sample(X, y)
+                tree.fit(X_samp, y_samp)
+            except:
+                print('Error: Tree fitting failed!')
             (self.trees + i).init_pointee_move(tree)
             self.trees[i]._moveinit_(tree)
+        parallelize[p](self.n_trees)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var tree_preds = Matrix(X.height, self.n_trees)
@@ -68,8 +72,13 @@ struct RandomForest(CVM):
             tree_preds['', i] = self.trees[i].predict(X)
         
         var y_predicted = Matrix(X.height, 1)
-        for i in range(tree_preds.height):
-            y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
+        @parameter
+        fn p(i: Int):
+            try:
+                y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
+            except:
+                print('Error: Failed to predict!')
+        parallelize[p](tree_preds.height)
         return y_predicted^
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -89,12 +98,12 @@ struct RandomForest(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
+        if 'n_bins' in params:
+            self.n_bins = atol(String(params['n_bins']))
+        else:
+            self.n_bins = 0
         if 'criterion' in params:
             self.criterion = params['criterion'].lower()
         else:
             self.criterion = 'gini'
-        if 'threshold_precision' in params:
-            self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
-        else:
-            self.threshold_precision = 0.001
         self.trees = UnsafePointer[DecisionTree]()

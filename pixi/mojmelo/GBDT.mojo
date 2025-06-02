@@ -14,14 +14,13 @@ struct GBDT(CVM):
 	var learning_rate: Float32
 	var reg_lambda: Float32
 	var gamma: Float32
-	var threshold_precision: Float32
 	var trees: UnsafePointer[BDecisionTree]
 	var score_start: Float32
 
 	fn __init__(out self,
 		criterion: String = 'log',
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,
-		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0, threshold_precision: Float32 = 0.001
+		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0
 		):
 		self.criterion = criterion.lower()
 		if self.criterion == 'log':
@@ -36,7 +35,6 @@ struct GBDT(CVM):
 		self.learning_rate = learning_rate
 		self.reg_lambda = reg_lambda
 		self.gamma = gamma
-		self.threshold_precision = threshold_precision
 		self.trees = UnsafePointer[BDecisionTree]()
 		self.score_start = 0.0
 
@@ -51,7 +49,7 @@ struct GBDT(CVM):
 		self.score_start = y.mean()
 		var score = Matrix.full(X.height, 1, self.score_start)
 		for i in range(self.n_trees):
-			var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma, threshold_precision = self.threshold_precision)
+			var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma)
 			tree.fit(X, g = self.loss_g(y, score), h = self.loss_h(score))
 			(self.trees + i).init_pointee_move(tree)
 			self.trees[i]._moveinit_(tree)
@@ -101,9 +99,5 @@ struct GBDT(CVM):
 			self.gamma = atof(String(params['gamma'])).cast[DType.float32]()
 		else:
 			self.gamma = 0.0
-		if 'threshold_precision' in params:
-			self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
-		else:
-			self.threshold_precision = 0.001
 		self.trees = UnsafePointer[BDecisionTree]()
 		self.score_start = 0.0

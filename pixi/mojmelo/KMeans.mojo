@@ -85,7 +85,7 @@ struct KMeans:
         # Compute distances to the nearest centroid
         for idc in range(self.K):
             dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
-        return dist_from_centroids.argmin_slow(axis=1)
+        return dist_from_centroids.argmin(axis=1)
 
     @always_inline
     fn _get_centroids(mut self, dist_from_centroids: Matrix) raises -> Matrix:

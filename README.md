@@ -52,34 +52,33 @@ Preprocessing:
 
 ## Getting Started
 
-If you are not familiar with Magic CLI and Mojo projects, here are some links to get you started: (Magic CLI) https://docs.modular.com/magic/ , (Mojo) https://docs.modular.com/mojo/manual/get-started/
+If you are not familiar with Mojo projects, you can get started here: https://docs.modular.com/mojo/manual/get-started/
 
 ### Prerequisites
 
-* Mojo compiler
+* MAX 25.3
 
 Additionally, you may want to install bellow Python packages for a better usability and to run tests:
-1. Numpy
-2. Pandas
-3. Scikit-learn
-4. Matplotlib
+1. Pandas
+2. Scikit-learn
+3. Matplotlib
 
 ### Installation
 
-There are two ways you can install mojmelo: Using Magic CLI or through the source code.
+There are two ways you can install mojmelo: Using Pixi CLI or through the source code.
 
 To complete the installation, you should also finish the setup process which will be discussed later.
 
-#### Magic CLI
+#### Pixi CLI
 
-Make sure you have the Modular community channel (https://repo.prefix.dev/modular-community) in your `mojoproject.toml` file or `pixi.toml` file in the channels section, then Run the following command:
+Make sure you have the Modular community channel (https://repo.prefix.dev/modular-community) in your `pixi.toml` file in the channels section, then Run the following command:
 ```
-magic add mojmelo
+pixi add mojmelo
 ```
 
 To start the setup process, Run the following command from the `main folder` of your project:
 ```
-bash ./.magic/envs/default/etc/conda/test-files/mojmelo/0/tests/setup.sh
+bash ./.pixi/envs/default/etc/conda/test-files/mojmelo/0/tests/setup.sh
 ```
 
 Note: For better results, please try not to run other tasks on your pc during the setup process.
@@ -88,7 +87,7 @@ Note: For better results, please try not to run other tasks on your pc during th
 
 You can also install mojmelo through the source code. This way, you will have the source code in your project.
 
-First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `mojoproject.toml` file or `pixi.toml` file in the tasks section:
+First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `pixi.toml` file in the tasks section:
 ```
 [tasks]
 setup = """
@@ -109,7 +108,7 @@ Don't forget to change `<path_to_mojmelo_location>` according to where `mojmelo`
 
 Then Run the following command to start the setup process:
 ```
-magic run setup
+pixi run setup
 ```
 
 Note: For better results, please try not to run other tasks on your pc during the setup process.
@@ -140,7 +139,7 @@ You can contribute to the project in 3 ways:
 
 Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a> and Erik Linder-Norén's <a href='https://github.com/eriklindernoren/ML-From-Scratch/'>ML-From-Scratch</a>
 
-Mojo usage and distribution is licensed under the [MAX & Mojo Community License](https://www.modular.com/legal/max-mojo-license).
+MAX and Mojo usage and distribution are licensed under the [Modular Community License](https://www.modular.com/legal/community).
 
 
 [issues-shield]: https://img.shields.io/github/issues/yetalit/mojmelo

@@ -4,10 +4,10 @@ from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
 import algorithm
-from collections import Dict
+from collections import Dict, Set
 import math
 import random
-from mojmelo.utils.utils import cov_value, add, sub, mul, div
+from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable):
@@ -391,11 +391,13 @@ struct Matrix(Stringable, Writable):
         if _range > self.width:
             raise Error("Error: Index out of range!")
         var mat = Matrix(self.height, _range, order=self.order)
-        if self.order == 'c' or self.height == 1:
-            for i in range(self.height):
-                memcpy(mat.data + i * _range, self.data + i * self.width, _range)
-        else:
+        if self.order == 'f' or self.height == 1:
             memcpy(mat.data, self.data, mat.size)
+        else:
+            @parameter
+            fn p(i: Int):
+                memcpy(mat.data + i * _range, self.data + i * self.width, _range)
+            parallelize[p](self.height)
         return mat^
 
     @always_inline
@@ -403,11 +405,13 @@ struct Matrix(Stringable, Writable):
         if _range > self.height:
             raise Error("Error: Index out of range!")
         var mat = Matrix(_range, self.width, order=self.order)
-        if self.order == 'f' or self.width == 1:
-            for i in range(self.width):
-                memcpy(mat.data + i * _range, self.data + i * self.height, _range)
-        else:
+        if self.order == 'c' or self.width == 1:
             memcpy(mat.data, self.data, mat.size)
+        else:
+            @parameter
+            fn p(i: Int):
+                memcpy(mat.data + i * _range, self.data + i * self.height, _range)
+            parallelize[p](self.width)
         return mat^
 
     @always_inline
@@ -1161,42 +1165,78 @@ struct Matrix(Stringable, Writable):
         return self._elemwise_math[math.exp]()
 
     @always_inline
-    fn argmin_slow(self) -> Int:
-        var min_index = 0
-        var min_val = self.data[0]
-        for i in range(1, self.size):
-            if self.data[i] < min_val:
-                min_val = self.data[i]
-                min_index = i
+    fn argmin(self) -> Int:
+        var output = Matrix(1, 1)
+        argn[False](self, output)
+        var min_index = Int(output.data[0])
         if self.order == 'c':
             return min_index
         return (min_index % self.height) * self.width + min_index // self.height
 
     @always_inline
-    fn argmin_slow(self, axis: Int) -> List[Int]:
+    fn argmin(self, axis: Int) -> List[Int]:
         var vect = UnsafePointer[Int]()
         var length = 0
         if axis == 0:
             vect = UnsafePointer[Int].alloc(self.width)
             length = self.width
-            if self.width < 768:
+            if self.width < 512:
                 for i in range(self.width):
-                    vect[i] = self['', i, unsafe=True].argmin_slow()
+                    vect[i] = self['', i, unsafe=True].argmin()
             else:
                 @parameter
                 fn p0(i: Int):
-                    vect[i] = self['', i, unsafe=True].argmin_slow()
+                    vect[i] = self['', i, unsafe=True].argmin()
                 parallelize[p0](self.width)
         elif axis == 1:
             vect = UnsafePointer[Int].alloc(self.height)
             length = self.height
-            if self.height < 768:
+            if self.height < 512:
                 for i in range(self.height):
-                    vect[i] = self[i, unsafe=True].argmin_slow()
+                    vect[i] = self[i, unsafe=True].argmin()
             else:
                 @parameter
                 fn p1(i: Int):
-                    vect[i] = self[i, unsafe=True].argmin_slow()
+                    vect[i] = self[i, unsafe=True].argmin()
+                parallelize[p1](self.height)
+        var list = List[Int](unsafe_uninit_length=length)
+        list.data=vect
+        return list^
+
+    @always_inline
+    fn argmax(self) -> Int:
+        var output = Matrix(1, 1)
+        argn[True](self, output)
+        var max_index = Int(output.data[0])
+        if self.order == 'c':
+            return max_index
+        return (max_index % self.height) * self.width + max_index // self.height
+
+    @always_inline
+    fn argmax(self, axis: Int) -> List[Int]:
+        var vect = UnsafePointer[Int]()
+        var length = 0
+        if axis == 0:
+            vect = UnsafePointer[Int].alloc(self.width)
+            length = self.width
+            if self.width < 512:
+                for i in range(self.width):
+                    vect[i] = self['', i, unsafe=True].argmax()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    vect[i] = self['', i, unsafe=True].argmax()
+                parallelize[p0](self.width)
+        elif axis == 1:
+            vect = UnsafePointer[Int].alloc(self.height)
+            length = self.height
+            if self.height < 512:
+                for i in range(self.height):
+                    vect[i] = self[i, unsafe=True].argmax()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    vect[i] = self[i, unsafe=True].argmax()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
         list.data=vect
@@ -1365,7 +1405,7 @@ struct Matrix(Stringable, Writable):
     fn inv(self) raises -> Matrix:
         if self.height != self.width:
             raise Error("Error: Matrix must be square to inverse!")
-        return Matrix.solve(self, Matrix.eye(self.height))
+        return Matrix.solve(self, Matrix.eye(self.height, self.order))
 
     @staticmethod
     @always_inline
@@ -1433,13 +1473,13 @@ struct Matrix(Stringable, Writable):
                     return False
         return True
 
-    fn svd(self, EPSILON: Float32 = 1.0e-08) raises -> Tuple[Matrix, Matrix, Matrix]:
+    fn svd(self, EPSILON: Float32 = 1.0e-08, full_matrices: Bool = True) raises -> Tuple[Matrix, Matrix, Matrix]:
         var A = self  # working copy U
         var m = A.height
         var n = A.width
 
-        var Q = Matrix.eye(n)  # working copy V
-        var t = Matrix.zeros(1, n)  # working copy s
+        var Q = Matrix.eye(n, self.order)  # working copy V
+        var t = Matrix.zeros(1, n, order=self.order)  # working copy s
 
         # init counters
         var count = 1
@@ -1447,9 +1487,16 @@ struct Matrix(Stringable, Writable):
         var sweep_max = max(5 * n, 12)  # heuristic
 
         var tolerance = 10 * m * EPSILON  # heuristic
+
         # store the column error estimates in t
-        for j in range(n):
-            t.data[j] = EPSILON * A['', j].norm()
+        @parameter
+        fn p(j: Int):
+            try:
+                t.data[j] = A['', j].norm()
+            except:
+                print('Error: Failed to find norm of columns!')
+        parallelize[p](n)
+        t *= EPSILON
 
         # orthogonalize A by plane rotations
         while (count > 0 and sweep <= sweep_max):
@@ -1460,21 +1507,21 @@ struct Matrix(Stringable, Writable):
                     var cj = A['', j]
                     var ck = A['', k]
                     var p = 2 * cj.ele_mul(ck).sum()
-                    var a = cj.norm()
-                    var b = ck.norm()
+                    var aj = cj.norm()
+                    var ak = ck.norm()
 
                     # test for columns j,k orthogonal,
                     # or dominant errors 
                     var abserr_a = t.data[j]
                     var abserr_b = t.data[k]
 
-                    var q = (a * a) - (b * b)
+                    var q = (aj * aj) - (ak * ak)
                     var v = math.sqrt(p**2 + q**2)  # hypot()
             
-                    var sorted = (a >= b)
-                    var orthog = (abs(p) <= tolerance * (a*b))
-                    var noisya = (a < abserr_a)
-                    var noisyb = (b < abserr_b)
+                    var sorted = (aj >= ak)
+                    var orthog = (abs(p) <= tolerance * (aj*ak))
+                    var noisya = (aj < abserr_a)
+                    var noisyb = (ak < abserr_b)
 
                     if sorted and (orthog or \
                     noisya or noisyb):
@@ -1492,11 +1539,10 @@ struct Matrix(Stringable, Writable):
                         sine = p / (2.0 * v * cosine)
 
                     # apply rotation to A (U)
-                    for i in range(m):
-                        var Aik = A[i, k]
-                        var Aij = A[i, j]
-                        A[i, j] = Aij * cosine + Aik * sine
-                        A[i, k] = -Aij * sine + Aik * cosine
+                    var Aik = A['', k]
+                    var Aij = A['', j]
+                    A['', j] = Aij * cosine + Aik * sine
+                    A['', k] = -Aij * sine + Aik * cosine
 
                     # update singular values
                     t.data[j] = abs(cosine) * abserr_a + \
@@ -1505,11 +1551,10 @@ struct Matrix(Stringable, Writable):
                     abs(cosine) * abserr_b
 
                     # apply rotation to Q (V)
-                    for i in range(n):
-                        Qij = Q[i, j]
-                        Qik = Q[i, k]
-                        Q[i, j] = Qij * cosine + Qik * sine
-                        Q[i, k] = -Qij * sine + Qik * cosine
+                    Qij = Q['', j]
+                    Qik = Q['', k]
+                    Q['', j] = Qij * cosine + Qik * sine
+                    Q['', k] = -Qij * sine + Qik * cosine
 
             sweep += 1
         # while
@@ -1517,34 +1562,31 @@ struct Matrix(Stringable, Writable):
         # compute singular values
         var prev_norm: Float32 = -1.0
         for j in range(n):
-            var column = A['', j]  # by ref
-            var norm = column.norm()
+            var norm = A['', j].norm()
             # determine if singular value is zero
             if norm == 0.0 or prev_norm == 0.0 or \
             (j > 0 and norm <= tolerance * prev_norm):
                 t.data[j] = 0.0
-                for i in range(len(column)):
-                    column.data[i] = 0.0  # updates A indirectly
+                A['', j].fill_zero()
                 prev_norm = 0.0
             else:
                 t.data[j] = norm
-                for i in range(len(column)):
-                    column.data[i] = column.data[i] * (1.0 / norm)
+                A['', j] /= norm
                 prev_norm = norm
 
         if count > 0:
             print("WARN: Jacobi iterations no converge!")
 
-        var U = A  # mxn
-        var s = t
-        var Vh = Q.T()
+        # Trim near-zero singular values
+        var nonzero = t.argwhere_l(t > EPSILON)
+        U = A['', nonzero]
+        s = t['', nonzero]
 
-        if m < n:
-            U = U.load_columns(m)
-            s = t.load_columns(m)
-            Vh = Vh.load_rows(m)
-
-        return U^, s^, Vh^
+        if full_matrices:
+            # Complete U to m x m
+            # Complete Vh to n x n
+            return complete_orthonormal_basis(U, m), s^, complete_orthonormal_basis(Q['', nonzero], n).T()
+        return U^, s^, Q.T()[nonzero]
 
     fn eigvectors_from_eigvalues(self, eigenvalues: Matrix, tol: Float32) raises -> Matrix:
         var n = self.height
@@ -1552,7 +1594,7 @@ struct Matrix(Stringable, Writable):
 
         for i in range(len(eigenvalues)):
             # Construct (A - lambda * I)
-            var B = self - eigenvalues.data[i] * Matrix.eye(n)
+            var B = self - eigenvalues.data[i] * Matrix.eye(n, self.order)
 
             # Compute SVD
             _, S, Vh = B.svd()
@@ -1626,15 +1668,19 @@ struct Matrix(Stringable, Writable):
                 memcpy(mat.data, self.data, self.size)
                 memcpy(mat.data + self.size, rhs.data, rhs.size)
             else:
-                for i in range(self.width):
+                @parameter
+                fn pf(i: Int):
                     memcpy(mat.data + i * mat.height, self.data + i * self.height, self.height)
                     memcpy(mat.data + i * mat.height + self.height, rhs.data + i * rhs.height, rhs.height)
+                parallelize[pf](self.width)
         elif axis == 1:
             mat = Matrix(self.height, self.width + rhs.width, order= self.order)
             if self.order == 'c' and self.width > 1:
-                for i in range(self.height):
+                @parameter
+                fn pc(i: Int):
                     memcpy(mat.data + i * mat.width, self.data + i * self.width, self.width)
                     memcpy(mat.data + i * mat.width + self.width, rhs.data + i * rhs.width, rhs.width)
+                parallelize[pc](self.height)
             else:
                 memcpy(mat.data, self.data, self.size)
                 memcpy(mat.data + self.size, rhs.data, rhs.size)
@@ -1679,17 +1725,20 @@ struct Matrix(Stringable, Writable):
         return freq^
 
     @always_inline
-    fn uniquef(self, tol: Float32 = 0.001) -> List[Float32]:
-        var list = List[Float32]()
+    fn uniquef(self) -> Matrix:
+        var list = List[String](capacity=self.size)
+        list.resize(self.size, '')
         for i in range(self.size):
-            var contains = False
-            for j in list:
-                if abs(j[] - self.data[i]) <= tol:
-                    contains = True
-                    break
-            if not contains:
-                list.append(self.data[i])
-        return list^
+            var bytes = self.data[i].as_bytes().unsafe_ptr()
+            list[i] = String(bytes=Span[UInt8, __origin_of(bytes)](ptr=bytes, length=DType.float32.sizeof()))
+        var u_vals = Set(list)
+        var result = Matrix(len(u_vals), 1, order=self.order)
+        var index = 0
+        for val in u_vals:
+            var bytes = val[].as_bytes()
+            result.data[index] = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
+            index += 1
+        return result^
 
     @staticmethod
     @always_inline
@@ -1762,6 +1811,15 @@ struct Matrix(Stringable, Writable):
         var list = List[Int](unsafe_uninit_length=size)
         list.data=result
         return list^
+
+    @staticmethod
+    @always_inline
+    fn linspace(start: Float32, stop: Float32, num: Int, order: String = 'c') raises -> Matrix:
+        var result = Matrix(1, num, order= order.lower())
+        var jump = (stop - start) / (num - 1)
+        for i in range(num):
+            result.data[i] = start + i * jump
+        return result^
 
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:

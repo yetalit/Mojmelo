@@ -1,7 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, gini, mse_loss
+from mojmelo.utils.utils import CVM, entropy, gini, mse_loss, lt
 from memory import UnsafePointer
 from collections import Dict
+from algorithm import parallelize
 import math
 
 @value
@@ -37,10 +38,10 @@ struct DecisionTree(CVM):
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
-    var threshold_precision: Float32
+    var n_bins: Int
     var root: UnsafePointer[Node]
     
-    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, threshold_precision: Float32 = 0.001):
+    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, n_bins: Int = 0):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
@@ -51,7 +52,7 @@ struct DecisionTree(CVM):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
-        self.threshold_precision = threshold_precision
+        self.n_bins = n_bins
         self.root = UnsafePointer[Node]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -77,10 +78,10 @@ struct DecisionTree(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
-        if 'threshold_precision' in params:
-            self.threshold_precision = atof(String(params['threshold_precision'])).cast[DType.float32]()
+        if 'n_bins' in params:
+            self.n_bins = atol(String(params['n_bins']))
         else:
-            self.threshold_precision = 0.001
+            self.n_bins = 0
         self.root = UnsafePointer[Node]()
 
     fn _moveinit_(mut self, mut existing: Self):
@@ -89,7 +90,6 @@ struct DecisionTree(CVM):
         self.min_samples_split = existing.min_samples_split
         self.max_depth = existing.max_depth
         self.n_feats = existing.n_feats
-        self.threshold_precision = existing.threshold_precision
         self.root = existing.root
         existing.criterion = ''
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
@@ -101,21 +101,27 @@ struct DecisionTree(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.n_feats = X.width if self.n_feats == -1 else min(self.n_feats, X.width)
-        self.root = self._grow_tree(X, y)
+        var X_sorted = X.asorder('f')
+        @parameter
+        fn p(i: Int):
+            var X_column = X_sorted['', i, unsafe=True]
+            sort[lt](Span[Float32, __origin_of(X_column)](ptr= X_column.data, length= X_column.size))
+        parallelize[p](X_sorted.width)
+        self.root = self._grow_tree(X_sorted, y)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
-        for i in range(X.height):
-            y_predicted.data[i] = _traverse_tree(X[i], self.root)
-        return y_predicted
+        @parameter
+        fn p(i: Int):
+            y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root)
+        parallelize[p](X.height)
+        return y_predicted^
 
     fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
         var unique_targets: Int
         var freq = Dict[Int, Int]()
-        var freqf = List[Float32]()
         if self.criterion == 'mse':
-            freqf = y.uniquef(self.threshold_precision)
-            unique_targets = len(freqf)
+            unique_targets = len(y.uniquef())
         else:
             freq = y.unique()
             unique_targets = len(freq)
@@ -135,7 +141,7 @@ struct DecisionTree(CVM):
         # greedily select the best split according to information gain
         var best_feat: Int
         var best_thresh: Float32
-        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.threshold_precision, self.loss_func)
+        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.n_bins, self.loss_func)
         # grow the children that result from the split
         var left_idxs: List[Int]
         var right_idxs: List[Int]
@@ -156,22 +162,48 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
             most_common = k[]
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], threshold_precision: Float32, loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], n_bins: Int, loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
     var parent_loss = loss_func(y)
-    var split_idx = feat_idxs[0]
-    var split_thresh = X[0, split_idx]
-    var best_gain = -math.inf[DType.float32]()
-    for feat_idx in feat_idxs:
-        var X_column = X['', feat_idx[]]
-        var thresholds = X_column.uniquef(threshold_precision)
-        for threshold in thresholds:
-            var gain = _information_gain(parent_loss, y, X_column, threshold[], loss_func)
-            if gain > best_gain:
-                best_gain = gain
-                split_idx = feat_idx[]
-                split_thresh = threshold[]
+    var max_gains = Matrix(1, len(feat_idxs))
+    var best_thresholds = Matrix(1, len(feat_idxs))
+    var columns = List[Matrix](capacity=len(feat_idxs))
+    columns.resize(len(feat_idxs), Matrix(0, 0))
+    var thresholds_list = List[Matrix](capacity=len(feat_idxs))
+    thresholds_list.resize(len(feat_idxs), Matrix(0, 0))
 
-    return split_idx, split_thresh
+    @parameter
+    fn prepare(i: Int):
+        columns[i] = X['', feat_idxs[i], unsafe=True]
+        var vals: Matrix
+        try:
+            if n_bins <= 0:
+                vals = columns[i].uniquef()
+                if vals.size == 1:
+                    vals = vals.concatenate(vals, axis=0)
+            else:
+                vals = Matrix.linspace(columns[i].data[0], columns[i].data[columns[i].height - 1], n_bins + 1).T()
+                if columns[i].data[0] == columns[i].data[columns[i].height - 1]:
+                    vals = vals.load_rows(2)
+            thresholds_list[i] = (vals.load_rows(vals.size - 1) + vals[True, 1, 0]) / 2
+        except e:
+            print('Error:', e)
+    parallelize[prepare](len(feat_idxs))
+
+    for i in range(len(feat_idxs)):
+        var gains = Matrix(len(thresholds_list[i]), 1)
+        @parameter
+        fn p(i_t: Int):
+            try:
+                gains.data[i_t] = _information_gain(parent_loss, y, columns[i], thresholds_list[i].data[i_t], loss_func)
+            except:
+                print('Error: Failed to calculate information gain!')
+        parallelize[p](len(thresholds_list[i]))
+        var max_gain = gains.argmax()
+        max_gains.data[i] = gains.data[max_gain]
+        best_thresholds.data[i] = thresholds_list[i].data[max_gain]
+    
+    var feat_idx = max_gains.argmax()
+    return feat_idxs[feat_idx], best_thresholds.data[feat_idx]
 
 @always_inline
 fn _information_gain(parent_loss: Float32, y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) raises -> Float32) raises -> Float32:
