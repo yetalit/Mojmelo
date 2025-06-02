@@ -35,7 +35,7 @@ struct BDecisionTree:
             delTree(self.root)
 
     fn fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
-        var X_sorted = X
+        var X_sorted = X.asorder('f')
         @parameter
         fn p(i: Int):
             var X_column = X_sorted['', i, unsafe=True]
@@ -45,9 +45,11 @@ struct BDecisionTree:
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
-        for i in range(X.height):
-            y_predicted.data[i] = _traverse_tree(X[i], self.root)
-        return y_predicted
+        @parameter
+        fn p(i: Int):
+            y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root)
+        parallelize[p](X.height)
+        return y_predicted^
 
     fn _grow_tree(self, X: Matrix, g: Matrix, h: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
         var new_node = UnsafePointer[Node].alloc(1)
@@ -100,21 +102,41 @@ fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) raises -> Float32:
 
 fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Int]) raises -> Tuple[Int, Float32, Float32]:
     var parent_loss = leaf_loss(reg_lambda, g, h)
-    var split_idx = feat_idxs[0]
-    var split_thresh = X[0, split_idx]
-    var best_gain = -math.inf[DType.float32]()
-    for feat_idx in feat_idxs:
-        var X_column = X['', feat_idx[]]
-        var unique_vals = X_column.uniquef()
-        var thresholds = (unique_vals.load_rows(unique_vals.size - 1) + unique_vals[True, 1, 0]) / 2
-        for i_t in range(len(thresholds)):
-            var gain = _information_gain(parent_loss, reg_lambda, g, h, X_column, thresholds.data[i_t])
-            if gain > best_gain:
-                best_gain = gain
-                split_idx = feat_idx[]
-                split_thresh = thresholds.data[i_t]
+    var max_gains = Matrix(1, len(feat_idxs))
+    var best_thresholds = Matrix(1, len(feat_idxs))
+    var columns = List[Matrix](capacity=len(feat_idxs))
+    columns.resize(len(feat_idxs), Matrix(0, 0))
+    var thresholds_list = List[Matrix](capacity=len(feat_idxs))
+    thresholds_list.resize(len(feat_idxs), Matrix(0, 0))
 
-    return split_idx, split_thresh, best_gain
+    @parameter
+    fn prepare(i: Int):
+        columns[i] = X['', feat_idxs[i], unsafe=True]
+        var unique_vals = columns[i].uniquef()
+        if unique_vals.size == 1:
+            thresholds_list[i] = unique_vals^
+        else:
+            try:
+                thresholds_list[i] = (unique_vals.load_rows(unique_vals.size - 1) + unique_vals[True, 1, 0]) / 2
+            except:
+                print('Error: Loading values failed!')
+    parallelize[prepare](len(feat_idxs))
+
+    for i in range(len(feat_idxs)):
+        var gains = Matrix(len(thresholds_list[i]), 1)
+        @parameter
+        fn p(i_t: Int):
+            try:
+                gains.data[i_t] = _information_gain(parent_loss, reg_lambda, g, h, columns[i], thresholds_list[i].data[i_t])
+            except:
+                print('Error: Failed to calculate information gain!')
+        parallelize[p](len(thresholds_list[i]))
+        var max_gain = gains.argmax()
+        max_gains.data[i] = gains.data[max_gain]
+        best_thresholds.data[i] = thresholds_list[i].data[max_gain]
+    
+    var feat_idx = max_gains.argmax()
+    return feat_idxs[feat_idx], best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
 @always_inline
 fn _information_gain(parent_loss: Float32, reg_lambda: Float32, g: Matrix, h: Matrix, X_column: Matrix, split_thresh: Float32) raises -> Float32:

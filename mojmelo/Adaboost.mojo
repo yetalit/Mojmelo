@@ -58,11 +58,11 @@ struct Adaboost(CVM):
                 var X_column = X['', feature_i]
                 var thresholds = X_column.uniquef()
 
-                for threshold in thresholds:
+                for i_t in range(len(thresholds)):
                     # predict with polarity 1
                     var p = 1
                     var predictions = Matrix.ones(X.height, 1)
-                    var indices = X_column.argwhere_l(X_column < threshold[])
+                    var indices = X_column.argwhere_l(X_column < thresholds.data[i_t])
                     for index in indices:
                         predictions.data[index[]] = -1.0
 
@@ -79,7 +79,7 @@ struct Adaboost(CVM):
                     # store the best configuration
                     if error < min_error:
                         clf.polarity = p
-                        clf.threshold = threshold[]
+                        clf.threshold = thresholds.data[i_t]
                         clf.feature_idx = feature_i
                         min_error = error
 

@@ -7,7 +7,7 @@ import algorithm
 from collections import Dict, Set
 import math
 import random
-from mojmelo.utils.utils import cov_value, complete_orthonormal_basis, add, sub, mul, div
+from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable):
@@ -1165,42 +1165,78 @@ struct Matrix(Stringable, Writable):
         return self._elemwise_math[math.exp]()
 
     @always_inline
-    fn argmin_slow(self) -> Int:
-        var min_index = 0
-        var min_val = self.data[0]
-        for i in range(1, self.size):
-            if self.data[i] < min_val:
-                min_val = self.data[i]
-                min_index = i
+    fn argmin(self) -> Int:
+        var output = Matrix(1, 1)
+        argn[False](self, output)
+        var min_index = Int(output.data[0])
         if self.order == 'c':
             return min_index
         return (min_index % self.height) * self.width + min_index // self.height
 
     @always_inline
-    fn argmin_slow(self, axis: Int) -> List[Int]:
+    fn argmin(self, axis: Int) -> List[Int]:
         var vect = UnsafePointer[Int]()
         var length = 0
         if axis == 0:
             vect = UnsafePointer[Int].alloc(self.width)
             length = self.width
-            if self.width < 768:
+            if self.width < 512:
                 for i in range(self.width):
-                    vect[i] = self['', i, unsafe=True].argmin_slow()
+                    vect[i] = self['', i, unsafe=True].argmin()
             else:
                 @parameter
                 fn p0(i: Int):
-                    vect[i] = self['', i, unsafe=True].argmin_slow()
+                    vect[i] = self['', i, unsafe=True].argmin()
                 parallelize[p0](self.width)
         elif axis == 1:
             vect = UnsafePointer[Int].alloc(self.height)
             length = self.height
-            if self.height < 768:
+            if self.height < 512:
                 for i in range(self.height):
-                    vect[i] = self[i, unsafe=True].argmin_slow()
+                    vect[i] = self[i, unsafe=True].argmin()
             else:
                 @parameter
                 fn p1(i: Int):
-                    vect[i] = self[i, unsafe=True].argmin_slow()
+                    vect[i] = self[i, unsafe=True].argmin()
+                parallelize[p1](self.height)
+        var list = List[Int](unsafe_uninit_length=length)
+        list.data=vect
+        return list^
+
+    @always_inline
+    fn argmax(self) -> Int:
+        var output = Matrix(1, 1)
+        argn[True](self, output)
+        var max_index = Int(output.data[0])
+        if self.order == 'c':
+            return max_index
+        return (max_index % self.height) * self.width + max_index // self.height
+
+    @always_inline
+    fn argmax(self, axis: Int) -> List[Int]:
+        var vect = UnsafePointer[Int]()
+        var length = 0
+        if axis == 0:
+            vect = UnsafePointer[Int].alloc(self.width)
+            length = self.width
+            if self.width < 512:
+                for i in range(self.width):
+                    vect[i] = self['', i, unsafe=True].argmax()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    vect[i] = self['', i, unsafe=True].argmax()
+                parallelize[p0](self.width)
+        elif axis == 1:
+            vect = UnsafePointer[Int].alloc(self.height)
+            length = self.height
+            if self.height < 512:
+                for i in range(self.height):
+                    vect[i] = self[i, unsafe=True].argmax()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    vect[i] = self[i, unsafe=True].argmax()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
         list.data=vect

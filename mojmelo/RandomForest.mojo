@@ -3,6 +3,7 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM
 from memory import UnsafePointer
 from collections import Dict
+from algorithm import parallelize
 
 @always_inline
 fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
@@ -45,19 +46,22 @@ struct RandomForest(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
-        for i in range(self.n_trees):
+        @parameter
+        fn p(i: Int):
             var tree = DecisionTree(
                 min_samples_split = self.min_samples_split,
                 max_depth = self.max_depth,
                 n_feats = self.n_feats,
                 criterion = self.criterion
             )
-            var X_samp: Matrix
-            var y_samp: Matrix
-            X_samp, y_samp = bootstrap_sample(X, y)
-            tree.fit(X_samp, y_samp)
+            try:
+                X_samp, y_samp = bootstrap_sample(X, y)
+                tree.fit(X_samp, y_samp)
+            except:
+                print('Error: Tree fitting failed!')
             (self.trees + i).init_pointee_move(tree)
             self.trees[i]._moveinit_(tree)
+        parallelize[p](self.n_trees)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var tree_preds = Matrix(X.height, self.n_trees)
@@ -65,8 +69,13 @@ struct RandomForest(CVM):
             tree_preds['', i] = self.trees[i].predict(X)
         
         var y_predicted = Matrix(X.height, 1)
-        for i in range(tree_preds.height):
-            y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
+        @parameter
+        fn p(i: Int):
+            try:
+                y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
+            except:
+                print('Error: Failed to predict!')
+        parallelize[p](tree_preds.height)
         return y_predicted^
 
     fn __init__(out self, params: Dict[String, String]) raises:

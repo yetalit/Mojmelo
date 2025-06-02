@@ -4,6 +4,7 @@ import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
 from algorithm import parallelize
+from sys import simdwidthof
 
 # Cross Validation y as Matrix
 trait CVM:
@@ -32,6 +33,109 @@ fn complete_orthonormal_basis(X: Matrix, full_size: Int) raises -> Matrix:
     P = Matrix.eye(X.height, X.order) - X * X.T()  # projection onto orthogonal complement
     Q, _ = P.qr()
     return X.concatenate(Q.load_columns(full_size - X.width), axis=1)
+
+# ===-----------------------------------------------------------------------===#
+# argn
+# ===-----------------------------------------------------------------------===#
+
+fn argn[is_max: Bool](input: Matrix, output: Matrix):
+    alias simd_width = simdwidthof[DType.float32]()
+    var axis_size = input.size
+    var input_stride = input.size
+    alias output_stride = 1
+    alias chunk_size = 1
+    alias parallel_size = 1
+
+    @__copy_capture(
+        axis_size, chunk_size, output_stride, input_stride, parallel_size
+    )
+    
+    @parameter
+    @always_inline
+    fn cmpeq[
+        type: DType, simd_width: Int
+    ](a: SIMD[type, simd_width], b: SIMD[type, simd_width]) -> SIMD[
+        DType.bool, simd_width
+    ]:
+        @parameter
+        if is_max:
+            return a <= b
+        else:
+            return a >= b
+
+    @parameter
+    @always_inline
+    fn cmp[
+        type: DType, simd_width: Int
+    ](a: SIMD[type, simd_width], b: SIMD[type, simd_width]) -> SIMD[
+        DType.bool, simd_width
+    ]:
+        @parameter
+        if is_max:
+            return a < b
+        else:
+            return a > b
+
+    # iterate over flattened axes
+    alias start = 0
+    alias end = 1
+    for i in range(start, end):
+        var input_offset = i * input_stride
+        var output_offset = i * output_stride
+        var input_dim_ptr = input.data.offset(input_offset)
+        var output_dim_ptr = output.data.offset(output_offset)
+        var global_val: Float32
+
+        # initialize limits
+        @parameter
+        if is_max:
+            global_val = Float32.MIN
+        else:
+            global_val = Float32.MAX
+
+        # initialize vector of maximal/minimal values
+        var global_values: SIMD[DType.float32, simd_width]
+        if axis_size < simd_width:
+            global_values = global_val
+        else:
+            global_values = input_dim_ptr.load[width=simd_width]()
+
+        # iterate over values evenly divisible by simd_width
+        var indices = math.iota[DType.float32, simd_width]()
+        var global_indices = indices
+        var last_simd_index = math.align_down(axis_size, simd_width)
+        for j in range(simd_width, last_simd_index, simd_width):
+            var curr_values = input_dim_ptr.load[width=simd_width](j)
+            indices += simd_width
+
+            var mask = cmpeq(curr_values, global_values)
+            global_indices = mask.select(global_indices, indices)
+            global_values = mask.select(global_values, curr_values)
+
+        @parameter
+        if is_max:
+            global_val = global_values.reduce_max()
+        else:
+            global_val = global_values.reduce_min()
+
+        # Check trailing indices.
+        var idx = Float32(0)
+        var found_min: Bool = False
+        for j in range(last_simd_index, axis_size, 1):
+            var elem = input_dim_ptr.load(j)
+            if cmp(global_val, elem):
+                global_val = elem
+                idx = j
+                found_min = True
+
+        # handle the case where min wasn't in trailing values
+        if not found_min:
+            var matching = global_values == global_val
+            var min_indices = matching.select(
+                global_indices, Float32.MAX
+            )
+            idx = min_indices.reduce_min()
+        output_dim_ptr[] = idx
 
 # ===----------------------------------------------------------------------===#
 # partition
