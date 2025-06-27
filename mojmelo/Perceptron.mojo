@@ -1,6 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, unit_step
-from collections import Dict
 
 struct Perceptron(CVM):
     var lr: Float32

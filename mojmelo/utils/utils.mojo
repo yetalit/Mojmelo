@@ -1,4 +1,3 @@
-from collections import Dict
 from memory import memcpy, UnsafePointer
 import math
 from mojmelo.utils.Matrix import Matrix
@@ -141,13 +140,9 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
 # partition
 # ===----------------------------------------------------------------------===#
 
-@value
-struct _SortWrapper[type: CollectionElement](CollectionElement):
-    var data: type
-
-    @implicit
-    fn __init__(out self, data: type):
-        self.data = data
+@fieldwise_init("implicit")
+struct _SortWrapper[T: Copyable & Movable](Copyable, Movable):
+    var data: T
 
     fn __init__(out self, *, other: Self):
         self.data = other.data
@@ -155,10 +150,10 @@ struct _SortWrapper[type: CollectionElement](CollectionElement):
 
 @always_inline
 fn _partition[
-    type: CollectionElement,
+    T: Copyable & Movable,
     origin: MutableOrigin, //,
-    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
-](span: Span[type, origin], mut indices: List[Int]) -> Int:
+    cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
+](span: Span[T, origin], mut indices: List[Int]) -> Int:
     var size = len(span)
     if size <= 1:
         return 0
@@ -192,10 +187,10 @@ fn _partition[
 
 
 fn _partition[
-    type: CollectionElement,
+    T: Copyable & Movable,
     origin: MutableOrigin, //,
-    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
-](owned span: Span[type, origin], mut indices: List[Int], owned k: Int):
+    cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
+](owned span: Span[T, origin], mut indices: List[Int], owned k: Int):
     while True:
         var pivot = _partition[cmp_fn](span, indices)
         if pivot == k:
@@ -210,15 +205,15 @@ fn _partition[
 
 
 fn partition[
-    lifetime: MutableOrigin, //,
+    origin: MutableOrigin, //,
     cmp_fn: fn (Float32, Float32) capturing [_] -> Bool,
-](span: Span[Float32, lifetime], mut indices: List[Int], k: Int):
+](span: Span[Float32, origin], mut indices: List[Int], k: Int):
     """Partition the input buffer inplace such that first k elements are the
     largest (or smallest if cmp_fn is < operator) elements.
     The ordering of the first k elements is undefined.
 
     Parameters:
-        lifetime: Lifetime of span.
+        origin: Origin of span.
         cmp_fn: Comparison functor of (type, type) capturing -> Bool type.
     """
 
@@ -451,6 +446,6 @@ fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
     # Create the Cartesian product
     for item in first:
         for prod in rest_product:
-            result.append(List[String](item[]) + prod[])
+            result.append(List[String](item) + prod)
 
     return result^

@@ -1,6 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, sign, cross_entropy
-from collections import Dict
 import math
 import time
 

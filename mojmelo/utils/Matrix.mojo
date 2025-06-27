@@ -4,13 +4,13 @@ from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
 import algorithm
-from collections import Dict, Set
+from collections import Set
 import math
 import random
 from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div
 from python import Python, PythonObject
 
-struct Matrix(Stringable, Writable):
+struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     var height: Int
     var width: Int
     var size: Int
@@ -38,47 +38,16 @@ struct Matrix(Stringable, Writable):
         if data:
             memcpy(self.data, data, self.size)
 
-    # initialize from List
-    fn __init__(out self, height: Int, width: Int, def_input: List[Float32]):
-        self.height = height
-        self.width = width
-        self.size = height * width
+    # initialize from 2D List
+    fn __init__(out self, def_input: List[List[Float32]]) raises:
+        self.height = len(def_input)
+        self.width = len(def_input[0]) if self.height > 0 else 0
+        self.size = self.height * self.width
         self.data = UnsafePointer[Float32].alloc(self.size)
         self.order = 'c'
-        if len(def_input) > 0:
-            memcpy(self.data, def_input.data, self.size)
-
-    # initialize from list object
-    fn __init__(out self, height: Int, width: Int, def_input: PythonObject) raises:
-        self.height = height
-        self.width = width
-        self.size = height * width
-        self.data = UnsafePointer[Float32].alloc(self.size)
-        self.order = 'c'
-        var rng: Int = len(def_input)
-        for i in range(rng):
-            self.data[i] = atof(String(def_input[i])).cast[DType.float32]()
-
-    # initialize in 2D numpy style
-    fn __init__(out self, npstyle: String, order: String = 'c') raises:
-        var mat = npstyle.replace(' ', '')
-        if mat[0] == '[' and mat[1] == '[' and mat[len(mat) - 1] == ']' and mat[len(mat) - 2] == ']':
-            self.width = 0
-            self.size = 0
-            self.data = UnsafePointer[Float32]()
-            self.order = order.lower()
-            var rows = mat[:-1].split(']')
-            self.height = len(rows) - 1
-            for i in range(self.height):
-                var values = rows[i][2:].split(',')
-                if i == 0:
-                    self.width = len(values)
-                    self.size = self.height * self.width
-                    self.data = UnsafePointer[Float32].alloc(self.size)
-                for j in range(self.width):
-                    self.store[1](i, j, atof(values[j]).cast[DType.float32]())
-        else:
-            raise Error('Error: Matrix is not initialized in the correct form!')
+        if self.size > 0:
+            for row_i in range(len(def_input)):
+                memcpy(self.data + row_i * self.width, def_input[row_i].data, self.width)
 
     fn __copyinit__(out self, other: Self):
         self.height = other.height
@@ -813,15 +782,6 @@ struct Matrix(Stringable, Writable):
                     mat.data[i] = _false.data[i]
             parallelize[p](self.size)
         return mat^
-
-    @always_inline
-    fn argwhere(self, cmp: List[Bool]) -> Matrix:
-        var args = List[Float32]()
-        for i in range(self.size):
-            if cmp[i]:
-                args.append(i // self.width)
-                args.append(i % self.width)
-        return Matrix(len(args) // 2, 2, args)
 
     @always_inline
     fn argwhere_l(self, cmp: List[Bool]) -> List[Int]:
@@ -1735,7 +1695,7 @@ struct Matrix(Stringable, Writable):
         var result = Matrix(len(u_vals), 1, order=self.order)
         var index = 0
         for val in u_vals:
-            var bytes = val[].as_bytes()
+            var bytes = val.as_bytes()
             result.data[index] = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
             index += 1
         return result^

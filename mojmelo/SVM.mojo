@@ -1,6 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sign, polynomial_kernel, gaussian_kernel
-from collections import Dict
 
 struct SVM_Primal(CVM):
     var lr: Float32

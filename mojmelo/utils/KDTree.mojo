@@ -43,7 +43,7 @@ struct KDTreeResult:
         return self.dis <= rhs.dis
 
 @value
-struct KDTreeResultVector:
+struct KDTreeResultVector(Sized):
     var _self: List[KDTreeResult]
     
     fn __init__(out self):

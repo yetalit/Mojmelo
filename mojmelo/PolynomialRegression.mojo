@@ -1,6 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sign, mse
-from collections import Dict
 import math
 import time
 

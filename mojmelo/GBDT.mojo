@@ -2,7 +2,6 @@ from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h
 from memory import UnsafePointer
-from collections import Dict
 
 struct GBDT(CVM):
 	var criterion: String

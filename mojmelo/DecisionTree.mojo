@@ -1,7 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, entropy, gini, mse_loss, lt
 from memory import UnsafePointer
-from collections import Dict
 from algorithm import parallelize
 import math
 
@@ -157,9 +156,9 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
     var max_val: Int = 0
     var most_common: Int = 0
     for k in freq.keys():
-        if freq[k[]] > max_val:
-            max_val = freq[k[]]
-            most_common = k[]
+        if freq[k] > max_val:
+            max_val = freq[k]
+            most_common = k
     return Float32(most_common)
 
 fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], n_bins: Int, loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:

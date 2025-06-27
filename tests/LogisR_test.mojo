@@ -2,7 +2,6 @@ from mojmelo.LogisticRegression import LogisticRegression
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split, GridSearchCV
 from mojmelo.utils.utils import accuracy_score
-from collections import Dict
 from python import Python
 
 def main():

@@ -10,5 +10,5 @@ def main():
     pca.fit(Matrix.from_numpy(data[0]))
     X_projected = pca.transform(Matrix.from_numpy(data[0]))
     print("Shape of X:", data[0].shape)
-    print("Shape of transformed X:", '(' + str(X_projected.height) + ', ' + str(X_projected.width) + ')')
+    print("Shape of transformed X:", '(' + String(X_projected.height) + ', ' + String(X_projected.width) + ')')
     pca_test.test(X_projected.to_numpy(), data[1])

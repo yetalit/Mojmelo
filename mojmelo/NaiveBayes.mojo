@@ -1,4 +1,3 @@
-from collections import Dict
 import math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVP, normal_distr
