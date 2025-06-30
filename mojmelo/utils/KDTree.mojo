@@ -4,6 +4,7 @@ from mojmelo.utils.Matrix import Matrix
 from memory import UnsafePointer
 from buffer import NDBuffer
 import math
+from mojmelo.utils.utils import fill_indices
 
 @always_inline
 fn Abs(val: Float32) -> Float32:
@@ -118,7 +119,7 @@ struct SearchRecord:
     var correltime: Int
     var result: UnsafePointer[KDTreeResultVector]
     var data: UnsafePointer[Matrix] 
-    var ind: UnsafePointer[List[Int]]
+    var ind: UnsafePointer[List[Scalar[DType.index]]]
 
     fn __init__(out self, qv_in: NDBuffer[type=DType.float32, rank=1], tree_in: KDTree, result_in: KDTreeResultVector):  
         self.qv = qv_in.data
@@ -230,11 +231,11 @@ struct KDTreeNode:
                         break
                 if early_exit:
                     continue
-                indexofi = sr.ind[][i]
+                indexofi = sr.ind[][i].value
             else:
                 # but if we are not using the rearranged data, then
                 # we must always 
-                indexofi = sr.ind[][i]
+                indexofi = sr.ind[][i].value
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
@@ -274,7 +275,7 @@ struct KDTreeNode:
         var data = sr.data
 
         for i in range(self.l, self.u + 1):
-            var indexofi = sr.ind[][i]
+            var indexofi = sr.ind[][i].value
             var dis: Float32
             var early_exit: Bool
 
@@ -293,11 +294,11 @@ struct KDTreeNode:
                 # we need not read in the actual point index, thus saving main
                 # memory bandwidth.  If the distance to point is less than the
                 # ballsize, though, then we need the index.
-                indexofi = sr.ind[][i]
+                indexofi = sr.ind[][i].value
             else:
                 # but if we are not using the rearranged data, then
                 # we must always 
-                indexofi = sr.ind[][i]
+                indexofi = sr.ind[][i].value
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
@@ -321,19 +322,18 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
     var N: Int   # number of data points
     var dim: Int
     var root: UnsafePointer[KDTreeNode] # the root pointer
-    var ind: List[Int] 
+    var ind: List[Scalar[DType.index]] 
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
     var metric: fn(Float32) -> Float32
     alias bucketsize = 12
 
-    fn __init__(out self, X: Matrix, metric: String = 'euc', *, build: Bool = True):
+    fn __init__(out self, X: Matrix, metric: String = 'euc', *, build: Bool = True) raises:
         self._data = X
         self.N = self._data.height
         self.dim = self._data.width
         self.root = UnsafePointer[KDTreeNode]()
-        self.ind = List[Int](capacity=self.N)
-        self.ind.resize(self.N, 0)
+        self.ind = List[Scalar[DType.index]]()
         if metric.lower() == 'man':
             self.metric = Abs
         else:
@@ -348,7 +348,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
                 # permute the data for it.
                 for i in range(self.N):
                     for j in range(self.dim):
-                        rearranged_data.store[1](i, j, self._data.load[1](self.ind[i], j))
+                        rearranged_data.store[1](i, j, self._data.load[1](self.ind[i].value, j))
                 self._data = rearranged_data^
 
     fn __moveinit__(out self, owned existing: Self):
@@ -361,9 +361,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         existing.N = existing.dim = 0
         existing.root = UnsafePointer[KDTreeNode]()
 
-    fn build_tree(mut self): # builds the tree.  Used upon construction
-        for i in range(self.N):
-            self.ind[i] = i
+    fn build_tree(mut self) raises: # builds the tree.  Used upon construction
+        self.ind = fill_indices(self.N)
         self.root = self.build_tree_for_range(0, self.N-1, UnsafePointer[KDTreeNode]())
 
     fn build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode]) -> UnsafePointer[KDTreeNode]:
@@ -415,7 +414,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
             var average: Float32
 
             for k in range(l, u+1):
-                sum += self._data.load[1](self.ind[k], c)
+                sum += self._data.load[1](self.ind[k].value, c)
             average = sum / (u-l+1)
 	
             m = self.select_on_coordinate_value(c,average,l,u)
@@ -462,13 +461,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         var lmax: Float32
         var i = l+2
 
-        smin = self._data.load[1](self.ind[l], c)
+        smin = self._data.load[1](self.ind[l].value, c)
         smax = smin
         
         # process two at a time.
         while i<= u:
-            lmin = self._data.load[1](self.ind[i-1], c)
-            lmax = self._data.load[1](self.ind[i], c)
+            lmin = self._data.load[1](self.ind[i-1].value, c)
+            lmax = self._data.load[1](self.ind[i].value, c)
 
             if lmin > lmax:
                 swap(lmin,lmax)
@@ -481,7 +480,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
 
         # is there one more element? 
         if i == u+1:
-            var last = self._data.load[1](self.ind[u], c)
+            var last = self._data.load[1](self.ind[u].value, c)
             if smin>last:
                 smin = last
             if smax<last:
@@ -493,11 +492,11 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         #  Move indices in ind[l..u] so that the elements in [l .. k] 
         #  are less than the [k+1..u] elmeents, viewed across dimension 'c'. 
         while l < u:
-            var t = self.ind[l]
+            var t = self.ind[l].value
             var m = l
 
             for i in range(l+1, u+1):
-                if self._data.load[1](self.ind[i], c) < self._data.load[1](t, c):
+                if self._data.load[1](self.ind[i].value, c) < self._data.load[1](t, c):
                     m += 1
                     self.ind.swap_elements(i, m)
             self.ind.swap_elements(l, m)
@@ -515,14 +514,14 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         var ub = u
 
         while lb < ub:
-            if self._data.load[1](self.ind[lb], c) <= alpha:
+            if self._data.load[1](self.ind[lb].value, c) <= alpha:
                 lb += 1 # good where it is.
             else:
                 self.ind.swap_elements(lb, ub)
                 ub -= 1
 
         # here ub=lb
-        if self._data.load[1](self.ind[lb], c) <= alpha:
+        if self._data.load[1](self.ind[lb].value, c) <= alpha:
             return lb
         return lb-1
 

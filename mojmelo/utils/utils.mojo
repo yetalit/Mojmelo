@@ -2,8 +2,9 @@ from memory import memcpy, UnsafePointer
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
-from algorithm import parallelize
+from algorithm import parallelize, elementwise
 from sys import simdwidthof
+from utils import IndexList
 
 # Cross Validation y as Matrix
 trait CVM:
@@ -391,9 +392,25 @@ fn entropy(y: Matrix) raises -> Float32:
     return -_sum
 
 @always_inline
+fn entropy_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
+    var _sum: Float32 = 0.0
+    for i in range(len(histogram)):
+        var p: Float32 = histogram[i] / size
+        if p > 0 and p != 1.0:
+            _sum += p * math.log2(p)
+    return -_sum
+
+@always_inline
 fn gini(y: Matrix) raises -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
+    var _sum: Float32 = 0.0
+    for i in range(len(histogram)):
+        _sum += (histogram[i] / size) ** 2
+    return 1 - _sum
+
+@always_inline
+fn gini_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
         _sum += (histogram[i] / size) ** 2
@@ -404,6 +421,13 @@ fn mse_loss(y: Matrix) raises -> Float32:
     if len(y) == 0:
         return 0.0
     return ((y - y.mean()) ** 2).mean()
+
+@always_inline
+fn mse_loss_precompute(size: Int, sum: Float32, sum_sq: Float32) raises -> Float32:
+    if size == 0:
+        return 0.0
+    return sum_sq / size - (sum / size) ** 2
+
 
 @always_inline
 fn mse_g(true: Matrix, score: Matrix) raises -> Matrix:
@@ -420,6 +444,18 @@ fn log_h(score: Matrix) raises -> Matrix:
     var pred = sigmoid(score)
     return pred.ele_mul(1 - pred)
 
+
+fn fill_indices(N: Int) raises -> List[Scalar[DType.index]]:
+    var indices = List[Scalar[DType.index]](capacity=N)
+    indices.resize(N, 0)
+    @parameter
+    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+        indices.data.store(offset[0], math.iota[DType.index, width](offset[0]))
+
+    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+        len(indices)
+    )
+    return indices^
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np = Python.import_module("numpy")

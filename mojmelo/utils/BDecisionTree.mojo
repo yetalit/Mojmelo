@@ -35,13 +35,7 @@ struct BDecisionTree:
             delTree(self.root)
 
     fn fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
-        var X_sorted = X.asorder('f')
-        @parameter
-        fn p(i: Int):
-            var X_column = X_sorted['', i, unsafe=True]
-            sort[lt](Span[Float32, __origin_of(X_column)](ptr= X_column.data, length= X_column.size))
-        parallelize[p](X_sorted.width)
-        self.root = self._grow_tree(X_sorted, g, h)
+        self.root = self._grow_tree(X, g, h)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)

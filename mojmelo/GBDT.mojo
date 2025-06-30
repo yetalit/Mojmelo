@@ -44,12 +44,13 @@ struct GBDT(CVM):
 			self.trees.free()
 
 	fn fit(mut self, X: Matrix, y: Matrix) raises:
+		var X_F = X.asorder('f')
 		self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees)
 		self.score_start = y.mean()
 		var score = Matrix.full(X.height, 1, self.score_start)
 		for i in range(self.n_trees):
 			var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma)
-			tree.fit(X, g = self.loss_g(y, score), h = self.loss_h(score))
+			tree.fit(X_F, g = self.loss_g(y, score), h = self.loss_h(score))
 			(self.trees + i).init_pointee_move(tree)
 			self.trees[i]._moveinit_(tree)
 			score += self.learning_rate * self.trees[i].predict(X)
