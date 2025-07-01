@@ -184,6 +184,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
                         __origin_of(sorted_indices),
                     ](ptr=sorted_indices.data, length=len(sorted_indices))
                 )
+                column = column[sorted_indices]
                 var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
@@ -225,6 +226,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
                         __origin_of(sorted_indices),
                     ](ptr=sorted_indices.data, length=len(sorted_indices))
                 )
+                column = column[sorted_indices]
                 var y_sorted = y[sorted_indices]
 
                 var left_sum: Float32 = 0.0
