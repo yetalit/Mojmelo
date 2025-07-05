@@ -7,7 +7,7 @@ import algorithm
 from collections import Set
 import math
 import random
-from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div
+from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div, fill_indices
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
@@ -1231,6 +1231,24 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         return list^
 
     @always_inline
+    fn argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.index]]:
+        var sorted_indices = fill_indices(self.size)
+        @parameter
+        fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
+            @parameter
+            if ascending:
+                return Bool(self.data[Int(a)] < self.data[Int(b)])
+            else:
+                return Bool(self.data[Int(a)] > self.data[Int(b)])
+        sort[cmp_fn](
+            Span[
+                Scalar[DType.index],
+                __origin_of(sorted_indices),
+            ](ptr=sorted_indices.data, length=len(sorted_indices))
+        )
+        return sorted_indices^
+
+    @always_inline
     fn min(self) raises -> Float32:
         return algorithm.reduction.min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
 
@@ -1764,41 +1782,41 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     @staticmethod
     @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool = True) -> List[Int]:
+    fn rand_choice(arang: Int, size: Int, replace: Bool = True) raises -> List[Scalar[DType.index]]:
         random.seed()
-        var result = UnsafePointer[Int].alloc(size)
+        var result: List[Scalar[DType.index]]
         if not replace:
-            for i in range(size):
-                result[i] = i
-        for i in range(size - 1, -1, -1):
-            if not replace:
-                # Fisher-Yates shuffle
-                var j = Int(random.random_ui64(0, i))
-                result[i], result[j] = result[j], result[i]
-            else:
-                result[i] = Int(random.random_ui64(0, arang - 1))
-        var list = List[Int](unsafe_uninit_length=size)
-        list.data=result
-        return list^
-
-    @staticmethod
-    @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) -> List[Int]:
-        random.seed(seed)
-        var result = UnsafePointer[Int].alloc(size)
-        if not replace:
-            for i in range(size):
-                result[i] = i
+            result = fill_indices(size)
+        else:
+            result = List[Scalar[DType.index]](capacity=size)
+            result.resize(size, 0)
         for i in range(size - 1, 0, -1):
             if not replace:
                 # Fisher-Yates shuffle
-                var j = Int(random.random_ui64(0, i))
+                var j = random.random_ui64(0, i).cast[DType.index]()
                 result[i], result[j] = result[j], result[i]
             else:
-                result[i] = Int(random.random_ui64(0, arang - 1))
-        var list = List[Int](unsafe_uninit_length=size)
-        list.data=result
-        return list^
+                result[i] = random.random_ui64(0, arang - 1).cast[DType.index]()
+        return result^
+
+    @staticmethod
+    @always_inline
+    fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) raises -> List[Scalar[DType.index]]:
+        random.seed(seed)
+        var result: List[Scalar[DType.index]]
+        if not replace:
+            result = fill_indices(size)
+        else:
+            result = List[Scalar[DType.index]](capacity=size)
+            result.resize(size, 0)
+        for i in range(size - 1, 0, -1):
+            if not replace:
+                # Fisher-Yates shuffle
+                var j = random.random_ui64(0, i).cast[DType.index]()
+                result[i], result[j] = result[j], result[i]
+            else:
+                result[i] = random.random_ui64(0, arang - 1).cast[DType.index]()
+        return result^
 
     @staticmethod
     @always_inline

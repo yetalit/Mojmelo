@@ -154,7 +154,7 @@ fn _partition[
     T: Copyable & Movable,
     origin: MutableOrigin, //,
     cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
-](span: Span[T, origin], mut indices: List[Int]) -> Int:
+](span: Span[T, origin], mut indices: List[Scalar[DType.index]]) -> Int:
     var size = len(span)
     if size <= 1:
         return 0
@@ -191,7 +191,7 @@ fn _partition[
     T: Copyable & Movable,
     origin: MutableOrigin, //,
     cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
-](owned span: Span[T, origin], mut indices: List[Int], owned k: Int):
+](owned span: Span[T, origin], mut indices: List[Scalar[DType.index]], owned k: Int):
     while True:
         var pivot = _partition[cmp_fn](span, indices)
         if pivot == k:
@@ -208,7 +208,7 @@ fn _partition[
 fn partition[
     origin: MutableOrigin, //,
     cmp_fn: fn (Float32, Float32) capturing [_] -> Bool,
-](span: Span[Float32, origin], mut indices: List[Int], k: Int):
+](span: Span[Float32, origin], mut indices: List[Scalar[DType.index]], k: Int):
     """Partition the input buffer inplace such that first k elements are the
     largest (or smallest if cmp_fn is < operator) elements.
     The ordering of the first k elements is undefined.
@@ -462,6 +462,12 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np_arr = np.empty(len(list), dtype='object')
     for i in range(len(list)):
         np_arr[i] = list[i]
+    return np_arr^
+
+fn ids_to_numpy(list: List[Scalar[DType.index]]) raises -> PythonObject:
+    var np = Python.import_module("numpy")
+    var np_arr = np.empty(len(list), dtype='int')
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data, len(list))
     return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:

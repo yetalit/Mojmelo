@@ -163,7 +163,7 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
             most_common = k
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], loss_func: fn(Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
     var parent_loss = loss_func(y)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
@@ -173,17 +173,8 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
         @parameter
         fn p_c(idx: Int):
             try:
-                var sorted_indices = fill_indices(len(y))
-                var column = X['', feat_idxs[idx], unsafe=True]
-                @parameter
-                fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
-                    return Bool(column.data[Int(a)] < column.data[Int(b)])
-                sort[cmp_fn](
-                    Span[
-                        Scalar[DType.index],
-                        __origin_of(sorted_indices),
-                    ](ptr=sorted_indices.data, length=len(sorted_indices))
-                )
+                var column = X['', feat_idxs[idx].value, unsafe=True]
+                var sorted_indices = column.argsort()
                 column = column[sorted_indices]
                 var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
@@ -215,17 +206,8 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
         @parameter
         fn p_r(idx: Int):
             try:
-                var sorted_indices = fill_indices(len(y))
-                var column = X['', feat_idxs[idx], unsafe=True]
-                @parameter
-                fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
-                    return Bool(column.data[Int(a)] < column.data[Int(b)])
-                sort[cmp_fn](
-                    Span[
-                        Scalar[DType.index],
-                        __origin_of(sorted_indices),
-                    ](ptr=sorted_indices.data, length=len(sorted_indices))
-                )
+                var column = X['', feat_idxs[idx].value, unsafe=True]
+                var sorted_indices = column.argsort()
                 column = column[sorted_indices]
                 var y_sorted = y[sorted_indices]
 
@@ -257,7 +239,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], loss_func: fn(Matr
         parallelize[p_r](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx], best_thresholds.data[feat_idx]
+    return feat_idxs[feat_idx].value, best_thresholds.data[feat_idx]
 
 @always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:

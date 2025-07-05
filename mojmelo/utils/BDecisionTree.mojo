@@ -98,7 +98,7 @@ fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) raises -> Float32:
 fn leaf_loss_precompute(reg_lambda: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return -0.5 * (g_sum ** 2) / (h_sum + reg_lambda)
 
-fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Int]) raises -> Tuple[Int, Float32, Float32]:
+fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.index]]) raises -> Tuple[Int, Float32, Float32]:
     var total_g_sum = g.sum()
     var total_h_sum = h.sum()
     var parent_loss = leaf_loss_precompute(reg_lambda, total_g_sum, total_h_sum)
@@ -109,17 +109,8 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
     @parameter
     fn p(idx: Int):
         try:
-            var sorted_indices = fill_indices(X.height)
-            var column = X['', feat_idxs[idx], unsafe=True]
-            @parameter
-            fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
-                return Bool(column.data[Int(a)] < column.data[Int(b)])
-            sort[cmp_fn](
-                Span[
-                    Scalar[DType.index],
-                    __origin_of(sorted_indices),
-                ](ptr=sorted_indices.data, length=len(sorted_indices))
-            )
+            var column = X['', feat_idxs[idx].value, unsafe=True]
+            var sorted_indices = column.argsort()
             column = column[sorted_indices]
             var g_sorted = g[sorted_indices]
             var h_sorted = h[sorted_indices]
@@ -150,7 +141,7 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
     parallelize[p](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx], best_thresholds.data[feat_idx], max_gains.data[feat_idx]
+    return feat_idxs[feat_idx].value, best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
 @always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
