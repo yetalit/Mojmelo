@@ -30,7 +30,6 @@ Here is the list of the algorithms:
 * SVM
     1. Primal
     2. Dual
-* Perceptron (single layer: Binary Classification)
 * Naive Bayes
     1. GaussianNB
     2. MultinomialNB
@@ -56,7 +55,7 @@ If you are not familiar with Mojo projects, you can get started here: https://do
 
 ### Prerequisites
 
-* MAX 25.3
+* MAX 25.4
 
 Additionally, you may want to install bellow Python packages for a better usability and to run tests:
 1. Pandas

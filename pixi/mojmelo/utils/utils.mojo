@@ -1,10 +1,10 @@
-from collections import Dict
 from memory import memcpy, UnsafePointer
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
-from algorithm import parallelize
+from algorithm import parallelize, elementwise
 from sys import simdwidthof
+from utils import IndexList
 
 # Cross Validation y as Matrix
 trait CVM:
@@ -141,13 +141,9 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
 # partition
 # ===----------------------------------------------------------------------===#
 
-@value
-struct _SortWrapper[type: CollectionElement](CollectionElement):
-    var data: type
-
-    @implicit
-    fn __init__(out self, data: type):
-        self.data = data
+@fieldwise_init("implicit")
+struct _SortWrapper[T: Copyable & Movable](Copyable, Movable):
+    var data: T
 
     fn __init__(out self, *, other: Self):
         self.data = other.data
@@ -155,10 +151,10 @@ struct _SortWrapper[type: CollectionElement](CollectionElement):
 
 @always_inline
 fn _partition[
-    type: CollectionElement,
+    T: Copyable & Movable,
     origin: MutableOrigin, //,
-    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
-](span: Span[type, origin], mut indices: List[Int]) -> Int:
+    cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
+](span: Span[T, origin], mut indices: List[Scalar[DType.index]]) -> Int:
     var size = len(span)
     if size <= 1:
         return 0
@@ -192,10 +188,10 @@ fn _partition[
 
 
 fn _partition[
-    type: CollectionElement,
+    T: Copyable & Movable,
     origin: MutableOrigin, //,
-    cmp_fn: fn (_SortWrapper[type], _SortWrapper[type]) capturing [_] -> Bool,
-](owned span: Span[type, origin], mut indices: List[Int], owned k: Int):
+    cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
+](owned span: Span[T, origin], mut indices: List[Scalar[DType.index]], owned k: Int):
     while True:
         var pivot = _partition[cmp_fn](span, indices)
         if pivot == k:
@@ -210,15 +206,15 @@ fn _partition[
 
 
 fn partition[
-    lifetime: MutableOrigin, //,
+    origin: MutableOrigin, //,
     cmp_fn: fn (Float32, Float32) capturing [_] -> Bool,
-](span: Span[Float32, lifetime], mut indices: List[Int], k: Int):
+](span: Span[Float32, origin], mut indices: List[Scalar[DType.index]], k: Int):
     """Partition the input buffer inplace such that first k elements are the
     largest (or smallest if cmp_fn is < operator) elements.
     The ordering of the first k elements is undefined.
 
     Parameters:
-        lifetime: Lifetime of span.
+        origin: Origin of span.
         cmp_fn: Comparison functor of (type, type) capturing -> Bool type.
     """
 
@@ -396,9 +392,25 @@ fn entropy(y: Matrix) raises -> Float32:
     return -_sum
 
 @always_inline
+fn entropy_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
+    var _sum: Float32 = 0.0
+    for i in range(len(histogram)):
+        var p: Float32 = histogram[i] / size
+        if p > 0 and p != 1.0:
+            _sum += p * math.log2(p)
+    return -_sum
+
+@always_inline
 fn gini(y: Matrix) raises -> Float32:
     var histogram = y.bincount()
     var size = Float32(y.size)
+    var _sum: Float32 = 0.0
+    for i in range(len(histogram)):
+        _sum += (histogram[i] / size) ** 2
+    return 1 - _sum
+
+@always_inline
+fn gini_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
         _sum += (histogram[i] / size) ** 2
@@ -409,6 +421,13 @@ fn mse_loss(y: Matrix) raises -> Float32:
     if len(y) == 0:
         return 0.0
     return ((y - y.mean()) ** 2).mean()
+
+@always_inline
+fn mse_loss_precompute(size: Int, sum: Float32, sum_sq: Float32) raises -> Float32:
+    if size == 0:
+        return 0.0
+    return sum_sq / size - (sum / size) ** 2
+
 
 @always_inline
 fn mse_g(true: Matrix, score: Matrix) raises -> Matrix:
@@ -426,11 +445,29 @@ fn log_h(score: Matrix) raises -> Matrix:
     return pred.ele_mul(1 - pred)
 
 
+fn fill_indices(N: Int) raises -> List[Scalar[DType.index]]:
+    var indices = List[Scalar[DType.index]](capacity=N)
+    indices.resize(N, 0)
+    @parameter
+    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+        indices.data.store(offset[0], math.iota[DType.index, width](offset[0]))
+
+    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+        len(indices)
+    )
+    return indices^
+
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='object')
     for i in range(len(list)):
         np_arr[i] = list[i]
+    return np_arr^
+
+fn ids_to_numpy(list: List[Scalar[DType.index]]) raises -> PythonObject:
+    var np = Python.import_module("numpy")
+    var np_arr = np.empty(len(list), dtype='int')
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data, len(list))
     return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
@@ -451,6 +488,6 @@ fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
     # Create the Cartesian product
     for item in first:
         for prod in rest_product:
-            result.append(List[String](item[]) + prod[])
+            result.append(List[String](item) + prod)
 
     return result^

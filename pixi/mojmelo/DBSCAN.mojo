@@ -1,6 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import euclidean_distance, manhattan_distance
-from collections import Dict
 
 struct DBSCAN:
     var eps: Float32
@@ -34,25 +33,25 @@ struct DBSCAN:
         var cluster = List[Int](idx)
         # Iterate through neighbors
         for neighbor_i in neighbors:
-            if not neighbor_i[] in visited_samples:
-                visited_samples.append(neighbor_i[])
+            if not neighbor_i in visited_samples:
+                visited_samples.append(neighbor_i)
                 # Fetch the sample's distant neighbors (neighbors of neighbor)
-                self.neighbors[neighbor_i[]] = self._get_neighbors(neighbor_i[])
+                self.neighbors[neighbor_i] = self._get_neighbors(neighbor_i)
                 # Make sure the neighbor's neighbors are more than min_samples
                 # (If this is true the neighbor is a core point)
-                if len(self.neighbors[neighbor_i[]]) >= self.min_samples:
+                if len(self.neighbors[neighbor_i]) >= self.min_samples:
                     # Expand the cluster from the neighbor and Add expanded cluster to this cluster
-                    cluster = cluster + self._expand_cluster(neighbor_i[], self.neighbors[neighbor_i[]], visited_samples)
+                    cluster = cluster + self._expand_cluster(neighbor_i, self.neighbors[neighbor_i], visited_samples)
                 else:
                     # If the neighbor is not a core point we only add the neighbor point
-                    cluster.append(neighbor_i[])
+                    cluster.append(neighbor_i)
         return cluster^
 
     fn _get_cluster_labels(self) -> Matrix:
         var labels = Matrix.full(self.X.height, 1, -1.0)
         for cluster_i in range(len(self.clusters)):
             for sample_i in self.clusters[cluster_i]:
-                labels.data[sample_i[]] = cluster_i
+                labels.data[sample_i] = cluster_i
         return labels^
 
     fn predict(mut self, X: Matrix) raises -> Matrix:

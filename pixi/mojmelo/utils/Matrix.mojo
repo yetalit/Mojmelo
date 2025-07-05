@@ -4,13 +4,13 @@ from memory import memcpy, memcmp, memset_zero, UnsafePointer
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
 import algorithm
-from collections import Dict, Set
+from collections import Set
 import math
 import random
-from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div
+from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div, fill_indices
 from python import Python, PythonObject
 
-struct Matrix(Stringable, Writable):
+struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     var height: Int
     var width: Int
     var size: Int
@@ -38,47 +38,16 @@ struct Matrix(Stringable, Writable):
         if data:
             memcpy(self.data, data, self.size)
 
-    # initialize from List
-    fn __init__(out self, height: Int, width: Int, def_input: List[Float32]):
-        self.height = height
-        self.width = width
-        self.size = height * width
+    # initialize from 2D List
+    fn __init__(out self, def_input: List[List[Float32]]) raises:
+        self.height = len(def_input)
+        self.width = len(def_input[0]) if self.height > 0 else 0
+        self.size = self.height * self.width
         self.data = UnsafePointer[Float32].alloc(self.size)
         self.order = 'c'
-        if len(def_input) > 0:
-            memcpy(self.data, def_input.data, self.size)
-
-    # initialize from list object
-    fn __init__(out self, height: Int, width: Int, def_input: PythonObject) raises:
-        self.height = height
-        self.width = width
-        self.size = height * width
-        self.data = UnsafePointer[Float32].alloc(self.size)
-        self.order = 'c'
-        var rng: Int = len(def_input)
-        for i in range(rng):
-            self.data[i] = atof(String(def_input[i])).cast[DType.float32]()
-
-    # initialize in 2D numpy style
-    fn __init__(out self, npstyle: String, order: String = 'c') raises:
-        var mat = npstyle.replace(' ', '')
-        if mat[0] == '[' and mat[1] == '[' and mat[len(mat) - 1] == ']' and mat[len(mat) - 2] == ']':
-            self.width = 0
-            self.size = 0
-            self.data = UnsafePointer[Float32]()
-            self.order = order.lower()
-            var rows = mat[:-1].split(']')
-            self.height = len(rows) - 1
-            for i in range(self.height):
-                var values = rows[i][2:].split(',')
-                if i == 0:
-                    self.width = len(values)
-                    self.size = self.height * self.width
-                    self.data = UnsafePointer[Float32].alloc(self.size)
-                for j in range(self.width):
-                    self.store[1](i, j, atof(values[j]).cast[DType.float32]())
-        else:
-            raise Error('Error: Matrix is not initialized in the correct form!')
+        if self.size > 0:
+            for row_i in range(len(def_input)):
+                memcpy(self.data + row_i * self.width, def_input[row_i].data, self.width)
 
     fn __copyinit__(out self, other: Self):
         self.height = other.height
@@ -262,6 +231,20 @@ struct Matrix(Stringable, Writable):
                 mat[i] = self[rows[i]]
         return mat^
 
+    # access given rows (by their indices)
+    @always_inline
+    fn __getitem__(self, rows: List[Scalar[DType.index]]) raises -> Matrix:
+        var mat = Matrix(len(rows), self.width, order= self.order)
+        if len(rows) > 96:
+            @parameter
+            fn p(i: Int):
+                mat[i, unsafe=True] = self[rows[i].value, unsafe=True]
+            parallelize[p](len(rows))
+        else:
+            for i in range(mat.height):
+                mat[i] = self[rows[i].value]
+        return mat^
+
     # access given columns (by their indices)
     @always_inline
     fn __getitem__(self, row: String, columns: List[Int]) raises -> Matrix:
@@ -274,6 +257,20 @@ struct Matrix(Stringable, Writable):
         else:
             for i in range(mat.width):
                 mat[row, i] = self[row, columns[i]]
+        return mat^
+
+    # access given columns (by their indices)
+    @always_inline
+    fn __getitem__(self, row: String, columns: List[Scalar[DType.index]]) raises -> Matrix:
+        var mat = Matrix(self.height, len(columns), order= self.order)
+        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
+            @parameter
+            fn p(i: Int):
+                mat[row, i, unsafe=True] = self[row, columns[i].value, unsafe=True]
+            parallelize[p](len(columns))
+        else:
+            for i in range(mat.width):
+                mat[row, i] = self[row, columns[i].value]
         return mat^
     
     # replace an element
@@ -815,15 +812,6 @@ struct Matrix(Stringable, Writable):
         return mat^
 
     @always_inline
-    fn argwhere(self, cmp: List[Bool]) -> Matrix:
-        var args = List[Float32]()
-        for i in range(self.size):
-            if cmp[i]:
-                args.append(i // self.width)
-                args.append(i % self.width)
-        return Matrix(len(args) // 2, 2, args)
-
-    @always_inline
     fn argwhere_l(self, cmp: List[Bool]) -> List[Int]:
         var args = List[Int]()
         for i in range(self.size):
@@ -1241,6 +1229,24 @@ struct Matrix(Stringable, Writable):
         var list = List[Int](unsafe_uninit_length=length)
         list.data=vect
         return list^
+
+    @always_inline
+    fn argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.index]]:
+        var sorted_indices = fill_indices(self.size)
+        @parameter
+        fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
+            @parameter
+            if ascending:
+                return Bool(self.data[Int(a)] < self.data[Int(b)])
+            else:
+                return Bool(self.data[Int(a)] > self.data[Int(b)])
+        sort[cmp_fn](
+            Span[
+                Scalar[DType.index],
+                __origin_of(sorted_indices),
+            ](ptr=sorted_indices.data, length=len(sorted_indices))
+        )
+        return sorted_indices^
 
     @always_inline
     fn min(self) raises -> Float32:
@@ -1735,7 +1741,7 @@ struct Matrix(Stringable, Writable):
         var result = Matrix(len(u_vals), 1, order=self.order)
         var index = 0
         for val in u_vals:
-            var bytes = val[].as_bytes()
+            var bytes = val.as_bytes()
             result.data[index] = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
             index += 1
         return result^
@@ -1776,41 +1782,41 @@ struct Matrix(Stringable, Writable):
 
     @staticmethod
     @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool = True) -> List[Int]:
+    fn rand_choice(arang: Int, size: Int, replace: Bool = True) raises -> List[Scalar[DType.index]]:
         random.seed()
-        var result = UnsafePointer[Int].alloc(size)
+        var result: List[Scalar[DType.index]]
         if not replace:
-            for i in range(size):
-                result[i] = i
-        for i in range(size - 1, -1, -1):
-            if not replace:
-                # Fisher-Yates shuffle
-                var j = Int(random.random_ui64(0, i))
-                result[i], result[j] = result[j], result[i]
-            else:
-                result[i] = Int(random.random_ui64(0, arang - 1))
-        var list = List[Int](unsafe_uninit_length=size)
-        list.data=result
-        return list^
-
-    @staticmethod
-    @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) -> List[Int]:
-        random.seed(seed)
-        var result = UnsafePointer[Int].alloc(size)
-        if not replace:
-            for i in range(size):
-                result[i] = i
+            result = fill_indices(size)
+        else:
+            result = List[Scalar[DType.index]](capacity=size)
+            result.resize(size, 0)
         for i in range(size - 1, 0, -1):
             if not replace:
                 # Fisher-Yates shuffle
-                var j = Int(random.random_ui64(0, i))
+                var j = random.random_ui64(0, i).cast[DType.index]()
                 result[i], result[j] = result[j], result[i]
             else:
-                result[i] = Int(random.random_ui64(0, arang - 1))
-        var list = List[Int](unsafe_uninit_length=size)
-        list.data=result
-        return list^
+                result[i] = random.random_ui64(0, arang - 1).cast[DType.index]()
+        return result^
+
+    @staticmethod
+    @always_inline
+    fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) raises -> List[Scalar[DType.index]]:
+        random.seed(seed)
+        var result: List[Scalar[DType.index]]
+        if not replace:
+            result = fill_indices(size)
+        else:
+            result = List[Scalar[DType.index]](capacity=size)
+            result.resize(size, 0)
+        for i in range(size - 1, 0, -1):
+            if not replace:
+                # Fisher-Yates shuffle
+                var j = random.random_ui64(0, i).cast[DType.index]()
+                result[i], result[j] = result[j], result[i]
+            else:
+                result[i] = random.random_ui64(0, arang - 1).cast[DType.index]()
+        return result^
 
     @staticmethod
     @always_inline

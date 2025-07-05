@@ -35,7 +35,7 @@ fn intsqrt[n: Int]() -> Int:
 
 @value
 @register_passable("trivial")
-struct Layout:
+struct Layout(Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 

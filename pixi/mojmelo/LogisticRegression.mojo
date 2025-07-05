@@ -1,6 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, sign, cross_entropy
-from collections import Dict
 import math
 import time
 
@@ -57,7 +56,7 @@ struct LogisticRegression(CVM):
         var _reg = (1e-5 + l2_lambda) * Matrix.eye(X.width)
         for _ in range(self.n_iters):
             if self.batch_size > 0:
-                var ids: List[Int]
+                var ids: List[Scalar[DType.index]]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, self.random_state)
                 else:

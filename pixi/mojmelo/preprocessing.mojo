@@ -3,7 +3,6 @@ from mojmelo.utils.utils import CVM, CVP, cartesian_product, ids_to_numpy
 from algorithm import parallelize
 from sys import num_performance_cores
 from memory import UnsafePointer
-from collections import Dict
 from python import Python, PythonObject
 import time
 
@@ -158,7 +157,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
             params[i] = Dict[String, String]()
             var j = 0
             for key in param_grid.keys():
-                params[i][key[]] = combinations[i][j]
+                params[i][key] = combinations[i][j]
                 j += 1
             var model = m_type(params[i])
             var score = KFold[m_type](model, X, y, scoring, cv)
@@ -174,7 +173,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
             params[i] = Dict[String, String]()
             var j = 0
             for key in param_grid.keys():
-                params[i][key[]] = combinations[i][j]
+                params[i][key] = combinations[i][j]
                 j += 1
             try:
                 var model = m_type(params[i])
@@ -211,7 +210,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
             params[i] = Dict[String, String]()
             var j = 0
             for key in param_grid.keys():
-                params[i][key[]] = combinations[i][j]
+                params[i][key] = combinations[i][j]
                 j += 1
             var model = m_type(params[i])
             var score = KFold[m_type](model, X, y, scoring, cv)
@@ -227,7 +226,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
             params[i] = Dict[String, String]()
             var j = 0
             for key in param_grid.keys():
-                params[i][key[]] = combinations[i][j]
+                params[i][key] = combinations[i][j]
                 j += 1
             try:
                 var model = m_type(params[i])

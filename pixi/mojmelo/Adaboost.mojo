@@ -1,7 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sign
 import math
-from collections import Dict
 
 # Decision stump used as weak classifier
 @value
@@ -28,7 +27,7 @@ struct DecisionStump:
         else:
             indices = X_column.argwhere_l(X_column > self.threshold)
         for index in indices:
-            predictions.data[index[]] = -1.0
+            predictions.data[index] = -1.0
         return predictions^
 
 
@@ -64,7 +63,7 @@ struct Adaboost(CVM):
                     var predictions = Matrix.ones(X.height, 1)
                     var indices = X_column.argwhere_l(X_column < thresholds.data[i_t])
                     for index in indices:
-                        predictions.data[index[]] = -1.0
+                        predictions.data[index] = -1.0
 
                     # Error = sum of weights of misclassified samples
                     var error: Float32 = 0.0

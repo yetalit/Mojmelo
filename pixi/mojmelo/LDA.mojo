@@ -1,15 +1,17 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import gt
+from mojmelo.utils.utils import gt, fill_indices
 from algorithm import parallelize
-from python import PythonObject
+from python import Python, PythonObject
 
 struct LDA:
     var n_components: Int
     var linear_discriminants: Matrix
+    var lapack: Bool
 
-    fn __init__(out self, n_components: Int):
+    fn __init__(out self, n_components: Int, lapack: Bool = False):
         self.n_components = n_components
         self.linear_discriminants = Matrix(0, 0)
+        self.lapack = lapack
 
     fn fit(mut self, X: Matrix, y: PythonObject) raises:
         var class_labels: List[String]
@@ -17,7 +19,6 @@ struct LDA:
         class_labels, class_freq = Matrix.unique(y)
         # Within class scatter matrix:
         # SW = sum((X_c - mean_X_c)^2 )
-
         # Between class scatter:
         # SB = sum( n_c * (mean_X_c - mean_overall)^2 )
         var mean_overall = X.mean(0)
@@ -40,24 +41,23 @@ struct LDA:
         # Get eigenvalues and eigenvectors of SW^-1 * SB
         var eigenvalues: Matrix
         var eigenvectors: Matrix
-        eigenvalues, eigenvectors = (Matrix.solve(SW, SB)).eigen()
-        # transpose for easier calculations
-        eigenvectors = eigenvectors.T()
+        if self.lapack:
+            numpy_linalg = Python.import_module('numpy.linalg')
+            vals_vects = numpy_linalg.eigh(numpy_linalg.pinv(SW.to_numpy()).dot(SB.to_numpy()))
+            eigenvalues, eigenvectors = Matrix.from_numpy(vals_vects[0]), Matrix.from_numpy(vals_vects[1])
+        else:
+            eigenvalues, eigenvectors = (Matrix.solve(SW, SB)).eigen()
+            eigenvalues = eigenvalues.abs()
         # sort eigenvalues high to low
-        var v_abs = eigenvalues.abs()
-        var indices = List[Int](capacity=v_abs.size)
-        indices.resize(v_abs.size, 0)
-        for i in range(v_abs.size):
-            indices[i] = i
-        # sort eigenvectors
-        mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(v_abs)](ptr= v_abs.data, length= v_abs.size), indices, self.n_components)
+        var indices = fill_indices(eigenvalues.size)
+        mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
         # store first n eigenvectors
-        self.linear_discriminants = Matrix(self.n_components, eigenvectors.width)
+        self.linear_discriminants = Matrix(eigenvectors.height, self.n_components)
         @parameter
         fn p(i: Int):
-            self.linear_discriminants[i, unsafe=True] = eigenvectors[indices[i], unsafe=True]
+            self.linear_discriminants['', i, unsafe=True] = eigenvectors['', indices[i].value, unsafe=True]
         parallelize[p](self.n_components)
 
     fn transform(self, X: Matrix) raises -> Matrix:
         # project data
-        return X * self.linear_discriminants.T()
+        return X * self.linear_discriminants

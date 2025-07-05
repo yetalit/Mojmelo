@@ -1,6 +1,6 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import lt
+from mojmelo.utils.utils import lt, fill_indices
 from memory import UnsafePointer
 from algorithm import parallelize
 import math
@@ -35,13 +35,7 @@ struct BDecisionTree:
             delTree(self.root)
 
     fn fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
-        var X_sorted = X.asorder('f')
-        @parameter
-        fn p(i: Int):
-            var X_column = X_sorted['', i, unsafe=True]
-            sort[lt](Span[Float32, __origin_of(X_column)](ptr= X_column.data, length= X_column.size))
-        parallelize[p](X_sorted.width)
-        self.root = self._grow_tree(X_sorted, g, h)
+        self.root = self._grow_tree(X, g, h)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -100,58 +94,54 @@ fn leaf_loss(reg_lambda: Float32, g: Matrix, h: Matrix) raises -> Float32:
     .'''
     return -0.5 * (g.sum() ** 2) / (h.sum() + reg_lambda)
 
-fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Int]) raises -> Tuple[Int, Float32, Float32]:
-    var parent_loss = leaf_loss(reg_lambda, g, h)
+@always_inline
+fn leaf_loss_precompute(reg_lambda: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
+    return -0.5 * (g_sum ** 2) / (h_sum + reg_lambda)
+
+fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.index]]) raises -> Tuple[Int, Float32, Float32]:
+    var total_g_sum = g.sum()
+    var total_h_sum = h.sum()
+    var parent_loss = leaf_loss_precompute(reg_lambda, total_g_sum, total_h_sum)
     var max_gains = Matrix(1, len(feat_idxs))
+    max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
-    var columns = List[Matrix](capacity=len(feat_idxs))
-    columns.resize(len(feat_idxs), Matrix(0, 0))
-    var thresholds_list = List[Matrix](capacity=len(feat_idxs))
-    thresholds_list.resize(len(feat_idxs), Matrix(0, 0))
 
     @parameter
-    fn prepare(i: Int):
-        columns[i] = X['', feat_idxs[i], unsafe=True]
-        var unique_vals = columns[i].uniquef()
-        if unique_vals.size == 1:
-            thresholds_list[i] = unique_vals^
-        else:
-            try:
-                thresholds_list[i] = (unique_vals.load_rows(unique_vals.size - 1) + unique_vals[True, 1, 0]) / 2
-            except:
-                print('Error: Loading values failed!')
-    parallelize[prepare](len(feat_idxs))
+    fn p(idx: Int):
+        try:
+            var column = X['', feat_idxs[idx].value, unsafe=True]
+            var sorted_indices = column.argsort()
+            column = column[sorted_indices]
+            var g_sorted = g[sorted_indices]
+            var h_sorted = h[sorted_indices]
 
-    for i in range(len(feat_idxs)):
-        var gains = Matrix(len(thresholds_list[i]), 1)
-        @parameter
-        fn p(i_t: Int):
-            try:
-                gains.data[i_t] = _information_gain(parent_loss, reg_lambda, g, h, columns[i], thresholds_list[i].data[i_t])
-            except:
-                print('Error: Failed to calculate information gain!')
-        parallelize[p](len(thresholds_list[i]))
-        var max_gain = gains.argmax()
-        max_gains.data[i] = gains.data[max_gain]
-        best_thresholds.data[i] = thresholds_list[i].data[max_gain]
+            var left_g_sum: Float32 = 0.0
+            var left_h_sum: Float32 = 0.0
+            var right_g_sum = total_g_sum
+            var right_h_sum = total_h_sum
+
+            for step in range(1, X.height):
+                var gi = g_sorted.data[step - 1]
+                var hi = h_sorted.data[step - 1]
+                left_g_sum += gi
+                left_h_sum += hi
+                right_g_sum -= gi
+                right_h_sum -= hi
+
+                if column.data[step] == column.data[step - 1]:
+                    continue  # skip redundant thresholds
+
+                var child_loss = leaf_loss_precompute(reg_lambda, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, right_g_sum, right_h_sum)
+                var ig = parent_loss - child_loss
+                if ig > max_gains.data[idx]:
+                    max_gains.data[idx] = ig
+                    best_thresholds.data[idx] = (column.data[step] + column.data[step - 1]) / 2.0  # midpoint
+        except e:
+            print('Error:', e)
+    parallelize[p](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx], best_thresholds.data[feat_idx], max_gains.data[feat_idx]
-
-@always_inline
-fn _information_gain(parent_loss: Float32, reg_lambda: Float32, g: Matrix, h: Matrix, X_column: Matrix, split_thresh: Float32) raises -> Float32:
-    # generate split
-    var left_idxs: List[Int]
-    var right_idxs: List[Int]
-    left_idxs, right_idxs = _split(X_column, split_thresh)
-
-    if len(left_idxs) == 0 or len(right_idxs) == 0:
-        return 0.0
-
-    # compute the the minimized loss of the children
-    var child_loss = leaf_loss(reg_lambda, g[left_idxs], h[left_idxs]) + leaf_loss(reg_lambda, g[right_idxs], h[right_idxs])
-    # information gain is difference in loss before vs. after split
-    return parent_loss - child_loss
+    return feat_idxs[feat_idx].value, best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
 @always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:

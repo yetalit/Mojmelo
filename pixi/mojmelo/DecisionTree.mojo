@@ -1,7 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, gini, mse_loss, lt
+from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, lt, fill_indices
 from memory import UnsafePointer
-from collections import Dict
 from algorithm import parallelize
 import math
 
@@ -35,24 +34,30 @@ struct Node:
 struct DecisionTree(CVM):
     var criterion: String
     var loss_func: fn(Matrix) raises -> Float32
+    var c_func: fn(Float32, List[Int]) raises -> Float32
+    var r_func: fn(Int, Float32, Float32) raises -> Float32
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
-    var n_bins: Int
     var root: UnsafePointer[Node]
     
-    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, n_bins: Int = 0):
+    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
+            self.c_func = gini_precompute
+            self.r_func = mse_loss_precompute
         elif self.criterion == 'mse':
             self.loss_func = mse_loss
+            self.r_func = mse_loss_precompute
+            self.c_func = entropy_precompute
         else:
             self.loss_func = entropy
+            self.c_func = entropy_precompute
+            self.r_func = mse_loss_precompute
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
-        self.n_bins = n_bins
         self.root = UnsafePointer[Node]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -62,10 +67,16 @@ struct DecisionTree(CVM):
             self.criterion = 'gini'
         if self.criterion == 'gini':
             self.loss_func = gini
+            self.c_func = gini_precompute
+            self.r_func = mse_loss_precompute
         elif self.criterion == 'mse':
             self.loss_func = mse_loss
+            self.r_func = mse_loss_precompute
+            self.c_func = entropy_precompute
         else:
             self.loss_func = entropy
+            self.c_func = entropy_precompute
+            self.r_func = mse_loss_precompute
         if 'min_samples_split' in params:
             self.min_samples_split = atol(String(params['min_samples_split']))
         else:
@@ -78,10 +89,6 @@ struct DecisionTree(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
-        if 'n_bins' in params:
-            self.n_bins = atol(String(params['n_bins']))
-        else:
-            self.n_bins = 0
         self.root = UnsafePointer[Node]()
 
     fn _moveinit_(mut self, mut existing: Self):
@@ -101,13 +108,7 @@ struct DecisionTree(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.n_feats = X.width if self.n_feats == -1 else min(self.n_feats, X.width)
-        var X_sorted = X.asorder('f')
-        @parameter
-        fn p(i: Int):
-            var X_column = X_sorted['', i, unsafe=True]
-            sort[lt](Span[Float32, __origin_of(X_column)](ptr= X_column.data, length= X_column.size))
-        parallelize[p](X_sorted.width)
-        self.root = self._grow_tree(X_sorted, y)
+        self.root = self._grow_tree(X.asorder('f'), y)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -141,7 +142,7 @@ struct DecisionTree(CVM):
         # greedily select the best split according to information gain
         var best_feat: Int
         var best_thresh: Float32
-        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.n_bins, self.loss_func)
+        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
         # grow the children that result from the split
         var left_idxs: List[Int]
         var right_idxs: List[Int]
@@ -157,68 +158,88 @@ fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float
     var max_val: Int = 0
     var most_common: Int = 0
     for k in freq.keys():
-        if freq[k[]] > max_val:
-            max_val = freq[k[]]
-            most_common = k[]
+        if freq[k] > max_val:
+            max_val = freq[k]
+            most_common = k
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Int], n_bins: Int, loss_func: fn(Matrix) raises -> Float32) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], loss_func: fn(Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
     var parent_loss = loss_func(y)
     var max_gains = Matrix(1, len(feat_idxs))
+    max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
-    var columns = List[Matrix](capacity=len(feat_idxs))
-    columns.resize(len(feat_idxs), Matrix(0, 0))
-    var thresholds_list = List[Matrix](capacity=len(feat_idxs))
-    thresholds_list.resize(len(feat_idxs), Matrix(0, 0))
-
-    @parameter
-    fn prepare(i: Int):
-        columns[i] = X['', feat_idxs[i], unsafe=True]
-        var vals: Matrix
-        try:
-            if n_bins <= 0:
-                vals = columns[i].uniquef()
-                if vals.size == 1:
-                    vals = vals.concatenate(vals, axis=0)
-            else:
-                vals = Matrix.linspace(columns[i].data[0], columns[i].data[columns[i].height - 1], n_bins + 1).T()
-                if columns[i].data[0] == columns[i].data[columns[i].height - 1]:
-                    vals = vals.load_rows(2)
-            thresholds_list[i] = (vals.load_rows(vals.size - 1) + vals[True, 1, 0]) / 2
-        except e:
-            print('Error:', e)
-    parallelize[prepare](len(feat_idxs))
-
-    for i in range(len(feat_idxs)):
-        var gains = Matrix(len(thresholds_list[i]), 1)
+    if criterion != 'mse':
+        var num_classes = Int(y.max() + 1)  # assuming y is 0-indexed
         @parameter
-        fn p(i_t: Int):
+        fn p_c(idx: Int):
             try:
-                gains.data[i_t] = _information_gain(parent_loss, y, columns[i], thresholds_list[i].data[i_t], loss_func)
-            except:
-                print('Error: Failed to calculate information gain!')
-        parallelize[p](len(thresholds_list[i]))
-        var max_gain = gains.argmax()
-        max_gains.data[i] = gains.data[max_gain]
-        best_thresholds.data[i] = thresholds_list[i].data[max_gain]
+                var column = X['', feat_idxs[idx].value, unsafe=True]
+                var sorted_indices = column.argsort()
+                column = column[sorted_indices]
+                var y_sorted = y[sorted_indices]
+                var left_histogram = List[Int](capacity=num_classes)
+                left_histogram.resize(num_classes, 0)
+                var right_histogram = y_sorted.bincount()
+
+                for step in range(1, len(y)):
+                    var c = y_sorted.data[step - 1]
+                    left_histogram[c] += 1
+                    right_histogram[c] -= 1
+
+                    if column.data[step] == column.data[step - 1]:
+                        continue  # skip redundant thresholds
+                    
+                    var n_left = Float32(step)
+                    var n_right = Float32(len(y) - step)
+
+                    var child_loss = (n_left / len(y)) * c_precompute(n_left, left_histogram) + (n_right / len(y)) * c_precompute(n_right, right_histogram)
+                    var ig = parent_loss - child_loss
+                    if ig > max_gains.data[idx]:
+                        max_gains.data[idx] = ig
+                        best_thresholds.data[idx] = (column.data[step] + column.data[step - 1]) / 2.0  # midpoint
+            except e:
+                print('Error:', e)
+        parallelize[p_c](len(feat_idxs))
+    else:
+        var sum_total = y.sum()
+        var sum_sq_total = (y ** 2).sum()
+        @parameter
+        fn p_r(idx: Int):
+            try:
+                var column = X['', feat_idxs[idx].value, unsafe=True]
+                var sorted_indices = column.argsort()
+                column = column[sorted_indices]
+                var y_sorted = y[sorted_indices]
+
+                var left_sum: Float32 = 0.0
+                var left_sum_sq: Float32 = 0.0
+                var right_sum = sum_total
+                var right_sum_sq = sum_sq_total
+
+                for step in range(1, len(y)):
+                    var yi = y_sorted.data[step - 1]
+                    left_sum += yi
+                    left_sum_sq += yi ** 2
+                    right_sum -= yi
+                    right_sum_sq -= yi ** 2
+
+                    if column.data[step] == column.data[step - 1]:
+                        continue  # skip redundant thresholds
+                    
+                    var n_left = step
+                    var n_right = len(y) - step
+
+                    var child_loss = (Float32(n_left) / len(y)) * r_precompute(n_left, left_sum, left_sum_sq) + (Float32(n_right) / len(y)) * r_precompute(n_right, right_sum, right_sum_sq)
+                    var ig = parent_loss - child_loss
+                    if ig > max_gains.data[idx]:
+                        max_gains.data[idx] = ig
+                        best_thresholds.data[idx] = (column.data[step] + column.data[step - 1]) / 2.0  # midpoint
+            except e:
+                print('Error:', e)
+        parallelize[p_r](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx], best_thresholds.data[feat_idx]
-
-@always_inline
-fn _information_gain(parent_loss: Float32, y: Matrix, X_column: Matrix, split_thresh: Float32, loss_func: fn(Matrix) raises -> Float32) raises -> Float32:
-    # generate split
-    var left_idxs: List[Int]
-    var right_idxs: List[Int]
-    left_idxs, right_idxs = _split(X_column, split_thresh)
-
-    if len(left_idxs) == 0 or len(right_idxs) == 0:
-        return 0.0
-
-    # compute the weighted avg. of the loss for the children
-    var child_loss = (len(left_idxs) / Float32(y.size)) * loss_func(y[left_idxs]) + (len(right_idxs) / Float32(y.size)) * loss_func(y[right_idxs])
-    # information gain is difference in loss before vs. after split
-    return parent_loss - child_loss
+    return feat_idxs[feat_idx].value, best_thresholds.data[feat_idx]
 
 @always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:

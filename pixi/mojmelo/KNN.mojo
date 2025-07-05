@@ -14,7 +14,7 @@ struct KNN(CVP):
     var kdtree: KDTree
     var y_train: List[String]
 
-    fn __init__(out self, k: Int = 3, metric: String = 'euc', n_jobs: Int = 0):
+    fn __init__(out self, k: Int = 3, metric: String = 'euc', n_jobs: Int = 0) raises:
         self.k = k
         self.metric = metric.lower()
         self.n_jobs = n_jobs

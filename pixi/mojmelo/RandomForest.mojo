@@ -2,7 +2,6 @@ from mojmelo.DecisionTree import DecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM
 from memory import UnsafePointer
-from collections import Dict
 from algorithm import parallelize
 
 @always_inline
@@ -17,9 +16,9 @@ fn _predict(y: Matrix, criterion: String) raises -> Float32:
     var max_val: Int = 0
     var most_common: Int = 0
     for k in freq.keys():
-        if freq[k[]] > max_val:
-            max_val = freq[k[]]
-            most_common = k[]
+        if freq[k] > max_val:
+            max_val = freq[k]
+            most_common = k
     return Float32(most_common)
 
 struct RandomForest(CVM):
@@ -27,16 +26,14 @@ struct RandomForest(CVM):
     var min_samples_split: Int
     var max_depth: Int
     var n_feats: Int
-    var n_bins: Int
     var criterion: String
     var trees: UnsafePointer[DecisionTree]
 
-    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, n_bins: Int = 0, criterion: String = 'gini'):
+    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini'):
         self.n_trees = n_trees
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
-        self.n_bins = n_bins
         self.criterion = criterion.lower()
         self.trees = UnsafePointer[DecisionTree]()
 
@@ -54,7 +51,6 @@ struct RandomForest(CVM):
                 min_samples_split = self.min_samples_split,
                 max_depth = self.max_depth,
                 n_feats = self.n_feats,
-                n_bins = self.n_bins,
                 criterion = self.criterion
             )
             try:
@@ -98,10 +94,6 @@ struct RandomForest(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
-        if 'n_bins' in params:
-            self.n_bins = atol(String(params['n_bins']))
-        else:
-            self.n_bins = 0
         if 'criterion' in params:
             self.criterion = params['criterion'].lower()
         else:
