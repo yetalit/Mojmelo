@@ -43,11 +43,11 @@ struct LDA:
         var eigenvectors: Matrix
         if self.lapack:
             numpy_linalg = Python.import_module('numpy.linalg')
-            vals_vects = numpy_linalg.eigh(numpy_linalg.pinv(SW.to_numpy()).dot(SB.to_numpy()))
+            vals_vects = numpy_linalg.eig(numpy_linalg.pinv(SW.to_numpy()).dot(SB.to_numpy()))
             eigenvalues, eigenvectors = Matrix.from_numpy(vals_vects[0]), Matrix.from_numpy(vals_vects[1])
         else:
             eigenvalues, eigenvectors = (Matrix.solve(SW, SB)).eigen()
-            eigenvalues = eigenvalues.abs()
+        eigenvalues = eigenvalues.abs()
         # sort eigenvalues high to low
         var indices = fill_indices(eigenvalues.size)
         mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
