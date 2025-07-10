@@ -2,6 +2,7 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, sign, cross_entropy
 import math
 import time
+import random
 
 struct LogisticRegression(CVM):
     var lr: Float32
@@ -27,6 +28,8 @@ struct LogisticRegression(CVM):
         self.tol = tol
         self.batch_size = batch_size
         self.random_state = random_state
+        if self.random_state != -1:
+            random.seed(self.random_state)
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
@@ -58,7 +61,7 @@ struct LogisticRegression(CVM):
             if self.batch_size > 0:
                 var ids: List[Scalar[DType.index]]
                 if self.random_state != -1:
-                    ids = Matrix.rand_choice(X.height, X.height, False, self.random_state)
+                    ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
                 else:
                     ids = Matrix.rand_choice(X.height, X.height, False)
                 var cost: Float32 = 0.0
@@ -166,5 +169,7 @@ struct LogisticRegression(CVM):
             self.random_state = atol(String(params['random_state']))
         else:
             self.random_state = -1
+        if self.random_state != -1:
+            random.seed(self.random_state)
         self.weights = Matrix(0, 0)
         self.bias = 0.0

@@ -9,7 +9,6 @@ struct KMeans:
     var max_iters: Int
     var converge: String
     var tol: Float32
-    var seed: Int
     var labels: List[Int]
     var centroids: Matrix
     var inertia: Float32
@@ -21,7 +20,8 @@ struct KMeans:
         self.max_iters = max_iters
         self.converge = converge.lower()
         self.tol = tol
-        self.seed = random_state
+
+        random.seed(random_state)
 
         self.labels = List[Int]()
         self.centroids = Matrix(0, 0)
@@ -32,7 +32,7 @@ struct KMeans:
         self.X = X
 
         if self.init == 'random':
-            self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = self.seed)]
+            self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = False)]
         else:
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus()
@@ -61,7 +61,6 @@ struct KMeans:
         
     fn _kmeans_plus_plus(mut self) raises:
         # Randomly select the first centroid
-        random.seed(self.seed)
         self.centroids = Matrix(self.K, self.X.width)
         self.centroids[0] = self.X[Int(random.random_ui64(0, self.X.height - 1))]
 

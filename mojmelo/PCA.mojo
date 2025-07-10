@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import gt, fill_indices
+from mojmelo.utils.utils import gt, fill_indices_list
 from algorithm import parallelize
 from python import Python
 
@@ -37,7 +37,7 @@ struct PCA:
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
             _, S, Vt = (X - self.mean).svd(full_matrices=False)
-            var indices = fill_indices(S.size)
+            var indices = fill_indices_list(S.size)
             mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(S)](ptr= S.data, length= S.size), indices, self.n_components)
             self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
             @parameter

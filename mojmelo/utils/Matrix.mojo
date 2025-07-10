@@ -7,7 +7,7 @@ import algorithm
 from collections import Set
 import math
 import random
-from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div, fill_indices
+from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div, fill_indices, fill_indices_list
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
@@ -1232,7 +1232,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     @always_inline
     fn argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.index]]:
-        var sorted_indices = fill_indices(self.size)
+        var sorted_indices = fill_indices_list(self.size)
         @parameter
         fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
             @parameter
@@ -1782,41 +1782,22 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     @staticmethod
     @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool = True) raises -> List[Scalar[DType.index]]:
-        random.seed()
-        var result: List[Scalar[DType.index]]
-        if not replace:
-            result = fill_indices(size)
+    fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Scalar[DType.index]]:
+        if seed:
+            random.seed()
+        var result = UnsafePointer[Scalar[DType.index]].alloc(size)
+        if replace:
+            random.randint(result, size, 0, arang)
         else:
-            result = List[Scalar[DType.index]](capacity=size)
-            result.resize(size, 0)
-        for i in range(size - 1, 0, -1):
-            if not replace:
+            var indices = fill_indices(arang)
+            for i in range(arang - 1, 0, -1):
                 # Fisher-Yates shuffle
-                var j = random.random_ui64(0, i).cast[DType.index]()
-                result[i], result[j] = result[j], result[i]
-            else:
-                result[i] = random.random_ui64(0, arang - 1).cast[DType.index]()
-        return result^
-
-    @staticmethod
-    @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool, seed: Int) raises -> List[Scalar[DType.index]]:
-        random.seed(seed)
-        var result: List[Scalar[DType.index]]
-        if not replace:
-            result = fill_indices(size)
-        else:
-            result = List[Scalar[DType.index]](capacity=size)
-            result.resize(size, 0)
-        for i in range(size - 1, 0, -1):
-            if not replace:
-                # Fisher-Yates shuffle
-                var j = random.random_ui64(0, i).cast[DType.index]()
-                result[i], result[j] = result[j], result[i]
-            else:
-                result[i] = random.random_ui64(0, arang - 1).cast[DType.index]()
-        return result^
+                var j = Int(random.random_ui64(0, i))
+                indices[i], indices[j] = indices[j], indices[i]
+            memcpy(result, indices, size)
+        var list = List[Scalar[DType.index]](unsafe_uninit_length=size)
+        list.data = result
+        return list^
 
     @staticmethod
     @always_inline

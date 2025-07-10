@@ -1,6 +1,6 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import lt, fill_indices
+from mojmelo.utils.utils import lt
 from memory import UnsafePointer
 from algorithm import parallelize
 import math

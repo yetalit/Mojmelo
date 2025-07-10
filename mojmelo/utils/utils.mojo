@@ -445,17 +445,29 @@ fn log_h(score: Matrix) raises -> Matrix:
     return pred.ele_mul(1 - pred)
 
 
-fn fill_indices(N: Int) raises -> List[Scalar[DType.index]]:
-    var indices = List[Scalar[DType.index]](capacity=N)
-    indices.resize(N, 0)
+fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
+    var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
-        indices.data.store(offset[0], math.iota[DType.index, width](offset[0]))
+        indices.store(offset[0], math.iota[DType.index, width](offset[0]))
 
     elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
-        len(indices)
+        N
     )
-    return indices^
+    return indices
+
+fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
+    var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
+    @parameter
+    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+        indices.store(offset[0], math.iota[DType.index, width](offset[0]))
+
+    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+        N
+    )
+    var list = List[Scalar[DType.index]](unsafe_uninit_length=N)
+    list.data = indices
+    return list^
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np = Python.import_module("numpy")
