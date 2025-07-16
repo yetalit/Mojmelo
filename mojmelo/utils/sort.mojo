@@ -118,7 +118,7 @@ fn _insertion_sort[
 
     for i in range(1, size):
         var value = array[i]
-        var value_b = indices[i]
+        var value_i = indices[i]
         var j = i
 
         # Find the placement of the value in the array, shifting as we try to
@@ -130,7 +130,7 @@ fn _insertion_sort[
             j -= 1
 
         array[j] = value
-        indices[j] = value_b
+        indices[j] = value_i
 
 
 # put everything thats "<" to the left of pivot
@@ -241,55 +241,55 @@ fn _quicksort[
     alias ImmSpan = span.Immutable
 
     var stack = List[ImmSpan](capacity=_estimate_initial_height(size))
-    var stack_b = List[UnsafePointer[Scalar[DType.index]]](capacity=stack.capacity)
+    var stack_i = List[UnsafePointer[Scalar[DType.index]]](capacity=stack.capacity)
     stack.append(span)
-    stack_b.append(indices)
+    stack_i.append(indices)
     while len(stack) > 0:
         var imm_interval = stack.pop()
-        var interval_b = stack_b.pop()
+        var interval_i = stack_i.pop()
         var imm_ptr = imm_interval.unsafe_ptr()
         var mut_ptr = imm_ptr.origin_cast[mut=True, origin=MutableAnyOrigin]()
         var len = len(imm_interval)
         var interval = Span[T, MutableAnyOrigin](ptr=mut_ptr, length=len)
 
         if len <= 5:
-            _delegate_small_sort[cmp_fn](interval, interval_b)
+            _delegate_small_sort[cmp_fn](interval, interval_i)
             continue
 
         if len < insertion_sort_threshold:
-            _insertion_sort[cmp_fn](interval, interval_b)
+            _insertion_sort[cmp_fn](interval, interval_i)
             continue
 
         # pick median of 3 as pivot
-        _sort3[T, cmp_fn](mut_ptr, len >> 1, 0, len - 1, interval_b)
+        _sort3[T, cmp_fn](mut_ptr, len >> 1, 0, len - 1, interval_i)
 
         # if ptr[-1] == pivot_value, then everything in between will
         # be the same, so no need to recurse that interval
         # already have array[-1] <= array[0]
         if mut_ptr > array and not cmp_fn(imm_ptr[-1], imm_ptr[0]):
-            var pivot = _quicksort_partition_left[cmp_fn](interval, interval_b)
+            var pivot = _quicksort_partition_left[cmp_fn](interval, interval_i)
             if len > pivot + 2:
                 stack.append(
                     ImmSpan(ptr=imm_ptr + pivot + 1, length=len - pivot - 1)
                 )
-                stack_b.append(
-                    interval_b + pivot + 1
+                stack_i.append(
+                    interval_i + pivot + 1
                 )
             continue
 
-        var pivot = _quicksort_partition_right[cmp_fn](interval, interval_b)
+        var pivot = _quicksort_partition_right[cmp_fn](interval, interval_i)
 
         if len > pivot + 2:
             stack.append(
                 ImmSpan(ptr=imm_ptr + pivot + 1, length=len - pivot - 1)
             )
-            stack_b.append(
-                interval_b + pivot + 1
+            stack_i.append(
+                interval_i + pivot + 1
             )
 
         if pivot > 1:
             stack.append(ImmSpan(ptr=imm_ptr, length=pivot))
-            stack_b.append(interval_b)
+            stack_i.append(interval_i)
 
 
 # Junction from public to private API
@@ -391,23 +391,23 @@ fn _sort_partial_3[
     var a = array[offset0]
     var b = array[offset1]
     var c = array[offset2]
-    var ab = indices[offset0]
-    var bb = indices[offset1]
-    var cb = indices[offset2]
+    var ai = indices[offset0]
+    var bi = indices[offset1]
+    var ci = indices[offset2]
     var r = cmp_fn(c, a)
     var t = c if r else a
-    var tb = cb if r else ab
+    var ti = ci if r else ai
     if r:
         array[offset2] = a
-        indices[offset2] = ab
+        indices[offset2] = ai
     if cmp_fn(b, t):
         array[offset0] = b
         array[offset1] = t
-        indices[offset0] = bb
-        indices[offset1] = tb
+        indices[offset0] = bi
+        indices[offset1] = ti
     elif r:
         array[offset0] = t
-        indices[offset0] = tb
+        indices[offset0] = ti
 
 
 @always_inline
