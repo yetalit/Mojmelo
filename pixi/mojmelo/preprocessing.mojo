@@ -5,6 +5,7 @@ from sys import num_performance_cores
 from memory import UnsafePointer
 from python import Python, PythonObject
 import time
+import random
 
 fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
     var z = Matrix(data.height, data.width, order= data.order)
@@ -93,7 +94,8 @@ fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.5, train_siz
 
 fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
-    var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
+    random.seed(random_state)
+    var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
@@ -113,7 +115,8 @@ fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, tra
 
 fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
-    var ids = Matrix.rand_choice(X.height, X.height, False, random_state)
+    random.seed(random_state)
+    var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 

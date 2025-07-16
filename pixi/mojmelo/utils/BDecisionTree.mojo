@@ -1,6 +1,6 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import lt, fill_indices
+from mojmelo.utils.utils import lt
 from memory import UnsafePointer
 from algorithm import parallelize
 import math
@@ -110,8 +110,7 @@ fn _best_criteria(reg_lambda: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idx
     fn p(idx: Int):
         try:
             var column = X['', feat_idxs[idx].value, unsafe=True]
-            var sorted_indices = column.argsort()
-            column = column[sorted_indices]
+            var sorted_indices = column.argsort_inplace()
             var g_sorted = g[sorted_indices]
             var h_sorted = h[sorted_indices]
 

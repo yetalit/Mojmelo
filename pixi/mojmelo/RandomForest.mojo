@@ -3,10 +3,12 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM
 from memory import UnsafePointer
 from algorithm import parallelize
+import math
+import random
 
 @always_inline
 fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
-    var idxs = Matrix.rand_choice(X.height, X.height, True)
+    var idxs = Matrix.rand_choice(X.height, X.height, True, seed = False)
     return X[idxs], y[idxs]
 
 fn _predict(y: Matrix, criterion: String) raises -> Float32:
@@ -29,12 +31,13 @@ struct RandomForest(CVM):
     var criterion: String
     var trees: UnsafePointer[DecisionTree]
 
-    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini'):
+    fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini', random_state: Int = 42):
         self.n_trees = n_trees
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
         self.criterion = criterion.lower()
+        random.seed(random_state)
         self.trees = UnsafePointer[DecisionTree]()
 
     fn __del__(owned self):
@@ -45,16 +48,24 @@ struct RandomForest(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
+        var _y = y if y.width == 1 else y.reshape(y.size, 1)
+        var n_feats = self.n_feats
+        if self.n_feats < 1:
+            if self.criterion == 'mse':
+                n_feats = X.width
+            else:
+                n_feats = math.sqrt(X.width)
         @parameter
         fn p(i: Int):
             var tree = DecisionTree(
                 min_samples_split = self.min_samples_split,
                 max_depth = self.max_depth,
-                n_feats = self.n_feats,
+                n_feats = n_feats,
+                random_state = -1,
                 criterion = self.criterion
             )
             try:
-                X_samp, y_samp = bootstrap_sample(X, y)
+                X_samp, y_samp = bootstrap_sample(X, _y)
                 tree.fit(X_samp, y_samp)
             except:
                 print('Error: Tree fitting failed!')
@@ -64,17 +75,22 @@ struct RandomForest(CVM):
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var tree_preds = Matrix(X.height, self.n_trees)
-        for i in range(self.n_trees):
-            tree_preds['', i] = self.trees[i].predict(X)
-        
+        @parameter
+        fn predict_per_tree(i: Int):
+            try:
+                tree_preds['', i] = self.trees[i].predict(X)
+            except:
+                print('Error: Failed to predict!')
+        parallelize[predict_per_tree](self.n_trees)
+
         var y_predicted = Matrix(X.height, 1)
         @parameter
-        fn p(i: Int):
+        fn predict_per_sample(i: Int):
             try:
                 y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
             except:
                 print('Error: Failed to predict!')
-        parallelize[p](tree_preds.height)
+        parallelize[predict_per_sample](tree_preds.height)
         return y_predicted^
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -98,4 +114,8 @@ struct RandomForest(CVM):
             self.criterion = params['criterion'].lower()
         else:
             self.criterion = 'gini'
+        if 'random_state' in params:
+            random.seed(atol(String(params['random_state'])))
+        else:
+            random.seed(42)
         self.trees = UnsafePointer[DecisionTree]()

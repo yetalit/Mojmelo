@@ -4,7 +4,7 @@ from mojmelo.utils.Matrix import Matrix
 from memory import UnsafePointer
 from buffer import NDBuffer
 import math
-from mojmelo.utils.utils import fill_indices
+from mojmelo.utils.utils import fill_indices_list
 
 @always_inline
 fn Abs(val: Float32) -> Float32:
@@ -362,7 +362,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         existing.root = UnsafePointer[KDTreeNode]()
 
     fn build_tree(mut self) raises: # builds the tree.  Used upon construction
-        self.ind = fill_indices(self.N)
+        self.ind = fill_indices_list(self.N)
         self.root = self.build_tree_for_range(0, self.N-1, UnsafePointer[KDTreeNode]())
 
     fn build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode]) -> UnsafePointer[KDTreeNode]:

@@ -1,8 +1,9 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, lt, fill_indices
+from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
 from memory import UnsafePointer
 from algorithm import parallelize
 import math
+import random
 
 @value
 struct Node:
@@ -41,7 +42,7 @@ struct DecisionTree(CVM):
     var n_feats: Int
     var root: UnsafePointer[Node]
     
-    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1):
+    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
@@ -58,6 +59,8 @@ struct DecisionTree(CVM):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
+        if random_state != -1:
+            random.seed(random_state)
         self.root = UnsafePointer[Node]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
@@ -89,6 +92,12 @@ struct DecisionTree(CVM):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
+        if 'random_state' in params:
+            var seed = atol(String(params['random_state']))
+            if seed != -1:
+                random.seed(seed)
+        else:
+            random.seed(42)
         self.root = UnsafePointer[Node]()
 
     fn _moveinit_(mut self, mut existing: Self):
@@ -107,8 +116,11 @@ struct DecisionTree(CVM):
             delTree(self.root)
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
-        self.n_feats = X.width if self.n_feats == -1 else min(self.n_feats, X.width)
-        self.root = self._grow_tree(X.asorder('f'), y)
+        self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
+        if y.width != 1:
+            self.root = self._grow_tree(X.asorder('f'), y.reshape(y.size, 1))
+        else:
+            self.root = self._grow_tree(X.asorder('f'), y)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -137,7 +149,7 @@ struct DecisionTree(CVM):
             new_node.init_pointee_move(Node(value = set_value(y, freq, self.criterion)))
             return new_node
 
-        var feat_idxs = Matrix.rand_choice(X.width, self.n_feats, False)
+        var feat_idxs = Matrix.rand_choice(X.width, self.n_feats, False, seed = False)
 
         # greedily select the best split according to information gain
         var best_feat: Int
@@ -174,8 +186,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         fn p_c(idx: Int):
             try:
                 var column = X['', feat_idxs[idx].value, unsafe=True]
-                var sorted_indices = column.argsort()
-                column = column[sorted_indices]
+                var sorted_indices = column.argsort_inplace()
                 var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
@@ -207,8 +218,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         fn p_r(idx: Int):
             try:
                 var column = X['', feat_idxs[idx].value, unsafe=True]
-                var sorted_indices = column.argsort()
-                column = column[sorted_indices]
+                var sorted_indices = column.argsort_inplace()
                 var y_sorted = y[sorted_indices]
 
                 var left_sum: Float32 = 0.0

@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import gt, fill_indices
+from mojmelo.utils.utils import gt, fill_indices_list
 from algorithm import parallelize
 from python import Python, PythonObject
 
@@ -49,8 +49,8 @@ struct LDA:
             eigenvalues, eigenvectors = (Matrix.solve(SW, SB)).eigen()
         eigenvalues = eigenvalues.abs()
         # sort eigenvalues high to low
-        var indices = fill_indices(eigenvalues.size)
-        mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
+        var indices = fill_indices_list(eigenvalues.size)
+        mojmelo.utils.sort.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
         # store first n eigenvectors
         self.linear_discriminants = Matrix(eigenvectors.height, self.n_components)
         @parameter

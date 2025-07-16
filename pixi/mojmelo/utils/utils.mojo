@@ -138,93 +138,6 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
         output_dim_ptr[] = idx
 
 # ===----------------------------------------------------------------------===#
-# partition
-# ===----------------------------------------------------------------------===#
-
-@fieldwise_init("implicit")
-struct _SortWrapper[T: Copyable & Movable](Copyable, Movable):
-    var data: T
-
-    fn __init__(out self, *, other: Self):
-        self.data = other.data
-
-
-@always_inline
-fn _partition[
-    T: Copyable & Movable,
-    origin: MutableOrigin, //,
-    cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
-](span: Span[T, origin], mut indices: List[Scalar[DType.index]]) -> Int:
-    var size = len(span)
-    if size <= 1:
-        return 0
-
-    var array = span.unsafe_ptr().origin_cast[origin=MutableAnyOrigin]()
-    var pivot = size // 2
-
-    var pivot_value = array[pivot]
-
-    var left = 0
-    var right = size - 2
-
-    swap(array[pivot], array[size - 1])
-    indices[pivot], indices[size - 1] = indices[size - 1], indices[pivot]
-
-    while left < right:
-        if cmp_fn(array[left], pivot_value):
-            left += 1
-        elif not cmp_fn(array[right], pivot_value):
-            right -= 1
-        else:
-            swap(array[left], array[right])
-            indices[left], indices[right] = indices[right], indices[left]
-
-    if cmp_fn(array[right], pivot_value):
-        right += 1
-    swap(array[size - 1], array[right])
-    indices[size - 1], indices[right] = indices[right], indices[size - 1]
-    
-    return right
-
-
-fn _partition[
-    T: Copyable & Movable,
-    origin: MutableOrigin, //,
-    cmp_fn: fn (_SortWrapper[T], _SortWrapper[T]) capturing [_] -> Bool,
-](owned span: Span[T, origin], mut indices: List[Scalar[DType.index]], owned k: Int):
-    while True:
-        var pivot = _partition[cmp_fn](span, indices)
-        if pivot == k:
-            return
-        elif k < pivot:
-            span._len = pivot
-            span = span[:pivot]
-        else:
-            span._data += pivot + 1
-            span._len -= pivot + 1
-            k -= pivot + 1
-
-
-fn partition[
-    origin: MutableOrigin, //,
-    cmp_fn: fn (Float32, Float32) capturing [_] -> Bool,
-](span: Span[Float32, origin], mut indices: List[Scalar[DType.index]], k: Int):
-    """Partition the input buffer inplace such that first k elements are the
-    largest (or smallest if cmp_fn is < operator) elements.
-    The ordering of the first k elements is undefined.
-
-    Parameters:
-        origin: Origin of span.
-        cmp_fn: Comparison functor of (type, type) capturing -> Bool type.
-    """
-
-    @parameter
-    fn _cmp_fn(lhs: _SortWrapper[Float32], rhs: _SortWrapper[Float32]) -> Bool:
-        return cmp_fn(lhs.data, rhs.data)
-
-    _partition[_cmp_fn](span, indices, k)
-
-# ===----------------------------------------------------------------------===#
 
 @always_inline
 fn euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
@@ -445,17 +358,29 @@ fn log_h(score: Matrix) raises -> Matrix:
     return pred.ele_mul(1 - pred)
 
 
-fn fill_indices(N: Int) raises -> List[Scalar[DType.index]]:
-    var indices = List[Scalar[DType.index]](capacity=N)
-    indices.resize(N, 0)
+fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
+    var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
-        indices.data.store(offset[0], math.iota[DType.index, width](offset[0]))
+        indices.store(offset[0], math.iota[DType.index, width](offset[0]))
 
     elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
-        len(indices)
+        N
     )
-    return indices^
+    return indices
+
+fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
+    var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
+    @parameter
+    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+        indices.store(offset[0], math.iota[DType.index, width](offset[0]))
+
+    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+        N
+    )
+    var list = List[Scalar[DType.index]](unsafe_uninit_length=N)
+    list.data = indices
+    return list^
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     var np = Python.import_module("numpy")
