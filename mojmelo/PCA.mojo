@@ -38,7 +38,7 @@ struct PCA:
         else:
             _, S, Vt = (X - self.mean).svd(full_matrices=False)
             var indices = fill_indices_list(S.size)
-            mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(S)](ptr= S.data, length= S.size), indices, self.n_components)
+            mojmelo.utils.sort.partition[gt](Span[Float32, __origin_of(S)](ptr= S.data, length= S.size), indices, self.n_components)
             self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
             @parameter
             fn p(i: Int):

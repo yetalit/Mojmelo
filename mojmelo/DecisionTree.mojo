@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, lt
+from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
 from memory import UnsafePointer
 from algorithm import parallelize
 import math
@@ -117,7 +117,10 @@ struct DecisionTree(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
-        self.root = self._grow_tree(X.asorder('f'), y)
+        if y.width != 1:
+            self.root = self._grow_tree(X.asorder('f'), y.reshape(y.size, 1))
+        else:
+            self.root = self._grow_tree(X.asorder('f'), y)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -183,8 +186,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         fn p_c(idx: Int):
             try:
                 var column = X['', feat_idxs[idx].value, unsafe=True]
-                var sorted_indices = column.argsort()
-                column = column[sorted_indices]
+                var sorted_indices = column.argsort_inplace()
                 var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
@@ -216,8 +218,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         fn p_r(idx: Int):
             try:
                 var column = X['', feat_idxs[idx].value, unsafe=True]
-                var sorted_indices = column.argsort()
-                column = column[sorted_indices]
+                var sorted_indices = column.argsort_inplace()
                 var y_sorted = y[sorted_indices]
 
                 var left_sum: Float32 = 0.0

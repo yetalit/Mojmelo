@@ -48,6 +48,7 @@ struct RandomForest(CVM):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
+        var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
         if self.n_feats < 1:
             if self.criterion == 'mse':
@@ -64,7 +65,7 @@ struct RandomForest(CVM):
                 criterion = self.criterion
             )
             try:
-                X_samp, y_samp = bootstrap_sample(X, y)
+                X_samp, y_samp = bootstrap_sample(X, _y)
                 tree.fit(X_samp, y_samp)
             except:
                 print('Error: Tree fitting failed!')

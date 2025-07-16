@@ -50,7 +50,7 @@ struct LDA:
         eigenvalues = eigenvalues.abs()
         # sort eigenvalues high to low
         var indices = fill_indices_list(eigenvalues.size)
-        mojmelo.utils.utils.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
+        mojmelo.utils.sort.partition[gt](Span[Float32, __origin_of(eigenvalues)](ptr= eigenvalues.data, length= eigenvalues.size), indices, self.n_components)
         # store first n eigenvectors
         self.linear_discriminants = Matrix(eigenvectors.height, self.n_components)
         @parameter

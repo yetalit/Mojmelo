@@ -1240,11 +1240,31 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 return Bool(self.data[Int(a)] < self.data[Int(b)])
             else:
                 return Bool(self.data[Int(a)] > self.data[Int(b)])
+
         sort[cmp_fn](
             Span[
                 Scalar[DType.index],
                 __origin_of(sorted_indices),
             ](ptr=sorted_indices.data, length=len(sorted_indices))
+        )
+        return sorted_indices^
+
+    @always_inline
+    fn argsort_inplace[ascending: Bool = True](mut self) raises -> List[Scalar[DType.index]]:
+        var sorted_indices = fill_indices_list(self.size)
+        @parameter
+        fn cmp_fn(a: Float32, b: Float32) -> Bool:
+            @parameter
+            if ascending:
+                return Bool(a < b)
+            else:
+                return Bool(a > b)
+    
+        mojmelo.utils.sort.sort[cmp_fn](
+            Span[
+                Float32,
+                __origin_of(self),
+            ](ptr=self.data, length=self.size), sorted_indices.data
         )
         return sorted_indices^
 
