@@ -164,22 +164,6 @@ fn manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
     return (x1 - x2).abs().sum(axis)
 
 @always_inline
-fn lt(lhs: Float32, rhs:Float32) capturing -> Bool:
-    return lhs < rhs
-
-@always_inline
-fn le(lhs: Float32, rhs:Float32) capturing -> Bool:
-    return lhs <= rhs
-
-@always_inline
-fn gt(lhs: Float32, rhs:Float32) capturing -> Bool:
-    return lhs > rhs
-
-@always_inline
-fn ge(lhs: Float32, rhs:Float32) capturing -> Bool:
-    return lhs >= rhs
-
-@always_inline
 fn add[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a + b
 

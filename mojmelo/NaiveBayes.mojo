@@ -1,15 +1,18 @@
 import math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVP, normal_distr
+from algorithm import parallelize
 from python import PythonObject
 
 struct GaussianNB:
+    var var_smoothing: Float32
     var _classes: List[String]
     var _mean: Matrix
     var _var: Matrix
     var _priors: List[Float32]
 
-    fn __init__(out self):
+    fn __init__(out self, var_smoothing: Float32 = 1e-8):
+        self.var_smoothing = var_smoothing
         self._classes = List[String]()
         self._mean = Matrix(0, 0)
         self._var = Matrix(0, 0)
@@ -19,6 +22,14 @@ struct GaussianNB:
         var n_samples = Float32(X.height)
         var _class_freq: List[Int]
         self._classes, _class_freq = Matrix.unique(y)
+        
+        var classes_ids = Dict[String, Int]()
+        for i in range(len(self._classes)):
+            classes_ids[self._classes[i]] = i
+        var y_indices = List[List[Int]](capacity=len(self._classes))
+        y_indices.resize(len(self._classes), List[Int]())
+        for i in range(len(y)):
+            y_indices[classes_ids[String(y[i])]].append(i)
 
         # calculate mean, var, and prior for each class
         self._mean = Matrix.zeros(len(self._classes), X.width)
@@ -26,40 +37,40 @@ struct GaussianNB:
         self._priors = List[Float32](capacity=len(self._classes))
         self._priors.resize(len(self._classes), 0.0)
 
-        for i in range(len(self._classes)):
-            var X_c = Matrix(_class_freq[i], X.width)
-            var pointer: Int = 0
-            for j in range(X.height):
-                if String(y[j]) == self._classes[i]:
-                    X_c[pointer] = X[j]
-                    pointer += 1
-            self._mean[i] = X_c.mean(0)
-            self._var[i] = X_c._var(0, self._mean[i])
-            self._priors[i] = X_c.height / n_samples
+        @parameter
+        fn p(i: Int):
+            try:
+                var X_c = X[y_indices[i]]
+                self._mean[i] = X_c.mean(0)
+                self._var[i] = X_c._var(0, self._mean[i]) + self.var_smoothing
+                self._priors[i] = X_c.height / n_samples
+            except e:
+                print('Error:', e)
+        parallelize[p](len(self._classes))
 
     fn predict(self, X: Matrix) raises -> List[String]:
-        var y_pred = List[String]()
-        for i in range(X.height):
-            y_pred.append(self._predict(X[i]))
+        var posteriors = Matrix(X.height, len(self._classes))
+        @parameter
+        fn p1(i: Int):
+            try:
+                # calculate posterior probability for each class
+                posteriors['', i] = math.log(self._priors[i]) + self._pdf(i, X).log().sum(axis=1)
+            except e:
+                print('Error:', e)
+        parallelize[p1](len(self._classes))
+        var y_pred = List[String](capacity=X.height)
+        y_pred.resize(X.height, '')
+        @parameter
+        fn p2(i: Int):
+            # return class with highest posterior probability
+            y_pred[i] = self._classes[posteriors[i, unsafe=True].argmax()]
+        parallelize[p2](X.height)
         return y_pred^
-
-    @always_inline
-    fn _predict(self, x: Matrix) raises -> String:
-        var max_posterior = math.log(self._priors[0]) + self._pdf(0, x).log().sum()
-        var argmax = 0
-        # calculate posterior probability for each class
-        for i in range(1, len(self._classes)):
-            var current_posterior = math.log(self._priors[i]) + self._pdf(i, x).log().sum()
-            if current_posterior > max_posterior:
-                max_posterior = current_posterior
-                argmax = i
-        # return class with highest posterior probability
-        return self._classes[argmax]
 
     # Probability Density Function
     @always_inline
-    fn _pdf(self, class_idx: Int, x: Matrix) raises -> Matrix:
-        return normal_distr(x, self._mean[class_idx], self._var[class_idx])
+    fn _pdf(self, class_idx: Int, X: Matrix) raises -> Matrix:
+        return normal_distr(X, self._mean[class_idx], self._var[class_idx])
 
 struct MultinomialNB:
     var _alpha: Float32
@@ -78,36 +89,45 @@ struct MultinomialNB:
         var _class_freq: List[Int]
         self._classes, _class_freq = Matrix.unique(y)
 
+        var classes_ids = Dict[String, Int]()
+        for i in range(len(self._classes)):
+            classes_ids[self._classes[i]] = i
+
         # calculate feature probabilities and prior for each class
         self._class_probs = Matrix.zeros(len(self._classes), X.width)
         self._priors = List[Float32](capacity=len(self._classes))
         self._priors.resize(len(self._classes), 0.0)
 
         for i in range(X.height):
-            self._class_probs[self._classes.index(String(y[i]))] += X[i]
-        for i in range(len(self._classes)):
-            var c_histogram = self._class_probs[i] + self._alpha
-            self._class_probs[i] = c_histogram / c_histogram.sum()
-            self._priors[i] = _class_freq[i] / n_samples
+            self._class_probs[classes_ids[String(y[i])]] += X[i]
+        @parameter
+        fn p(i: Int):
+            try:
+                var c_histogram = self._class_probs[i] + self._alpha
+                self._class_probs[i] = c_histogram / c_histogram.sum()
+                self._priors[i] = _class_freq[i] / n_samples
+            except e:
+                print('Error:', e)
+        parallelize[p](len(self._classes))
 
     fn predict(self, X: Matrix) raises -> List[String]:
-        var y_pred = List[String]()
-        for i in range(X.height):
-            y_pred.append(self._predict(X[i]))
+        var posteriors = Matrix(X.height, len(self._classes))
+        @parameter
+        fn p1(i: Int):
+            try:
+                # calculate posterior probability for each class
+                posteriors['', i] = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(X).sum(axis=1)
+            except e:
+                print('Error:', e)
+        parallelize[p1](len(self._classes))
+        var y_pred = List[String](capacity=X.height)
+        y_pred.resize(X.height, '')
+        @parameter
+        fn p2(i: Int):
+            # return class with highest posterior probability
+            y_pred[i] = self._classes[posteriors[i, unsafe=True].argmax()]
+        parallelize[p2](X.height)
         return y_pred^
-
-    @always_inline
-    fn _predict(self, x: Matrix) raises -> String:
-        var max_posterior = math.log(self._priors[0]) + self._class_probs[0].log().ele_mul(x).sum()
-        var argmax = 0
-        # calculate posterior probability for each class
-        for i in range(1, len(self._classes)):
-            var current_posterior = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(x).sum()
-            if current_posterior > max_posterior:
-                max_posterior = current_posterior
-                argmax = i
-        # return class with highest posterior probability
-        return self._classes[argmax]
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if '_alpha' in params:
