@@ -38,7 +38,6 @@ Here is the list of the algorithms:
 * GBDT (both Regression/Classification)
 * PCA
 * LDA
-* Adaboost
 
 Preprocessing:
 * normalize
@@ -47,15 +46,13 @@ Preprocessing:
 * KFold
 * GridSearchCV
 
-**Mojmelo will not only be limited to above algorithms.**
-
 ## Getting Started
 
 If you are not familiar with Mojo projects, you can get started here: https://docs.modular.com/mojo/manual/get-started/
 
 ### Prerequisites
 
-* MAX 25.4
+* MAX 25.5
 
 Additionally, you may want to install bellow Python packages for a better usability and to run tests:
 1. Pandas

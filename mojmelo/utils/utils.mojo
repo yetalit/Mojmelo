@@ -1,4 +1,4 @@
-from memory import memcpy, UnsafePointer
+from memory import memcpy
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
@@ -363,7 +363,7 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
         N
     )
     var list = List[Scalar[DType.index]](unsafe_uninit_length=N)
-    list.data = indices
+    list._data = indices
     return list^
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
@@ -376,13 +376,13 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
 fn ids_to_numpy(list: List[Scalar[DType.index]]) raises -> PythonObject:
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data, len(list))
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data, len(list))
     return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list.data.bitcast[Scalar[DType.index]](), len(list))
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data.bitcast[Scalar[DType.index]](), len(list))
     return np_arr^
 
 fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:

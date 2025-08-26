@@ -1,7 +1,6 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h
-from memory import UnsafePointer
 
 struct GBDT(CVM):
 	var criterion: String
@@ -37,7 +36,7 @@ struct GBDT(CVM):
 		self.trees = UnsafePointer[BDecisionTree]()
 		self.score_start = 0.0
 
-	fn __del__(owned self):
+	fn __del__(var self):
 		if self.trees:
 			for i in range(self.n_trees):
 				(self.trees + i).destroy_pointee()

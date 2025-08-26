@@ -1,11 +1,9 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from memory import UnsafePointer
 from algorithm import parallelize
 import math
 
-@value
-struct BDecisionTree:
+struct BDecisionTree(Copyable, Movable):
     var min_samples_split: Int
     var max_depth: Int
     var reg_lambda: Float32 
@@ -29,7 +27,7 @@ struct BDecisionTree:
         existing.reg_lambda = existing.gamma = 0.0
         existing.root = UnsafePointer[Node]()
 
-    fn __del__(owned self):
+    fn __del__(var self):
         if self.root:
             delTree(self.root)
 

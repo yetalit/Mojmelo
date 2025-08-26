@@ -1,7 +1,6 @@
 # I reimplemented the kd-tree implementation in C++ (and Fortran) by Matthew B. Kennel (https://github.com/jmhodges/kdtree2/) with some modifications.
 
 from mojmelo.utils.Matrix import Matrix
-from memory import UnsafePointer
 from buffer import NDBuffer
 import math
 from mojmelo.utils.utils import fill_indices_list
@@ -14,23 +13,15 @@ fn Abs(val: Float32) -> Float32:
 fn Squared(val: Float32) -> Float32:
     return val ** 2
 
-@value
-struct interval:
+@fieldwise_init
+struct interval(Copyable, Movable):
     var lower: Float32
     var upper: Float32
 
-    fn __init__(out self, lower: Float32, upper: Float32):
-        self.lower = lower
-        self.upper = upper
-
-@value
-struct KDTreeResult:
+@fieldwise_init
+struct KDTreeResult(Copyable, Movable):
     var dis: Float32  # its square Euclidean distance
     var idx: Int    # which neighbor was found
-
-    fn __init__(out self, dis: Float32, idx: Int):
-        self.dis = dis
-        self.idx = idx
 
     @always_inline
     fn __gt__(self, rhs: Self) -> Bool:
@@ -43,8 +34,7 @@ struct KDTreeResult:
     fn __le__(self, rhs: Self) capturing -> Bool:
         return self.dis <= rhs.dis
 
-@value
-struct KDTreeResultVector(Sized):
+struct KDTreeResultVector(Copyable, Movable, Sized):
     var _self: List[KDTreeResult]
     
     fn __init__(out self):
@@ -121,7 +111,7 @@ struct SearchRecord:
     var data: UnsafePointer[Matrix] 
     var ind: UnsafePointer[List[Scalar[DType.index]]]
 
-    fn __init__(out self, qv_in: NDBuffer[type=DType.float32, rank=1], tree_in: KDTree, result_in: KDTreeResultVector):  
+    fn __init__(out self, qv_in: NDBuffer[dtype=DType.float32, rank=1], tree_in: KDTree, result_in: KDTreeResultVector):  
         self.qv = qv_in.data
         self.result = UnsafePointer(to=result_in)
         self.data = UnsafePointer(to=tree_in._data)
@@ -140,8 +130,7 @@ fn dis_from_bnd(x: Float32, amin: Float32, amax: Float32) -> Float32:
         return amin-x
     return 0.0
 
-@value
-struct KDTreeNode:
+struct KDTreeNode(Copyable, Movable):
     var cut_dim: Int # dimension to cut
     var cut_val: Float32
     var cut_val_left: Float32
@@ -316,8 +305,7 @@ struct KDTreeNode:
             var e = KDTreeResult(dis, indexofi)
             sr.result[]._self.append(e)
 
-@value
-struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
+struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Movable):
     var _data: Matrix
     var N: Int   # number of data points
     var dim: Int
@@ -351,15 +339,15 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
                         rearranged_data.store[1](i, j, self._data.load[1](self.ind[i].value, j))
                 self._data = rearranged_data^
 
-    fn __moveinit__(out self, owned existing: Self):
+    fn __moveinit__(out self, var existing: Self):
         self._data = existing._data^
         self.N = existing.N
         self.dim = existing.dim
         self.root = existing.root
         self.ind = existing.ind^
         self.metric = existing.metric
-        existing.N = existing.dim = 0
-        existing.root = UnsafePointer[KDTreeNode]()
+        #existing.N = existing.dim = 0
+        #existing.root = UnsafePointer[KDTreeNode]()
 
     fn build_tree(mut self) raises: # builds the tree.  Used upon construction
         self.ind = fill_indices_list(self.N)
@@ -488,7 +476,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         interv.lower = smin
         interv.upper = smax
 
-    fn select_on_coordinate(mut self, c: Int, k: Int, owned l: Int, owned u: Int):
+    fn select_on_coordinate(mut self, c: Int, k: Int, var l: Int, var u: Int):
         #  Move indices in ind[l..u] so that the elements in [l .. k] 
         #  are less than the [k+1..u] elmeents, viewed across dimension 'c'. 
         while l < u:
@@ -525,7 +513,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
             return lb
         return lb-1
 
-    fn n_nearest(self, qv: NDBuffer[type=DType.float32, rank=1], nn: Int, mut result: KDTreeResultVector):
+    fn n_nearest(self, qv: NDBuffer[dtype=DType.float32, rank=1], nn: Int, mut result: KDTreeResultVector):
         var sr = SearchRecord(qv,self,result)
 
         result._self.clear()
@@ -544,7 +532,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
     fn n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int,
                         mut result: KDTreeResultVector):
         var buf = UnsafePointer[Float32].alloc(self.dim)
-        var qv = NDBuffer[type=DType.float32, rank=1](buf, self.dim) #  query vector
+        var qv = NDBuffer[dtype=DType.float32, rank=1](buf, self.dim) #  query vector
         result._self.clear()
 
         for i in range(self.dim):
@@ -564,7 +552,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
             sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
 
-    fn r_nearest(self, qv: NDBuffer[type=DType.float32, rank=1], r2: Float32, mut result: KDTreeResultVector):
+    fn r_nearest(self, qv: NDBuffer[dtype=DType.float32, rank=1], r2: Float32, mut result: KDTreeResultVector):
         # search for all within a ball of a certain radius
         var sr = SearchRecord(qv,self,result)
 
@@ -582,7 +570,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
         if (sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
-    fn r_count(self, qv: NDBuffer[type=DType.float32, rank=1], r2: Float32) -> Int:
+    fn r_count(self, qv: NDBuffer[dtype=DType.float32, rank=1], r2: Float32) -> Int:
         # search for all within a ball of a certain radius
         var result = KDTreeResultVector()
         sr = SearchRecord(qv,self,result)
@@ -600,7 +588,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
     fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32,
                         mut result: KDTreeResultVector):
         var buf = UnsafePointer[Float32].alloc(self.dim)
-        var qv = NDBuffer[type=DType.float32, rank=1](buf, self.dim) #  query vector
+        var qv = NDBuffer[dtype=DType.float32, rank=1](buf, self.dim) #  query vector
 
         result._self.clear()
 
@@ -622,7 +610,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
 
     fn r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) -> Int:
         var buf = UnsafePointer[Float32].alloc(self.dim)
-        var qv = NDBuffer[type=DType.float32, rank=1](buf, self.dim) #  query vector
+        var qv = NDBuffer[dtype=DType.float32, rank=1](buf, self.dim) #  query vector
 
         for i in range(self.dim):
             qv[i] = self._data.load[1](idxin, i) 
@@ -639,7 +627,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]:
 
         return len(result)
 
-    fn __del__(owned self):
+    fn __del__(var self):
         if self.root:
             delTree(self.root)
 

@@ -1,6 +1,6 @@
 from .mojmelo_matmul import matmul
-from sys.info import simdwidthof, is_apple_silicon
-from memory import memcpy, memcmp, memset_zero, UnsafePointer
+from sys import simdwidthof, CompilationTarget
+from memory import memcpy, memcmp, memset_zero
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
 import algorithm
@@ -16,7 +16,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     var size: Int
     var data: UnsafePointer[Float32]
     var order: String
-    alias simd_width: Int = 4 * simdwidthof[DType.float32]() if is_apple_silicon() else 2 * simdwidthof[DType.float32]()
+    alias simd_width: Int = 4 * simdwidthof[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simdwidthof[DType.float32]()
 
     # initialize from UnsafePointer
     @always_inline
@@ -47,7 +47,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         self.order = 'c'
         if self.size > 0:
             for row_i in range(len(def_input)):
-                memcpy(self.data + row_i * self.width, def_input[row_i].data, self.width)
+                memcpy(self.data + row_i * self.width, def_input[row_i].unsafe_ptr(), self.width)
 
     fn __copyinit__(out self, other: Self):
         self.height = other.height
@@ -57,15 +57,15 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         self.order = other.order
         memcpy(self.data, other.data, self.size)
 
-    fn __moveinit__(out self, owned existing: Self):
+    fn __moveinit__(out self, var existing: Self):
         self.height = existing.height
         self.width = existing.width
         self.size = existing.size
         self.data = existing.data
         self.order = existing.order
-        existing.height = existing.width = existing.size = 0
-        existing.order = ''
-        existing.data = UnsafePointer[Float32]()
+        #existing.height = existing.width = existing.size = 0
+        #existing.order = ''
+        #existing.data = UnsafePointer[Float32]()
 
     @always_inline
     fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]:
@@ -412,7 +412,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         return mat^
 
     @always_inline
-    fn __del__(owned self):
+    fn __del__(var self):
         if self.data:
             self.data.free()
 
@@ -884,12 +884,12 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     @always_inline
     fn cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        algorithm.reduction.cumsum(NDBuffer[type=DType.float32, rank=1](mat.data, self.size), NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        algorithm.reduction.cumsum(NDBuffer[dtype=DType.float32, rank=1](mat.data, self.size), NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
         return mat^
 
     @always_inline
     fn sum(self) raises -> Float32:
-        return algorithm.reduction.sum(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.sum(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn sum(self, axis: Int) raises -> Matrix:
@@ -952,11 +952,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     @always_inline
     fn _var(self, correction: Bool = False) raises -> Float32:
-        return algorithm.reduction.variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), correction=correction)
+        return algorithm.reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), correction=correction)
 
     @always_inline
     fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
-        return algorithm.reduction.variance(NDBuffer[type=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
+        return algorithm.reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
 
     @always_inline
     fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
@@ -1188,7 +1188,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                     vect[i] = self[i, unsafe=True].argmin()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
-        list.data=vect
+        list._data=vect
         return list^
 
     @always_inline
@@ -1227,7 +1227,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                     vect[i] = self[i, unsafe=True].argmax()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
-        list.data=vect
+        list._data=vect
         return list^
 
     @always_inline
@@ -1245,7 +1245,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             Span[
                 Scalar[DType.index],
                 __origin_of(sorted_indices),
-            ](ptr=sorted_indices.data, length=len(sorted_indices))
+            ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
         )
         return sorted_indices^
 
@@ -1264,13 +1264,13 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             Span[
                 Float32,
                 __origin_of(self),
-            ](ptr=self.data, length=self.size), sorted_indices.data
+            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr()
         )
         return sorted_indices^
 
     @always_inline
     fn min(self) raises -> Float32:
-        return algorithm.reduction.min(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.min(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -1305,7 +1305,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     @always_inline
     fn max(self) raises -> Float32:
-        return algorithm.reduction.max(NDBuffer[type=DType.float32, rank=1](self.data, self.size))
+        return algorithm.reduction.max(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:
@@ -1402,7 +1402,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     
     @staticmethod
     @always_inline
-    fn solve(owned A: Matrix, b: Matrix) raises -> Matrix:
+    fn solve(var A: Matrix, b: Matrix) raises -> Matrix:
         if A.height != A.width:
             raise Error("Error: \"A\" must be square!")
         if A.width != b.height:
@@ -1659,9 +1659,13 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             print("WARN (eigen): no converge!")
 
         # eigenvalues are diag elements of X
-        var e_vals = Matrix.zeros(1, self.height, order= self.order)
-        for i in range(self.height):
-            e_vals.data[i] = X[i, i]
+        var e_vals = Matrix(1, X.height, order= self.order)
+        var tmpPtr = X.data
+        @parameter
+        fn convert[simd_width: Int](idx: Int):
+            e_vals.data.store(idx, tmpPtr.strided_load[width=simd_width](X.width + 1))
+            tmpPtr += simd_width * (X.width + 1)
+        vectorize[convert, e_vals.simd_width](X.height)
 
         # eigenvectors are columns of pq
         return e_vals^, self.eigvectors_from_eigvalues(e_vals, tol)
@@ -1721,7 +1725,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         for i in range(self.size):
             vect[Int(self.data[i])] += 1
         var list = List[Int](unsafe_uninit_length=max_val + 1)
-        list.data=vect
+        list._data=vect
         return list^
 
     @staticmethod
@@ -1751,20 +1755,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         return freq^
 
     @always_inline
-    fn uniquef(self) -> Matrix:
-        var list = List[String](capacity=self.size)
-        list.resize(self.size, '')
-        for i in range(self.size):
-            var bytes = self.data[i].as_bytes().unsafe_ptr()
-            list[i] = String(bytes=Span[UInt8, __origin_of(bytes)](ptr=bytes, length=DType.float32.sizeof()))
-        var u_vals = Set(list)
-        var result = Matrix(len(u_vals), 1, order=self.order)
-        var index = 0
-        for val in u_vals:
-            var bytes = val.as_bytes()
-            result.data[index] = Float32.from_bytes(InlineArray[UInt8, DType.float32.sizeof()](bytes[0], bytes[1], bytes[2], bytes[3]))
-            index += 1
-        return result^
+    fn is_uniquef(self) -> Int:
+        for i in range(1, self.size):
+            if self.data[i - 1] != self.data[i]:
+                return 0
+        return 1
 
     @staticmethod
     @always_inline
@@ -1790,7 +1785,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     @always_inline
     fn fill(self, val: Float32):
-        NDBuffer[type=DType.float32, rank=1](self.data, self.size).fill(val)
+        NDBuffer[dtype=DType.float32, rank=1](self.data, self.size).fill(val)
 
     @staticmethod
     @always_inline
@@ -1816,7 +1811,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 indices[i], indices[j] = indices[j], indices[i]
             memcpy(result, indices, size)
         var list = List[Scalar[DType.index]](unsafe_uninit_length=size)
-        list.data = result
+        list._data = result
         return list^
 
     @staticmethod

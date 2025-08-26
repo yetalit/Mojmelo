@@ -99,13 +99,10 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
-@value
-struct SplittedPO:
+@fieldwise_init
+struct SplittedPO(Copyable, Movable):
     var train: PythonObject
     var test: PythonObject
-    fn __init__(out self, train: PythonObject, test: PythonObject):
-        self.train = train
-        self.test = test
 
 fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size

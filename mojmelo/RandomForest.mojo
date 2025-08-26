@@ -1,7 +1,6 @@
 from mojmelo.DecisionTree import DecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM
-from memory import UnsafePointer
 from algorithm import parallelize
 import math
 import random
@@ -40,7 +39,7 @@ struct RandomForest(CVM):
         random.seed(random_state)
         self.trees = UnsafePointer[DecisionTree]()
 
-    fn __del__(owned self):
+    fn __del__(var self):
         if self.trees:
             for i in range(self.n_trees):
                 (self.trees + i).destroy_pointee()

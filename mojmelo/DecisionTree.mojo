@@ -1,12 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
-from memory import UnsafePointer
 from algorithm import parallelize
 import math
 import random
 
-@value
-struct Node:
+struct Node(Copyable, Movable):
     var feature: Int
     var threshold: Float32
     var left: UnsafePointer[Node]
@@ -31,8 +29,7 @@ struct Node:
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-@value
-struct DecisionTree(CVM):
+struct DecisionTree(CVM, Copyable, Movable):
     var criterion: String
     var loss_func: fn(Matrix) raises -> Float32
     var c_func: fn(Float32, List[Int]) raises -> Float32
@@ -111,7 +108,7 @@ struct DecisionTree(CVM):
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
         existing.root = UnsafePointer[Node]()
 
-    fn __del__(owned self):
+    fn __del__(var self):
         if self.root:
             delTree(self.root)
 
@@ -134,7 +131,7 @@ struct DecisionTree(CVM):
         var unique_targets: Int
         var freq = Dict[Int, Int]()
         if self.criterion == 'mse':
-            unique_targets = len(y.uniquef())
+            unique_targets = y.is_uniquef()
         else:
             freq = y.unique()
             unique_targets = len(freq)

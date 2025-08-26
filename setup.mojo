@@ -1,6 +1,5 @@
-from sys import external_call, os_is_linux, os_is_macos, argv
+from sys import external_call, CompilationTarget, argv
 from sys.ffi import *
-from memory import UnsafePointer
 
 fn cachel1() -> Int32:
     var l1_cache_size: c_int = 0
@@ -93,7 +92,7 @@ fn main() raises:
         cache_l2_size = 0
         cache_l1_associativity = 0
         cache_l2_associativity = 0
-        if os_is_linux():
+        if CompilationTarget.is_linux():
             with open("/sys/devices/system/cpu/cpu0/cache/index0/size", "r") as f:
                 txt = f.read()
                 if txt.find('K') != -1:
@@ -116,7 +115,7 @@ fn main() raises:
                     cache_l2_associativity = atol(f.read())
             except:
                 cache_l2_associativity = 0
-        elif os_is_macos():
+        elif CompilationTarget.is_macos():
             cache_l1_size = Int(cachel1())
             cache_l2_size = Int(cachel2())
         initialize(cache_l1_size, cache_l1_associativity, cache_l2_size, cache_l2_associativity)
