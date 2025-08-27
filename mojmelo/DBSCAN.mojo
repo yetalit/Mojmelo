@@ -26,20 +26,19 @@ struct DBSCAN:
         var stack = List[Int]()
 
         for i in range(X.height):
-            if result.data[i] != -1 or len(neighborhoods[i]) < self.min_samples:
+            if result.data[i] != -1.0 or len(neighborhoods[i]) < self.min_samples:
                 continue
-
             # Depth-first search starting from i, ending at the non-core points.
             # This is very similar to the classic algorithm for computing connected
             # components, the difference being that we label non-core points as
             # part of a cluster (component), but don't expand their neighborhoods.
             while True:
-                if result.data[i] == -1:
+                if result.data[i] == -1.0:
                     result.data[i] = current_cluster
                     var neighb = neighborhoods[i]
                     if len(neighb) >= self.min_samples:
                         for i in range(len(neighb)):
-                            if result[neighb[i].idx] == -1:
+                            if result[neighb[i].idx] == -1.0:
                                 stack.append(neighb[i].idx)
 
                 if len(stack) == 0:
