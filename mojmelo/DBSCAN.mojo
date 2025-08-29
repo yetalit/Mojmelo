@@ -1,6 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from buffer import NDBuffer
+from collections import Set
 from algorithm import parallelize
 
 struct DBSCAN:
@@ -12,39 +13,55 @@ struct DBSCAN:
         self.min_samples = min_samples
 
     fn predict(mut self, X: Matrix) raises -> Matrix:
-        var kdtree = KDTree(X, 'euc')
-        var result = Matrix.full(X.height, 1, -1.0)
+        var kdtree = KDTree(X, metric='euc')
+        var labels = Matrix.full(X.height, 1, -2.0)
 
-        var neighborhoods = List[KDTreeResultVector](capacity=X.height)
-        neighborhoods.resize(X.height, KDTreeResultVector())
+        var neighborhoods = List[List[Int]](capacity=X.height)
+        neighborhoods.resize(X.height, List[Int]())
         @parameter
         fn p(i: Int):
-            kdtree.r_nearest(NDBuffer[dtype=DType.float32, rank=1](X[i, unsafe=True].data, X.width), self.squared_eps, neighborhoods[i])
+            var kd_results = KDTreeResultVector()
+            kdtree.r_nearest(NDBuffer[dtype=DType.float32, rank=1](X[i, unsafe=True].data, X.width), self.squared_eps, kd_results)
+            for idp in range(len(kd_results)):
+                neighborhoods[i].append(kd_results[idp].idx)
         parallelize[p](X.height)
         
         var current_cluster = 0
-        var stack = List[Int]()
 
-        for i in range(X.height):
-            if result.data[i] != -1.0 or len(neighborhoods[i]) < self.min_samples:
+        for idx in range(X.height):
+            # Label is not undefined.
+            if labels.data[idx] != -2.0:
                 continue
-            # Depth-first search starting from i, ending at the non-core points.
-            # This is very similar to the classic algorithm for computing connected
-            # components, the difference being that we label non-core points as
-            # part of a cluster (component), but don't expand their neighborhoods.
-            while True:
-                if result.data[i] == -1.0:
-                    result.data[i] = current_cluster
-                    var neighb = neighborhoods[i]
-                    if len(neighb) >= self.min_samples:
-                        for i in range(len(neighb)):
-                            if result[neighb[i].idx] == -1.0:
-                                stack.append(neighb[i].idx)
 
-                if len(stack) == 0:
-                    break
-                i = stack.pop()
+            # Check density.
+            if len(neighborhoods[idx]) < self.min_samples:
+                labels.data[idx] = -1.0
+                continue
+
+            var nbs_next = Set(neighborhoods[idx])
+            var nbs_visited = Set[Int](idx)
+
+            labels.data[idx] = current_cluster
+
+            while len(nbs_next) > 0:
+                var nb = nbs_next.pop()
+                nbs_visited.add(nb)
+
+                # Noise label.
+                if labels.data[nb] == -1.0:
+                    labels.data[nb] = current_cluster
+
+                # Not undefined label.
+                if labels.data[nb] != -2.0:
+                    continue
+
+                labels.data[nb] = current_cluster
+
+                if len(neighborhoods[nb]) >= self.min_samples:
+                    for qnb in neighborhoods[nb]:
+                        if qnb not in nbs_visited:
+                            nbs_next.add(qnb)
 
             current_cluster += 1
 
-        return result^
+        return labels^

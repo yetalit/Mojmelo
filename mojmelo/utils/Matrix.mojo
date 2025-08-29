@@ -4,7 +4,6 @@ from memory import memcpy, memcmp, memset_zero
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
 import algorithm
-from collections import Set
 import math
 import random
 from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div, fill_indices, fill_indices_list
