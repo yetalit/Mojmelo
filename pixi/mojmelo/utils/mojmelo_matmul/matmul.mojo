@@ -2,8 +2,7 @@
 
 from algorithm import vectorize, parallelize
 from memory.memory import _malloc, stack_allocation
-from memory import UnsafePointer
-from sys import has_avx512f, num_performance_cores, simdwidthof, sizeof
+from sys import CompilationTarget, num_performance_cores, simdwidthof, sizeof
 import benchmark
 from testing import assert_equal
 from utils import IndexList
@@ -33,9 +32,8 @@ fn intsqrt[n: Int]() -> Int:
     return x
 
 
-@value
 @register_passable("trivial")
-struct Layout(Writable):
+struct Layout(Copyable, Movable, Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 
@@ -70,7 +68,7 @@ struct Matrix[Type: DType]:
 
     @always_inline("nodebug")
     fn __init__(
-        out self, data: UnsafePointer[Scalar[Type]], owned layout: Layout
+        out self, data: UnsafePointer[Scalar[Type]], var layout: Layout
     ):
         self.data = UnsafePointer[Scalar[Type]](data)
         self.layout = layout
@@ -445,7 +443,7 @@ fn matmul_params[Type: DType]() -> IndexList[5]:
     alias mc = 8192 // sizeof[Type]()  # fix this for simplicity
     alias N = simdwidthof[Type]()
 
-    alias Vectors = 32 if has_avx512f() else 16
+    alias Vectors = 32 if CompilationTarget.has_avx512f() else 16
 
     @parameter
     fn compute_kc[mr: Int, nr: Int]() -> Int:
@@ -474,7 +472,7 @@ fn matmul_params[Type: DType]() -> IndexList[5]:
         if Type is DType.int64:
 
             @parameter
-            if has_avx512f():
+            if CompilationTarget.has_avx512f():
                 alias TempVectors = 2
                 return compute_params[Vectors - TempVectors]()
             else:
