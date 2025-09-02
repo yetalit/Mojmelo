@@ -1,6 +1,7 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h
+from algorithm import parallelize
 
 struct GBDT(CVM):
 	var criterion: String
@@ -55,9 +56,15 @@ struct GBDT(CVM):
 			score += self.learning_rate * self.trees[i].predict(X)
 
 	fn predict(self, X: Matrix) raises -> Matrix:
-		var score = Matrix.full(X.height, 1, self.score_start)
-		for i in range(self.n_trees):
-			score += self.learning_rate * self.trees[i].predict(X)
+		var scores = Matrix(X.height, self.n_trees)
+		@parameter
+		fn p(i: Int):
+			try:
+				scores['', i] = self.learning_rate * self.trees[i].predict(X)
+			except e:
+				print('Error:', e)
+		parallelize[p](self.n_trees)
+		var score = scores.sum(axis=1) + self.score_start
 		if self.criterion == 'mse':
 			return score^
 		score = sigmoid(score)
