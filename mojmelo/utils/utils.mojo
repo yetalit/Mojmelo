@@ -191,8 +191,10 @@ fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size
     return simd
 
 @always_inline
-fn sigmoid(z: Matrix) -> Matrix:
-    return 1 / (1 + (-z).exp())
+fn sigmoid(z: Matrix) raises -> Matrix:
+    return z.where(z >= 0,
+                    1 / (1 + (-z).exp()),
+                    z.exp() / (1 + z.exp()))
 
 @always_inline
 fn normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
@@ -340,6 +342,20 @@ fn log_g(true: Matrix, score: Matrix) raises -> Matrix:
 fn log_h(score: Matrix) raises -> Matrix:
     var pred = sigmoid(score)
     return pred.ele_mul(1 - pred)
+
+@always_inline
+fn softmax_link(score: Matrix) raises -> Matrix:
+    var exp_score = (score - score.max(axis=1)).exp()  # for stability
+    return exp_score / exp_score.sum(axis=1)
+@always_inline
+fn softmax_g(true: Matrix, score: Matrix) raises -> Matrix:
+    var g = softmax_link(score)
+    g.set_per_row(true, g.get_per_row(true) - 1)  # derivative of softmax + CE
+    return g^
+@always_inline
+fn softmax_h(score: Matrix) raises -> Matrix:
+    var prob = softmax_link(score)
+    return prob.ele_mul(1 - prob)
 
 
 fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:

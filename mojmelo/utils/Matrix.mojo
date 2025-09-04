@@ -271,7 +271,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             for i in range(mat.width):
                 mat[row, i] = self[row, columns[i].value]
         return mat^
-    
+
     # replace an element
     @always_inline
     fn __setitem__(mut self, row: Int, column: Int, val: Float32) raises:
@@ -409,6 +409,32 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 memcpy(mat.data + i * _range, self.data + i * self.height, _range)
             parallelize[p](self.width)
         return mat^
+
+    # access given columns per row
+    @always_inline
+    fn get_per_row(self, columns: Matrix) raises -> Matrix:
+        var mat = Matrix(self.height, 1, order= self.order)
+        if self.height > 550000:
+            @parameter
+            fn p(i: Int):
+                mat.data[i] = self.load[1](i, Int(columns.data[i]))
+            parallelize[p](self.height)
+        else:
+            for i in range(self.height):
+                mat.data[i] = self[i, Int(columns.data[i])]
+        return mat^
+
+    # replace given columns per row
+    @always_inline
+    fn set_per_row(mut self, columns: Matrix, rhs: Matrix) raises:
+        if self.height > 550000:
+            @parameter
+            fn p(i: Int):
+                self.store[1](i, Int(columns.data[i]), rhs.data[i])
+            parallelize[p](self.height)
+        else:
+            for i in range(self.height):
+                self[i, Int(columns.data[i])] = rhs.data[i]
 
     @always_inline
     fn __del__(var self):
@@ -805,6 +831,25 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             fn p(i: Int):
                 if cmp[i]:
                     mat.data[i] = _true
+                else:
+                    mat.data[i] = _false.data[i]
+            parallelize[p](self.size)
+        return mat^
+
+    @always_inline
+    fn where(self, cmp: List[Bool], _true: Matrix, _false: Matrix) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 40960:
+            for i in range(self.size):
+                if cmp[i]:
+                    mat.data[i] = _true.data[i]
+                else:
+                    mat.data[i] = _false.data[i]
+        else:
+            @parameter
+            fn p(i: Int):
+                if cmp[i]:
+                    mat.data[i] = _true.data[i]
                 else:
                     mat.data[i] = _false.data[i]
             parallelize[p](self.size)
@@ -1228,6 +1273,31 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         var list = List[Int](unsafe_uninit_length=length)
         list._data=vect
         return list^
+
+    @always_inline
+    fn argmax_f(self, axis: Int) -> Matrix:
+        if axis == 0:
+            var vect = UnsafePointer[Float32].alloc(self.width)
+            if self.width < 512:
+                for i in range(self.width):
+                    vect[i] = self['', i, unsafe=True].argmax()
+            else:
+                @parameter
+                fn p0(i: Int):
+                    vect[i] = self['', i, unsafe=True].argmax()
+                parallelize[p0](self.width)
+            return Matrix(vect, 1, self.width, self.order)
+        else:
+            var vect = UnsafePointer[Float32].alloc(self.height)
+            if self.height < 512:
+                for i in range(self.height):
+                    vect[i] = self[i, unsafe=True].argmax()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    vect[i] = self[i, unsafe=True].argmax()
+                parallelize[p1](self.height)
+            return Matrix(vect, self.height, 1, self.order)
 
     @always_inline
     fn argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.index]]:

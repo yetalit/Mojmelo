@@ -1,6 +1,6 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h
+from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link
 from algorithm import parallelize
 
 struct GBDT(CVM):
@@ -15,6 +15,7 @@ struct GBDT(CVM):
 	var gamma: Float32
 	var trees: UnsafePointer[BDecisionTree]
 	var score_start: Float32
+	var num_class: Int
 
 	fn __init__(out self,
 		criterion: String = 'log',
@@ -25,6 +26,9 @@ struct GBDT(CVM):
 		if self.criterion == 'log':
 			self.loss_g = log_g
 			self.loss_h = log_h
+		elif self.criterion == 'softmax':
+			self.loss_g = softmax_g
+			self.loss_h = softmax_h
 		else:
 			self.loss_g = mse_g
 			self.loss_h = mse_h
@@ -36,6 +40,7 @@ struct GBDT(CVM):
 		self.gamma = gamma
 		self.trees = UnsafePointer[BDecisionTree]()
 		self.score_start = 0.0
+		self.num_class = 0
 
 	fn __del__(var self):
 		if self.trees:
@@ -45,30 +50,56 @@ struct GBDT(CVM):
 
 	fn fit(mut self, X: Matrix, y: Matrix) raises:
 		var X_F = X.asorder('f')
-		self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees)
-		self.score_start = y.mean()
-		var score = Matrix.full(X.height, 1, self.score_start)
+		var score: Matrix
+		if self.criterion == 'softmax':
+			self.num_class = len(y.unique())
+			self.score_start = 0.0
+			self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees * self.num_class)
+			score = Matrix.zeros(X.height, self.num_class)
+		else:
+			self.num_class = 1
+			self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees)
+			self.score_start = y.mean()
+			score = Matrix.full(X.height, 1, self.score_start)
+
 		for i in range(self.n_trees):
-			var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma)
-			tree.fit(X_F, g = self.loss_g(y, score), h = self.loss_h(score))
-			(self.trees + i).init_pointee_move(tree)
-			self.trees[i]._moveinit_(tree)
-			score += self.learning_rate * self.trees[i].predict(X)
+			@parameter
+			fn p(k: Int):
+				try:
+					var g = self.loss_g(y, score)
+					var h = self.loss_h(score)
+					var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma)
+					tree.fit(X_F, g=g['', k], h=h['', k])
+					(self.trees + i * self.num_class + k).init_pointee_move(tree)
+					self.trees[i * self.num_class + k]._moveinit_(tree)
+					score['', k] += self.learning_rate * self.trees[i * self.num_class + k].predict(X)
+				except e:
+					print('Error:', e)
+			parallelize[p](self.num_class)
 
 	fn predict(self, X: Matrix) raises -> Matrix:
-		var scores = Matrix(X.height, self.n_trees)
+		var scores = Matrix(X.height, self.num_class)
 		@parameter
-		fn p(i: Int):
+		fn per_class(k: Int):
+			var score = Matrix(X.height, self.n_trees)
+			@parameter
+			fn per_tree(i: Int):
+				try:
+					score['', i] = self.learning_rate * self.trees[i * self.num_class + k].predict(X)
+				except e:
+					print('Error:', e)
+			parallelize[per_tree](self.n_trees)
 			try:
-				scores['', i] = self.learning_rate * self.trees[i].predict(X)
+				scores['', k] = score.sum(axis=1) + self.score_start
 			except e:
 				print('Error:', e)
-		parallelize[p](self.n_trees)
-		var score = scores.sum(axis=1) + self.score_start
+		parallelize[per_class](self.num_class)
 		if self.criterion == 'mse':
-			return score^
-		score = sigmoid(score)
-		return score.where(score > 0.5, 1.0, 0.0)
+			return scores^
+		if self.criterion == 'softmax':
+			return softmax_link(scores).argmax_f(axis=1) # predicted class
+		scores = sigmoid(scores)
+		return scores.where(scores > 0.5, 1.0, 0.0)
 
 	fn __init__(out self, params: Dict[String, String]) raises:
 		if 'criterion' in params:
@@ -107,3 +138,4 @@ struct GBDT(CVM):
 			self.gamma = 0.0
 		self.trees = UnsafePointer[BDecisionTree]()
 		self.score_start = 0.0
+		self.num_class = 0
