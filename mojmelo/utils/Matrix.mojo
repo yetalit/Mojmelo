@@ -1518,48 +1518,6 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     fn norm(self) raises -> Float32:
         return math.sqrt((self ** 2).sum())
 
-    @always_inline
-    fn qr(self, standard: Bool = False) raises -> Tuple[Matrix, Matrix]:
-        # QR decomposition. standard: make R diag positive
-        # Householder algorithm, i.e., not Gram-Schmidt or Givens
-        # if not square, verify m greater-than n ("tall")
-        # if standard==True verify m == n
-
-        var Q = Matrix.eye(self.height, self.order)
-        var R = self
-        var end: Int
-        if self.height == self.width:
-            end = self.width - 1
-        else:
-            end = self.width
-        for i in range(end):
-            var H = Matrix.eye(self.height, self.order)
-            # -------------------
-            var a: Matrix = R[True, i, i]  # partial column vector
-            var norm_a: Float32 = a.norm()
-            if a.data[0] < 0.0: norm_a = -norm_a
-            var v: Matrix = a / (a.data[0] + norm_a)
-            v.data[0] = 1.0
-            var h = Matrix.eye(a.height, self.order)  # H reflection
-            h -= (2 / (v.T() * v))[0, 0] * (v * v.T())
-            # -------------------
-            for j in range(H.height - i):
-                H[j + i, True, i] = h[j]  # copy h into H
-            Q = Q * H
-            R = H * R
-
-        if standard:  # A must be square
-            var S = Matrix.zeros(self.width, self.width, order= self.order)  # signs of diagonal
-            for i in range(self.width):
-                if R[i, i] < 0.0:
-                    S[i, i] = -1.0
-                else:
-                    S[i, i] = 1.0
-            Q = Q * S
-            R = S * R
-
-        return Q^, R^
-
     fn svd(self, eps: Float32 = 1.0e-08) raises -> Tuple[Matrix, Matrix, Matrix]:
         var A = self  # working copy U
         var m = A.height
