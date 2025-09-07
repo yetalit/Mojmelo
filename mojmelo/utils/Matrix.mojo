@@ -6,7 +6,7 @@ from buffer import NDBuffer
 import algorithm
 import math
 import random
-from mojmelo.utils.utils import argn, cov_value, complete_orthonormal_basis, add, sub, mul, div, fill_indices, fill_indices_list
+from mojmelo.utils.utils import argn, cov_value, add, sub, mul, div, fill_indices, fill_indices_list
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
@@ -1560,7 +1560,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
         return Q^, R^
 
-    fn svd(self, EPSILON: Float32 = 1.0e-08, full_matrices: Bool = True) raises -> Tuple[Matrix, Matrix, Matrix]:
+    fn svd(self, eps: Float32 = 1.0e-08) raises -> Tuple[Matrix, Matrix, Matrix]:
         var A = self  # working copy U
         var m = A.height
         var n = A.width
@@ -1573,7 +1573,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         var sweep = 0
         var sweep_max = max(5 * n, 12)  # heuristic
 
-        var tolerance = 10 * m * EPSILON  # heuristic
+        var tolerance = 10 * m * eps  # heuristic
 
         # store the column error estimates in t
         @parameter
@@ -1583,7 +1583,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             except:
                 print('Error: Failed to find norm of columns!')
         parallelize[p](n)
-        t *= EPSILON
+        t *= eps
 
         # orthogonalize A by plane rotations
         while (count > 0 and sweep <= sweep_max):
@@ -1665,15 +1665,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             print("WARN: Jacobi iterations no converge!")
 
         # Trim near-zero singular values
-        var nonzero = t.argwhere_l(t > EPSILON)
-        U = A['', nonzero]
-        s = t['', nonzero]
-
-        if full_matrices:
-            # Complete U to m x m
-            # Complete Vh to n x n
-            return complete_orthonormal_basis(U, m), s^, complete_orthonormal_basis(Q['', nonzero], n).T()
-        return U^, s^, Q.T()[nonzero]
+        var nonzero = t.argwhere_l(t > eps)
+        return A['', nonzero], t['', nonzero], Q.T()[nonzero]
 
     fn outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)

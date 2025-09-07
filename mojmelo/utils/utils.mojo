@@ -27,13 +27,6 @@ trait CVP:
 fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
     return (y_mean_diff.ele_mul(x_mean_diff)).sum() / (x_mean_diff.size - 1)
 
-fn complete_orthonormal_basis(X: Matrix, full_size: Int) raises -> Matrix:
-    if X.width == full_size:
-        return X
-    P = Matrix.eye(X.height, X.order) - X * X.T()  # projection onto orthogonal complement
-    Q, _ = P.qr()
-    return X.concatenate(Q.load_columns(full_size - X.width), axis=1)
-
 # ===-----------------------------------------------------------------------===#
 # argn
 # ===-----------------------------------------------------------------------===#

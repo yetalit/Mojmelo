@@ -11,9 +11,10 @@ struct PCA:
     var mean: Matrix
     var whiten: Bool
     var whiten_: Matrix
+    var jacobi_eps: Float32
     var lapack: Bool
 
-    fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False):
+    fn __init__(out self, n_components: Int, whiten: Bool = False, jacobi_eps: Float32 = 1.0e-08, lapack: Bool = False):
         self.n_components = n_components
         self.components = Matrix(0, 0)
         self.components_T = Matrix(0, 0)
@@ -22,6 +23,7 @@ struct PCA:
         self.mean = Matrix(0, 0)
         self.whiten = whiten
         self.whiten_ = Matrix(0, 0)
+        self.jacobi_eps = jacobi_eps
         self.lapack = lapack
 
     fn fit(mut self, X: Matrix) raises:
@@ -35,7 +37,7 @@ struct PCA:
             S = Matrix.from_numpy(USVt[1])
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
-            _, S, Vt = (X - self.mean).svd(full_matrices=False)
+            _, S, Vt = (X - self.mean).svd(eps=jacobi_eps)
             var indices = S.argsort_inplace[ascending=False]()
             self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
             @parameter
