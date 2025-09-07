@@ -1560,14 +1560,6 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
         return Q^, R^
 
-    @always_inline
-    fn is_upper_tri(self, tol: Float32 = 1.0e-8) raises -> Bool:
-        for i in range(self.height):
-            for j in range(i):
-                if abs(self[i, j]) > tol:
-                    return False
-        return True
-
     fn svd(self, EPSILON: Float32 = 1.0e-08, full_matrices: Bool = True) raises -> Tuple[Matrix, Matrix, Matrix]:
         var A = self  # working copy U
         var m = A.height
@@ -1682,62 +1674,6 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             # Complete Vh to n x n
             return complete_orthonormal_basis(U, m), s^, complete_orthonormal_basis(Q['', nonzero], n).T()
         return U^, s^, Q.T()[nonzero]
-
-    fn eigvectors_from_eigvalues(self, eigenvalues: Matrix, tol: Float32) raises -> Matrix:
-        var n = self.height
-        eigvecs = Matrix.zeros(n, len(eigenvalues), order=self.order)
-
-        for i in range(len(eigenvalues)):
-            # Construct (A - lambda * I)
-            var B = self - eigenvalues.data[i] * Matrix.eye(n, self.order)
-
-            # Compute SVD
-            _, S, Vh = B.svd()
-
-            # Identify right-singular vectors corresponding to zero singular values
-            var null_space = Vh[S.argwhere_l(S < tol)]
-
-            # If no null vectors found, fallback to smallest singular vector
-            if null_space.size == 0:
-                vec = Vh[Vh.height - 1]
-            else:
-                vec = null_space[0]
-
-            # Normalize and assign as eigenvector
-            eigvecs['', i] = vec / vec.norm()
-
-        return eigvecs^
-
-    fn eigen(self, tol: Float32 = 1.0e-8, max_ct: Int = 10000) raises -> Tuple[Matrix, Matrix]:
-        var X = self
-        #var pq = Matrix.eye(self.height, self.order)
-
-        var ct: Int = 0
-        while ct < max_ct:
-            var Q: Matrix
-            var R: Matrix
-            Q, R = X.qr()
-            #pq = pq * Q  # accum Q
-            X = R * Q
-            ct += 1
-
-            if X.is_upper_tri(tol):
-                break
-
-        if ct == max_ct:
-            print("WARN (eigen): no converge!")
-
-        # eigenvalues are diag elements of X
-        var e_vals = Matrix(1, X.height, order= self.order)
-        var tmpPtr = X.data
-        @parameter
-        fn convert[simd_width: Int](idx: Int):
-            e_vals.data.store(idx, tmpPtr.strided_load[width=simd_width](X.width + 1))
-            tmpPtr += simd_width * (X.width + 1)
-        vectorize[convert, e_vals.simd_width](X.height)
-
-        # eigenvectors are columns of pq
-        return e_vals^, self.eigvectors_from_eigvalues(e_vals, tol)
 
     fn outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)

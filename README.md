@@ -28,8 +28,6 @@ Here is the list of the algorithms:
 * KMeans
 * DBSCAN
 * SVM
-    1. Primal
-    2. Dual
 * Naive Bayes
     1. GaussianNB
     2. MultinomialNB
@@ -37,7 +35,6 @@ Here is the list of the algorithms:
 * Random Forest (both Regression/Classification)
 * GBDT (both Regression/Classification)
 * PCA
-* LDA
 
 Preprocessing:
 * normalize
@@ -133,7 +130,7 @@ You can contribute to the project in 3 ways:
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a> and Erik Linder-Norén's <a href='https://github.com/eriklindernoren/ML-From-Scratch/'>ML-From-Scratch</a>
+Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
 
 MAX and Mojo usage and distribution are licensed under the [Modular Community License](https://www.modular.com/legal/community).
 
