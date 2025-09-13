@@ -12,6 +12,7 @@ struct GBDT(CVM):
 	var max_depth: Int
 	var learning_rate: Float32
 	var reg_lambda: Float32
+	var reg_alpha: Float32
 	var gamma: Float32
 	var n_bins: Int
 	var trees: UnsafePointer[BDecisionTree]
@@ -21,7 +22,7 @@ struct GBDT(CVM):
 	fn __init__(out self,
 		criterion: String = 'log',
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,
-		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, gamma: Float32 = 0.0, n_bins: Int = 0
+		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0
 		):
 		self.criterion = criterion.lower()
 		if self.criterion == 'log':
@@ -38,6 +39,7 @@ struct GBDT(CVM):
 		self.max_depth = max_depth
 		self.learning_rate = learning_rate
 		self.reg_lambda = reg_lambda
+		self.reg_alpha = reg_alpha
 		self.gamma = gamma
 		self.n_bins = n_bins
 		self.trees = UnsafePointer[BDecisionTree]()
@@ -70,7 +72,7 @@ struct GBDT(CVM):
 				try:
 					var g = self.loss_g(y, score)
 					var h = self.loss_h(score)
-					var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, gamma = self.gamma, n_bins=self.n_bins)
+					var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, reg_alpha = self.reg_alpha, gamma = self.gamma, n_bins=self.n_bins)
 					tree.fit(X_F, g=g['', k], h=h['', k])
 					(self.trees + i * self.num_class + k).init_pointee_move(tree)
 					self.trees[i * self.num_class + k]._moveinit_(tree)
@@ -134,6 +136,10 @@ struct GBDT(CVM):
 			self.reg_lambda = atof(String(params['reg_lambda'])).cast[DType.float32]()
 		else:
 			self.reg_lambda = 1.0
+		if 'reg_alpha' in params:
+			self.reg_alpha = atof(String(params['reg_alpha'])).cast[DType.float32]()
+		else:
+			self.reg_alpha = 0.0
 		if 'gamma' in params:
 			self.gamma = atof(String(params['gamma'])).cast[DType.float32]()
 		else:
