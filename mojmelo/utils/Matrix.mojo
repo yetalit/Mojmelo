@@ -92,7 +92,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             loc = (row * self.width) + column
         else:
             loc = (column * self.height) + row
-        if loc > self.size - 1:
+        if loc > self.size - 1 or loc < 0:
             raise Error("Error: Location is out of range!")
         return self.data[loc]
 

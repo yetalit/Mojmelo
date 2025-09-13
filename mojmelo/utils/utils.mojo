@@ -351,6 +351,23 @@ fn softmax_h(score: Matrix) raises -> Matrix:
     return prob.ele_mul(1 - prob)
 
 
+@always_inline
+fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
+    var left = 0
+    var right = len(intervals) - 1
+
+    while left <= right:
+        var mid = left + (right - left) // 2
+
+        if x < intervals[mid][0]:
+            right = mid - 1
+        elif x >= intervals[mid][1]:
+            left = mid + 1
+        else:
+            return mid  # x is within the interval
+
+    return -1  # not found
+
 fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
