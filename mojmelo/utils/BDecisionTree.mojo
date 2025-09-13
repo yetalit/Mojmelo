@@ -87,27 +87,27 @@ fn leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) rai
     return the prediction (score) at this leaf.
     The score is -G/(H+λ).
     '''
-	var g_sum = g.sum()
-    return (-g_sum / (h.sum() + reg_lambda)) - self.reg_alpha * math.copysign(1.0, g_sum)
+    var g_sum = g.sum()
+    return (-g_sum / (h.sum() + reg_lambda)) - reg_alpha * math.copysign(1, g_sum)
 
 @always_inline
 fn leaf_score_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
-    return (-g_sum / (h_sum + reg_lambda)) - self.reg_alpha * math.copysign(1.0, g_sum)
+    return (-g_sum / (h_sum + reg_lambda)) - reg_alpha * math.copysign(1, g_sum)
 
 @always_inline
-fn leaf_loss(reg_lambda: Float32, , reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
+fn leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
     '''
     Given the gradient and hessian of a tree leaf,
     return the minimized loss at this leaf.
     The minimized loss is -0.5*G^2/(H+λ).
     .'''
-	var g_sum = g.sum()
-	var h_sum = h.sum()
-    return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * math.abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
+    var g_sum = g.sum()
+    var h_sum = h.sum()
+    return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 
 @always_inline
-fn leaf_loss_precompute(reg_lambda: Float32, , reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
-    return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * math.abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
+fn leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
+    return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 
 fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.index]], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
     var total_g_sum = g.sum()
@@ -167,7 +167,6 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
                         except e:
                             print('Error:', e)
                     parallelize[find_interval](len(column))
-                    _ = column.data
                     var g_sum = g_per_interval.sum(axis=0)
                     var h_sum = h_per_interval.sum(axis=0)
                     
