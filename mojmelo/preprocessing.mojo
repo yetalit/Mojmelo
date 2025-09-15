@@ -8,56 +8,71 @@ import time
 import random
 
 fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
+    """Scale input vectors individually to unit norm (vector length).
+
+    Args:
+        norm: The norm to use -> 'l2', 'l1'.
+
+    Returns:
+        Normalized data, norms.
+    """
     var z = Matrix(data.height, data.width, order= data.order)
-    var values = Matrix(data.height, 1)
+    var norms = Matrix(data.height, 1)
     if norm.lower() == 'l1':
         if data.height == 1 or data.width == 1:
-            values.fill(data.abs().sum())
+            norms.fill(data.abs().sum())
         else:
-            for i in range(values.height):
-                values.data[i] = data[i].abs().sum()
+            norms = data.abs().sum(axis=1)
     else:
         if data.height == 1 or data.width == 1:
-            values.fill(data.norm())
+            norms.fill(data.norm())
         else:
-            for i in range(values.height):
-                values.data[i] = data[i].norm()
+            if norms.height < 768:
+                for i in range(norms.height):
+                    norms.data[i] = data[i].norm()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    try:
+                        norms.data[i] = data[i].norm()
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](norms.height)
 
-    for i in range(z.height):
-        if values.data[i] != 0.0:
-            z[i] = data[i] / values.data[i]
-        else:
-            z[i].fill_zero()
+    @parameter
+    fn p2(i: Int):
+        try:
+            if norms.data[i] != 0.0:
+                z[i] = data[i] / norms.data[i]
+            else:
+                z[i].fill_zero()
+        except e:
+            print('Error:', e)
+    parallelize[p2](z.height)
 
-    return z^, values^
+    return z^, norms^
 
-fn normalize(data: Matrix, values: Matrix, norm: String = 'l2') raises -> Matrix:
-    var z = Matrix(data.height, data.width, order= data.order)
-    if norm.lower() == 'l1':
-        if data.height == 1 or data.width == 1:
-            values.fill(data.abs().sum())
-        else:
-            for i in range(values.height):
-                values.data[i] = data[i].abs().sum()
-    else:
-        if data.height == 1 or data.width == 1:
-            values.fill(data.norm())
-        else:
-            for i in range(values.height):
-                values.data[i] = data[i].norm()
+fn inv_normalize(z: Matrix, norms: Matrix) raises -> Matrix:
+    """Reproduce normalized data given its norms.
 
-    for i in range(z.height):
-        if values.data[i] != 0.0:
-            z[i] = data[i] / values.data[i]
-        else:
-            z[i].fill_zero()
+    Args:
+        z: Normalized data.
+        norms: Norms.
 
-    return z^
-
-fn inv_normalize(z: Matrix, values: Matrix) raises -> Matrix:
-    return z.ele_mul(values)
+    Returns:
+        Original data.
+    """
+    return z.ele_mul(norms)
 
 fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Tuple[Matrix, Matrix, Matrix]:
+    """Transform features by scaling each feature to a given range.
+    
+    Args:
+        feature_range: Desired range of transformed data.
+
+    Returns:
+        Scaled data, data_min, data_max.
+    """
     var x_min = data.min(0)
     var x_max = data.max(0)
     # normalize then scale data
@@ -65,25 +80,74 @@ fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises ->
     return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0], x_min^, x_max^
 
 fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+    """Transform features by scaling each feature to a given range, data_min and data_max.
+    
+    Args:
+        feature_range: Desired range of transformed data.
+        x_min: Per feature minimum seen in the data.
+        x_max: Per feature maximum seen in the data.
+
+    Returns:
+        Scaled data.
+    """
     # normalize then scale data
     var div = x_max - x_min
     return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0]
 
 fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+    """Reproduce scaled data given its range, data_min and data_max.
+
+    Args:
+        z: Scaled data.
+        x_min: Per feature minimum seen in the data.
+        x_max: Per feature maximum seen in the data.
+        feature_range: Desired range of transformed data.
+
+    Returns:
+        Original data.
+    """
     var div = x_max - x_min
     return ((z - feature_range[0]) / (feature_range[1] - feature_range[0])).ele_mul(div.where(div == 0.0, 1.0, div)) + x_min
 
 fn StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
+    """Standardize features by removing the mean and scaling to unit variance.
+    
+    Args:
+        data: Data.
+
+    Returns:
+        Scaled data, mean, standard deviation.
+    """
     var mu = data.mean_slow0()
     var sigma = data.std_slow(0, mu)
     # standardize data
     return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma), mu^, sigma^
 
 fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
+    """Standardize features by removing the mean and scaling to unit variance given mean and standard deviation.
+    
+    Args:
+        data: Data.
+        mu: Mean.
+        sigma: Standard Deviation.
+
+    Returns:
+        Scaled data.
+    """
     # standardize data
     return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma)
 
 fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
+    """Reproduce scaled data given its mean and standard deviation.
+
+    Args:
+        z: Scaled data.
+        mu: Mean.
+        sigma: Standard Deviation.
+
+    Returns:
+        Original data.
+    """
     return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
 fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:

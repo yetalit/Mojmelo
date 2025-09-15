@@ -23,11 +23,20 @@ fn _predict(y: Matrix, criterion: String) raises -> Float32:
     return Float32(most_common)
 
 struct RandomForest(CVM):
+    """A random forest supporting both classification and regression."""
     var n_trees: Int
+    """The number of trees in the forest."""
     var min_samples_split: Int
+    """The minimum number of samples required to split an internal node."""
     var max_depth: Int
+    """The maximum depth of the tree."""
     var n_feats: Int
+    """The number of features to consider when looking for the best split."""
     var criterion: String
+    """The function to measure the quality of a split:
+    For classification -> "entropy", "gini";
+    For regression -> "mse".
+    """
     var trees: UnsafePointer[DecisionTree]
 
     fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini', random_state: Int = 42):
@@ -46,6 +55,7 @@ struct RandomForest(CVM):
             self.trees.free()
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
+        """Build a forest of trees from the training set."""
         self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
         var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
@@ -73,6 +83,11 @@ struct RandomForest(CVM):
         parallelize[p](self.n_trees)
 
     fn predict(self, X: Matrix) raises -> Matrix:
+        """Predict class for X.
+        
+        Returns:
+            The predicted classes.
+        """
         var tree_preds = Matrix(X.height, self.n_trees)
         @parameter
         fn predict_per_tree(i: Int):
