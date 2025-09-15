@@ -11,6 +11,7 @@ fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
     """Scale input vectors individually to unit norm (vector length).
 
     Args:
+        data: Data.
         norm: The norm to use -> 'l2', 'l1'.
 
     Returns:
@@ -68,6 +69,7 @@ fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises ->
     """Transform features by scaling each feature to a given range.
     
     Args:
+        data: Data.
         feature_range: Desired range of transformed data.
 
     Returns:
@@ -83,9 +85,10 @@ fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple
     """Transform features by scaling each feature to a given range, data_min and data_max.
     
     Args:
-        feature_range: Desired range of transformed data.
+        data: Data.
         x_min: Per feature minimum seen in the data.
         x_max: Per feature maximum seen in the data.
+        feature_range: Desired range of transformed data.
 
     Returns:
         Scaled data.
@@ -151,12 +154,14 @@ fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
 fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+    """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+    """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
@@ -169,12 +174,14 @@ struct SplittedPO(Copyable, Movable):
     var test: PythonObject
 
 fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+    """Split matrix and python object into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+    """Split matrix and python object into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
@@ -182,6 +189,21 @@ fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size:
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+    """K-Fold cross-validator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        model: Model.
+        X: Samples.
+        y: Targets.
+        scoring: Scoring function.
+        n_splits: Number of folds.
+
+    Returns:
+        Score.
+    """
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = Int((1 / n_splits) * X.height)
     var start_of_test = 0
@@ -195,6 +217,21 @@ fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matri
     return mean_score
 
 fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+    """K-Fold cross-validator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        model: Model.
+        X: Samples.
+        y: Targets.
+        scoring: Scoring function.
+        n_splits: Number of folds.
+
+    Returns:
+        Score.
+    """
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = Int((1 / n_splits) * X.height)
     var start_of_test = 0
@@ -209,6 +246,23 @@ fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn
 
 fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
                             scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    """Exhaustive search over specified parameter values for an estimator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        X: Samples.
+        y: Targets.
+        param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
+        scoring: Scoring function.
+        neg_score: Invert the scoring results when finding the best params.
+        n_jobs: Number of jobs to run in parallel.
+        cv: Number of folds in a KFold.
+
+    Returns:
+        Best parameters.
+    """
     var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
         dic_values.append(List[String]())
@@ -262,6 +316,23 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
 
 fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String, List[String]],
                             scoring: fn(PythonObject, List[String]) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    """Exhaustive search over specified parameter values for an estimator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        X: Samples.
+        y: Targets.
+        param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
+        scoring: Scoring function.
+        neg_score: Invert the scoring results when finding the best params.
+        n_jobs: Number of jobs to run in parallel.
+        cv: Number of folds in a KFold.
+
+    Returns:
+        Best parameters.
+    """
     var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
         dic_values.append(List[String]())
