@@ -235,16 +235,36 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
 
 @always_inline
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Mean Squared Error.
+    
+    Returns:
+        The error.
+    """
     return ((y - y_pred) ** 2).mean()
 
 @always_inline
 fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Binary Cross Entropy.
+    
+    Returns:
+        The loss.
+    """
     return -(y.ele_mul((y_pred + 1e-15).log()) + (1.0 - y).ele_mul((1.0 - y_pred + 1e-15).log())).mean()
 
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Coefficient of determination.
+    
+    Returns:
+        The score.
+    """
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
 fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(y.size):
         if y.data[i] == y_pred.data[i]:
@@ -252,6 +272,11 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return correct_count / y.size
 
 fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(len(y)):
         if y[i] == y_pred[i]:
@@ -259,6 +284,11 @@ fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
     return correct_count / len(y)
 
 fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(y_pred.size):
         if y[i] == y_pred.data[i]:
@@ -266,6 +296,11 @@ fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
     return correct_count / y_pred.size
 
 fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(len(y_pred)):
         if String(y[i]) == y_pred[i]:
@@ -369,6 +404,11 @@ fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     return -1  # not found
 
 fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
+    """Generates indices from 0 to N.
+    
+    Returns:
+        The pointer to indices.
+    """
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
@@ -380,6 +420,11 @@ fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
     return indices
 
 fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
+    """Generates indices from 0 to N.
+    
+    Returns:
+        The list of indices.
+    """
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
@@ -393,6 +438,11 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
     return list^
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
+    """Converts list of strings to numpy array.
+    
+    Returns:
+        The numpy array.
+    """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='object')
     for i in range(len(list)):
@@ -400,12 +450,22 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
     return np_arr^
 
 fn ids_to_numpy(list: List[Scalar[DType.index]]) raises -> PythonObject:
+    """Converts list of indices to numpy array.
+    
+    Returns:
+        The numpy array.
+    """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
     memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data, len(list))
     return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
+    """Converts list of indices to numpy array.
+    
+    Returns:
+        The numpy array.
+    """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
     memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data.bitcast[Scalar[DType.index]](), len(list))

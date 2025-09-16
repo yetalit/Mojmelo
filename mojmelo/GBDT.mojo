@@ -4,17 +4,31 @@ from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h, softma
 from algorithm import parallelize
 
 struct GBDT(CVM):
+	"""Gradient Boosting with support for both classification and regression."""
 	var criterion: String
+    """The method to measure the quality of a split:
+    For binary classification -> 'log';
+	For multi-class classification -> 'softmax';
+    For regression -> 'mse'.
+    """
 	var loss_g: fn(Matrix, Matrix) raises -> Matrix
 	var loss_h: fn(Matrix) raises -> Matrix
 	var n_trees: Int
+	"""The number of boosting stages to perform."""
 	var min_samples_split: Int
+	"""The minimum number of samples required to split an internal node."""
 	var max_depth: Int
+	"""The maximum depth of the tree."""
 	var learning_rate: Float32
+	"""Learning rate."""
 	var reg_lambda: Float32
+	"""The L2 regularization parameter."""
 	var reg_alpha: Float32
+	"""The L1 regularization parameter."""
 	var gamma: Float32
+	"""Minimum loss reduction required to make a further partition on a leaf node of the tree."""
 	var n_bins: Int
+	"""Generates histogram boundaries as possible threshold values when n_bins >= 2 instead of all possible values."""
 	var trees: UnsafePointer[BDecisionTree]
 	var score_start: Float32
 	var num_class: Int
@@ -53,6 +67,7 @@ struct GBDT(CVM):
 			self.trees.free()
 
 	fn fit(mut self, X: Matrix, y: Matrix) raises:
+		"""Fit the gradient boosting model."""
 		var X_F = X.asorder('f')
 		var score: Matrix
 		if self.criterion == 'softmax':
@@ -82,6 +97,11 @@ struct GBDT(CVM):
 			parallelize[p](self.num_class)
 
 	fn predict(self, X: Matrix) raises -> Matrix:
+		"""Predict class or regression value for X.
+        
+        Returns:
+            The predicted values.
+        """
 		var scores = Matrix(X.height, self.num_class)
 		@parameter
 		fn per_class(k: Int):

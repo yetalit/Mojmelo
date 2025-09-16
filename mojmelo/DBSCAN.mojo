@@ -5,14 +5,22 @@ from collections import Set
 from algorithm import parallelize
 
 struct DBSCAN:
+    """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""
     var squared_eps: Float32
+    """The maximum squared distance between two samples for one to be considered as in the neighborhood of the other."""
     var min_samples: Int
+    """The number of samples in a neighborhood for a point to be considered as a core point."""
 
     fn __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5) raises:
         self.squared_eps = eps ** 2
         self.min_samples = min_samples
 
     fn predict(mut self, X: Matrix) raises -> Matrix:
+        """Predict cluster indices.
+
+        Returns:
+            Vector of cluster indices.
+        """
         var kdtree = KDTree(X, metric='euc')
         var labels = Matrix.full(X.height, 1, -2.0)
 

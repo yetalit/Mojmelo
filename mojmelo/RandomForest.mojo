@@ -83,10 +83,10 @@ struct RandomForest(CVM):
         parallelize[p](self.n_trees)
 
     fn predict(self, X: Matrix) raises -> Matrix:
-        """Predict class for X.
+        """Predict class or regression value for X.
         
         Returns:
-            The predicted classes.
+            The predicted values.
         """
         var tree_preds = Matrix(X.height, self.n_trees)
         @parameter

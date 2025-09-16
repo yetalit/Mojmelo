@@ -257,7 +257,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
         param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
         scoring: Scoring function.
         neg_score: Invert the scoring results when finding the best params.
-        n_jobs: Number of jobs to run in parallel.
+        n_jobs: Number of jobs to run in parallel. `-1` means using all processors.
         cv: Number of folds in a KFold.
 
     Returns:
@@ -326,7 +326,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
         y: Targets.
         param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
         scoring: Scoring function.
-        neg_score: Invert the scoring results when finding the best params.
+        neg_score: Invert the scoring results when finding the best params. `-1` means using all processors.
         n_jobs: Number of jobs to run in parallel.
         cv: Number of folds in a KFold.
 

@@ -4,14 +4,25 @@ import random
 import math
 
 struct KMeans:
+    """K-Means clustering."""
     var K: Int
+    """The number of clusters to form as well as the number of centroids to generate."""
     var init: String
+    """Method for initialization -> 'kmeans++', 'random'."""
     var max_iters: Int
+    """Maximum number of iterations of the k-means algorithm for a single run."""
     var converge: String
+    """The converge method:
+    Change in centroids <= tol -> 'centroid';
+    Change in inertia <= tol -> 'inertia';
+    Exact change in labels -> 'label'.
+    """
     var tol: Float32
+    """Relative tolerance value."""
     var labels: List[Int]
     var centroids: Matrix
     var inertia: Float32
+    """Sum of squared distances of samples to their closest cluster center."""
     var X: Matrix
 
     fn __init__(out self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 42):
@@ -29,6 +40,11 @@ struct KMeans:
         self.X = Matrix(0, 0)
 
     fn predict(mut self, X: Matrix) raises -> List[Int]:
+        """Compute cluster centers and predict cluster index for each sample.
+
+        Returns:
+            List of cluster indices.
+        """
         self.X = X
 
         if self.init == 'random':

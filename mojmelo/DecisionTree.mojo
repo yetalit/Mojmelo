@@ -30,13 +30,21 @@ struct Node(Copyable, Movable):
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
 struct DecisionTree(CVM, Copyable, Movable):
+    """A decision tree supporting both classification and regression."""
     var criterion: String
+    """The function to measure the quality of a split:
+    For classification -> 'entropy', 'gini';
+    For regression -> 'mse'.
+    """
     var loss_func: fn(Matrix) raises -> Float32
     var c_func: fn(Float32, List[Int]) raises -> Float32
     var r_func: fn(Int, Float32, Float32) raises -> Float32
     var min_samples_split: Int
+    """The minimum number of samples required to split an internal node."""
     var max_depth: Int
+    """The maximum depth of the tree."""
     var n_feats: Int
+    """The number of features to consider when looking for the best split."""
     var root: UnsafePointer[Node]
     
     fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
@@ -113,6 +121,7 @@ struct DecisionTree(CVM, Copyable, Movable):
             delTree(self.root)
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
+        """Build a decision tree from the training set."""
         self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
         if y.width != 1:
             self.root = self._grow_tree(X.asorder('f'), y.reshape(y.size, 1))
@@ -120,6 +129,11 @@ struct DecisionTree(CVM, Copyable, Movable):
             self.root = self._grow_tree(X.asorder('f'), y)
 
     fn predict(self, X: Matrix) raises -> Matrix:
+        """Predict class or regression value for X.
+        
+        Returns:
+            The predicted values.
+        """
         var y_predicted = Matrix(X.height, 1)
         @parameter
         fn p(i: Int):
