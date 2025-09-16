@@ -34,8 +34,8 @@ struct RandomForest(CVM):
     """The number of features to consider when looking for the best split."""
     var criterion: String
     """The function to measure the quality of a split:
-    For classification -> "entropy", "gini";
-    For regression -> "mse".
+    For classification -> 'entropy', 'gini';
+    For regression -> 'mse'.
     """
     var trees: UnsafePointer[DecisionTree]
 

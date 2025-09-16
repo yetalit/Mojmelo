@@ -5,24 +5,33 @@ import time
 import random
 
 struct LogisticRegression(CVM):
+    """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""
     var lr: Float32
+    """Learning rate."""
     var n_iters: Int
+    """The maximum number of iterations."""
     var method: String
-    var penalty: String
+    """Weight update method -> 'gradient' uses first derivative, 'newton' uses second derivative."""
     var reg_alpha: Float32
+    """Constant that multiplies the regularization term."""
     var l1_ratio: Float32
+    """The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1."""
     var tol: Float32
+    """The stopping criterion based on loss."""
     var batch_size: Int
+    """Batch size, with batch_size=1 corresponds to SGD, 1 < batch_size < n_samples corresponds to Mini-Batch Gradient Descent."""
     var random_state: Int
+    """Used for shuffling the data."""
     var weights: Matrix
+    """Weights per feature."""
     var bias: Float32
+    """Bias term."""
 
-    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, method: String = 'gradient', penalty: String = 'l2', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
+    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.n_iters = n_iters
         self.method = method.lower()
-        self.penalty = penalty.lower()
         self.reg_alpha = reg_alpha
         self.l1_ratio = l1_ratio
         self.tol = tol
@@ -34,6 +43,7 @@ struct LogisticRegression(CVM):
         self.bias = 0.0
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
+        """Fit the model."""
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
@@ -42,17 +52,9 @@ struct LogisticRegression(CVM):
         if self.batch_size <= 0:
             X_T = X.T()
 
-        var l1_lambda = self.reg_alpha
-        var l2_lambda = self.reg_alpha
-        if self.l1_ratio >= 0.0:
-            # Elastic net regularization
-            l1_lambda *= self.l1_ratio
-            l2_lambda *= 1.0 - self.l1_ratio
-        else:
-            if self.penalty == 'l2':
-                l1_lambda = 0.0
-            else:
-                l2_lambda = 0.0
+        # Elastic net regularization
+        var l1_lambda = self.reg_alpha * self.l1_ratio
+        var l2_lambda = self.reg_alpha * (1.0 - self.l1_ratio)
 
         var prev_cost = math.inf[DType.float32]()
         var num_b_iters = X.height // self.batch_size if self.batch_size > 0 else 0
@@ -129,6 +131,11 @@ struct LogisticRegression(CVM):
                 self.bias -= self.lr * db
 
     fn predict(self, X: Matrix) raises -> Matrix:
+        """Predict class for X.
+        
+        Returns:
+            The predicted classes.
+        """
         var y_predicted = sigmoid(X * self.weights + self.bias)
         return y_predicted.where(y_predicted > 0.5, 1.0, 0.0)
 
@@ -145,10 +152,6 @@ struct LogisticRegression(CVM):
             self.method = params['method']
         else:
             self.method = 'gradient'
-        if 'penalty' in params:
-            self.penalty = params['penalty']
-        else:
-            self.penalty = 'l2'
         if 'reg_alpha' in params:
             self.reg_alpha = atof(String(params['reg_alpha'])).cast[DType.float32]()
         else:
@@ -156,7 +159,7 @@ struct LogisticRegression(CVM):
         if 'l1_ratio' in params:
             self.l1_ratio = atof(String(params['l1_ratio'])).cast[DType.float32]()
         else:
-            self.l1_ratio = -1.0
+            self.l1_ratio = 0.0
         if 'tol' in params:
             self.tol = atof(String(params['tol'])).cast[DType.float32]()
         else:

@@ -37,7 +37,7 @@ struct PCA:
             S = Matrix.from_numpy(USVt[1])
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
-            _, S, Vt = (X - self.mean).svd(eps=jacobi_eps)
+            _, S, Vt = (X - self.mean).svd(eps=self.jacobi_eps)
             var indices = S.argsort_inplace[ascending=False]()
             self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
             @parameter
