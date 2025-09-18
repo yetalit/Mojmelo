@@ -96,7 +96,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     # access an element
     @always_inline
     fn __getitem__(self, row: Int, column: Int) raises -> Float32:
-        """The pattern to access a single value: [row, column]"""
+        """The pattern to access a single value: [row, column] ."""
         var loc: Int
         if self.order == 'c':
             loc = (row * self.width) + column
@@ -109,7 +109,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     # access a row
     @always_inline
     fn __getitem__(self, row: Int) raises -> Matrix:
-        """The pattern to access a row: [row]"""
+        """The pattern to access a row: [row] ."""
         if row >= self.height or row < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
@@ -156,7 +156,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     # access a column
     @always_inline
     fn __getitem__(self, row: String, column: Int) raises -> Matrix:
-        """The pattern to access a column: ['', column]"""
+        """The pattern to access a column: ['', column] ."""
         if column >= self.width or column < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' and self.width > 1:
@@ -295,7 +295,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         if loc > self.size - 1:
             raise Error("Error: Location is out of range!")
         self.data[loc] = val
-    
+
     # replace the given row
     @always_inline
     fn __setitem__(mut self, row: Int, val: Matrix) raises:
@@ -393,7 +393,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     fn __setitem__(mut self, row: String, columns: Matrix, rhs: Matrix) raises:
         for i in range(columns.size):
             self[row, Int(columns.data[i])] = rhs[row, i]
-    
+
     @always_inline
     fn load_columns(self, _range: Int) raises -> Matrix:
         if _range > self.width:
@@ -920,7 +920,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 vectorize[pconvert, self.simd_width](self.width)
             parallelize[p](self.height)
         return mat^
-    
+
     @always_inline
     fn T(self) -> Matrix:
         if self.height == 1 or self.width == 1:
@@ -1340,7 +1340,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 return Bool(a < b)
             else:
                 return Bool(a > b)
-    
+
         mojmelo.utils.sort.sort[cmp_fn](
             Span[
                 Float32,
@@ -1425,7 +1425,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         mat.height = height
         mat.width = width
         return mat^
-    
+
     fn cov(self) raises -> Matrix:
         var c = Matrix(self.height, self.height, order=self.order)
         var mean_diff = self - self.mean(axis=1)
@@ -1480,7 +1480,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
             for j in range(i + 1, N):
                 x[i, Mi] -= A[i, j] * x[j, Mi]
             x[i, Mi] /= A[i, i]
-    
+
     @staticmethod
     @always_inline
     fn solve(var A: Matrix, b: Matrix) raises -> Matrix:
@@ -1568,13 +1568,13 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                     var ak = ck.norm()
 
                     # test for columns j,k orthogonal,
-                    # or dominant errors 
+                    # or dominant errors
                     var abserr_a = t.data[j]
                     var abserr_b = t.data[k]
 
                     var q = (aj * aj) - (ak * ak)
                     var v = math.sqrt(p**2 + q**2)  # hypot()
-            
+
                     var sorted = (aj >= ak)
                     var orthog = (abs(p) <= tolerance * (aj*ak))
                     var noisya = (aj < abserr_a)
@@ -1794,7 +1794,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     @staticmethod
     fn from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
         """Initialize a matrix from a numpy array.
-        
+
         Returns:
             The matrix.
         """
@@ -1813,7 +1813,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
 
     fn to_numpy(self) raises -> PythonObject:
         """Converts the matrix to a numpy array.
-        
+
         Returns:
             The numpy array.
         """
@@ -1847,6 +1847,23 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 mat['', i, unsafe=True] = self
             parallelize[broadcast](mat.width)
         return mat^
+
+    @always_inline
+    fn float64_ptr(self) -> UnsafePointer[Float64]:
+        var ptr = UnsafePointer[Float64].alloc(self.size)
+        if self.size < 262144:
+            @parameter
+            fn matrix_vectorize[simd_width: Int](idx: Int):
+                ptr.store(idx, self.data.load[width=simd_width](idx).cast[DType.float64]())
+            vectorize[matrix_vectorize, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn matrix_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                ptr.store(idx, self.data.load[width=self.simd_width](idx).cast[DType.float64]())
+            parallelize[matrix_vectorize_parallelize](n_vects)
+        return ptr
 
     @always_inline
     fn _elemwise_scalar[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:

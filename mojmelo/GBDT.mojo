@@ -6,11 +6,10 @@ from algorithm import parallelize
 struct GBDT(CVM):
 	"""Gradient Boosting with support for both classification and regression."""
 	var criterion: String
-    """The method to measure the quality of a split:
+	"""The method to measure the quality of a split:
     For binary classification -> 'log';
 	For multi-class classification -> 'softmax';
-    For regression -> 'mse'.
-    """
+    For regression -> 'mse'."""
 	var loss_g: fn(Matrix, Matrix) raises -> Matrix
 	var loss_h: fn(Matrix) raises -> Matrix
 	var n_trees: Int
@@ -98,7 +97,7 @@ struct GBDT(CVM):
 
 	fn predict(self, X: Matrix) raises -> Matrix:
 		"""Predict class or regression value for X.
-        
+
         Returns:
             The predicted values.
         """
