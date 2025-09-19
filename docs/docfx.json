@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "build": {
+    "content": [
+      {
+        "files": [
+          "**/*.{md,yml}"
+        ],
+        "exclude": [
+          "_site/**"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "images/**"
+        ]
+      }
+    ],
+    "output": "_site",
+    "template": [
+      "default",
+      "modern"
+    ],
+    "globalMetadata": {
+      "_appName": "Mojmelo",
+      "_appTitle": "Mojmelo",
+      "_enableSearch": true,
+	  "_appLogoPath": "images/logo.svg",
+	  "_appFaviconPath": "images/favicon.ico",
+      "pdf": false
+    }
+  }
+}

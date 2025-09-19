@@ -1,0 +1,30 @@
+- name: Main
+  href: _index.md
+- name: Linear Regression
+  href: LinearRegression/_index.md
+- name: Polynomial Regression
+  href: PolynomialRegression/_index.md
+- name: Logistic Regression
+  href: LogisticRegression/_index.md
+- name: KNN
+  href: KNN/_index.md
+- name: KMeans
+  href: KMeans/_index.md
+- name: DBSCAN
+  href: DBSCAN/_index.md
+- name: SVM
+  href: SVM/_index.md
+- name: Naive Bayes
+  href: NaiveBayes/_index.md
+- name: Decision Tree
+  href: DecisionTree/_index.md
+- name: Random Forest
+  href: RandomForest/_index.md
+- name: GBDT
+  href: GBDT/_index.md
+- name: PCA
+  href: PCA/_index.md
+- name: preprocessing
+  href: preprocessing/_index.md
+- name: utils
+  href: utils/_index.md
