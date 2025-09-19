@@ -18,7 +18,7 @@
         ]
       }
     ],
-    "output": "_site",
+    "output": "../docs",
     "template": [
       "default",
       "modern"
