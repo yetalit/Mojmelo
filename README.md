@@ -43,6 +43,8 @@ Preprocessing:
 * KFold
 * GridSearchCV
 
+**Documentation:** https://yetalit.github.io/Mojmelo/docs/_index.html
+
 ## Getting Started
 
 If you are not familiar with Mojo projects, you can get started here: https://docs.modular.com/mojo/manual/get-started/
