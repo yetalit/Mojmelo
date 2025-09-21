@@ -15,7 +15,7 @@ def main():
     params['method'] = List[String]('gradient', 'newton')
     params['tol'] = List[String]('0.001', '0.01', '0.1')
     params['reg_alpha'] = List[String]('0.001', '0.005', '0.01')
-    best_params, _ = GridSearchCV[LogisticRegression](X, y, params, accuracy_score, cv=4)
+    best_params = GridSearchCV[LogisticRegression](X, y, params, accuracy_score, cv=4)[0].copy()
     print('tuned parameters: ', best_params.__str__())
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
     lr = LogisticRegression(best_params)
