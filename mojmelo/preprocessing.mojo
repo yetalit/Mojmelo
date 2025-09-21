@@ -169,7 +169,7 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 @fieldwise_init
-struct SplittedPO(Copyable, Movable):
+struct SplittedPO(Copyable, Movable, ImplicitlyCopyable):
     var train: PythonObject
     var test: PythonObject
 
@@ -266,7 +266,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
     var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
         dic_values.append(List[String]())
-        dic_values[i] = param_grid._entries[i].value().value
+        dic_values[i] = param_grid._entries[i].value().value.copy()
     var combinations = cartesian_product(dic_values)
     var scores = Matrix(1, len(combinations))
     var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
@@ -308,7 +308,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
         if scores.data[i] == best_score:
             best = i
             break
-    var best_params = params[best]
+    var best_params = params[best].copy()
     params.free()
     if neg_score:
         best_score *= -1
@@ -336,7 +336,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
     var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
         dic_values.append(List[String]())
-        dic_values[i] = param_grid._entries[i].value().value
+        dic_values[i] = param_grid._entries[i].value().value.copy()
     var combinations = cartesian_product(dic_values)
     var scores = Matrix(1, len(combinations))
     var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
@@ -378,7 +378,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
         if scores.data[i] == best_score:
             best = i
             break
-    var best_params = params[best]
+    var best_params = params[best].copy()
     params.free()
     if neg_score:
         best_score *= -1

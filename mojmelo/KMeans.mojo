@@ -56,7 +56,7 @@ struct KMeans:
         var dist_from_centroids = Matrix(self.X.height, self.K, order='f')
         self.labels = self._create_labels(dist_from_centroids)
         var centroids_old = self.centroids
-        var labels_old = self.labels
+        var labels_old = self.labels.copy()
         var inertia_old = self.inertia
         # Optimize clusters
         for i in range(self.max_iters):
@@ -68,12 +68,12 @@ struct KMeans:
             if self._is_converged(dist_from_centroids, centroids_old, labels_old, inertia_old):
                 break
             centroids_old = self.centroids
-            labels_old = self.labels
+            labels_old = self.labels.copy()
             inertia_old = self.inertia
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
 
-        return self.labels
+        return self.labels.copy()
         
     fn _kmeans_plus_plus(mut self) raises:
         # Randomly select the first centroid
@@ -124,7 +124,7 @@ struct KMeans:
         if self.converge == 'inertia':
             if abs(inertia_old - self.inertia) <= self.tol:
                 self.centroids = centroids_old
-                self.labels = labels_old
+                self.labels = labels_old.copy()
                 return True
             return False
         return labels_old == self.labels

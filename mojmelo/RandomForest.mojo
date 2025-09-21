@@ -17,8 +17,8 @@ fn _predict(y: Matrix, criterion: String) raises -> Float32:
     var max_val: Int = 0
     var most_common: Int = 0
     for k in freq.keys():
-        if freq[k] > max_val:
-            max_val = freq[k]
+        if freq[k.copy()] > max_val:
+            max_val = freq[k.copy()]
             most_common = k
     return Float32(most_common)
 
@@ -48,7 +48,7 @@ struct RandomForest(CVM):
         random.seed(random_state)
         self.trees = UnsafePointer[DecisionTree]()
 
-    fn __del__(var self):
+    fn __del__(deinit self):
         if self.trees:
             for i in range(self.n_trees):
                 (self.trees + i).destroy_pointee()

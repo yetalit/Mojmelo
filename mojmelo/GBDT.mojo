@@ -59,7 +59,7 @@ struct GBDT(CVM):
 		self.score_start = 0.0
 		self.num_class = 0
 
-	fn __del__(var self):
+	fn __del__(deinit self):
 		if self.trees:
 			for i in range(self.n_trees):
 				(self.trees + i).destroy_pointee()

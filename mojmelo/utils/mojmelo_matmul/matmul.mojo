@@ -2,7 +2,7 @@
 
 from algorithm import vectorize, parallelize
 from memory.memory import _malloc, stack_allocation
-from sys import CompilationTarget, num_performance_cores, simdwidthof, sizeof
+from sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
 import benchmark
 from testing import assert_equal
 from utils import IndexList
@@ -163,7 +163,7 @@ fn pack_A[
                     ](Ac.stride[0]()),
                 )
 
-            vectorize[pack_col, simdwidthof[Type]()](min(Ac.shape[0]() - i, mr))
+            vectorize[pack_col, simd_width_of[Type]()](min(Ac.shape[0]() - i, mr))
 
             for l in range(min(Ac.shape[0]() - i, mr), mr):
                 dst_ptr[l] = Scalar[Type](0)
@@ -193,15 +193,15 @@ fn pack_B[
             @parameter
             fn pack_row[width: Int](l: Int):
                 (dst_ptr + l).store[
-                    alignment = sizeof[Type]() * simdwidthof[Type]()
+                    alignment = size_of[Type]() * simd_width_of[Type]()
                 ](
                     (src_ptr + l).load[width=width](),
                 )
 
             vectorize[
                 pack_row,
-                simdwidthof[Type](),
-                unroll_factor = nr // simdwidthof[Type](),
+                simd_width_of[Type](),
+                unroll_factor = nr // simd_width_of[Type](),
             ](min(Bc.shape[1]() - i, nr))
 
             for l in range(min(Bc.shape[1]() - i, nr), nr):
@@ -223,8 +223,8 @@ fn matmul_impl[
     mr: Int,
     nr: Int,
 ](mc: Int, nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type]):
-    var Ac_buffer = _malloc[Scalar[Type], alignment=64](
-        mc * kc * sizeof[Type]()
+    var Ac_buffer = _malloc[Scalar[Type]](
+        mc * kc * size_of[Type](), alignment=64
     )
 
     var M = C.shape[0]()
@@ -268,8 +268,8 @@ fn loop_n[
     @parameter
     fn parallelize_balanced_part(idx: Int):
         var Bc_buffer = UnsafePointer[Scalar[Type]](
-            _malloc[Scalar[Type], alignment=64](
-                kc * nc_per_thread * sizeof[Type]()
+            _malloc[Scalar[Type]](
+                kc * nc_per_thread * size_of[Type](), alignment=64
             )
         )
 
@@ -291,8 +291,8 @@ fn loop_n[
     @parameter
     fn parallelize_remainder(idx: Int):
         var Bc_buffer = UnsafePointer[Scalar[Type]](
-            _malloc[Scalar[Type], alignment=64](
-                kc * remainder_per_thread * sizeof[Type]()
+            _malloc[Scalar[Type]](
+                kc * remainder_per_thread * size_of[Type](), alignment=64
             )
         )
         var j = balanced_part + idx * remainder_per_thread
@@ -348,7 +348,7 @@ fn macro_kernel[
 fn micro_kernel[
     Type: DType, //, mr: Int, nr: Int, padding: Bool
 ](mut Cr: Matrix[Type], Ar: Matrix[Type], Br: Matrix[Type]):
-    alias simd_width = simdwidthof[Type]()
+    alias simd_width = simd_width_of[Type]()
     constrained[nr % simd_width == 0, "nr must be multiple of simd_width"]()
 
     var Ar_ptr = Ar.data
@@ -391,7 +391,7 @@ fn micro_kernel[
         @parameter
         for j in range(0, nr, simd_width):
             br[j // simd_width] = (Br_ptr + j).load[
-                width=simd_width, alignment = sizeof[Type]() * simdwidthof[Type]()
+                width=simd_width, alignment = size_of[Type]() * simd_width_of[Type]()
             ]()
 
         @parameter
@@ -440,15 +440,15 @@ fn micro_kernel[
 
 @always_inline
 fn matmul_params[Type: DType]() -> IndexList[5]:
-    alias mc = 8192 // sizeof[Type]()  # fix this for simplicity
-    alias N = simdwidthof[Type]()
+    alias mc = 8192 // size_of[Type]()  # fix this for simplicity
+    alias N = simd_width_of[Type]()
 
     alias Vectors = 32 if CompilationTarget.has_avx512f() else 16
 
     @parameter
     fn compute_kc[mr: Int, nr: Int]() -> Int:
         alias CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
-        return (CBr * L1_CACHE_SIZE) // (nr * sizeof[Type]() * L1_ASSOCIATIVITY)
+        return (CBr * L1_CACHE_SIZE) // (nr * size_of[Type]() * L1_ASSOCIATIVITY)
 
     @parameter
     fn compute_params[C: Int]() -> IndexList[5]:
@@ -458,7 +458,7 @@ fn matmul_params[Type: DType]() -> IndexList[5]:
         alias CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
         alias kc = compute_kc[mr, nr]()
         alias nc = (L2_ASSOCIATIVITY - 1) * L2_CACHE_SIZE // (
-            kc * sizeof[Type]() * L2_ASSOCIATIVITY
+            kc * size_of[Type]() * L2_ASSOCIATIVITY
         ) - mr
         return IndexList[5](mc, nc, kc, mr, nr)
 

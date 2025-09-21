@@ -3,7 +3,7 @@ import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
 from algorithm import parallelize, elementwise
-from sys import simdwidthof
+from sys import simd_width_of
 from utils import IndexList
 
 # Cross Validation y as Matrix
@@ -32,7 +32,7 @@ fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
 # ===-----------------------------------------------------------------------===#
 
 fn argn[is_max: Bool](input: Matrix, output: Matrix):
-    alias simd_width = simdwidthof[DType.float32]()
+    alias simd_width = simd_width_of[DType.float32]()
     var axis_size = input.size
     var input_stride = input.size
     alias output_stride = 1
@@ -52,9 +52,9 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
     ]:
         @parameter
         if is_max:
-            return a <= b
+            return a.le(b)
         else:
-            return a >= b
+            return a.ge(b)
 
     @parameter
     @always_inline
@@ -65,9 +65,9 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
     ]:
         @parameter
         if is_max:
-            return a < b
+            return a.lt(b)
         else:
-            return a > b
+            return a.gt(b)
 
     # iterate over flattened axes
     alias start = 0
@@ -123,7 +123,7 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
 
         # handle the case where min wasn't in trailing values
         if not found_min:
-            var matching = global_values == global_val
+            var matching = global_values.eq(global_val)
             var min_indices = matching.select(
                 global_indices, Float32.MAX
             )
@@ -411,10 +411,10 @@ fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
     """
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
-    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+    fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
         indices.store(offset[0], math.iota[DType.index, width](offset[0]))
 
-    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+    elementwise[fill_indices_iota, simd_width_of[DType.index](), target="cpu"](
         N
     )
     return indices
@@ -427,10 +427,10 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
     """
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
-    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+    fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
         indices.store(offset[0], math.iota[DType.index, width](offset[0]))
 
-    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+    elementwise[fill_indices_iota, simd_width_of[DType.index](), target="cpu"](
         N
     )
     var list = List[Scalar[DType.index]](unsafe_uninit_length=N)
@@ -477,12 +477,13 @@ fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
         result.append(List[String]())
         return result^
 
-    first, rest = lists[0], lists[1:]
+    var first = lists[0].copy()
+    var rest = lists[1:].copy()
     var rest_product = cartesian_product(rest)
 
     # Create the Cartesian product
     for item in first:
         for prod in rest_product:
-            result.append(List[String](item) + prod)
+            result.append(List[String](item) + prod.copy())
 
     return result^

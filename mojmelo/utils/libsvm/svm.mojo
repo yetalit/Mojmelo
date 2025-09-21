@@ -31,7 +31,7 @@ struct head_t(Copyable, Movable):
         memset_zero(self.data, self._len)
 
     @always_inline
-    fn __del__(var self):
+    fn __del__(deinit self):
         if self.data:
             self.data.free()
 
@@ -55,7 +55,7 @@ struct Cache:
         self.lru_head = head_t(UnsafePointer[head_t](), UnsafePointer[head_t](), 0)
         self.lru_head.next = self.lru_head.prev = UnsafePointer(to=self.lru_head)
 
-    fn __del__(var self):
+    fn __del__(deinit self):
         var h = self.lru_head.next
         while h != UnsafePointer(to=self.lru_head):
             h.destroy_pointee()

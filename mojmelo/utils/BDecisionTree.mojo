@@ -4,7 +4,7 @@ from mojmelo.utils.utils import findInterval
 from algorithm import parallelize
 import math
 
-struct BDecisionTree(Copyable, Movable):
+struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
     var min_samples_split: Int
     var max_depth: Int
     var reg_lambda: Float32
@@ -34,7 +34,7 @@ struct BDecisionTree(Copyable, Movable):
         existing.reg_lambda = existing.reg_alpha = existing.gamma = 0.0
         existing.root = UnsafePointer[Node]()
 
-    fn __del__(var self):
+    fn __del__(deinit self):
         if self.root:
             delTree(self.root)
 
@@ -72,9 +72,9 @@ struct BDecisionTree(Copyable, Movable):
             return new_node
         
         # grow the children that result from the split
-        var left_idxs: List[Int]
-        var right_idxs: List[Int]
-        left_idxs, right_idxs = _split(X['', best_feat], best_thresh)
+        var left_right_idxs = _split(X['', best_feat], best_thresh)
+        var left_idxs = left_right_idxs[0].copy()
+        var right_idxs = left_right_idxs[1].copy()
         var left = self._grow_tree(X[left_idxs], g[left_idxs], h[left_idxs], depth + 1)
         var right = self._grow_tree(X[right_idxs], g[right_idxs], h[right_idxs], depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
@@ -120,7 +120,7 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
     @parameter
     fn p(idx: Int):
         try:
-            var column = X['', feat_idxs[idx].value, unsafe=True]
+            var column = X['', Int(feat_idxs[idx]), unsafe=True]
             if n_bins < 2 or len(column) < n_bins:
                 var sorted_indices = column.argsort_inplace()
                 var g_sorted = g[sorted_indices]
@@ -191,7 +191,7 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
     parallelize[p](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx].value, best_thresholds.data[feat_idx], max_gains.data[feat_idx]
+    return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
 @always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:

@@ -52,7 +52,7 @@ struct PCA:
             self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
             @parameter
             fn p(i: Int):
-                self.components[i, unsafe=True] = Vt[indices[i].value, unsafe=True]
+                self.components[i, unsafe=True] = Vt[Int(indices[i]), unsafe=True]
             parallelize[p](self.n_components)
 
         S = S.load_columns(self.n_components)

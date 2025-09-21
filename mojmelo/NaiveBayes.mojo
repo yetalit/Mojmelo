@@ -23,8 +23,9 @@ struct GaussianNB:
     fn fit(mut self, X: Matrix, y: PythonObject) raises:
         """Fit Gaussian Naive Bayes."""
         var n_samples = Float32(X.height)
-        var _class_freq: List[Int]
-        self._classes, _class_freq = Matrix.unique(y)
+        var unique_y = Matrix.unique(y)
+        self._classes = unique_y[0].copy()
+        var _class_freq = unique_y[1].copy()
         
         var classes_ids = Dict[String, Int]()
         for i in range(len(self._classes)):
@@ -97,8 +98,9 @@ struct MultinomialNB:
     fn fit(mut self, X: Matrix, y: PythonObject) raises:
         """Fit Naive Bayes classifier."""
         var n_samples = Float32(X.height)
-        var _class_freq: List[Int]
-        self._classes, _class_freq = Matrix.unique(y)
+        var unique_y = Matrix.unique(y)
+        self._classes = unique_y[0].copy()
+        var _class_freq = unique_y[1].copy()
 
         var classes_ids = Dict[String, Int]()
         for i in range(len(self._classes)):

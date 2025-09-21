@@ -1,5 +1,5 @@
 from .mojmelo_matmul import matmul
-from sys import simdwidthof, CompilationTarget
+from sys import simd_width_of, CompilationTarget
 from memory import memcpy, memcmp, memset_zero
 from algorithm import vectorize, parallelize
 from buffer import NDBuffer
@@ -9,7 +9,7 @@ import random
 from mojmelo.utils.utils import argn, cov_value, add, sub, mul, div, fill_indices, fill_indices_list
 from python import Python, PythonObject
 
-struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
+struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized):
     """Native matrix data structure."""
     var height: Int
     """The number of rows."""
@@ -24,7 +24,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
     Row-major -> 'c';
     Column-major -> 'f'.
     """
-    alias simd_width: Int = 4 * simdwidthof[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simdwidthof[DType.float32]()
+    alias simd_width: Int = 4 * simd_width_of[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float32]()
 
     # initialize from UnsafePointer
     @always_inline
@@ -65,7 +65,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         self.order = other.order
         memcpy(self.data, other.data, self.size)
 
-    fn __moveinit__(out self, var existing: Self):
+    fn __moveinit__(out self, deinit existing: Self):
         self.height = existing.height
         self.width = existing.width
         self.size = existing.size
@@ -249,11 +249,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         if len(rows) > 96:
             @parameter
             fn p(i: Int):
-                mat[i, unsafe=True] = self[rows[i].value, unsafe=True]
+                mat[i, unsafe=True] = self[Int(rows[i]), unsafe=True]
             parallelize[p](len(rows))
         else:
             for i in range(mat.height):
-                mat[i] = self[rows[i].value]
+                mat[i] = self[Int(rows[i])]
         return mat^
 
     # access given columns (by their indices)
@@ -277,11 +277,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
         if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
             @parameter
             fn p(i: Int):
-                mat[row, i, unsafe=True] = self[row, columns[i].value, unsafe=True]
+                mat[row, i, unsafe=True] = self[row, Int(columns[i]), unsafe=True]
             parallelize[p](len(columns))
         else:
             for i in range(mat.width):
-                mat[row, i] = self[row, columns[i].value]
+                mat[row, i] = self[row, Int(columns[i])]
         return mat^
 
     # replace an element
@@ -449,7 +449,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, Sized):
                 self[i, Int(columns.data[i])] = rhs.data[i]
 
     @always_inline
-    fn __del__(var self):
+    fn __del__(deinit self):
         if self.data:
             self.data.free()
 

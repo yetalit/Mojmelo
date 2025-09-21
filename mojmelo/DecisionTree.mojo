@@ -29,7 +29,7 @@ struct Node(Copyable, Movable):
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-struct DecisionTree(CVM, Copyable, Movable):
+struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
     """A decision tree supporting both classification and regression."""
     var criterion: String
     """The function to measure the quality of a split:
@@ -116,7 +116,7 @@ struct DecisionTree(CVM, Copyable, Movable):
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
         existing.root = UnsafePointer[Node]()
 
-    fn __del__(var self):
+    fn __del__(deinit self):
         if self.root:
             delTree(self.root)
 
@@ -167,9 +167,9 @@ struct DecisionTree(CVM, Copyable, Movable):
         var best_thresh: Float32
         best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
         # grow the children that result from the split
-        var left_idxs: List[Int]
-        var right_idxs: List[Int]
-        left_idxs, right_idxs = _split(X['', best_feat], best_thresh)
+        var left_right_idxs = _split(X['', best_feat], best_thresh)
+        var left_idxs = left_right_idxs[0].copy()
+        var right_idxs = left_right_idxs[1].copy()
         var left = self._grow_tree(X[left_idxs], y[left_idxs], depth + 1)
         var right = self._grow_tree(X[right_idxs], y[right_idxs], depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
@@ -196,7 +196,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         @parameter
         fn p_c(idx: Int):
             try:
-                var column = X['', feat_idxs[idx].value, unsafe=True]
+                var column = X['', Int(feat_idxs[idx]), unsafe=True]
                 var sorted_indices = column.argsort_inplace()
                 var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
@@ -205,8 +205,8 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
 
                 for step in range(1, len(y)):
                     var c = y_sorted.data[step - 1]
-                    left_histogram[c] += 1
-                    right_histogram[c] -= 1
+                    left_histogram[Int(c)] += 1
+                    right_histogram[Int(c)] -= 1
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
@@ -228,7 +228,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         @parameter
         fn p_r(idx: Int):
             try:
-                var column = X['', feat_idxs[idx].value, unsafe=True]
+                var column = X['', Int(feat_idxs[idx]), unsafe=True]
                 var sorted_indices = column.argsort_inplace()
                 var y_sorted = y[sorted_indices]
 
@@ -260,7 +260,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
         parallelize[p_r](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx].value, best_thresholds.data[feat_idx]
+    return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx]
 
 @always_inline
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
