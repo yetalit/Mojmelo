@@ -80,6 +80,7 @@ fn _quicksort_partition_left[
     origin: MutableOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index]]) -> Int:
+    var array = span.unsafe_ptr().origin_cast[True, MutableAnyOrigin]()
     var size = len(span)
 
     var left = 1
@@ -286,7 +287,6 @@ fn sort[
 
 @always_inline
 fn _sort2[
-    origin: MutableOrigin, //,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
@@ -306,7 +306,6 @@ fn _sort2[
 
 @always_inline
 fn _sort3[
-    origin: MutableOrigin, //,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
@@ -325,7 +324,6 @@ fn _sort3[
 
 @always_inline
 fn _sort_partial_3[
-    origin: MutableOrigin, //,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
@@ -361,7 +359,6 @@ fn _sort_partial_3[
 
 @always_inline
 fn _small_sort[
-    origin: MutableOrigin, //,
     n: Int,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,

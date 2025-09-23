@@ -51,12 +51,13 @@ If you are not familiar with Mojo projects, you can get started here: https://do
 
 ### Prerequisites
 
-* MAX 25.5
+* mojo-compiler 0.25.6
 
 Additionally, you may want to install bellow Python packages for a better usability and to run tests:
-1. Pandas
-2. Scikit-learn
-3. Matplotlib
+1. Numpy
+2. Pandas
+3. Scikit-learn
+4. Matplotlib
 
 ### Installation
 
@@ -134,7 +135,7 @@ You can contribute to the project in 3 ways:
 
 Took inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>
 
-MAX and Mojo usage and distribution are licensed under the [Modular Community License](https://www.modular.com/legal/community).
+Mojo usage and distribution are licensed under the [Modular Community License](https://www.modular.com/legal/community).
 
 
 [issues-shield]: https://img.shields.io/github/issues/yetalit/mojmelo
