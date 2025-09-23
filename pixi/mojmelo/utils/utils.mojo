@@ -3,7 +3,7 @@ import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
 from algorithm import parallelize, elementwise
-from sys import simdwidthof
+from sys import simd_width_of
 from utils import IndexList
 
 # Cross Validation y as Matrix
@@ -27,19 +27,12 @@ trait CVP:
 fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
     return (y_mean_diff.ele_mul(x_mean_diff)).sum() / (x_mean_diff.size - 1)
 
-fn complete_orthonormal_basis(X: Matrix, full_size: Int) raises -> Matrix:
-    if X.width == full_size:
-        return X
-    P = Matrix.eye(X.height, X.order) - X * X.T()  # projection onto orthogonal complement
-    Q, _ = P.qr()
-    return X.concatenate(Q.load_columns(full_size - X.width), axis=1)
-
 # ===-----------------------------------------------------------------------===#
 # argn
 # ===-----------------------------------------------------------------------===#
 
 fn argn[is_max: Bool](input: Matrix, output: Matrix):
-    alias simd_width = simdwidthof[DType.float32]()
+    alias simd_width = simd_width_of[DType.float32]()
     var axis_size = input.size
     var input_stride = input.size
     alias output_stride = 1
@@ -59,9 +52,9 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
     ]:
         @parameter
         if is_max:
-            return a <= b
+            return a.le(b)
         else:
-            return a >= b
+            return a.ge(b)
 
     @parameter
     @always_inline
@@ -72,9 +65,9 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
     ]:
         @parameter
         if is_max:
-            return a < b
+            return a.lt(b)
         else:
-            return a > b
+            return a.gt(b)
 
     # iterate over flattened axes
     alias start = 0
@@ -130,7 +123,7 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
 
         # handle the case where min wasn't in trailing values
         if not found_min:
-            var matching = global_values == global_val
+            var matching = global_values.eq(global_val)
             var min_indices = matching.select(
                 global_indices, Float32.MAX
             )
@@ -191,8 +184,10 @@ fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size
     return simd
 
 @always_inline
-fn sigmoid(z: Matrix) -> Matrix:
-    return 1 / (1 + (-z).exp())
+fn sigmoid(z: Matrix) raises -> Matrix:
+    return z.where(z >= 0,
+                    1 / (1 + (-z).exp()),
+                    z.exp() / (1 + z.exp()))
 
 @always_inline
 fn normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
@@ -240,16 +235,36 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
 
 @always_inline
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Mean Squared Error.
+    
+    Returns:
+        The error.
+    """
     return ((y - y_pred) ** 2).mean()
 
 @always_inline
 fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Binary Cross Entropy.
+    
+    Returns:
+        The loss.
+    """
     return -(y.ele_mul((y_pred + 1e-15).log()) + (1.0 - y).ele_mul((1.0 - y_pred + 1e-15).log())).mean()
 
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Coefficient of determination.
+    
+    Returns:
+        The score.
+    """
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
 fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(y.size):
         if y.data[i] == y_pred.data[i]:
@@ -257,6 +272,11 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return correct_count / y.size
 
 fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(len(y)):
         if y[i] == y_pred[i]:
@@ -264,6 +284,11 @@ fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
     return correct_count / len(y)
 
 fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(y_pred.size):
         if y[i] == y_pred.data[i]:
@@ -271,6 +296,11 @@ fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
     return correct_count / y_pred.size
 
 fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
+    """Accuracy classification score.
+    
+    Returns:
+        The score.
+    """
     var correct_count: Float32 = 0.0
     for i in range(len(y_pred)):
         if String(y[i]) == y_pred[i]:
@@ -341,25 +371,66 @@ fn log_h(score: Matrix) raises -> Matrix:
     var pred = sigmoid(score)
     return pred.ele_mul(1 - pred)
 
+@always_inline
+fn softmax_link(score: Matrix) raises -> Matrix:
+    var exp_score = (score - score.max(axis=1)).exp()  # for stability
+    return exp_score / exp_score.sum(axis=1)
+@always_inline
+fn softmax_g(true: Matrix, score: Matrix) raises -> Matrix:
+    var g = softmax_link(score)
+    g.set_per_row(true, g.get_per_row(true) - 1)  # derivative of softmax + CE
+    return g^
+@always_inline
+fn softmax_h(score: Matrix) raises -> Matrix:
+    var prob = softmax_link(score)
+    return prob.ele_mul(1 - prob)
+
+
+@always_inline
+fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
+    var left = 0
+    var right = len(intervals) - 1
+
+    while left <= right:
+        var mid = left + (right - left) // 2
+
+        if x < intervals[mid][0]:
+            right = mid - 1
+        elif x >= intervals[mid][1]:
+            left = mid + 1
+        else:
+            return mid  # x is within the interval
+
+    return -1  # not found
 
 fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
+    """Generates indices from 0 to N.
+    
+    Returns:
+        The pointer to indices.
+    """
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
-    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+    fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
         indices.store(offset[0], math.iota[DType.index, width](offset[0]))
 
-    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+    elementwise[fill_indices_iota, simd_width_of[DType.index](), target="cpu"](
         N
     )
     return indices
 
 fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
+    """Generates indices from 0 to N.
+    
+    Returns:
+        The list of indices.
+    """
     var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
     @parameter
-    fn fill_indices_iota[width: Int, rank: Int](offset: IndexList[rank]):
+    fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
         indices.store(offset[0], math.iota[DType.index, width](offset[0]))
 
-    elementwise[fill_indices_iota, simdwidthof[DType.index](), target="cpu"](
+    elementwise[fill_indices_iota, simd_width_of[DType.index](), target="cpu"](
         N
     )
     var list = List[Scalar[DType.index]](unsafe_uninit_length=N)
@@ -367,6 +438,11 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
     return list^
 
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
+    """Converts list of strings to numpy array.
+    
+    Returns:
+        The numpy array.
+    """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='object')
     for i in range(len(list)):
@@ -374,12 +450,22 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
     return np_arr^
 
 fn ids_to_numpy(list: List[Scalar[DType.index]]) raises -> PythonObject:
+    """Converts list of indices to numpy array.
+    
+    Returns:
+        The numpy array.
+    """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
     memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data, len(list))
     return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
+    """Converts list of indices to numpy array.
+    
+    Returns:
+        The numpy array.
+    """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
     memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data.bitcast[Scalar[DType.index]](), len(list))
@@ -391,12 +477,13 @@ fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
         result.append(List[String]())
         return result^
 
-    first, rest = lists[0], lists[1:]
+    var first = lists[0].copy()
+    var rest = lists[1:].copy()
     var rest_product = cartesian_product(rest)
 
     # Create the Cartesian product
     for item in first:
         for prod in rest_product:
-            result.append(List[String](item) + prod)
+            result.append(List[String](item) + prod.copy())
 
     return result^

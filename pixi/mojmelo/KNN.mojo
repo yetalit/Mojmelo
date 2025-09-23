@@ -8,9 +8,16 @@ from algorithm import parallelize
 from sys import num_performance_cores
 
 struct KNN(CVP):
+    """Classifier implementing the k-nearest neighbors vote."""
     var k: Int
+    """Number of neighbors to use."""
     var metric: String
+    """Metric to use for distance computation:
+    Euclidean -> 'euc';
+    Manhattan -> 'man'.
+    """
     var n_jobs: Int
+    """The number of parallel jobs to run for neighbors search. `-1` means using all processors."""
     var kdtree: KDTree
     var y_train: List[String]
 
@@ -22,6 +29,7 @@ struct KNN(CVP):
         self.y_train = List[String]()
 
     fn fit(mut self, X: Matrix, y: PythonObject) raises:
+        """Fit the k-nearest neighbors classifier from the training dataset."""
         self.kdtree = KDTree(X, self.metric)
         self.y_train = List[String](capacity=len(y))
         self.y_train.resize(len(y), '')
@@ -29,6 +37,11 @@ struct KNN(CVP):
             self.y_train[i] = String(y[i])
 
     fn predict(self, X: Matrix) raises -> List[String]:
+        """Predict the class labels for the provided data.
+
+        Returns:
+            Class labels for each data sample.
+        """
         var y_pred = List[String](capacity=X.height)
         y_pred.resize(X.height, '')
         if self.n_jobs == 0:

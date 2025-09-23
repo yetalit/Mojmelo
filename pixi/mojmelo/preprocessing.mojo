@@ -8,56 +8,73 @@ import time
 import random
 
 fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
+    """Scale input vectors individually to unit norm (vector length).
+
+    Args:
+        data: Data.
+        norm: The norm to use -> 'l2', 'l1'.
+
+    Returns:
+        Normalized data, norms.
+    """
     var z = Matrix(data.height, data.width, order= data.order)
-    var values = Matrix(data.height, 1)
+    var norms = Matrix(data.height, 1)
     if norm.lower() == 'l1':
         if data.height == 1 or data.width == 1:
-            values.fill(data.abs().sum())
+            norms.fill(data.abs().sum())
         else:
-            for i in range(values.height):
-                values.data[i] = data[i].abs().sum()
+            norms = data.abs().sum(axis=1)
     else:
         if data.height == 1 or data.width == 1:
-            values.fill(data.norm())
+            norms.fill(data.norm())
         else:
-            for i in range(values.height):
-                values.data[i] = data[i].norm()
+            if norms.height < 768:
+                for i in range(norms.height):
+                    norms.data[i] = data[i].norm()
+            else:
+                @parameter
+                fn p1(i: Int):
+                    try:
+                        norms.data[i] = data[i].norm()
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](norms.height)
 
-    for i in range(z.height):
-        if values.data[i] != 0.0:
-            z[i] = data[i] / values.data[i]
-        else:
-            z[i].fill_zero()
+    @parameter
+    fn p2(i: Int):
+        try:
+            if norms.data[i] != 0.0:
+                z[i] = data[i] / norms.data[i]
+            else:
+                z[i].fill_zero()
+        except e:
+            print('Error:', e)
+    parallelize[p2](z.height)
 
-    return z^, values^
+    return z^, norms^
 
-fn normalize(data: Matrix, values: Matrix, norm: String = 'l2') raises -> Matrix:
-    var z = Matrix(data.height, data.width, order= data.order)
-    if norm.lower() == 'l1':
-        if data.height == 1 or data.width == 1:
-            values.fill(data.abs().sum())
-        else:
-            for i in range(values.height):
-                values.data[i] = data[i].abs().sum()
-    else:
-        if data.height == 1 or data.width == 1:
-            values.fill(data.norm())
-        else:
-            for i in range(values.height):
-                values.data[i] = data[i].norm()
+fn inv_normalize(z: Matrix, norms: Matrix) raises -> Matrix:
+    """Reproduce normalized data given its norms.
 
-    for i in range(z.height):
-        if values.data[i] != 0.0:
-            z[i] = data[i] / values.data[i]
-        else:
-            z[i].fill_zero()
+    Args:
+        z: Normalized data.
+        norms: Norms.
 
-    return z^
-
-fn inv_normalize(z: Matrix, values: Matrix) raises -> Matrix:
-    return z.ele_mul(values)
+    Returns:
+        Original data.
+    """
+    return z.ele_mul(norms)
 
 fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Tuple[Matrix, Matrix, Matrix]:
+    """Transform features by scaling each feature to a given range.
+    
+    Args:
+        data: Data.
+        feature_range: Desired range of transformed data.
+
+    Returns:
+        Scaled data, data_min, data_max.
+    """
     var x_min = data.min(0)
     var x_max = data.max(0)
     # normalize then scale data
@@ -65,34 +82,86 @@ fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises ->
     return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0], x_min^, x_max^
 
 fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+    """Transform features by scaling each feature to a given range, data_min and data_max.
+    
+    Args:
+        data: Data.
+        x_min: Per feature minimum seen in the data.
+        x_max: Per feature maximum seen in the data.
+        feature_range: Desired range of transformed data.
+
+    Returns:
+        Scaled data.
+    """
     # normalize then scale data
     var div = x_max - x_min
     return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0]
 
 fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+    """Reproduce scaled data given its range, data_min and data_max.
+
+    Args:
+        z: Scaled data.
+        x_min: Per feature minimum seen in the data.
+        x_max: Per feature maximum seen in the data.
+        feature_range: Desired range of transformed data.
+
+    Returns:
+        Original data.
+    """
     var div = x_max - x_min
     return ((z - feature_range[0]) / (feature_range[1] - feature_range[0])).ele_mul(div.where(div == 0.0, 1.0, div)) + x_min
 
 fn StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
+    """Standardize features by removing the mean and scaling to unit variance.
+    
+    Args:
+        data: Data.
+
+    Returns:
+        Scaled data, mean, standard deviation.
+    """
     var mu = data.mean_slow0()
     var sigma = data.std_slow(0, mu)
     # standardize data
     return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma), mu^, sigma^
 
 fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
+    """Standardize features by removing the mean and scaling to unit variance given mean and standard deviation.
+    
+    Args:
+        data: Data.
+        mu: Mean.
+        sigma: Standard Deviation.
+
+    Returns:
+        Scaled data.
+    """
     # standardize data
     return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma)
 
 fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
+    """Reproduce scaled data given its mean and standard deviation.
+
+    Args:
+        z: Scaled data.
+        mu: Mean.
+        sigma: Standard Deviation.
+
+    Returns:
+        Original data.
+    """
     return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
 fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+    """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+    """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
@@ -100,17 +169,19 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 @fieldwise_init
-struct SplittedPO(Copyable, Movable):
+struct SplittedPO(Copyable, Movable, ImplicitlyCopyable):
     var train: PythonObject
     var test: PythonObject
 
 fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+    """Split matrix and python object into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+    """Split matrix and python object into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
@@ -118,6 +189,21 @@ fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size:
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
 fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+    """K-Fold cross-validator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        model: Model.
+        X: Samples.
+        y: Targets.
+        scoring: Scoring function.
+        n_splits: Number of folds.
+
+    Returns:
+        Score.
+    """
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = Int((1 / n_splits) * X.height)
     var start_of_test = 0
@@ -131,6 +217,21 @@ fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matri
     return mean_score
 
 fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+    """K-Fold cross-validator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        model: Model.
+        X: Samples.
+        y: Targets.
+        scoring: Scoring function.
+        n_splits: Number of folds.
+
+    Returns:
+        Score.
+    """
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var test_count = Int((1 / n_splits) * X.height)
     var start_of_test = 0
@@ -145,10 +246,27 @@ fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn
 
 fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
                             scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    """Exhaustive search over specified parameter values for an estimator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        X: Samples.
+        y: Targets.
+        param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
+        scoring: Scoring function.
+        neg_score: Invert the scoring results when finding the best params.
+        n_jobs: Number of jobs to run in parallel. `-1` means using all processors.
+        cv: Number of folds in a KFold.
+
+    Returns:
+        Best parameters.
+    """
     var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
         dic_values.append(List[String]())
-        dic_values[i] = param_grid._entries[i].value().value
+        dic_values[i] = param_grid._entries[i].value().value.copy()
     var combinations = cartesian_product(dic_values)
     var scores = Matrix(1, len(combinations))
     var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
@@ -190,7 +308,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
         if scores.data[i] == best_score:
             best = i
             break
-    var best_params = params[best]
+    var best_params = params[best].copy()
     params.free()
     if neg_score:
         best_score *= -1
@@ -198,10 +316,27 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
 
 fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String, List[String]],
                             scoring: fn(PythonObject, List[String]) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+    """Exhaustive search over specified parameter values for an estimator.
+
+    Parameters:
+        m_type: Model type.
+
+    Args:
+        X: Samples.
+        y: Targets.
+        param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
+        scoring: Scoring function.
+        neg_score: Invert the scoring results when finding the best params. `-1` means using all processors.
+        n_jobs: Number of jobs to run in parallel.
+        cv: Number of folds in a KFold.
+
+    Returns:
+        Best parameters.
+    """
     var dic_values = List[List[String]]()
     for i in range(len(param_grid)):
         dic_values.append(List[String]())
-        dic_values[i] = param_grid._entries[i].value().value
+        dic_values[i] = param_grid._entries[i].value().value.copy()
     var combinations = cartesian_product(dic_values)
     var scores = Matrix(1, len(combinations))
     var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
@@ -243,7 +378,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
         if scores.data[i] == best_score:
             best = i
             break
-    var best_params = params[best]
+    var best_params = params[best].copy()
     params.free()
     if neg_score:
         best_score *= -1

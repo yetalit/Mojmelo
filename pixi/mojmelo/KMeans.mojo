@@ -4,14 +4,25 @@ import random
 import math
 
 struct KMeans:
+    """K-Means clustering."""
     var K: Int
+    """The number of clusters to form as well as the number of centroids to generate."""
     var init: String
+    """Method for initialization -> 'kmeans++', 'random'."""
     var max_iters: Int
+    """Maximum number of iterations of the k-means algorithm for a single run."""
     var converge: String
+    """The converge method:
+    Change in centroids <= tol -> 'centroid';
+    Change in inertia <= tol -> 'inertia';
+    Exact change in labels -> 'label'.
+    """
     var tol: Float32
+    """Relative tolerance value."""
     var labels: List[Int]
     var centroids: Matrix
     var inertia: Float32
+    """Sum of squared distances of samples to their closest cluster center."""
     var X: Matrix
 
     fn __init__(out self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 42):
@@ -29,6 +40,11 @@ struct KMeans:
         self.X = Matrix(0, 0)
 
     fn predict(mut self, X: Matrix) raises -> List[Int]:
+        """Compute cluster centers and predict cluster index for each sample.
+
+        Returns:
+            List of cluster indices.
+        """
         self.X = X
 
         if self.init == 'random':
@@ -40,7 +56,7 @@ struct KMeans:
         var dist_from_centroids = Matrix(self.X.height, self.K, order='f')
         self.labels = self._create_labels(dist_from_centroids)
         var centroids_old = self.centroids
-        var labels_old = self.labels
+        var labels_old = self.labels.copy()
         var inertia_old = self.inertia
         # Optimize clusters
         for i in range(self.max_iters):
@@ -52,12 +68,12 @@ struct KMeans:
             if self._is_converged(dist_from_centroids, centroids_old, labels_old, inertia_old):
                 break
             centroids_old = self.centroids
-            labels_old = self.labels
+            labels_old = self.labels.copy()
             inertia_old = self.inertia
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
 
-        return self.labels
+        return self.labels.copy()
         
     fn _kmeans_plus_plus(mut self) raises:
         # Randomly select the first centroid
@@ -108,7 +124,7 @@ struct KMeans:
         if self.converge == 'inertia':
             if abs(inertia_old - self.inertia) <= self.tol:
                 self.centroids = centroids_old
-                self.labels = labels_old
+                self.labels = labels_old.copy()
                 return True
             return False
         return labels_old == self.labels

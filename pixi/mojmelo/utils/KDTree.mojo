@@ -14,12 +14,12 @@ fn Squared(val: Float32) -> Float32:
     return val ** 2
 
 @fieldwise_init
-struct interval(Copyable, Movable):
+struct interval(Copyable, Movable, ImplicitlyCopyable):
     var lower: Float32
     var upper: Float32
 
 @fieldwise_init
-struct KDTreeResult(Copyable, Movable):
+struct KDTreeResult(Copyable, Movable, ImplicitlyCopyable):
     var dis: Float32  # its square Euclidean distance
     var idx: Int    # which neighbor was found
 
@@ -220,11 +220,11 @@ struct KDTreeNode(Copyable, Movable):
                         break
                 if early_exit:
                     continue
-                indexofi = sr.ind[][i].value
+                indexofi = Int(sr.ind[][i])
             else:
                 # but if we are not using the rearranged data, then
                 # we must always 
-                indexofi = sr.ind[][i].value
+                indexofi = Int(sr.ind[][i])
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
@@ -264,7 +264,7 @@ struct KDTreeNode(Copyable, Movable):
         var data = sr.data
 
         for i in range(self.l, self.u + 1):
-            var indexofi = sr.ind[][i].value
+            var indexofi = Int(sr.ind[][i])
             var dis: Float32
             var early_exit: Bool
 
@@ -283,11 +283,11 @@ struct KDTreeNode(Copyable, Movable):
                 # we need not read in the actual point index, thus saving main
                 # memory bandwidth.  If the distance to point is less than the
                 # ballsize, though, then we need the index.
-                indexofi = sr.ind[][i].value
+                indexofi = Int(sr.ind[][i])
             else:
                 # but if we are not using the rearranged data, then
                 # we must always 
-                indexofi = sr.ind[][i].value
+                indexofi = Int(sr.ind[][i])
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
@@ -336,10 +336,10 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
                 # permute the data for it.
                 for i in range(self.N):
                     for j in range(self.dim):
-                        rearranged_data.store[1](i, j, self._data.load[1](self.ind[i].value, j))
+                        rearranged_data.store[1](i, j, self._data.load[1](Int(self.ind[i]), j))
                 self._data = rearranged_data^
 
-    fn __moveinit__(out self, var existing: Self):
+    fn __moveinit__(out self, deinit existing: Self):
         self._data = existing._data^
         self.N = existing.N
         self.dim = existing.dim
@@ -402,7 +402,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
             var average: Float32
 
             for k in range(l, u+1):
-                sum += self._data.load[1](self.ind[k].value, c)
+                sum += self._data.load[1](Int(self.ind[k]), c)
             average = sum / (u-l+1)
 	
             m = self.select_on_coordinate_value(c,average,l,u)
@@ -449,13 +449,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         var lmax: Float32
         var i = l+2
 
-        smin = self._data.load[1](self.ind[l].value, c)
+        smin = self._data.load[1](Int(self.ind[l]), c)
         smax = smin
         
         # process two at a time.
         while i<= u:
-            lmin = self._data.load[1](self.ind[i-1].value, c)
-            lmax = self._data.load[1](self.ind[i].value, c)
+            lmin = self._data.load[1](Int(self.ind[i-1]), c)
+            lmax = self._data.load[1](Int(self.ind[i]), c)
 
             if lmin > lmax:
                 swap(lmin,lmax)
@@ -468,7 +468,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
 
         # is there one more element? 
         if i == u+1:
-            var last = self._data.load[1](self.ind[u].value, c)
+            var last = self._data.load[1](Int(self.ind[u]), c)
             if smin>last:
                 smin = last
             if smax<last:
@@ -480,11 +480,11 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         #  Move indices in ind[l..u] so that the elements in [l .. k] 
         #  are less than the [k+1..u] elmeents, viewed across dimension 'c'. 
         while l < u:
-            var t = self.ind[l].value
+            var t = Int(self.ind[l])
             var m = l
 
             for i in range(l+1, u+1):
-                if self._data.load[1](self.ind[i].value, c) < self._data.load[1](t, c):
+                if self._data.load[1](Int(self.ind[i]), c) < self._data.load[1](t, c):
                     m += 1
                     self.ind.swap_elements(i, m)
             self.ind.swap_elements(l, m)
@@ -502,14 +502,14 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         var ub = u
 
         while lb < ub:
-            if self._data.load[1](self.ind[lb].value, c) <= alpha:
+            if self._data.load[1](Int(self.ind[lb]), c) <= alpha:
                 lb += 1 # good where it is.
             else:
                 self.ind.swap_elements(lb, ub)
                 ub -= 1
 
         # here ub=lb
-        if self._data.load[1](self.ind[lb].value, c) <= alpha:
+        if self._data.load[1](Int(self.ind[lb]), c) <= alpha:
             return lb
         return lb-1
 
@@ -627,7 +627,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
 
         return len(result)
 
-    fn __del__(var self):
+    fn __del__(deinit self):
         if self.root:
             delTree(self.root)
 
