@@ -49,24 +49,25 @@ fn _quicksort_partition_right[
     origin: MutableOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index]]) -> Int:
+    var array = span.unsafe_ptr().origin_cast[True, MutableAnyOrigin]()
     var size = len(span)
 
     var left = 1
     var right = size - 1
-    var ref pivot_value = span.unsafe_get(0)
+    var ref pivot_value = array[0]
 
     while True:
         # no need for left < right since quick sort pick median of 3 as pivot
-        while cmp_fn(span.unsafe_get(left), pivot_value):
+        while cmp_fn(array[left], pivot_value):
             left += 1
-        while left < right and not cmp_fn(span.unsafe_get(right), pivot_value):
+        while left < right and not cmp_fn(array[right], pivot_value):
             right -= 1
         if left >= right:
             var pivot_pos = left - 1
-            span.unsafe_swap_elements(pivot_pos, 0)
+            swap(array[pivot_pos], array[0])
             swap(indices[pivot_pos], indices[0])
             return pivot_pos
-        span.unsafe_swap_elements(left, right)
+        swap(array[left], array[right])
         swap(indices[left], indices[right])
         left += 1
         right -= 1
@@ -83,19 +84,19 @@ fn _quicksort_partition_left[
 
     var left = 1
     var right = size - 1
-    var ref pivot_value = span.unsafe_get(0)
+    var ref pivot_value = array[0]
 
     while True:
-        while left < right and not cmp_fn(pivot_value, span.unsafe_get(left)):
+        while left < right and not cmp_fn(pivot_value, array[left]):
             left += 1
-        while cmp_fn(pivot_value, span.unsafe_get(right)):
+        while cmp_fn(pivot_value, array[right]):
             right -= 1
         if left >= right:
             var pivot_pos = left - 1
-            span.unsafe_swap_elements(pivot_pos, 0)
+            swap(array[pivot_pos], array[0])
             swap(indices[pivot_pos], indices[0])
             return pivot_pos
-        span.unsafe_swap_elements(left, right)
+        swap(array[left], array[right])
         swap(indices[left], indices[right])
         left += 1
         right -= 1
@@ -107,21 +108,22 @@ fn _delegate_small_sort[
     origin: MutableOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index]]):
+    var array = span.unsafe_ptr().origin_cast[True, MutableAnyOrigin]()
     var size = len(span)
     if size == 2:
-        _small_sort[2, T, cmp_fn](span, indices)
+        _small_sort[2, T, cmp_fn](array, indices)
 
         return
     if size == 3:
-        _small_sort[3, T, cmp_fn](span, indices)
+        _small_sort[3, T, cmp_fn](array, indices)
         return
 
     if size == 4:
-        _small_sort[4, T, cmp_fn](span, indices)
+        _small_sort[4, T, cmp_fn](array, indices)
         return
 
     if size == 5:
-        _small_sort[5, T, cmp_fn](span, indices)
+        _small_sort[5, T, cmp_fn](array, indices)
         return
 
 
@@ -139,6 +141,7 @@ fn _quicksort[
     *,
     do_smallsort: Bool = False,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index]]):
+    var array = span.unsafe_ptr().origin_cast[True, MutableAnyOrigin]()
     var size = len(span)
     if size == 0:
         return
@@ -147,13 +150,16 @@ fn _quicksort[
     # the List[Span].
     alias ImmSpan = span.Immutable
 
-    var stack = List[Span[T, origin]](capacity=_estimate_initial_height(size))
+    var stack = List[ImmSpan](capacity=_estimate_initial_height(size))
     var stack_b = List[UnsafePointer[Scalar[DType.index]]](capacity=stack.capacity)
     stack.append(span)
     stack_b.append(indices)
     while len(stack) > 0:
-        var interval = stack.pop()
-        var len = len(interval)
+        var imm_interval = stack.pop()
+        var imm_ptr = imm_interval.unsafe_ptr()
+        var mut_ptr = imm_ptr.origin_cast[True, MutableAnyOrigin]()
+        var len = len(imm_interval)
+        var interval = Span[T, MutableAnyOrigin](ptr=mut_ptr, length=UInt(len))
         var interval_b = stack_b.pop()
 
         @parameter
@@ -167,20 +173,18 @@ fn _quicksort[
             continue
 
         # pick median of 3 as pivot
-        _sort3[T, cmp_fn](interval, len >> 1, 0, len - 1, interval_b)
+        _sort3[T, cmp_fn](mut_ptr, len >> 1, 0, len - 1, interval_b)
 
         # if ptr[-1] == pivot_value, then everything in between will
         # be the same, so no need to recurse that interval
         # already have array[-1] <= array[0]
         var interval_ptr = interval.unsafe_ptr()
-        if interval_ptr > span.unsafe_ptr() and not cmp_fn(
-            interval_ptr[-1], interval_ptr[0]
-        ):
+        if mut_ptr > array and not cmp_fn(imm_ptr[-1], imm_ptr[0]):
             var pivot = _quicksort_partition_left[cmp_fn](interval, interval_b)
             if len > pivot + 2:
                 stack.append(
-                    interval.unsafe_subspan(
-                        offset=pivot + 1, length=len - pivot - 1
+                    ImmSpan(
+                        ptr=imm_ptr + pivot + 1, length=UInt(len - pivot - 1)
                     )
                 )
                 stack_b.append(
@@ -192,16 +196,14 @@ fn _quicksort[
 
         if len > pivot + 2:
             stack.append(
-                interval.unsafe_subspan(
-                    offset=pivot + 1, length=len - pivot - 1
-                )
+                ImmSpan(ptr=imm_ptr + pivot + 1, length=UInt(len - pivot - 1))
             )
             stack_b.append(
                 interval_b + pivot + 1
             )
 
         if pivot > 1:
-            stack.append(interval.unsafe_subspan(offset=0, length=pivot))
+            stack.append(ImmSpan(ptr=imm_ptr, length=UInt(pivot)))
             stack_b.append(interval_b)
 
 
@@ -288,13 +290,18 @@ fn _sort2[
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
-    span: Span[T, origin],
+    array: UnsafePointer[
+        T,
+        address_space = AddressSpace.GENERIC,
+        mut=True,
+        origin=MutableAnyOrigin,
+    ],
     offset0: Int,
     offset1: Int,
     indices: UnsafePointer[Scalar[DType.index]]
 ):
-    if not cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
-        span.unsafe_swap_elements(offset0, offset1)
+    if not cmp_fn(array[offset0], array[offset1]):
+        swap(array[offset0], array[offset1])
         swap(indices[offset0], indices[offset1])
 
 @always_inline
@@ -303,15 +310,17 @@ fn _sort3[
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
-    span: Span[T, origin],
+    array: UnsafePointer[
+        T, address_space = AddressSpace.GENERIC, mut=True, **_
+    ],
     offset0: Int,
     offset1: Int,
     offset2: Int,
     indices: UnsafePointer[Scalar[DType.index]]
 ):
-    _sort2[T, cmp_fn](span, offset0, offset1, indices)
-    _sort2[T, cmp_fn](span, offset1, offset2, indices)
-    _sort2[T, cmp_fn](span, offset0, offset1, indices)
+    _sort2[T, cmp_fn](array, offset0, offset1, indices)
+    _sort2[T, cmp_fn](array, offset1, offset2, indices)
+    _sort2[T, cmp_fn](array, offset0, offset1, indices)
 
 
 @always_inline
@@ -320,21 +329,35 @@ fn _sort_partial_3[
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
-    span: Span[T, origin],
+    array: UnsafePointer[
+        T, address_space = AddressSpace.GENERIC, mut=True, **_
+    ],
     offset0: Int,
     offset1: Int,
     offset2: Int,
     indices: UnsafePointer[Scalar[DType.index]]
 ):
     """Sorts [a, b, c] assuming [b, c] is already sorted."""
-    if cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
-        return
-    
-    swap(indices[offset0], indices[offset1])
-    span.unsafe_swap_elements(offset0, offset1)
-    if not cmp_fn(span.unsafe_get(offset1), span.unsafe_get(offset2)):
-        span.unsafe_swap_elements(offset1, offset2)
-        swap(indices[offset1], indices[offset2])
+    var a = array[offset0].copy()
+    var b = array[offset1].copy()
+    var c = array[offset2].copy()
+    var ab = indices[offset0]
+    var bb = indices[offset1]
+    var cb = indices[offset2]
+    var r = cmp_fn(c.copy(), a.copy())
+    var t = c^ if r else a.copy()
+    var tb = cb if r else ab
+    if r:
+        array[offset2] = a^
+        indices[offset2] = ab
+    if cmp_fn(b.copy(), t.copy()):
+        array[offset0] = b^
+        array[offset1] = t^
+        indices[offset0] = bb
+        indices[offset1] = tb
+    elif r:
+        array[offset0] = t^
+        indices[offset0] = tb
 
 @always_inline
 fn _small_sort[
@@ -342,33 +365,33 @@ fn _small_sort[
     n: Int,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index]]):
+](array: UnsafePointer[T, address_space = AddressSpace.GENERIC, mut=True, **_], indices: UnsafePointer[Scalar[DType.index]]):
     @parameter
     if n == 2:
-        _sort2[T, cmp_fn](span, 0, 1, indices)
+        _sort2[T, cmp_fn](array, 0, 1, indices)
         return
 
     @parameter
     if n == 3:
-        _sort2[T, cmp_fn](span, 1, 2, indices)
-        _sort_partial_3[T, cmp_fn](span, 0, 1, 2, indices)
+        _sort2[T, cmp_fn](array, 1, 2, indices)
+        _sort_partial_3[T, cmp_fn](array, 0, 1, 2, indices)
         return
 
     @parameter
     if n == 4:
-        _sort2[T, cmp_fn](span, 0, 2, indices)
-        _sort2[T, cmp_fn](span, 1, 3, indices)
-        _sort2[T, cmp_fn](span, 0, 1, indices)
-        _sort2[T, cmp_fn](span, 2, 3, indices)
-        _sort2[T, cmp_fn](span, 1, 2, indices)
+        _sort2[T, cmp_fn](array, 0, 2, indices)
+        _sort2[T, cmp_fn](array, 1, 3, indices)
+        _sort2[T, cmp_fn](array, 0, 1, indices)
+        _sort2[T, cmp_fn](array, 2, 3, indices)
+        _sort2[T, cmp_fn](array, 1, 2, indices)
         return
 
     @parameter
     if n == 5:
-        _sort2[T, cmp_fn](span, 0, 1, indices)
-        _sort2[T, cmp_fn](span, 3, 4, indices)
-        _sort_partial_3[T, cmp_fn](span, 2, 3, 4, indices)
-        _sort2[T, cmp_fn](span, 1, 4, indices)
-        _sort_partial_3[T, cmp_fn](span, 0, 2, 3, indices)
-        _sort_partial_3[T, cmp_fn](span, 1, 2, 3, indices)
+        _sort2[T, cmp_fn](array, 0, 1, indices)
+        _sort2[T, cmp_fn](array, 3, 4, indices)
+        _sort_partial_3[T, cmp_fn](array, 2, 3, 4, indices)
+        _sort2[T, cmp_fn](array, 1, 4, indices)
+        _sort_partial_3[T, cmp_fn](array, 0, 2, 3, indices)
+        _sort_partial_3[T, cmp_fn](array, 1, 2, 3, indices)
         return
