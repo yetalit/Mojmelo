@@ -1,5 +1,8 @@
 from memory import memcpy, memset_zero
 from .svm_node import svm_node
+from .svm_parameter import svm_parameter
+from sys import size_of
+import math
 
 alias TAU = 1e-12
 
@@ -15,6 +18,22 @@ fn powi(base: Float64, times: Int) -> Float64:
         tmp = tmp * tmp
         t/=2
     return ret
+
+@always_inline
+fn dot(var px: UnsafePointer[svm_node], var py: UnsafePointer[svm_node]) -> Float64:
+    var sum = 0.0
+    while px[].index != -1 and py[].index != -1:
+        if px[].index == py[].index:
+            sum += px[].value * py[].value
+            px += 1
+            py += 1
+        else:
+            if px[].index > py[].index:
+                py += 1
+            else:
+                px += 1
+
+    return sum
 
 struct head_t(Copyable, Movable):
     var prev: UnsafePointer[head_t]
@@ -47,11 +66,11 @@ struct Cache:
 
     fn __init__(out self, l: Int, size: UInt):
         self.l = l
-        self.size = size // 4
-        self.head = UnsafePointer[head_t].alloc(1)
-        self.head.init_pointee_move(head_t(UnsafePointer[head_t](), UnsafePointer[head_t](), 0)) # initialized to 0
-        var header_size = UInt(l) * 8
-        self.size = max(size, UInt(2) * UInt(l) + header_size) - header_size  # cache must be large enough for two columns
+        self.size = (size - (self.l * size_of[head_t]())) // 4
+        self.head = UnsafePointer[head_t].alloc(self.l)
+        for i in range(self.l):
+            (self.head + i).init_pointee_move(head_t(UnsafePointer[head_t](), UnsafePointer[head_t](), 0)) # initialized to 0
+        self.size = max(self.size, UInt(2) * UInt(l))  # cache must be large enough for two columns
         self.lru_head = head_t(UnsafePointer[head_t](), UnsafePointer[head_t](), 0)
         self.lru_head.next = self.lru_head.prev = UnsafePointer(to=self.lru_head)
 
@@ -120,7 +139,7 @@ struct Cache:
 
         if i>j:
             swap(i,j)
-        
+
         var h = self.lru_head.next
         while h != UnsafePointer(to=self.lru_head):
             if h[]._len > i:
@@ -150,3 +169,43 @@ struct Kernel:
     var degree: Int
     var gamma: Float64
     var coef0: Float64
+
+    var kernel_function: fn(Int, Int) -> Float64
+
+    @staticmethod
+    fn k_function(var x: UnsafePointer[svm_node], var y: UnsafePointer[svm_node], param: svm_parameter) -> Float64:
+        if param.kernel_type == svm_parameter.LINEAR:
+            return dot(x,y)
+        if param.kernel_type == svm_parameter.POLY:
+            return powi(param.gamma*dot(x,y)+param.coef0,param.degree)
+        if param.kernel_type == svm_parameter.RBF:
+            var sum = 0.0
+            while x[].index != -1 and y[].index !=-1:
+                if x[].index == y[].index:
+                    var d = x[].value - y[].value
+                    sum += d*d
+                    x += 1
+                    y += 1
+                else:
+                    if x[].index > y[].index:
+                        sum += y[].value * y[].value
+                        y += 1
+                    else:
+                        sum += x[].value * x[].value
+                        x += 1
+
+            while x[].index != -1:
+                sum += x[].value * x[].value
+                x += 1
+
+            while y[].index != -1:
+                sum += y[].value * y[].value
+                y += 1
+
+            return math.exp(-param.gamma*sum)
+        if param.kernel_type == svm_parameter.SIGMOID:
+            return math.tanh(param.gamma*dot(x,y)+param.coef0)
+        if param.kernel_type == svm_parameter.PRECOMPUTED:  # x: test (validation), y: SV
+            return x[Int(y[].value)].value
+        else:
+            return 0;  # Unreachable
