@@ -2,7 +2,7 @@ from memory import memcpy
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
-from algorithm import parallelize, elementwise
+from algorithm import parallelize, elementwise, vectorize
 from sys import simd_width_of
 from utils import IndexList
 
@@ -42,7 +42,7 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
     @__copy_capture(
         axis_size, chunk_size, output_stride, input_stride, parallel_size
     )
-    
+
     @parameter
     @always_inline
     fn cmpeq[
@@ -236,7 +236,7 @@ fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> 
 @always_inline
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Mean Squared Error.
-    
+
     Returns:
         The error.
     """
@@ -245,7 +245,7 @@ fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
 @always_inline
 fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Binary Cross Entropy.
-    
+
     Returns:
         The loss.
     """
@@ -253,7 +253,7 @@ fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
 
 fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Coefficient of determination.
-    
+
     Returns:
         The score.
     """
@@ -261,7 +261,7 @@ fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
 
 fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Accuracy classification score.
-    
+
     Returns:
         The score.
     """
@@ -273,7 +273,7 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
 
 fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
     """Accuracy classification score.
-    
+
     Returns:
         The score.
     """
@@ -285,7 +285,7 @@ fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
 
 fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
     """Accuracy classification score.
-    
+
     Returns:
         The score.
     """
@@ -297,7 +297,7 @@ fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
 
 fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
     """Accuracy classification score.
-    
+
     Returns:
         The score.
     """
@@ -403,43 +403,60 @@ fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
 
     return -1  # not found
 
-fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.index]]:
+fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int]]:
     """Generates indices from 0 to N.
-    
+
     Returns:
         The pointer to indices.
     """
-    var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
+    var indices = UnsafePointer[Scalar[DType.int]].alloc(N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
-        indices.store(offset[0], math.iota[DType.index, width](offset[0]))
+        indices.store(offset[0], math.iota[DType.int, width](offset[0]))
 
-    elementwise[fill_indices_iota, simd_width_of[DType.index](), target="cpu"](
+    elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
         N
     )
     return indices
 
-fn fill_indices_list(N: Int) raises -> List[Scalar[DType.index]]:
+fn fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     """Generates indices from 0 to N.
-    
+
     Returns:
         The list of indices.
     """
-    var indices = UnsafePointer[Scalar[DType.index]].alloc(N)
+    var indices = UnsafePointer[Scalar[DType.int]].alloc(N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
-        indices.store(offset[0], math.iota[DType.index, width](offset[0]))
+        indices.store(offset[0], math.iota[DType.int, width](offset[0]))
 
-    elementwise[fill_indices_iota, simd_width_of[DType.index](), target="cpu"](
+    elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
         N
     )
-    var list = List[Scalar[DType.index]](unsafe_uninit_length=N)
+    var list = List[Scalar[DType.int]](unsafe_uninit_length=N)
     list._data = indices
     return list^
 
+@always_inline
+fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src]], size: Int) -> UnsafePointer[Scalar[des]]:
+    var ptr = UnsafePointer[Scalar[des]].alloc(size)
+    if size < 262144:
+        @parameter
+        fn matrix_vectorize[simd_width: Int](idx: Int):
+            ptr.store(idx, data.load[width=simd_width](idx).cast[des]())
+        vectorize[matrix_vectorize, width](size)
+    else:
+        var n_vects = Int(math.ceil(size / width))
+        @parameter
+        fn matrix_vectorize_parallelize(i: Int):
+            var idx = i * width
+            ptr.store(idx, data.load[width=width](idx).cast[des]())
+        parallelize[matrix_vectorize_parallelize](n_vects)
+    return ptr
+
 fn l_to_numpy(list: List[String]) raises -> PythonObject:
     """Converts list of strings to numpy array.
-    
+
     Returns:
         The numpy array.
     """
@@ -449,26 +466,26 @@ fn l_to_numpy(list: List[String]) raises -> PythonObject:
         np_arr[i] = list[i]
     return np_arr^
 
-fn ids_to_numpy(list: List[Scalar[DType.index]]) raises -> PythonObject:
+fn ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
     """Converts list of indices to numpy array.
-    
+
     Returns:
         The numpy array.
     """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data, len(list))
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), list._data, len(list))
     return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """Converts list of indices to numpy array.
-    
+
     Returns:
         The numpy array.
     """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.index](), list._data.bitcast[Scalar[DType.index]](), len(list))
+    memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), list._data.bitcast[Scalar[DType.int]](), len(list))
     return np_arr^
 
 fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:

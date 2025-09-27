@@ -35,6 +35,22 @@ fn dot(var px: UnsafePointer[svm_node], var py: UnsafePointer[svm_node]) -> Floa
 
     return sum
 
+@always_inline
+fn kernel_linear(k: Kernel, i: Int, j: Int) -> Float64:
+    return dot(k.x[i],k.x[j])
+@always_inline
+fn kernel_poly(k: Kernel, i: Int, j: Int) -> Float64:
+    return powi(k.gamma*dot(k.x[i],k.x[j])+k.coef0,k.degree)
+@always_inline
+fn kernel_rbf(k: Kernel, i: Int, j: Int) -> Float64:
+    return math.exp(-k.gamma*(k.x_square[i]+k.x_square[j]-2*dot(k.x[i],k.x[j])))
+@always_inline
+fn kernel_sigmoid(k: Kernel, i: Int, j: Int) -> Float64:
+    return math.tanh(k.gamma*dot(k.x[i],k.x[j])+k.coef0)
+@always_inline
+fn kernel_precomputed(k: Kernel, i: Int, j: Int) -> Float64:
+    return k.x[i][Int(k.x[j][0].value)].value
+
 struct head_t(Copyable, Movable):
     var prev: UnsafePointer[head_t]
     var next: UnsafePointer[head_t]	# a cicular list
@@ -170,7 +186,7 @@ struct Kernel:
     var gamma: Float64
     var coef0: Float64
 
-    var kernel_function: fn(Int, Int) -> Float64
+    var kernel_function: fn(Kernel, Int, Int) -> Float64
 
     @staticmethod
     fn k_function(var x: UnsafePointer[svm_node], var y: UnsafePointer[svm_node], param: svm_parameter) -> Float64:
@@ -208,4 +224,203 @@ struct Kernel:
         if param.kernel_type == svm_parameter.PRECOMPUTED:  # x: test (validation), y: SV
             return x[Int(y[].value)].value
         else:
-            return 0;  # Unreachable
+            return 0  # Unreachable
+
+    fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node]], param: svm_parameter):
+        self.kernel_type = param.kernel_type
+        self.degree = param.degree
+        self.gamma = param.gamma
+        self.coef0 = param.coef0
+
+        self.x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
+        memcpy(self.x, x_, l)
+
+        if self.kernel_type == svm_parameter.RBF:
+            self.x_square = UnsafePointer[Float64].alloc(l)
+            for i in range(l):
+                self.x_square[i] = dot(self.x[i], self.x[i])
+        else:
+            self.x_square = UnsafePointer[Float64]()
+
+        if self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        if self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        if self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        if self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        if self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
+
+    fn __del__(deinit self):
+        if self.x:
+            self.x.free()
+        if self.x_square:
+            self.x_square.free()
+
+struct SolutionInfo:
+    var obj: Float64
+    var rho: Float64
+    var upper_bound_p: Float64
+    var upper_bound_n: Float64
+    var r: Float64	# for Solver_NU
+
+# An SMO algorithm in Fan et al., JMLR 6(2005), p. 1889--1918
+# Solves:
+#
+#	min 0.5(\alpha^T Q \alpha) + p^T \alpha
+#
+#		y^T \alpha = \delta
+#		y_i = +1 or -1
+#		0 <= alpha_i <= Cp for y_i = 1
+#		0 <= alpha_i <= Cn for y_i = -1
+#
+# Given:
+#
+#	Q, p, y, Cp, Cn, and an initial feasible point \alpha
+#	l is the size of vectors and matrices
+#	eps is the stopping tolerance
+#
+# solution will be put in \alpha, objective value will be put in obj
+#
+struct Solve:
+    var active_size: Int
+    var y: UnsafePointer[Int8]
+    var G: UnsafePointer[Float64]	# gradient of objective function
+    alias LOWER_BOUND: Int8 = 0
+    alias UPPER_BOUND: Int8 = 1
+    alias FREE: Int8 = 2
+    var alpha_status: UnsafePointer[Int8]	# LOWER_BOUND, UPPER_BOUND, FREE
+    var alpha: UnsafePointer[Float64]
+    #QMatrix Q
+    var QD: UnsafePointer[Float64]
+    var eps: Float64
+    var Cp: Float64
+    var Cn: Float64
+    var p: UnsafePointer[Float64]
+    var active_set: UnsafePointer[Int]
+    var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
+    var l: Int
+    var unshrink: Bool
+
+    fn get_C(self, i: Int) -> Float64:
+        return self.Cp if self.y[i] > 0 else self.Cn
+
+    fn update_alpha_status(self, i: Int):
+        if self.alpha[i] >= self.get_C(i):
+            self.alpha_status[i] = self.UPPER_BOUND
+        elif self.alpha[i] <= 0:
+            self.alpha_status[i] = self.LOWER_BOUND
+        else:
+            self.alpha_status[i] = self.FREE
+
+    fn is_upper_bound(self, i: Int) -> Bool:
+        return self.alpha_status[i] == self.UPPER_BOUND
+    fn is_lower_bound(self, i: Int) -> Bool:
+        return self.alpha_status[i] == self.LOWER_BOUND
+    fn is_free(self, i: Int) -> Bool:
+        return self.alpha_status[i] == self.FREE
+
+    fn swap_index(self, i: Int, j: Int):
+        #Q.swap_index(i,j);
+        swap(self.y[i], self.y[j])
+        swap(self.G[i], self.G[j])
+        swap(self.alpha_status[i], self.alpha_status[j])
+        swap(self.alpha[i], self.alpha[j])
+        swap(self.p[i], self.p[j])
+        swap(self.active_set[i], self.active_set[j])
+        swap(self.G_bar[i], self.G_bar[j])
+
+    fn reconstruct_gradient(self):
+		# reconstruct inactive elements of G from G_bar and free variables
+
+        if self.active_size == self.l:
+            return
+
+        var nr_free = 0
+
+        for j in range(self.active_size, self.l):
+            self.G[j] = self.G_bar[j] + self.p[j]
+
+        for j in range(self.active_size):
+            if self.is_free(j):
+                nr_free += 1
+
+        if 2*nr_free < self.active_size:
+            print("\nWARNING: using -h 0 may be faster\n")
+
+        if nr_free*self.l > 2*self.active_size*(self.l-self.active_size):
+            for i in range(self.active_size, self.l):
+				#var Q_i = Q.get_Q(i,self.active_size)
+                for j in range(self.active_size):
+                    if self.is_free(j):
+                        pass
+						#self.G[i] += self.alpha[j] * Q_i[j]
+        else:
+            for i in range(self.active_size):
+                if self.is_free(i):
+					#var Q_i = Q.get_Q(i,self.l)
+                    var alpha_i = self.alpha[i]
+                    for j in range(self.active_size, self.l):
+                        pass
+                        #self.G[j] += alpha_i * Q_i[j]
+
+    fn __init__(out self, l: Int, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8],
+                alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: SolutionInfo, shrinking: Int):
+        self.l = l
+        #self.Q = Q
+        self.QD = UnsafePointer[Float64]()
+        #self.QD = Q.get_QD()
+        self.p = UnsafePointer[Float64].alloc(self.l)
+        memcpy(self.p, p_, self.l)
+        self.y = UnsafePointer[Int8].alloc(self.l)
+        memcpy(self.y, y_, self.l)
+        self.alpha = UnsafePointer[Float64].alloc(self.l)
+        memcpy(self.alpha, alpha_, self.l)
+        self.Cp = Cp
+        self.Cn = Cn
+        self.eps = eps
+        self.unshrink = False
+
+		# initialize alpha_status
+        self.alpha_status = UnsafePointer[Int8].alloc(self.l)
+        for i in range(self.l):
+            if self.alpha[i] >= (self.Cp if self.y[i] > 0 else self.Cn):
+                self.alpha_status[i] = self.UPPER_BOUND
+            elif self.alpha[i] <= 0:
+                self.alpha_status[i] = self.LOWER_BOUND
+            else:
+                self.alpha_status[i] = self.FREE
+
+		# initialize active set (for shrinking)
+        self.active_set = UnsafePointer[Int].alloc(self.l)
+        for i in range(self.l):
+            self.active_set[i] = i
+        self.active_size = self.l
+
+		# initialize gradient
+        self.G = UnsafePointer[Float64].alloc(self.l)
+        self.G_bar = UnsafePointer[Float64].alloc(self.l)
+        for i in range(self.l):
+            self.G[i] = self.p[i]
+            self.G_bar[i] = 0
+        for i in range(self.l):
+            if not self.is_lower_bound(i):
+                #var Q_i = Q.get_Q(i,self.l)
+                var alpha_i = self.alpha[i]
+                for j in range(self.l):
+                    pass
+                    #self.G[j] += alpha_i*Q_i[j]
+                if self.is_upper_bound(i):
+                    for j in range(self.l):
+                        pass
+                        #self.G_bar[j] += self.get_C(i) * Q_i[j]
+
+        # optimization step
+
+        var iter = 0
+        var max_iter = max(10000000, Int.MAX if self.l>Int.MAX//100 else 100*self.l)
+        var counter = min(self.l,1000)+1

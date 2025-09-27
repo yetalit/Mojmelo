@@ -6,7 +6,7 @@ from buffer import NDBuffer
 import algorithm
 import math
 import random
-from mojmelo.utils.utils import argn, cov_value, add, sub, mul, div, fill_indices, fill_indices_list
+from mojmelo.utils.utils import argn, cov_value, add, sub, mul, div, fill_indices, fill_indices_list, cast
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized):
@@ -28,11 +28,15 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     # initialize from UnsafePointer
     @always_inline
-    fn __init__(out self, data: UnsafePointer[Float32], height: Int, width: Int, order: String = 'c'):
+    fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src]], height: Int, width: Int, order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = data
+        if src == DType.float32:
+            self.data = data.bitcast[Float32]()
+            data.free()
+        else:
+            self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size)
         self.order = order.lower()
 
     # initialize by copying from UnsafePointer
@@ -244,7 +248,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     # access given rows (by their indices)
     @always_inline
-    fn __getitem__(self, rows: List[Scalar[DType.index]]) raises -> Matrix:
+    fn __getitem__(self, rows: List[Scalar[DType.int]]) raises -> Matrix:
         var mat = Matrix(len(rows), self.width, order= self.order)
         if len(rows) > 96:
             @parameter
@@ -272,7 +276,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     # access given columns (by their indices)
     @always_inline
-    fn __getitem__(self, row: String, columns: List[Scalar[DType.index]]) raises -> Matrix:
+    fn __getitem__(self, row: String, columns: List[Scalar[DType.int]]) raises -> Matrix:
         var mat = Matrix(self.height, len(columns), order= self.order)
         if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
             @parameter
@@ -1312,10 +1316,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             return Matrix(vect, self.height, 1, self.order)
 
     @always_inline
-    fn argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.index]]:
+    fn argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.int]]:
         var sorted_indices = fill_indices_list(self.size)
         @parameter
-        fn cmp_fn(a: Scalar[DType.index], b: Scalar[DType.index]) -> Bool:
+        fn cmp_fn(a: Scalar[DType.int], b: Scalar[DType.int]) -> Bool:
             @parameter
             if ascending:
                 return Bool(self.data[Int(a)] < self.data[Int(b)])
@@ -1324,14 +1328,14 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
         sort[cmp_fn](
             Span[
-                Scalar[DType.index],
+                Scalar[DType.int],
                 __origin_of(sorted_indices),
             ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
         )
         return sorted_indices^
 
     @always_inline
-    fn argsort_inplace[ascending: Bool = True](mut self) raises -> List[Scalar[DType.index]]:
+    fn argsort_inplace[ascending: Bool = True](mut self) raises -> List[Scalar[DType.int]]:
         var sorted_indices = fill_indices_list(self.size)
         @parameter
         fn cmp_fn(a: Float32, b: Float32) -> Bool:
@@ -1765,10 +1769,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @staticmethod
     @always_inline
-    fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Scalar[DType.index]]:
+    fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Scalar[DType.int]]:
         if seed:
             random.seed()
-        var result = UnsafePointer[Scalar[DType.index]].alloc(size)
+        var result = UnsafePointer[Scalar[DType.int]].alloc(size)
         if replace:
             random.randint(result, size, 0, arang)
         else:
@@ -1778,7 +1782,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 var j = Int(random.random_ui64(0, i))
                 indices[i], indices[j] = indices[j], indices[i]
             memcpy(result, indices, size)
-        var list = List[Scalar[DType.index]](unsafe_uninit_length=size)
+        var list = List[Scalar[DType.int]](unsafe_uninit_length=size)
         list._data = result
         return list^
 
@@ -1849,21 +1853,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return mat^
 
     @always_inline
-    fn float64_ptr(self) -> UnsafePointer[Float64]:
-        var ptr = UnsafePointer[Float64].alloc(self.size)
-        if self.size < 262144:
-            @parameter
-            fn matrix_vectorize[simd_width: Int](idx: Int):
-                ptr.store(idx, self.data.load[width=simd_width](idx).cast[DType.float64]())
-            vectorize[matrix_vectorize, self.simd_width](self.size)
-        else:
-            var n_vects = Int(math.ceil(self.size / self.simd_width))
-            @parameter
-            fn matrix_vectorize_parallelize(i: Int):
-                var idx = i * self.simd_width
-                ptr.store(idx, self.data.load[width=self.simd_width](idx).cast[DType.float64]())
-            parallelize[matrix_vectorize_parallelize](n_vects)
-        return ptr
+    fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des]]:
+        return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
 
     @always_inline
     fn _elemwise_scalar[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:

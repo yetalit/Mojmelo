@@ -61,7 +61,7 @@ struct LogisticRegression(CVM):
         var _reg = (1e-5 + l2_lambda) * Matrix.eye(X.width)
         for _ in range(self.n_iters):
             if self.batch_size > 0:
-                var ids: List[Scalar[DType.index]]
+                var ids: List[Scalar[DType.int]]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
                 else:

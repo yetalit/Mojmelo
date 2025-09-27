@@ -109,7 +109,7 @@ fn leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) rais
 fn leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 
-fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.index]], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
+fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.int]], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
     var total_g_sum = g.sum()
     var total_h_sum = h.sum()
     var parent_loss = leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum, total_h_sum)

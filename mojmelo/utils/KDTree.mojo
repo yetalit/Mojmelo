@@ -109,7 +109,7 @@ struct SearchRecord:
     var correltime: Int
     var result: UnsafePointer[KDTreeResultVector]
     var data: UnsafePointer[Matrix] 
-    var ind: UnsafePointer[List[Scalar[DType.index]]]
+    var ind: UnsafePointer[List[Scalar[DType.int]]]
 
     fn __init__(out self, qv_in: NDBuffer[dtype=DType.float32, rank=1], tree_in: KDTree, result_in: KDTreeResultVector):  
         self.qv = qv_in.data
@@ -310,7 +310,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
     var N: Int   # number of data points
     var dim: Int
     var root: UnsafePointer[KDTreeNode] # the root pointer
-    var ind: List[Scalar[DType.index]] 
+    var ind: List[Scalar[DType.int]] 
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
     var metric: fn(Float32) -> Float32
@@ -321,7 +321,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         self.N = self._data.height
         self.dim = self._data.width
         self.root = UnsafePointer[KDTreeNode]()
-        self.ind = List[Scalar[DType.index]]()
+        self.ind = List[Scalar[DType.int]]()
         if metric.lower() == 'man':
             self.metric = Abs
         else:
