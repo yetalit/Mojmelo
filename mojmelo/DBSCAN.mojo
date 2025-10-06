@@ -6,13 +6,19 @@ from algorithm import parallelize
 
 struct DBSCAN:
     """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""
-    var squared_eps: Float32
-    """The maximum squared distance between two samples for one to be considered as in the neighborhood of the other."""
+    var eps: Float32
+    """The maximum distance between two samples for one to be considered as in the neighborhood of the other."""
     var min_samples: Int
     """The number of samples in a neighborhood for a point to be considered as a core point."""
+    var metric: String
+    """Metric to use for distance computation:
+    Euclidean -> 'euc';
+    Manhattan -> 'man'.
+    """
 
-    fn __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5) raises:
-        self.squared_eps = eps ** 2
+    fn __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc') raises:
+        self.metric = metric.lower()
+        self.eps = eps ** 2 if self.metric == 'euc' else eps
         self.min_samples = min_samples
 
     fn predict(mut self, X: Matrix) raises -> Matrix:
@@ -21,7 +27,7 @@ struct DBSCAN:
         Returns:
             Vector of cluster indices.
         """
-        var kdtree = KDTree(X, metric='euc')
+        var kdtree = KDTree(X, self.metric)
         var labels = Matrix.full(X.height, 1, -2.0)
 
         var neighborhoods = List[List[Int]](capacity=X.height)
@@ -29,7 +35,7 @@ struct DBSCAN:
         @parameter
         fn p(i: Int):
             var kd_results = KDTreeResultVector()
-            kdtree.r_nearest(NDBuffer[dtype=DType.float32, rank=1](X[i, unsafe=True].data, X.width), self.squared_eps, kd_results)
+            kdtree.r_nearest(NDBuffer[dtype=DType.float32, rank=1](X[i, unsafe=True].data, X.width), self.eps, kd_results)
             for idp in range(len(kd_results)):
                 neighborhoods[i].append(kd_results[idp].idx)
         parallelize[p](X.height)

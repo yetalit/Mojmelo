@@ -48,7 +48,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.data = UnsafePointer[Float32].alloc(self.size)
         self.order = order.lower()
         if data:
-            memcpy(self.data, data, self.size)
+            memcpy(dest=self.data, src=data, count=self.size)
 
     # initialize from 2D List
     fn __init__(out self, def_input: List[List[Float32]]) raises:
@@ -59,7 +59,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.order = 'c'
         if self.size > 0:
             for row_i in range(len(def_input)):
-                memcpy(self.data + row_i * self.width, def_input[row_i].unsafe_ptr(), self.width)
+                memcpy(dest=self.data + row_i * self.width, src=def_input[row_i].unsafe_ptr(), count=self.width)
 
     fn __copyinit__(out self, other: Self):
         self.height = other.height
@@ -67,7 +67,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.size = other.size
         self.data = UnsafePointer[Float32].alloc(self.size)
         self.order = other.order
-        memcpy(self.data, other.data, self.size)
+        memcpy(dest=self.data, src=other.data, count=self.size)
 
     fn __moveinit__(out self, deinit existing: Self):
         self.height = existing.height
@@ -306,7 +306,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if row >= self.height or row < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
-            memcpy(self.data + (row * self.width), val.data, val.size)
+            memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
         else:
             var tmpPtr = self.data + row
             @parameter
@@ -319,7 +319,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn __setitem__(mut self, row: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' or self.height == 1:
-            memcpy(self.data + (row * self.width), val.data, val.size)
+            memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
         else:
             var tmpPtr = self.data + row
             @parameter
@@ -334,7 +334,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
             raise Error("Error: Index out of range!")
         if self.order == 'c' or self.height == 1:
-            memcpy(self.data + (row * self.width) + start_i, val.data, val.size)
+            memcpy(dest=self.data + (row * self.width) + start_i, src=val.data, count=val.size)
         else:
             var tmpPtr = self.data + row + (start_i * self.height)
             @parameter
@@ -356,7 +356,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](val.size)
         else:
-            memcpy(self.data + (column * self.height), val.data, val.size)
+            memcpy(dest=self.data + (column * self.height), src=val.data, count=val.size)
 
     # replace the given column (unsafe)
     @always_inline
@@ -369,7 +369,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](val.size)
         else:
-            memcpy(self.data + (column * self.height), val.data, val.size)
+            memcpy(dest=self.data + (column * self.height), src=val.data, count=val.size)
 
     # replace the given column with offset
     @always_inline
@@ -384,7 +384,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 tmpPtr += simd_width * self.width
             vectorize[convert, self.simd_width](val.size)
         else:
-            memcpy(self.data + (column * self.height) + start_i, val.data, val.size)
+            memcpy(dest=self.data + (column * self.height) + start_i, src=val.data, count=val.size)
 
     # replace given rows (by their indices)
     @always_inline
@@ -404,11 +404,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             raise Error("Error: Index out of range!")
         var mat = Matrix(self.height, _range, order=self.order)
         if self.order == 'f' or self.height == 1:
-            memcpy(mat.data, self.data, mat.size)
+            memcpy(dest=mat.data, src=self.data, count=mat.size)
         else:
             @parameter
             fn p(i: Int):
-                memcpy(mat.data + i * _range, self.data + i * self.width, _range)
+                memcpy(dest=mat.data + i * _range, src=self.data + i * self.width, count=_range)
             parallelize[p](self.height)
         return mat^
 
@@ -418,11 +418,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             raise Error("Error: Index out of range!")
         var mat = Matrix(_range, self.width, order=self.order)
         if self.order == 'c' or self.width == 1:
-            memcpy(mat.data, self.data, mat.size)
+            memcpy(dest=mat.data, src=self.data, count=mat.size)
         else:
             @parameter
             fn p(i: Int):
-                memcpy(mat.data + i * _range, self.data + i * self.height, _range)
+                memcpy(dest=mat.data + i * _range, src=self.data + i * self.height, count=_range)
             parallelize[p](self.width)
         return mat^
 
@@ -1667,25 +1667,25 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if axis == 0:
             mat = Matrix(self.height + rhs.height, self.width, order= self.order)
             if self.order == 'c' or self.height == 1:
-                memcpy(mat.data, self.data, self.size)
-                memcpy(mat.data + self.size, rhs.data, rhs.size)
+                memcpy(dest=mat.data, src=self.data, count=self.size)
+                memcpy(dest=mat.data + self.size, src=rhs.data, count=rhs.size)
             else:
                 @parameter
                 fn pf(i: Int):
-                    memcpy(mat.data + i * mat.height, self.data + i * self.height, self.height)
-                    memcpy(mat.data + i * mat.height + self.height, rhs.data + i * rhs.height, rhs.height)
+                    memcpy(dest=mat.data + i * mat.height, src=self.data + i * self.height, count=self.height)
+                    memcpy(dest=mat.data + i * mat.height + self.height, src=rhs.data + i * rhs.height, count=rhs.height)
                 parallelize[pf](self.width)
         elif axis == 1:
             mat = Matrix(self.height, self.width + rhs.width, order= self.order)
             if self.order == 'c' and self.width > 1:
                 @parameter
                 fn pc(i: Int):
-                    memcpy(mat.data + i * mat.width, self.data + i * self.width, self.width)
-                    memcpy(mat.data + i * mat.width + self.width, rhs.data + i * rhs.width, rhs.width)
+                    memcpy(dest=mat.data + i * mat.width, src=self.data + i * self.width, count=self.width)
+                    memcpy(dest=mat.data + i * mat.width + self.width, src=rhs.data + i * rhs.width, count=rhs.width)
                 parallelize[pc](self.height)
             else:
-                memcpy(mat.data, self.data, self.size)
-                memcpy(mat.data + self.size, rhs.data, rhs.size)
+                memcpy(dest=mat.data, src=self.data, count=self.size)
+                memcpy(dest=mat.data + self.size, src=rhs.data, count=rhs.size)
         return mat^
 
     @always_inline
@@ -1781,7 +1781,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 # Fisher-Yates shuffle
                 var j = Int(random.random_ui64(0, i))
                 indices[i], indices[j] = indices[j], indices[i]
-            memcpy(result, indices, size)
+            memcpy(dest=result, src=indices, count=size)
         var list = List[Scalar[DType.int]](unsafe_uninit_length=size)
         list._data = result
         return list^
@@ -1823,7 +1823,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         """
         var np = Python.import_module("numpy")
         var np_arr = np.empty(Python.tuple(self.height,self.width), dtype='f', order= self.order.upper())
-        memcpy(np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), self.data, self.size)
+        memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), src=self.data, count=self.size)
         return np_arr^
 
     @always_inline

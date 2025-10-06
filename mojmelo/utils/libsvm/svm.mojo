@@ -128,7 +128,7 @@ struct Cache:
 
             # allocate new space
             var new = UnsafePointer[Float32].alloc(_len)
-            memcpy(new, h[].data, h[]._len)
+            memcpy(dest=new, src=h[].data, count=h[]._len)
             h[].data.free()
             h[].data = new
             self.size -= more  # previous while loop guarantees size >= more and subtraction of size_t variable will not underflow
@@ -233,7 +233,7 @@ struct Kernel:
         self.coef0 = param.coef0
 
         self.x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
-        memcpy(self.x, x_, l)
+        memcpy(dest=self.x, src=x_, count=l)
 
         if self.kernel_type == svm_parameter.RBF:
             self.x_square = UnsafePointer[Float64].alloc(l)
@@ -375,11 +375,11 @@ struct Solve:
         self.QD = UnsafePointer[Float64]()
         #self.QD = Q.get_QD()
         self.p = UnsafePointer[Float64].alloc(self.l)
-        memcpy(self.p, p_, self.l)
+        memcpy(dest=self.p, src=p_, count=self.l)
         self.y = UnsafePointer[Int8].alloc(self.l)
-        memcpy(self.y, y_, self.l)
+        memcpy(dest=self.y, src=y_, count=self.l)
         self.alpha = UnsafePointer[Float64].alloc(self.l)
-        memcpy(self.alpha, alpha_, self.l)
+        memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
         self.eps = eps
@@ -424,3 +424,319 @@ struct Solve:
         var iter = 0
         var max_iter = max(10000000, Int.MAX if self.l>Int.MAX//100 else 100*self.l)
         var counter = min(self.l,1000)+1
+
+        while iter < max_iter:
+            # show progress and do shrinking
+            counter -= 1
+            if counter == 0:
+                counter = min(self.l,1000)
+                if shrinking:
+                    self.do_shrinking()
+
+            var i: Int
+            var j: Int
+            if self.select_working_set(i,j)!=0:
+                # reconstruct the whole gradient
+                self.reconstruct_gradient()
+                # reset active set size and check
+                self.active_size = self.l
+                if self.select_working_set(i,j)!=0:
+                    break
+                else:
+                    counter = 1	# do shrinking next iteration
+
+            iter += 1
+
+            # update alpha[i] and alpha[j], handle bounds carefully
+
+            var Q_i = Q.get_Q(i,active_size)
+            var Q_j = Q.get_Q(j,active_size)
+
+            var C_i = get_C(i)
+            var C_j = get_C(j)
+
+            var old_alpha_i = alpha[i]
+            var old_alpha_j = alpha[j]
+
+            if self.y[i]!=self.y[j]:
+                var quad_coef = QD[i]+QD[j]+2*Q_i[j]
+                if quad_coef <= 0:
+                    quad_coef = TAU
+                var delta = (-G[i]-G[j])/quad_coef
+                var diff = alpha[i] - alpha[j]
+                self.alpha[i] += delta
+                self.alpha[j] += delta
+
+                if(diff > 0):
+                    if alpha[j] < 0:
+                        self.alpha[j] = 0
+                        self.alpha[i] = diff
+                else:
+                    if alpha[i] < 0:
+                        self.alpha[i] = 0
+                        self.alpha[j] = -diff
+                if diff > C_i - C_j:
+                    if self.alpha[i] > C_i:
+                        self.alpha[i] = C_i
+                        self.alpha[j] = C_i - diff
+                else:
+                    if self.alpha[j] > C_j:
+                        self.alpha[j] = C_j
+                        self.alpha[i] = C_j + diff
+            else:
+                var quad_coef = QD[i]+QD[j]-2*Q_i[j]
+                if quad_coef <= 0:
+                    quad_coef = TAU
+                var delta = (G[i]-G[j])/quad_coef
+                var sum = self.alpha[i] + self.alpha[j]
+                self.alpha[i] -= delta
+                self.alpha[j] += delta
+
+                if sum > C_i:
+                    if self.alpha[i] > C_i:
+                        self.alpha[i] = C_i
+                        self.alpha[j] = sum - C_i
+                else:
+                    if alpha[j] < 0:
+                        alpha[j] = 0
+                        alpha[i] = sum
+                if sum > C_j:
+                    if alpha[j] > C_j:
+                        self.alpha[j] = C_j
+                        self.alpha[i] = sum - C_j
+                else:
+                    if self.alpha[i] < 0:
+                        self.alpha[i] = 0
+                        self.alpha[j] = sum
+
+            # update G
+
+            var delta_alpha_i = self.alpha[i] - old_alpha_i
+            var delta_alpha_j = self.alpha[j] - old_alpha_j
+
+            for k in range(self.active_size):
+                self.G[k] += Q_i[k]*delta_alpha_i + Q_j[k]*delta_alpha_j
+
+            # update alpha_status and G_bar
+
+            var ui = self.is_upper_bound(i)
+            var uj = self.is_upper_bound(j)
+            self.update_alpha_status(i)
+            self.update_alpha_status(j)
+            if ui != self.is_upper_bound(i):
+                Q_i = Q.get_Q(i,self.l)
+                if ui:
+                    for k in range(self.l):
+                        self.G_bar[k] -= C_i * Q_i[k]
+                else:
+                    for k in range(self.l):
+                        self.G_bar[k] += C_i * Q_i[k]
+
+            if uj != self.is_upper_bound(j):
+                Q_j = Q.get_Q(j,self.l)
+                if uj:
+                    for k in range(self.l):
+                        self.G_bar[k] -= C_j * Q_j[k];
+                else:
+                    for k in range(self.l):
+                        self.G_bar[k] += C_j * Q_j[k];
+
+        if iter >= max_iter:
+            if(active_size < self.l):
+                # reconstruct the whole gradient to calculate objective value
+                self.reconstruct_gradient()
+                self.active_size = self.l
+            print("\nWARNING: reaching max number of iterations\n")
+
+        # calculate rho
+
+        si[].rho = self.calculate_rho()
+
+        # calculate objective value
+        var v = 0
+        for i in range(self.l):
+            v += self.alpha[i] * (self.G[i] + self.p[i]);
+
+        si[].obj = v/2
+
+        # put back the solution
+
+        for i in range(self.l):
+            self.alpha_[self.active_set[i]] = self.alpha[i]
+
+        # juggle everything back
+
+        #for i in range(self.l):
+            #while self.active_set[i] != i:
+                #self.swap_index(i,self.active_set[i])
+        #       # or Q.swap_index(i,self.active_set[i])
+
+
+        si[].upper_bound_p = Cp
+        si[].upper_bound_n = Cn
+
+        self.p.free()
+        self.y.free()
+        self.alpha.free()
+        self.alpha_status.free()
+        self.active_set.free()
+        self.G.free()
+        self.G_bar.free()
+
+    # return 1 if already optimal, return 0 otherwise
+    fn select_working_set(self, mut out_i: Int, mut out_j: Int) -> Int:
+        # return i,j such that
+        # i: maximizes -y_i * grad(f)_i, i in I_up(\alpha)
+        # j: minimizes the decrease of obj value
+        #    (if quadratic coefficeint <= 0, replace it with tau)
+        #    -y_j*grad(f)_j < -y_i*grad(f)_i, j in I_low(\alpha)
+
+        var Gmax = -math.inf[DType.float64]()
+        var Gmax2 = -math.inf[DType.float64]()
+        var Gmax_idx = -1
+        var Gmin_idx = -1
+        var obj_diff_min = math.inf[DType.float64]()
+
+        for t in range(self.active_size):
+            if self.y[t]== 1:
+                if not self.is_upper_bound(t):
+                    if -self.G[t] >= Gmax:
+                        Gmax = -self.G[t]
+                        Gmax_idx = t
+            else:
+                if not self.is_lower_bound(t):
+                    if self.G[t] >= Gmax:
+                        Gmax = self.G[t]
+                        Gmax_idx = t
+
+        var i = Gmax_idx
+        var Q_i = UnsafePointer[Float32]()
+        if i != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
+            Q_i = Q.get_Q(i,active_size)
+
+        for j in range(self.active_size):
+            if(self.y[j]==+1):
+                if not self.is_lower_bound(j):
+                    var grad_diff=Gmax+self.G[j]
+                    if self.G[j] >= Gmax2:
+                        Gmax2 = self.G[j]
+                    if grad_diff > 0:
+                        var obj_diff: Float64
+                        var quad_coef = QD[i]+QD[j]-2.0*self.y[i]*Q_i[j]
+                        if quad_coef > 0:
+                            obj_diff = -(grad_diff*grad_diff)/quad_coef
+                        else:
+                            obj_diff = -(grad_diff*grad_diff)/TAU
+
+                        if obj_diff <= obj_diff_min:
+                            Gmin_idx=j
+                            obj_diff_min = obj_diff
+            else:
+                if not self.is_upper_bound(j):
+                    var grad_diff= Gmax-self.G[j]
+                    if -self.G[j] >= Gmax2:
+                        Gmax2 = -self.G[j]
+                    if grad_diff > 0:
+                        var obj_diff: Float64
+                        var quad_coef = QD[i]+QD[j]+2.0*y[i]*Q_i[j]
+                        if quad_coef > 0:
+                            obj_diff = -(grad_diff*grad_diff)/quad_coef
+                        else:
+                            obj_diff = -(grad_diff*grad_diff)/TAU
+
+                        if obj_diff <= obj_diff_min:
+                            Gmin_idx=j
+                            obj_diff_min = obj_diff
+
+        if Gmax+Gmax2 < eps or Gmin_idx == -1:
+            return 1
+
+        out_i = Gmax_idx
+        out_j = Gmin_idx
+        return 0
+
+    fn be_shrunk(self, i: Int, Gmax1: Float64, Gmax2: Float64) -> Bool:
+        if self.is_upper_bound(i):
+            if self.y[i]==1:
+                return -self.G[i] > Gmax1
+            else:
+                return -self.G[i] > Gmax2
+        elif self.is_lower_bound(i):
+            if self.y[i]==1:
+                return self.G[i] > Gmax2
+            else:
+                return self.G[i] > Gmax1
+        else:
+            return False
+
+    fn do_shrinking(mut self):
+        var Gmax1 = -math.inf[DType.float64]()		# max { -y_i * grad(f)_i | i in I_up(\alpha) }
+        var Gmax2 = -math.inf[DType.float64]()		# max { y_i * grad(f)_i | i in I_low(\alpha) }
+
+        # find maximal violating pair first
+        for i in range(self.active_size):
+            if self.y[i]==1:
+                if not self.is_upper_bound(i):
+                    if -self.G[i] >= Gmax1:
+                        Gmax1 = -self.G[i]
+                if not self.is_lower_bound(i):
+                    if self.G[i] >= Gmax2:
+                        Gmax2 = self.G[i]
+            else:
+                if not self.is_upper_bound(i):
+                    if -self.G[i] >= Gmax2:
+                        Gmax2 = -self.G[i]
+                if not self.is_lower_bound(i):
+                    if self.G[i] >= Gmax1:
+                        Gmax1 = self.G[i]
+
+        if self.unshrink == False and Gmax1 + Gmax2 <= self.eps*10:
+            self.unshrink = True
+            self.reconstruct_gradient()
+            self.active_size = self.l
+
+        for i in range(self.active_size):
+            if self.be_shrunk(i, Gmax1, Gmax2):
+                self.active_size -= 1
+                while self.active_size > i:
+                    if not self.be_shrunk(self.active_size, Gmax1, Gmax2):
+                        self.swap_index(i,self.active_size)
+                        break
+                    self.active_size -= 1
+
+    fn calculate_rho(self) -> Float64:
+        var r: Float64
+        var nr_free = 0
+        var ub = math.inf[DType.float64]()
+        var lb = -math.inf[DType.float64]()
+        var sum_free = 0.0
+        for i in range(self.active_size):
+            var yG = self.y[i]*self.G[i]
+
+            if self.is_upper_bound(i):
+                if self.y[i]==-1:
+                    ub = min(ub,yG)
+                else:
+                    lb = max(lb,yG)
+            elif self.is_lower_bound(i):
+                if self.y[i]==1:
+                    ub = min(ub,yG)
+                else:
+                    lb = max(lb,yG)
+            else:
+                nr_free += 1
+                sum_free += yG
+
+        if nr_free>0:
+            r = sum_free/nr_free
+        else:
+            r = (ub+lb)/2
+
+        return r
+
+#
+# Solver for nu-svm classification and regression
+#
+# additional constraint: e^T \alpha = constant
+#
+struct Solver_NU:
