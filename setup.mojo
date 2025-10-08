@@ -122,14 +122,13 @@ fn main() raises:
     else:
         command = String(argv()[1])
 
-        from python import Python
-        os_py = Python.import_module("os")
-        os_path_py = Python.import_module("os.path")
-        if os_path_py.isfile('./done'):
+        import os
+
+        if os.path.isfile('./done'):
             if command != '9':
                 print('Setup', command + '/8', 'skipped!')
             else:
-                os_py.remove("./done")
+                os.remove("./done")
                 print('Setup done!')
             return
 
@@ -205,7 +204,7 @@ fn main() raises:
                 f.write(code)
 
             for i in range(1, 10):
-                os_py.remove("./param" + String(i))
+                os.remove("./param" + String(i))
                 if i != 9:
-                    os_py.remove("./results" + String(i))
+                    os.remove("./results" + String(i))
             print('Setup done!')

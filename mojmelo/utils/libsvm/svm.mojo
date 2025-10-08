@@ -1,8 +1,10 @@
 from memory import memcpy, memset_zero
 from .svm_node import svm_node
 from .svm_parameter import svm_parameter
+from .svm_problem import svm_problem
 from sys import size_of
 import math
+from algorithm import parallelize
 
 alias TAU = 1e-12
 
@@ -35,20 +37,67 @@ fn dot(var px: UnsafePointer[svm_node], var py: UnsafePointer[svm_node]) -> Floa
 
     return sum
 
+@fieldwise_init
+struct kernel_params:
+    var x: UnsafePointer[UnsafePointer[svm_node]]
+    var x_square: UnsafePointer[Float64]
+    # svm_parameter
+    var kernel_type: Int
+    var degree: Int
+    var gamma: Float64
+    var coef0: Float64
+
+fn k_function(var x: UnsafePointer[svm_node], var y: UnsafePointer[svm_node], param: svm_parameter) -> Float64:
+    if param.kernel_type == svm_parameter.LINEAR:
+        return dot(x,y)
+    if param.kernel_type == svm_parameter.POLY:
+        return powi(param.gamma*dot(x,y)+param.coef0,param.degree)
+    if param.kernel_type == svm_parameter.RBF:
+        var sum = 0.0
+        while x[].index != -1 and y[].index !=-1:
+            if x[].index == y[].index:
+                var d = x[].value - y[].value
+                sum += d*d
+                x += 1
+                y += 1
+            else:
+                if x[].index > y[].index:
+                    sum += y[].value * y[].value
+                    y += 1
+                else:
+                    sum += x[].value * x[].value
+                    x += 1
+
+        while x[].index != -1:
+            sum += x[].value * x[].value
+            x += 1
+
+        while y[].index != -1:
+            sum += y[].value * y[].value
+            y += 1
+
+        return math.exp(-param.gamma*sum)
+    if param.kernel_type == svm_parameter.SIGMOID:
+        return math.tanh(param.gamma*dot(x,y)+param.coef0)
+    if param.kernel_type == svm_parameter.PRECOMPUTED:  # x: test (validation), y: SV
+        return x[Int(y[].value)].value
+    else:
+        return 0  # Unreachable
+
 @always_inline
-fn kernel_linear(k: Kernel, i: Int, j: Int) -> Float64:
+fn kernel_linear(k: kernel_params, i: Int, j: Int) -> Float64:
     return dot(k.x[i],k.x[j])
 @always_inline
-fn kernel_poly(k: Kernel, i: Int, j: Int) -> Float64:
+fn kernel_poly(k: kernel_params, i: Int, j: Int) -> Float64:
     return powi(k.gamma*dot(k.x[i],k.x[j])+k.coef0,k.degree)
 @always_inline
-fn kernel_rbf(k: Kernel, i: Int, j: Int) -> Float64:
+fn kernel_rbf(k: kernel_params, i: Int, j: Int) -> Float64:
     return math.exp(-k.gamma*(k.x_square[i]+k.x_square[j]-2*dot(k.x[i],k.x[j])))
 @always_inline
-fn kernel_sigmoid(k: Kernel, i: Int, j: Int) -> Float64:
+fn kernel_sigmoid(k: kernel_params, i: Int, j: Int) -> Float64:
     return math.tanh(k.gamma*dot(k.x[i],k.x[j])+k.coef0)
 @always_inline
-fn kernel_precomputed(k: Kernel, i: Int, j: Int) -> Float64:
+fn kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64:
     return k.x[i][Int(k.x[j][0].value)].value
 
 struct head_t(Copyable, Movable):
@@ -74,7 +123,7 @@ struct head_t(Copyable, Movable):
 #
 # l is the number of total data items
 # size is the cache size limit in bytes
-struct Cache:
+struct Cache(Copyable, Movable):
     var l: Int
     var size: UInt
     var head: UnsafePointer[head_t]
@@ -176,90 +225,56 @@ struct Cache:
 # the constructor of Kernel prepares to calculate the l*l kernel matrix
 # the member function get_Q is for getting one column from the Q Matrix
 #
+trait QMatrix:
+    fn get_Q(mut self, column: Int, _len: Int) -> UnsafePointer[Float32]:
+        ...
+    fn get_QD(self) -> UnsafePointer[Float64]:
+        ...
+    fn swap_index(mut self, i: Int, j: Int):
+        ...
+
 struct Kernel:
-    var x: UnsafePointer[UnsafePointer[svm_node]]
-    var x_square: UnsafePointer[Float64]
+    var _self: kernel_params
 
-    # svm_parameter
-    var kernel_type: Int
-    var degree: Int
-    var gamma: Float64
-    var coef0: Float64
-
-    var kernel_function: fn(Kernel, Int, Int) -> Float64
-
-    @staticmethod
-    fn k_function(var x: UnsafePointer[svm_node], var y: UnsafePointer[svm_node], param: svm_parameter) -> Float64:
-        if param.kernel_type == svm_parameter.LINEAR:
-            return dot(x,y)
-        if param.kernel_type == svm_parameter.POLY:
-            return powi(param.gamma*dot(x,y)+param.coef0,param.degree)
-        if param.kernel_type == svm_parameter.RBF:
-            var sum = 0.0
-            while x[].index != -1 and y[].index !=-1:
-                if x[].index == y[].index:
-                    var d = x[].value - y[].value
-                    sum += d*d
-                    x += 1
-                    y += 1
-                else:
-                    if x[].index > y[].index:
-                        sum += y[].value * y[].value
-                        y += 1
-                    else:
-                        sum += x[].value * x[].value
-                        x += 1
-
-            while x[].index != -1:
-                sum += x[].value * x[].value
-                x += 1
-
-            while y[].index != -1:
-                sum += y[].value * y[].value
-                y += 1
-
-            return math.exp(-param.gamma*sum)
-        if param.kernel_type == svm_parameter.SIGMOID:
-            return math.tanh(param.gamma*dot(x,y)+param.coef0)
-        if param.kernel_type == svm_parameter.PRECOMPUTED:  # x: test (validation), y: SV
-            return x[Int(y[].value)].value
-        else:
-            return 0  # Unreachable
+    var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
     fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node]], param: svm_parameter):
-        self.kernel_type = param.kernel_type
-        self.degree = param.degree
-        self.gamma = param.gamma
-        self.coef0 = param.coef0
+        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
+        memcpy(dest=x, src=x_, count=l)
 
-        self.x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
-        memcpy(dest=self.x, src=x_, count=l)
-
-        if self.kernel_type == svm_parameter.RBF:
-            self.x_square = UnsafePointer[Float64].alloc(l)
+        var x_square: UnsafePointer[Float64]
+        if param.kernel_type == svm_parameter.RBF:
+            x_square = UnsafePointer[Float64].alloc(l)
             for i in range(l):
-                self.x_square[i] = dot(self.x[i], self.x[i])
+                x_square[i] = dot(x[i], x[i])
         else:
-            self.x_square = UnsafePointer[Float64]()
+            x_square = UnsafePointer[Float64]()
 
-        if self.kernel_type == svm_parameter.LINEAR:
+        self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
             self.kernel_function = kernel_linear
-        if self.kernel_type == svm_parameter.POLY:
+        if self._self.kernel_type == svm_parameter.POLY:
             self.kernel_function = kernel_poly
-        if self.kernel_type == svm_parameter.RBF:
+        if self._self.kernel_type == svm_parameter.RBF:
             self.kernel_function = kernel_rbf
-        if self.kernel_type == svm_parameter.SIGMOID:
+        if self._self.kernel_type == svm_parameter.SIGMOID:
             self.kernel_function = kernel_sigmoid
-        if self.kernel_type == svm_parameter.PRECOMPUTED:
+        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
             self.kernel_function = kernel_precomputed
         else:
             self.kernel_function = kernel_linear
 
+    fn swap_index(self, i: Int, j: Int):
+        swap(self._self.x[i],self._self.x[j])
+        if self._self.x_square:
+            swap(self._self.x_square[i],self._self.x_square[j])
+
     fn __del__(deinit self):
-        if self.x:
-            self.x.free()
-        if self.x_square:
-            self.x_square.free()
+        if self._self.x:
+            self._self.x.free()
+        if self._self.x_square:
+            self._self.x_square.free()
 
 struct SolutionInfo:
     var obj: Float64
@@ -286,7 +301,7 @@ struct SolutionInfo:
 #
 # solution will be put in \alpha, objective value will be put in obj
 #
-struct Solve:
+struct Solver:
     var active_size: Int
     var y: UnsafePointer[Int8]
     var G: UnsafePointer[Float64]	# gradient of objective function
@@ -295,7 +310,6 @@ struct Solve:
     alias FREE: Int8 = 2
     var alpha_status: UnsafePointer[Int8]	# LOWER_BOUND, UPPER_BOUND, FREE
     var alpha: UnsafePointer[Float64]
-    #QMatrix Q
     var QD: UnsafePointer[Float64]
     var eps: Float64
     var Cp: Float64
@@ -305,6 +319,22 @@ struct Solve:
     var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
+
+    fn __init__(out self):
+        self.active_size = 0
+        self.y = UnsafePointer[Int8]()
+        self.G = UnsafePointer[Float64]()
+        self.alpha_status = UnsafePointer[Int8]()
+        self.alpha = UnsafePointer[Float64]()
+        self.QD = UnsafePointer[Float64]()
+        self.eps = 0.0
+        self.Cp = 0.0
+        self.Cn = 0.0
+        self.p = UnsafePointer[Float64]()
+        self.active_set = UnsafePointer[Int]()
+        self.G_bar = UnsafePointer[Float64]()
+        self.l = 0
+        self.unshrink = False
 
     fn get_C(self, i: Int) -> Float64:
         return self.Cp if self.y[i] > 0 else self.Cn
@@ -368,8 +398,8 @@ struct Solve:
                         pass
                         #self.G[j] += alpha_i * Q_i[j]
 
-    fn __init__(out self, l: Int, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8],
-                alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: SolutionInfo, shrinking: Int):
+    fn Solve[QM: QMatrix](mut self, l: Int, Q: QM, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8],
+                alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: UnsafePointer[SolutionInfo], shrinking: Int):
         self.l = l
         #self.Q = Q
         self.QD = UnsafePointer[Float64]()
@@ -433,8 +463,8 @@ struct Solve:
                 if shrinking:
                     self.do_shrinking()
 
-            var i: Int
-            var j: Int
+            var i = -1
+            var j = -1
             if self.select_working_set(i,j)!=0:
                 # reconstruct the whole gradient
                 self.reconstruct_gradient()
@@ -449,30 +479,30 @@ struct Solve:
 
             # update alpha[i] and alpha[j], handle bounds carefully
 
-            var Q_i = Q.get_Q(i,active_size)
-            var Q_j = Q.get_Q(j,active_size)
+            #var Q_i = Q.get_Q(i,self.active_size)
+            #var Q_j = Q.get_Q(j,self.active_size)
 
-            var C_i = get_C(i)
-            var C_j = get_C(j)
+            var C_i = self.get_C(i)
+            var C_j = self.get_C(j)
 
-            var old_alpha_i = alpha[i]
-            var old_alpha_j = alpha[j]
+            var old_alpha_i = self.alpha[i]
+            var old_alpha_j = self.alpha[j]
 
             if self.y[i]!=self.y[j]:
-                var quad_coef = QD[i]+QD[j]+2*Q_i[j]
-                if quad_coef <= 0:
-                    quad_coef = TAU
-                var delta = (-G[i]-G[j])/quad_coef
-                var diff = alpha[i] - alpha[j]
-                self.alpha[i] += delta
-                self.alpha[j] += delta
+                #var quad_coef = QD[i]+QD[j]+2*Q_i[j]
+                #if quad_coef <= 0:
+                #    quad_coef = TAU
+                #var delta = (-G[i]-G[j])/quad_coef
+                var diff = self.alpha[i] - self.alpha[j]
+                #self.alpha[i] += delta
+                #self.alpha[j] += delta
 
                 if(diff > 0):
-                    if alpha[j] < 0:
+                    if self.alpha[j] < 0:
                         self.alpha[j] = 0
                         self.alpha[i] = diff
                 else:
-                    if alpha[i] < 0:
+                    if self.alpha[i] < 0:
                         self.alpha[i] = 0
                         self.alpha[j] = -diff
                 if diff > C_i - C_j:
@@ -484,24 +514,24 @@ struct Solve:
                         self.alpha[j] = C_j
                         self.alpha[i] = C_j + diff
             else:
-                var quad_coef = QD[i]+QD[j]-2*Q_i[j]
-                if quad_coef <= 0:
-                    quad_coef = TAU
-                var delta = (G[i]-G[j])/quad_coef
+                #var quad_coef = QD[i]+QD[j]-2*Q_i[j]
+                #if quad_coef <= 0:
+                #    quad_coef = TAU
+                #var delta = (self.G[i]-self.G[j])/quad_coef
                 var sum = self.alpha[i] + self.alpha[j]
-                self.alpha[i] -= delta
-                self.alpha[j] += delta
+                #self.alpha[i] -= delta
+                #self.alpha[j] += delta
 
                 if sum > C_i:
                     if self.alpha[i] > C_i:
                         self.alpha[i] = C_i
                         self.alpha[j] = sum - C_i
                 else:
-                    if alpha[j] < 0:
-                        alpha[j] = 0
-                        alpha[i] = sum
+                    if self.alpha[j] < 0:
+                        self.alpha[j] = 0
+                        self.alpha[i] = sum
                 if sum > C_j:
-                    if alpha[j] > C_j:
+                    if self.alpha[j] > C_j:
                         self.alpha[j] = C_j
                         self.alpha[i] = sum - C_j
                 else:
@@ -514,8 +544,8 @@ struct Solve:
             var delta_alpha_i = self.alpha[i] - old_alpha_i
             var delta_alpha_j = self.alpha[j] - old_alpha_j
 
-            for k in range(self.active_size):
-                self.G[k] += Q_i[k]*delta_alpha_i + Q_j[k]*delta_alpha_j
+            #for k in range(self.active_size):
+            #    self.G[k] += Q_i[k]*delta_alpha_i + Q_j[k]*delta_alpha_j
 
             # update alpha_status and G_bar
 
@@ -524,25 +554,29 @@ struct Solve:
             self.update_alpha_status(i)
             self.update_alpha_status(j)
             if ui != self.is_upper_bound(i):
-                Q_i = Q.get_Q(i,self.l)
+                #Q_i = Q.get_Q(i,self.l)
                 if ui:
                     for k in range(self.l):
-                        self.G_bar[k] -= C_i * Q_i[k]
+                        pass
+                        #self.G_bar[k] -= C_i * Q_i[k]
                 else:
                     for k in range(self.l):
-                        self.G_bar[k] += C_i * Q_i[k]
+                        pass
+                        #self.G_bar[k] += C_i * Q_i[k]
 
             if uj != self.is_upper_bound(j):
-                Q_j = Q.get_Q(j,self.l)
+                #Q_j = Q.get_Q(j,self.l)
                 if uj:
                     for k in range(self.l):
-                        self.G_bar[k] -= C_j * Q_j[k];
+                        pass
+                        #self.G_bar[k] -= C_j * Q_j[k]
                 else:
                     for k in range(self.l):
-                        self.G_bar[k] += C_j * Q_j[k];
+                        pass
+                        #self.G_bar[k] += C_j * Q_j[k]
 
         if iter >= max_iter:
-            if(active_size < self.l):
+            if(self.active_size < self.l):
                 # reconstruct the whole gradient to calculate objective value
                 self.reconstruct_gradient()
                 self.active_size = self.l
@@ -553,16 +587,16 @@ struct Solve:
         si[].rho = self.calculate_rho()
 
         # calculate objective value
-        var v = 0
+        var v = 0.0
         for i in range(self.l):
-            v += self.alpha[i] * (self.G[i] + self.p[i]);
+            v += self.alpha[i] * (self.G[i] + self.p[i])
 
         si[].obj = v/2
 
         # put back the solution
 
         for i in range(self.l):
-            self.alpha_[self.active_set[i]] = self.alpha[i]
+            alpha_[self.active_set[i]] = self.alpha[i]
 
         # juggle everything back
 
@@ -612,7 +646,8 @@ struct Solve:
         var i = Gmax_idx
         var Q_i = UnsafePointer[Float32]()
         if i != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
-            Q_i = Q.get_Q(i,active_size)
+            #Q_i = Q.get_Q(i,self.active_size)
+            pass
 
         for j in range(self.active_size):
             if(self.y[j]==+1):
@@ -622,15 +657,15 @@ struct Solve:
                         Gmax2 = self.G[j]
                     if grad_diff > 0:
                         var obj_diff: Float64
-                        var quad_coef = QD[i]+QD[j]-2.0*self.y[i]*Q_i[j]
-                        if quad_coef > 0:
-                            obj_diff = -(grad_diff*grad_diff)/quad_coef
-                        else:
-                            obj_diff = -(grad_diff*grad_diff)/TAU
+                        #var quad_coef = QD[i]+QD[j]-2.0*self.y[i]*Q_i[j]
+                        #if quad_coef > 0:
+                        #    obj_diff = -(grad_diff*grad_diff)/quad_coef
+                        #else:
+                        #    obj_diff = -(grad_diff*grad_diff)/TAU
 
-                        if obj_diff <= obj_diff_min:
-                            Gmin_idx=j
-                            obj_diff_min = obj_diff
+                        #if obj_diff <= obj_diff_min:
+                        #    Gmin_idx=j
+                        #    obj_diff_min = obj_diff
             else:
                 if not self.is_upper_bound(j):
                     var grad_diff= Gmax-self.G[j]
@@ -638,17 +673,17 @@ struct Solve:
                         Gmax2 = -self.G[j]
                     if grad_diff > 0:
                         var obj_diff: Float64
-                        var quad_coef = QD[i]+QD[j]+2.0*y[i]*Q_i[j]
-                        if quad_coef > 0:
-                            obj_diff = -(grad_diff*grad_diff)/quad_coef
-                        else:
-                            obj_diff = -(grad_diff*grad_diff)/TAU
+                        #var quad_coef = QD[i]+QD[j]+2.0*y[i]*Q_i[j]
+                        #if quad_coef > 0:
+                        #    obj_diff = -(grad_diff*grad_diff)/quad_coef
+                        #else:
+                        #    obj_diff = -(grad_diff*grad_diff)/TAU
 
-                        if obj_diff <= obj_diff_min:
-                            Gmin_idx=j
-                            obj_diff_min = obj_diff
+                        #if obj_diff <= obj_diff_min:
+                        #    Gmin_idx=j
+                        #    obj_diff_min = obj_diff
 
-        if Gmax+Gmax2 < eps or Gmin_idx == -1:
+        if Gmax+Gmax2 < self.eps or Gmin_idx == -1:
             return 1
 
         out_i = Gmax_idx
@@ -711,7 +746,7 @@ struct Solve:
         var lb = -math.inf[DType.float64]()
         var sum_free = 0.0
         for i in range(self.active_size):
-            var yG = self.y[i]*self.G[i]
+            var yG = Int(self.y[i])*self.G[i]
 
             if self.is_upper_bound(i):
                 if self.y[i]==-1:
@@ -740,3 +775,785 @@ struct Solve:
 # additional constraint: e^T \alpha = constant
 #
 struct Solver_NU:
+    var si: UnsafePointer[SolutionInfo]
+
+    var active_size: Int
+    var y: UnsafePointer[Int8]
+    var G: UnsafePointer[Float64]	# gradient of objective function
+    alias LOWER_BOUND: Int8 = 0
+    alias UPPER_BOUND: Int8 = 1
+    alias FREE: Int8 = 2
+    var alpha_status: UnsafePointer[Int8]	# LOWER_BOUND, UPPER_BOUND, FREE
+    var alpha: UnsafePointer[Float64]
+    var QD: UnsafePointer[Float64]
+    var eps: Float64
+    var Cp: Float64
+    var Cn: Float64
+    var p: UnsafePointer[Float64]
+    var active_set: UnsafePointer[Int]
+    var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
+    var l: Int
+    var unshrink: Bool
+
+    fn __init__(out self):
+        self.si = UnsafePointer[SolutionInfo]()
+        self.active_size = 0
+        self.y = UnsafePointer[Int8]()
+        self.G = UnsafePointer[Float64]()
+        self.alpha_status = UnsafePointer[Int8]()
+        self.alpha = UnsafePointer[Float64]()
+        self.QD = UnsafePointer[Float64]()
+        self.eps = 0.0
+        self.Cp = 0.0
+        self.Cn = 0.0
+        self.p = UnsafePointer[Float64]()
+        self.active_set = UnsafePointer[Int]()
+        self.G_bar = UnsafePointer[Float64]()
+        self.l = 0
+        self.unshrink = False
+
+    fn get_C(self, i: Int) -> Float64:
+        return self.Cp if self.y[i] > 0 else self.Cn
+
+    fn update_alpha_status(self, i: Int):
+        if self.alpha[i] >= self.get_C(i):
+            self.alpha_status[i] = self.UPPER_BOUND
+        elif self.alpha[i] <= 0:
+            self.alpha_status[i] = self.LOWER_BOUND
+        else:
+            self.alpha_status[i] = self.FREE
+
+    fn is_upper_bound(self, i: Int) -> Bool:
+        return self.alpha_status[i] == self.UPPER_BOUND
+    fn is_lower_bound(self, i: Int) -> Bool:
+        return self.alpha_status[i] == self.LOWER_BOUND
+    fn is_free(self, i: Int) -> Bool:
+        return self.alpha_status[i] == self.FREE
+
+    fn swap_index(self, i: Int, j: Int):
+        #Q.swap_index(i,j);
+        swap(self.y[i], self.y[j])
+        swap(self.G[i], self.G[j])
+        swap(self.alpha_status[i], self.alpha_status[j])
+        swap(self.alpha[i], self.alpha[j])
+        swap(self.p[i], self.p[j])
+        swap(self.active_set[i], self.active_set[j])
+        swap(self.G_bar[i], self.G_bar[j])
+
+    fn reconstruct_gradient(self):
+		# reconstruct inactive elements of G from G_bar and free variables
+
+        if self.active_size == self.l:
+            return
+
+        var nr_free = 0
+
+        for j in range(self.active_size, self.l):
+            self.G[j] = self.G_bar[j] + self.p[j]
+
+        for j in range(self.active_size):
+            if self.is_free(j):
+                nr_free += 1
+
+        if 2*nr_free < self.active_size:
+            print("\nWARNING: using -h 0 may be faster\n")
+
+        if nr_free*self.l > 2*self.active_size*(self.l-self.active_size):
+            for i in range(self.active_size, self.l):
+				#var Q_i = Q.get_Q(i,self.active_size)
+                for j in range(self.active_size):
+                    if self.is_free(j):
+                        pass
+						#self.G[i] += self.alpha[j] * Q_i[j]
+        else:
+            for i in range(self.active_size):
+                if self.is_free(i):
+					#var Q_i = Q.get_Q(i,self.l)
+                    var alpha_i = self.alpha[i]
+                    for j in range(self.active_size, self.l):
+                        pass
+                        #self.G[j] += alpha_i * Q_i[j]
+
+    fn Solve[QM: QMatrix](mut self, l: Int, Q: QM, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8],
+                alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: UnsafePointer[SolutionInfo], shrinking: Int):
+        self.si = si
+        # Solve
+        self.l = l
+        #self.Q = Q
+        self.QD = UnsafePointer[Float64]()
+        #self.QD = Q.get_QD()
+        self.p = UnsafePointer[Float64].alloc(self.l)
+        memcpy(dest=self.p, src=p_, count=self.l)
+        self.y = UnsafePointer[Int8].alloc(self.l)
+        memcpy(dest=self.y, src=y_, count=self.l)
+        self.alpha = UnsafePointer[Float64].alloc(self.l)
+        memcpy(dest=self.alpha, src=alpha_, count=self.l)
+        self.Cp = Cp
+        self.Cn = Cn
+        self.eps = eps
+        self.unshrink = False
+
+		# initialize alpha_status
+        self.alpha_status = UnsafePointer[Int8].alloc(self.l)
+        for i in range(self.l):
+            if self.alpha[i] >= (self.Cp if self.y[i] > 0 else self.Cn):
+                self.alpha_status[i] = self.UPPER_BOUND
+            elif self.alpha[i] <= 0:
+                self.alpha_status[i] = self.LOWER_BOUND
+            else:
+                self.alpha_status[i] = self.FREE
+
+		# initialize active set (for shrinking)
+        self.active_set = UnsafePointer[Int].alloc(self.l)
+        for i in range(self.l):
+            self.active_set[i] = i
+        self.active_size = self.l
+
+		# initialize gradient
+        self.G = UnsafePointer[Float64].alloc(self.l)
+        self.G_bar = UnsafePointer[Float64].alloc(self.l)
+        for i in range(self.l):
+            self.G[i] = self.p[i]
+            self.G_bar[i] = 0
+        for i in range(self.l):
+            if not self.is_lower_bound(i):
+                #var Q_i = Q.get_Q(i,self.l)
+                var alpha_i = self.alpha[i]
+                for j in range(self.l):
+                    pass
+                    #self.G[j] += alpha_i*Q_i[j]
+                if self.is_upper_bound(i):
+                    for j in range(self.l):
+                        pass
+                        #self.G_bar[j] += self.get_C(i) * Q_i[j]
+
+        # optimization step
+
+        var iter = 0
+        var max_iter = max(10000000, Int.MAX if self.l>Int.MAX//100 else 100*self.l)
+        var counter = min(self.l,1000)+1
+
+        while iter < max_iter:
+            # show progress and do shrinking
+            counter -= 1
+            if counter == 0:
+                counter = min(self.l,1000)
+                if shrinking:
+                    self.do_shrinking()
+
+            var i = -1
+            var j = -1
+            if self.select_working_set(i,j)!=0:
+                # reconstruct the whole gradient
+                self.reconstruct_gradient()
+                # reset active set size and check
+                self.active_size = self.l
+                if self.select_working_set(i,j)!=0:
+                    break
+                else:
+                    counter = 1	# do shrinking next iteration
+
+            iter += 1
+
+            # update alpha[i] and alpha[j], handle bounds carefully
+
+            #var Q_i = Q.get_Q(i,self.active_size)
+            #var Q_j = Q.get_Q(j,self.active_size)
+
+            var C_i = self.get_C(i)
+            var C_j = self.get_C(j)
+
+            var old_alpha_i = self.alpha[i]
+            var old_alpha_j = self.alpha[j]
+
+            if self.y[i]!=self.y[j]:
+                #var quad_coef = QD[i]+QD[j]+2*Q_i[j]
+                #if quad_coef <= 0:
+                #    quad_coef = TAU
+                #var delta = (-G[i]-G[j])/quad_coef
+                var diff = self.alpha[i] - self.alpha[j]
+                #self.alpha[i] += delta
+                #self.alpha[j] += delta
+
+                if(diff > 0):
+                    if self.alpha[j] < 0:
+                        self.alpha[j] = 0
+                        self.alpha[i] = diff
+                else:
+                    if self.alpha[i] < 0:
+                        self.alpha[i] = 0
+                        self.alpha[j] = -diff
+                if diff > C_i - C_j:
+                    if self.alpha[i] > C_i:
+                        self.alpha[i] = C_i
+                        self.alpha[j] = C_i - diff
+                else:
+                    if self.alpha[j] > C_j:
+                        self.alpha[j] = C_j
+                        self.alpha[i] = C_j + diff
+            else:
+                #var quad_coef = QD[i]+QD[j]-2*Q_i[j]
+                #if quad_coef <= 0:
+                #    quad_coef = TAU
+                #var delta = (self.G[i]-self.G[j])/quad_coef
+                var sum = self.alpha[i] + self.alpha[j]
+                #self.alpha[i] -= delta
+                #self.alpha[j] += delta
+
+                if sum > C_i:
+                    if self.alpha[i] > C_i:
+                        self.alpha[i] = C_i
+                        self.alpha[j] = sum - C_i
+                else:
+                    if self.alpha[j] < 0:
+                        self.alpha[j] = 0
+                        self.alpha[i] = sum
+                if sum > C_j:
+                    if self.alpha[j] > C_j:
+                        self.alpha[j] = C_j
+                        self.alpha[i] = sum - C_j
+                else:
+                    if self.alpha[i] < 0:
+                        self.alpha[i] = 0
+                        self.alpha[j] = sum
+
+            # update G
+
+            var delta_alpha_i = self.alpha[i] - old_alpha_i
+            var delta_alpha_j = self.alpha[j] - old_alpha_j
+
+            #for k in range(self.active_size):
+            #    self.G[k] += Q_i[k]*delta_alpha_i + Q_j[k]*delta_alpha_j
+
+            # update alpha_status and G_bar
+
+            var ui = self.is_upper_bound(i)
+            var uj = self.is_upper_bound(j)
+            self.update_alpha_status(i)
+            self.update_alpha_status(j)
+            if ui != self.is_upper_bound(i):
+                #Q_i = Q.get_Q(i,self.l)
+                if ui:
+                    for k in range(self.l):
+                        pass
+                        #self.G_bar[k] -= C_i * Q_i[k]
+                else:
+                    for k in range(self.l):
+                        pass
+                        #self.G_bar[k] += C_i * Q_i[k]
+
+            if uj != self.is_upper_bound(j):
+                #Q_j = Q.get_Q(j,self.l)
+                if uj:
+                    for k in range(self.l):
+                        pass
+                        #self.G_bar[k] -= C_j * Q_j[k]
+                else:
+                    for k in range(self.l):
+                        pass
+                        #self.G_bar[k] += C_j * Q_j[k]
+
+        if iter >= max_iter:
+            if(self.active_size < self.l):
+                # reconstruct the whole gradient to calculate objective value
+                self.reconstruct_gradient()
+                self.active_size = self.l
+            print("\nWARNING: reaching max number of iterations\n")
+
+        # calculate rho
+
+        si[].rho = self.calculate_rho()
+
+        # calculate objective value
+        var v = 0.0
+        for i in range(self.l):
+            v += self.alpha[i] * (self.G[i] + self.p[i])
+
+        si[].obj = v/2
+
+        # put back the solution
+
+        for i in range(self.l):
+            alpha_[self.active_set[i]] = self.alpha[i]
+
+        # juggle everything back
+
+        #for i in range(self.l):
+            #while self.active_set[i] != i:
+                #self.swap_index(i,self.active_set[i])
+        #       # or Q.swap_index(i,self.active_set[i])
+
+
+        si[].upper_bound_p = Cp
+        si[].upper_bound_n = Cn
+
+        self.p.free()
+        self.y.free()
+        self.alpha.free()
+        self.alpha_status.free()
+        self.active_set.free()
+        self.G.free()
+        self.G_bar.free()
+
+    # return 1 if already optimal, return 0 otherwise
+    fn select_working_set(self, mut out_i: Int, mut out_j: Int) -> Int:
+        # return i,j such that
+        # i: maximizes -y_i * grad(f)_i, i in I_up(\alpha)
+        # j: minimizes the decrease of obj value
+        #    (if quadratic coefficeint <= 0, replace it with tau)
+        #    -y_j*grad(f)_j < -y_i*grad(f)_i, j in I_low(\alpha)
+
+        var Gmaxp = -math.inf[DType.float64]()
+        var Gmaxp2 = -math.inf[DType.float64]()
+        var Gmaxp_idx = -1
+
+        var Gmaxn = -math.inf[DType.float64]()
+        var Gmaxn2 = -math.inf[DType.float64]()
+        var Gmaxn_idx = -1
+
+        var Gmin_idx = -1
+        var obj_diff_min = math.inf[DType.float64]()
+
+        for t in range(self.active_size):
+            if self.y[t]== 1:
+                if not self.is_upper_bound(t):
+                    if -self.G[t] >= Gmaxp:
+                        Gmaxp = -self.G[t]
+                        Gmaxp_idx = t
+            else:
+                if not self.is_lower_bound(t):
+                    if self.G[t] >= Gmaxn:
+                        Gmaxn = self.G[t]
+                        Gmaxn_idx = t
+
+        var i_p = Gmaxp_idx
+        var i_n = Gmaxn_idx
+        var Q_ip = UnsafePointer[Float32]()
+        var Q_in = UnsafePointer[Float32]()
+        if i_p != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
+            #Q_ip = Q.get_Q(i_p,self.active_size)
+            pass
+        if i_n != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
+            #Q_in = Q.get_Q(i_n,self.active_size)
+            pass
+
+        for j in range(self.active_size):
+            if(self.y[j]==+1):
+                if not self.is_lower_bound(j):
+                    var grad_diff=Gmaxp+self.G[j]
+                    if self.G[j] >= Gmaxp2:
+                        Gmaxp2 = self.G[j]
+                    if grad_diff > 0:
+                        var obj_diff: Float64
+                        #var quad_coef = QD[i_p]+QD[j]-2.0*Q_ip[j]
+                        #if quad_coef > 0:
+                        #    obj_diff = -(grad_diff*grad_diff)/quad_coef
+                        #else:
+                        #    obj_diff = -(grad_diff*grad_diff)/TAU
+
+                        #if obj_diff <= obj_diff_min:
+                        #    Gmin_idx=j
+                        #    obj_diff_min = obj_diff
+            else:
+                if not self.is_upper_bound(j):
+                    var grad_diff= Gmaxn-self.G[j]
+                    if -self.G[j] >= Gmaxn2:
+                        Gmaxn2 = -self.G[j]
+                    if grad_diff > 0:
+                        var obj_diff: Float64
+                        #var quad_coef = QD[i_n]+QD[j]+2.0*Q_in[j]
+                        #if quad_coef > 0:
+                        #    obj_diff = -(grad_diff*grad_diff)/quad_coef
+                        #else:
+                        #    obj_diff = -(grad_diff*grad_diff)/TAU
+
+                        #if obj_diff <= obj_diff_min:
+                        #    Gmin_idx=j
+                        #    obj_diff_min = obj_diff
+
+        if max(Gmaxp + Gmaxp2, Gmaxn + Gmaxn2) < self.eps or Gmin_idx == -1:
+            return 1
+
+        if self.y[Gmin_idx] == 1:
+            out_i = Gmaxp_idx
+        else:
+            out_i = Gmaxn_idx
+        out_j = Gmin_idx
+        return 0
+
+    fn be_shrunk(self, i: Int, Gmax1: Float64, Gmax2: Float64, Gmax3: Float64, Gmax4: Float64) -> Bool:
+        if self.is_upper_bound(i):
+            if self.y[i]==1:
+                return -self.G[i] > Gmax1
+            else:
+                return -self.G[i] > Gmax4
+        elif self.is_lower_bound(i):
+            if self.y[i]==1:
+                return self.G[i] > Gmax2
+            else:
+                return self.G[i] > Gmax3
+        else:
+            return False
+
+    fn do_shrinking(mut self):
+        var Gmax1 = -math.inf[DType.float64]()		# max { -y_i * grad(f)_i | i in I_up(\alpha) }
+        var Gmax2 = -math.inf[DType.float64]()		# max { y_i * grad(f)_i | i in I_low(\alpha) }
+        var Gmax3 = -math.inf[DType.float64]()	    # max { -y_i * grad(f)_i | y_i = -1, i in I_up(\alpha) }
+        var Gmax4 = -math.inf[DType.float64]()	    # max { y_i * grad(f)_i | y_i = -1, i in I_low(\alpha) }
+
+        # find maximal violating pair first
+        for i in range(self.active_size):
+            if not self.is_upper_bound(i):
+                if self.y[i]==1:
+                    if -self.G[i] > Gmax1:
+                        Gmax1 = -self.G[i]
+                else:
+                    if -self.G[i] > Gmax4:
+                        Gmax4 = -self.G[i]
+            if not self.is_lower_bound(i):
+                if self.y[i]==1:
+                    if self.G[i] > Gmax2:
+                        Gmax2 = self.G[i]
+                else:
+                    if self.G[i] > Gmax3:
+                        Gmax3 = self.G[i]
+
+        if self.unshrink == False and max(Gmax1+Gmax2,Gmax3+Gmax4) <= self.eps*10:
+            self.unshrink = True
+            self.reconstruct_gradient()
+            self.active_size = self.l
+
+        for i in range(self.active_size):
+            if self.be_shrunk(i, Gmax1, Gmax2, Gmax3, Gmax4):
+                self.active_size -= 1
+                while self.active_size > i:
+                    if not self.be_shrunk(self.active_size, Gmax1, Gmax2, Gmax3, Gmax4):
+                        self.swap_index(i,self.active_size)
+                        break
+                    self.active_size -= 1
+
+    fn calculate_rho(self) -> Float64:
+        var nr_free1 = 0
+        var nr_free2 = 0
+        var ub1 = math.inf[DType.float64]()
+        var ub2 = math.inf[DType.float64]()
+        var lb1 = -math.inf[DType.float64]()
+        var lb2 = -math.inf[DType.float64]()
+        var sum_free1 = 0.0
+        var sum_free2 = 0.0
+
+        for i in range(self.active_size):
+            if self.y[i]==1:
+                if self.is_upper_bound(i):
+                    lb1 = max(lb1,self.G[i])
+                elif self.is_lower_bound(i):
+                    ub1 = min(ub1,self.G[i])
+                else:
+                    nr_free1 += 1
+                    sum_free1 += self.G[i]
+            else:
+                if self.is_upper_bound(i):
+                    lb2 = max(lb2,self.G[i])
+                elif self.is_lower_bound(i):
+                    ub2 = min(ub2,self.G[i])
+                else:
+                    nr_free2 += 1
+                    sum_free2 += self.G[i]
+
+        var r1 = 0.0
+        var r2 = 0.0
+        if nr_free1 > 0:
+            r1 = sum_free1/nr_free1
+        else:
+            r1 = (ub1+lb1)/2
+
+        if nr_free2 > 0:
+            r2 = sum_free2/nr_free2
+        else:
+            r2 = (ub2+lb2)/2
+
+        self.si[].r = (r1+r2)/2
+        return (r1-r2)/2
+
+#
+# Q matrices for various formulations
+#
+struct SVC_Q(QMatrix):
+    var y: UnsafePointer[Int8]
+    var cache: Cache
+    var QD: UnsafePointer[Float64]
+
+    var _self: kernel_params
+
+    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+
+    fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8]):
+        # Kernel
+        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
+        memcpy(dest=x, src=prob.x, count=prob.l)
+
+        var x_square: UnsafePointer[Float64]
+        if param.kernel_type == svm_parameter.RBF:
+            x_square = UnsafePointer[Float64].alloc(prob.l)
+            for i in range(prob.l):
+                x_square[i] = dot(x[i], x[i])
+        else:
+            x_square = UnsafePointer[Float64]()
+
+        self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        if self._self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        if self._self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        if self._self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
+        ##
+        self.y = UnsafePointer[Int8].alloc(prob.l)
+        memcpy(dest=self.y, src=y_, count=prob.l)
+
+        self.cache = Cache(prob.l, UInt(param.cache_size*(1<<20)))
+
+        self.QD = UnsafePointer[Float64].alloc(prob.l)
+        for i in range(prob.l):
+            self.QD[i] = self.kernel_function(self._self, i,i)
+
+    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]:
+        var data = UnsafePointer[Float32]()
+        var start = self.cache.get_data(i,UnsafePointer(to=data),_len)
+        if start < _len:
+            @parameter
+            fn p(j: Int):
+                data[j+start] = (Int(self.y[i]*self.y[j+start])*self.kernel_function(self._self, i,j+start)).cast[DType.float32]()
+            parallelize[p](_len - start)
+        return data
+
+    fn get_QD(self) -> UnsafePointer[Float64]:
+        return self.QD
+
+    fn swap_index(mut self, i: Int, j: Int):
+        self.cache.swap_index(i,j)
+
+        swap(self._self.x[i],self._self.x[j])
+        if self._self.x_square:
+            swap(self._self.x_square[i],self._self.x_square[j])
+        
+        swap(self.y[i],self.y[j])
+        swap(self.QD[i],self.QD[j])
+
+    fn __del__(deinit self):
+        if self._self.x:
+            self._self.x.free()
+        if self._self.x_square:
+            self._self.x_square.free()
+
+        if self.y:
+            self.y.free()
+        if self.QD:
+            self.QD.free()
+
+struct ONE_CLASS_Q(QMatrix):
+    var cache: Cache
+    var QD: UnsafePointer[Float64]
+
+    var _self: kernel_params
+
+    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+
+    fn __init__(out self, prob: svm_problem, param: svm_parameter):
+        # Kernel
+        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
+        memcpy(dest=x, src=prob.x, count=prob.l)
+
+        var x_square: UnsafePointer[Float64]
+        if param.kernel_type == svm_parameter.RBF:
+            x_square = UnsafePointer[Float64].alloc(prob.l)
+            for i in range(prob.l):
+                x_square[i] = dot(x[i], x[i])
+        else:
+            x_square = UnsafePointer[Float64]()
+
+        self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        if self._self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        if self._self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        if self._self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
+        ##
+        self.cache = Cache(prob.l, UInt(param.cache_size*(1<<20)))
+
+        self.QD = UnsafePointer[Float64].alloc(prob.l)
+        for i in range(prob.l):
+            self.QD[i] = self.kernel_function(self._self, i,i)
+
+    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]:
+        var data = UnsafePointer[Float32]()
+        var start = self.cache.get_data(i,UnsafePointer(to=data),_len)
+        if start < _len:
+            for j in range(start, _len):
+                data[j] = self.kernel_function(self._self, i,j).cast[DType.float32]()
+        return data
+
+    fn get_QD(self) -> UnsafePointer[Float64]:
+        return self.QD
+
+    fn swap_index(mut self, i: Int, j: Int):
+        self.cache.swap_index(i,j)
+
+        swap(self._self.x[i],self._self.x[j])
+        if self._self.x_square:
+            swap(self._self.x_square[i],self._self.x_square[j])
+        
+        swap(self.QD[i],self.QD[j])
+
+    fn __del__(deinit self):
+        if self._self.x:
+            self._self.x.free()
+        if self._self.x_square:
+            self._self.x_square.free()
+
+        if self.QD:
+            self.QD.free()
+
+struct SVR_Q(QMatrix):
+    var l: Int
+    var cache: Cache
+    var sign: UnsafePointer[Int8]
+    var index: UnsafePointer[Int]
+    var next_buffer: Int
+    var buffer: InlineArray[UnsafePointer[Float32], 2]
+    var QD: UnsafePointer[Float64]
+
+    var _self: kernel_params
+
+    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+
+    fn __init__(out self, prob: svm_problem, param: svm_parameter):
+        # Kernel
+        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
+        memcpy(dest=x, src=prob.x, count=prob.l)
+
+        var x_square: UnsafePointer[Float64]
+        if param.kernel_type == svm_parameter.RBF:
+            x_square = UnsafePointer[Float64].alloc(prob.l)
+            for i in range(prob.l):
+                x_square[i] = dot(x[i], x[i])
+        else:
+            x_square = UnsafePointer[Float64]()
+
+        self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        if self._self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        if self._self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        if self._self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
+        ##
+        self.l = prob.l
+        self.cache = Cache(self.l,UInt(param.cache_size*(1<<20)))
+        self.QD = UnsafePointer[Float64].alloc(2*self.l)
+        self.sign = UnsafePointer[Int8].alloc(2*self.l)
+        self.index = UnsafePointer[Int].alloc(2*self.l)
+        for k in range(self.l):
+            self.sign[k] = 1
+            self.sign[k+self.l] = -1
+            self.index[k] = k
+            self.index[k+self.l] = k
+            self.QD[k] = self.kernel_function(self._self, k,k)
+            self.QD[k+self.l] = self.QD[k]
+        self.buffer = InlineArray[UnsafePointer[Float32], 2](UnsafePointer[Float32].alloc(2*self.l), UnsafePointer[Float32].alloc(2*self.l))
+        self.next_buffer = 0
+
+    fn swap_index(self, i: Int, j: Int):
+        swap(self.sign[i],self.sign[j])
+        swap(self.index[i],self.index[j])
+        swap(self.QD[i],self.QD[j])
+
+    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]:
+        var data = UnsafePointer[Float32]()
+        var real_i = self.index[i]
+        if self.cache.get_data(real_i,UnsafePointer(to=data),self.l) < self.l:
+            @parameter
+            fn p(j: Int):
+                data[j] = self.kernel_function(self._self, real_i,j).cast[DType.float32]()
+            parallelize[p](self.l)
+        # reorder and copy
+        var buf = self.buffer[self.next_buffer]
+        var next_buffer = 1 - self.next_buffer
+        var si = self.sign[i]
+        for j in range(_len):
+            buf[j] = si.cast[DType.float32]() * self.sign[j].cast[DType.float32]() * data[self.index[j]]
+        return buf
+
+    fn get_QD(self) -> UnsafePointer[Float64]:
+        return self.QD
+
+    fn __del__(deinit self):
+        if self._self.x:
+            self._self.x.free()
+        if self._self.x_square:
+            self._self.x_square.free()
+
+        if self.QD:
+            self.QD.free()
+        if self.sign:
+            self.sign.free()
+        if self.index:
+            self.index.free()
+        if self.buffer[0]:
+            self.buffer[0].free()
+        if self.buffer[1]:
+            self.buffer[1].free()
+
+#
+# construct and solve various formulations
+#
+fn solve_c_svc(
+    prob: svm_problem, param: svm_parameter,
+    alpha: UnsafePointer[Float64], si: SolutionInfo, Cp: Float64, Cn: Float64):
+    var l = prob.l
+    var minus_ones = UnsafePointer[Float64].alloc(l)
+    var y = UnsafePointer[Int8].alloc(l)
+
+    for i in range(l):
+        alpha[i] = 0
+        minus_ones[i] = -1
+        if prob.y[i] > 0:
+            y[i] = 1
+        else:
+            y[i] = -1
+
+    var s = Solver()
+    s.Solve[SVC_Q](l, SVC_Q(prob,param,y), minus_ones, y,
+        alpha, Cp, Cn, param.eps, UnsafePointer(to=si), param.shrinking)
+
+    var sum_alpha=0.0
+    for i in range(l):
+        sum_alpha += alpha[i]
+
+    for i in range(l):
+        alpha[i] *= Int(y[i])
+
+    minus_ones.free()
+    y.free()
