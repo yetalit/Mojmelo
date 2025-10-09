@@ -278,7 +278,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
                 params[i][key] = combinations[i][j]
                 j += 1
             var model = m_type(params[i])
-            var score = KFold[m_type](model, X, y, scoring, cv)
+            var score = KFold(model, X, y, scoring, cv)
             if neg_score:
                 score *= -1
             scores.data[i] = score
@@ -295,7 +295,7 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
                 j += 1
             try:
                 var model = m_type(params[i])
-                var score = KFold[m_type](model, X, y, scoring, cv)
+                var score = KFold(model, X, y, scoring, cv)
                 if neg_score:
                     score *= -1
                 scores.data[i] = score
@@ -348,7 +348,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
                 params[i][key] = combinations[i][j]
                 j += 1
             var model = m_type(params[i])
-            var score = KFold[m_type](model, X, y, scoring, cv)
+            var score = KFold(model, X, y, scoring, cv)
             if neg_score:
                 score *= -1
             scores.data[i] = score
@@ -365,7 +365,7 @@ fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String
                 j += 1
             try:
                 var model = m_type(params[i])
-                var score = KFold[m_type](model, X, y, scoring, cv)
+                var score = KFold(model, X, y, scoring, cv)
                 if neg_score:
                     score *= -1
                 scores.data[i] = score
