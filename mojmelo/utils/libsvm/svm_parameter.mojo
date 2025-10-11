@@ -1,4 +1,4 @@
-struct svm_parameter:
+struct svm_parameter(Copyable, Movable):
 	# svm_type
 	alias C_SVC: Int = 0
 	alias NU_SVC: Int = 1

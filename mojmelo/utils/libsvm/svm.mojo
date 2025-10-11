@@ -2,9 +2,12 @@ from memory import memcpy, memset_zero
 from .svm_node import svm_node
 from .svm_parameter import svm_parameter
 from .svm_problem import svm_problem
+from .svm_model import svm_model
 from sys import size_of
 import math
 from algorithm import parallelize
+from mojmelo.utils.utils import fill_indices
+import random
 
 alias TAU = 1e-12
 
@@ -105,19 +108,13 @@ struct head_t(Copyable, Movable):
     var next: UnsafePointer[head_t]	# a cicular list
     var data: UnsafePointer[Float32]
     var _len: Int		# data[0,len) is cached in this entry
-
+    
     @always_inline
-    fn __init__(out self, p: UnsafePointer[head_t], n: UnsafePointer[head_t], _len: Int):
-        self.prev = p
-        self.next = n
-        self._len = _len
-        self.data = UnsafePointer[Float32].alloc(_len)
-        memset_zero(self.data, self._len)
-
-    @always_inline
-    fn __del__(deinit self):
-        if self.data:
-            self.data.free()
+    fn __init__(out self):
+        self.prev = UnsafePointer[head_t]()
+        self.next = UnsafePointer[head_t]()
+        self.data = UnsafePointer[Float32]()
+        self._len = 0
 
 # Kernel Cache
 #
@@ -129,20 +126,21 @@ struct Cache(Copyable, Movable):
     var head: UnsafePointer[head_t]
     var lru_head: head_t
 
+    @always_inline
     fn __init__(out self, l: Int, size: UInt):
         self.l = l
         self.size = (size - (self.l * size_of[head_t]())) // 4
         self.head = UnsafePointer[head_t].alloc(self.l)
-        for i in range(self.l):
-            (self.head + i).init_pointee_move(head_t(UnsafePointer[head_t](), UnsafePointer[head_t](), 0)) # initialized to 0
+        memset_zero(self.head, self.l) # initialized to 0
         self.size = max(self.size, UInt(2) * UInt(l))  # cache must be large enough for two columns
-        self.lru_head = head_t(UnsafePointer[head_t](), UnsafePointer[head_t](), 0)
+        self.lru_head = head_t()
         self.lru_head.next = self.lru_head.prev = UnsafePointer(to=self.lru_head)
 
     fn __del__(deinit self):
         var h = self.lru_head.next
         while h != UnsafePointer(to=self.lru_head):
-            h.destroy_pointee()
+            if h[].data:
+                h[].data.free()
             h = h[].next
         if self.head:
             self.head.free()
@@ -238,6 +236,7 @@ struct Kernel:
 
     var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
+    @always_inline
     fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node]], param: svm_parameter):
         var x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
         memcpy(dest=x, src=x_, count=l)
@@ -283,6 +282,14 @@ struct SolutionInfo:
     var upper_bound_n: Float64
     var r: Float64	# for Solver_NU
 
+    @always_inline
+    fn __init__(out self):
+        self.obj = 0.0
+        self.rho = 0.0
+        self.upper_bound_p = 0.0
+        self.upper_bound_n = 0.0
+        self.r = 0.0
+
 # An SMO algorithm in Fan et al., JMLR 6(2005), p. 1889--1918
 # Solves:
 #
@@ -320,6 +327,7 @@ struct Solver:
     var l: Int
     var unshrink: Bool
 
+    @always_inline
     fn __init__(out self):
         self.active_size = 0
         self.y = UnsafePointer[Int8]()
@@ -785,6 +793,7 @@ struct Solver_NU:
     var l: Int
     var unshrink: Bool
 
+    @always_inline
     fn __init__(out self):
         self.si = UnsafePointer[SolutionInfo]()
         self.active_size = 0
@@ -1266,6 +1275,7 @@ struct SVC_Q(QMatrix):
 
     var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
+    @always_inline
     fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8]):
         # Kernel
         var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
@@ -1345,6 +1355,7 @@ struct ONE_CLASS_Q(QMatrix):
 
     var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
+    @always_inline
     fn __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
         var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
@@ -1421,6 +1432,7 @@ struct SVR_Q(QMatrix):
 
     var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
+    @always_inline
     fn __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
         var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
@@ -1675,3 +1687,314 @@ fn solve_nu_svr(
     alpha2.free()
     linear_term.free()
     y.free()
+
+#
+# decision_function
+#
+@fieldwise_init
+struct decision_function(Copyable):
+    var alpha: UnsafePointer[Float64]
+    var rho: Float64
+
+fn svm_train_one(
+	prob: svm_problem, param: svm_parameter,
+	Cp: Float64, Cn: Float64) -> decision_function:
+	var alpha = UnsafePointer[Float64].alloc(prob.l)
+	var si = SolutionInfo()
+	if param.svm_type == svm_parameter.C_SVC:
+		solve_c_svc(prob,param,alpha,si,Cp,Cn)
+	elif param.svm_type == svm_parameter.NU_SVC:
+		solve_nu_svc(prob,param,alpha,si)
+	elif param.svm_type == svm_parameter.ONE_CLASS:
+		solve_one_class(prob,param,alpha,si)
+	elif param.svm_type == svm_parameter.EPSILON_SVR:
+		solve_epsilon_svr(prob,param,alpha,si)
+	elif param.svm_type == svm_parameter.NU_SVR:
+		solve_nu_svr(prob,param,alpha,si)
+
+	# output SVs
+
+	var nSV = 0
+	var nBSV = 0
+	for i in range(prob.l):
+		if abs(alpha[i]) > 0:
+			nSV += 1
+			if prob.y[i] > 0:
+				if abs(alpha[i]) >= si.upper_bound_p:
+					nBSV += 1
+			else:
+				if abs(alpha[i]) >= si.upper_bound_n:
+					nBSV += 1
+
+	return decision_function(alpha=alpha, rho=si.rho)
+
+# Platt's binary SVM Probablistic Output: an improvement from Lin et al.
+fn sigmoid_train(
+    l: Int, dec_values: UnsafePointer[Float64], labels: UnsafePointer[Float64],
+    mut A: Float64, mut B: Float64):
+    var prior1 = 0.0
+    var prior0 = 0.0
+
+    for i in range(l):
+        if labels[i] > 0:
+            prior1 += 1
+        else:
+            prior0 += 1
+
+    var max_iter=100	# Maximal number of iterations
+    var min_step=1e-10	# Minimal step taken in line search
+    var sigma=1e-12	# For numerically strict PD of Hessian
+    var eps=1e-5
+    var hiTarget=(prior1+1.0)/(prior1+2.0)
+    var loTarget=1/(prior0+2.0)
+    var t=UnsafePointer[Float64].alloc(l)
+    var fApB: Float64; p: Float64; q: Float64; h11: Float64; h22: Float64; h21: Float64; g1: Float64; g2: Float64; det: Float64; dA: Float64; dB: Float64; gd: Float64; stepsize: Float64
+    var newA: Float64; newB: Float64; newf: Float64; d1: Float64; d2: Float64
+    var iter: Int
+
+    # Initial Point and Initial Fun Value
+    A=0.0
+    B=math.log((prior0+1.0)/(prior1+1.0))
+    var fval = 0.0
+
+    for i in range(l):
+        if (labels[i]>0):
+            t[i]=hiTarget
+        else:
+            t[i]=loTarget
+        fApB = dec_values[i]*A+B
+        if fApB>=0:
+        	fval += t[i]*fApB + math.log(1+math.exp(-fApB))
+        else:
+        	fval += (t[i] - 1)*fApB +math.log(1+math.exp(fApB))
+    
+    iter = 0
+    while iter<max_iter:
+        # Update Gradient and Hessian (use H' = H + sigma I)
+        h11=sigma # numerically ensures strict PD
+        h22=sigma
+        h21=0.0; g1=0.0; g2=0.0
+        for i in range(l):
+            fApB = dec_values[i]*A+B
+            if (fApB >= 0):
+                p=math.exp(-fApB)/(1.0+math.exp(-fApB))
+                q=1.0/(1.0+math.exp(-fApB))
+            else:
+                p=1.0/(1.0+math.exp(fApB))
+                q=math.exp(fApB)/(1.0+math.exp(fApB))
+
+            d2=p*q
+            h11+=dec_values[i]*dec_values[i]*d2
+            h22+=d2
+            h21+=dec_values[i]*d2
+            d1=t[i]-p
+            g1+=dec_values[i]*d1
+            g2+=d1
+
+            iter += 1
+
+        # Stopping Criteria
+        if abs(g1)<eps and abs(g2)<eps:
+            break
+
+        # Finding Newton direction: -inv(H') * g
+        det=h11*h22-h21*h21
+        dA=-(h22*g1 - h21 * g2) / det
+        dB=-(-h21*g1+ h11 * g2) / det
+        gd=g1*dA+g2*dB
+
+
+        stepsize = 1		# Line Search
+        while stepsize >= min_step:
+            newA = A + stepsize * dA
+            newB = B + stepsize * dB
+
+			# New function value
+            newf = 0.0
+            for i in range(l):
+                fApB = dec_values[i]*newA+newB
+                if fApB >= 0:
+                    newf += t[i]*fApB + math.log(1+math.exp(-fApB))
+                else:
+                    newf += (t[i] - 1)*fApB +math.log(1+math.exp(fApB))
+
+			# Check sufficient decrease
+            if newf<fval+0.0001*stepsize*gd:
+                A=newA;B=newB;fval=newf
+                break
+            else:
+                stepsize = stepsize / 2.0
+
+        if stepsize < min_step:
+            print("Line search fails in two-class probability estimates\n")
+            break
+
+    if iter>=max_iter:
+        print("Reaching maximal iterations in two-class probability estimates\n")
+    t.free()
+
+fn sigmoid_predict(decision_value: Float64, A: Float64, B: Float64) -> Float64:
+    var fApB = decision_value*A+B
+    # 1-p used later; avoid catastrophic cancellation
+    if fApB >= 0:
+        return math.exp(-fApB)/(1.0+math.exp(-fApB))
+    else:
+        return 1.0/(1+math.exp(fApB))
+
+# Method 2 from the multiclass_prob paper by Wu, Lin, and Weng to predict probabilities
+fn multiclass_probability(k: Int, r: UnsafePointer[UnsafePointer[Float64]], p: UnsafePointer[Float64]):
+    var iter = 0
+    var max_iter=max(100,k)
+    var Q=UnsafePointer[UnsafePointer[Float64]].alloc(k)
+    var Qp=UnsafePointer[Float64].alloc(k)
+    var pQp: Float64
+    var eps=0.005/k
+
+    for t in range(k):
+        p[t]=1.0/k  # Valid if k = 1
+        Q[t]=UnsafePointer[Float64].alloc(k)
+        Q[t][t]=0
+        for j in range(t):
+            Q[t][t]+=r[j][t]*r[j][t]
+            Q[t][j]=Q[j][t]
+        for j in range(t+1,k):
+            Q[t][t]+=r[j][t]*r[j][t]
+            Q[t][j]=-r[j][t]*r[t][j]
+    iter = 0
+    while iter<max_iter:
+		# stopping condition, recalculate QP,pQP for numerical accuracy
+        pQp=0.0
+        for t in range(k):
+            Qp[t]=0
+            for j in range(k):
+                Qp[t]+=Q[t][j]*p[j]
+            pQp+=p[t]*Qp[t]
+
+        var max_error=0.0
+        for t in range(k):
+            var error=abs(Qp[t]-pQp)
+            if error>max_error:
+                max_error=error
+
+        if max_error<eps:
+            break
+
+        for t in range(k):
+            var diff=(-Qp[t]+pQp)/Q[t][t]
+            p[t]+=diff
+            pQp=(pQp+diff*(diff*Q[t][t]+2*Qp[t]))/(1+diff)/(1+diff)
+            for j in range(k):
+                Qp[j]=(Qp[j]+diff*Q[t][j])/(1+diff)
+                p[j]/=(1+diff)
+        
+        iter += 1
+
+    if iter>=max_iter:
+        print("Exceeds max_iter in multiclass_prob\n")
+    for t in range(k):
+        Q[t].free()
+    Q.free()
+    Qp.free()
+
+# Using cross-validation decision values to get parameters for SVC probability estimates
+fn svm_binary_svc_probability(
+    prob: svm_problem, param: svm_parameter,
+    Cp: Float64, Cn: Float64, mut probA: Float64, mut probB: Float64):
+    var nr_fold = 5
+    var perm: UnsafePointer[Scalar[DType.int]]
+    var dec_values = UnsafePointer[Float64].alloc(prob.l)
+
+	# random shuffle
+    try:
+        perm = fill_indices(prob.l)
+    except:
+        perm = UnsafePointer[Scalar[DType.int]].alloc(prob.l)
+        for i in range(prob.l):
+            perm[i]=i
+    #random.seed()
+    for i in range(prob.l - 1, 0, -1):
+        var j = Int(random.random_ui64(0, i))
+        swap(perm[i],perm[j])
+
+    for i in range(nr_fold):
+        var begin = i*prob.l//nr_fold
+        var end = (i+1)*prob.l//nr_fold
+        var k = 0
+        var subprob: svm_problem
+
+        subprob.l = prob.l-(end-begin)
+        subprob.x = UnsafePointer[UnsafePointer[svm_node]].alloc(subprob.l)
+        subprob.y = UnsafePointer[Float64].alloc(subprob.l)
+
+        for j in range(begin):
+            subprob.x[k] = prob.x[perm[j]]
+            subprob.y[k] = prob.y[perm[j]]
+            k += 1
+
+        for j in range(end, prob.l):
+            subprob.x[k] = prob.x[perm[j]]
+            subprob.y[k] = prob.y[perm[j]]
+            k += 1
+
+        var p_count, n_count = 0, 0
+        for j in range(k):
+        	if subprob.y[j]>0:
+        		p_count += 1
+        	else:
+        		n_count += 1
+
+        if p_count==0 and n_count==0:
+        	for j in range(begin, end):
+        		dec_values[perm[j]] = 0
+        elif p_count > 0 and n_count == 0:
+        	for j in range(begin, end):
+        		dec_values[perm[j]] = 1
+        elif p_count == 0 and n_count > 0:
+        	for j in range(begin, end):
+        		dec_values[perm[j]] = -1
+        else:
+            var subparam = param.copy()
+            subparam.probability=0
+            subparam.C=1.0
+            subparam.nr_weight=2
+            subparam.weight_label = UnsafePointer[Int].alloc(2)
+            subparam.weight = UnsafePointer[Float64].alloc(2)
+            subparam.weight_label[0]=+1
+            subparam.weight_label[1]=-1
+            subparam.weight[0]=Cp
+            subparam.weight[1]=Cn
+            #var submodel = svm_train(subprob,subparam)
+            for j in range(begin, end):
+                pass
+                #svm_predict_values(submodel,prob.x[perm[j]],&(dec_values[perm[j]]))
+                # ensure +1 -1 order; reason not using CV subroutine
+                #dec_values[perm[j]] *= submodel->label[0]
+
+        	#svm_free_and_destroy_model(&submodel)
+        	#svm_destroy_param(&subparam)
+
+        subprob.x.free()
+        subprob.y.free()
+
+    sigmoid_train(prob.l,dec_values,prob.y,probA,probB)
+    dec_values.free()
+    perm.free()
+
+# Binning method from the oneclass_prob paper by Que and Lin to predict the probability as a normal instance (i.e., not an outlier)
+fn predict_one_class_probability(model: svm_model, dec_value: Float64) -> Float64:
+    var prob_estimate = 0.0
+    var nr_marks = 10
+
+    if dec_value < model.prob_density_marks[0]:
+    	prob_estimate = 0.001
+    elif dec_value > model.prob_density_marks[nr_marks-1]:
+    	prob_estimate = 0.999
+    else:
+    	for i in range(1,nr_marks):
+    		if dec_value < model.prob_density_marks[i]:
+    			prob_estimate = i/nr_marks
+    			break
+
+    return prob_estimate
+
+# Get parameters for one-class SVM probability estimates
