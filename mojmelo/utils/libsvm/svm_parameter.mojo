@@ -1,3 +1,4 @@
+@fieldwise_init
 struct svm_parameter(Copyable, Movable):
 	# svm_type
 	alias C_SVC: Int = 0

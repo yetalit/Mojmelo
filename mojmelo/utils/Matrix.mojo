@@ -1322,9 +1322,9 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         fn cmp_fn(a: Scalar[DType.int], b: Scalar[DType.int]) -> Bool:
             @parameter
             if ascending:
-                return Bool(self.data[Int(a)] < self.data[Int(b)])
+                return self.data[Int(a)] < self.data[Int(b)]
             else:
-                return Bool(self.data[Int(a)] > self.data[Int(b)])
+                return self.data[Int(a)] > self.data[Int(b)]
 
         sort[cmp_fn](
             Span[
@@ -1341,9 +1341,9 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         fn cmp_fn(a: Float32, b: Float32) -> Bool:
             @parameter
             if ascending:
-                return Bool(a < b)
+                return a < b
             else:
-                return Bool(a > b)
+                return a > b
 
         mojmelo.utils.sort.sort[cmp_fn](
             Span[
