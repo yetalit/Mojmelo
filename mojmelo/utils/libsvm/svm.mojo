@@ -129,12 +129,12 @@ struct Cache(Copyable, Movable):
     var lru_head: head_t
 
     @always_inline
-    fn __init__(out self, l: Int, size: UInt):
-        self.l = l
-        self.size = (size - (self.l * size_of[head_t]())) // 4
+    fn __init__(out self, l_: Int, size_: UInt):
+        self.l = l_
+        self.size = (size_ - (self.l * size_of[head_t]())) // 4
         self.head = UnsafePointer[head_t].alloc(self.l)
         memset_zero(self.head, self.l) # initialized to 0
-        self.size = max(self.size, UInt(2) * UInt(l))  # cache must be large enough for two columns
+        self.size = max(self.size, UInt(2) * UInt(self.l))  # cache must be large enough for two columns
         self.lru_head = head_t()
         self.lru_head.next = self.lru_head.prev = UnsafePointer(to=self.lru_head)
 
@@ -255,13 +255,13 @@ struct Kernel:
 
         if self._self.kernel_type == svm_parameter.LINEAR:
             self.kernel_function = kernel_linear
-        if self._self.kernel_type == svm_parameter.POLY:
+        elif self._self.kernel_type == svm_parameter.POLY:
             self.kernel_function = kernel_poly
-        if self._self.kernel_type == svm_parameter.RBF:
+        elif self._self.kernel_type == svm_parameter.RBF:
             self.kernel_function = kernel_rbf
-        if self._self.kernel_type == svm_parameter.SIGMOID:
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
             self.kernel_function = kernel_sigmoid
-        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
             self.kernel_function = kernel_precomputed
         else:
             self.kernel_function = kernel_linear
@@ -1295,13 +1295,13 @@ struct SVC_Q(QMatrix):
 
         if self._self.kernel_type == svm_parameter.LINEAR:
             self.kernel_function = kernel_linear
-        if self._self.kernel_type == svm_parameter.POLY:
+        elif self._self.kernel_type == svm_parameter.POLY:
             self.kernel_function = kernel_poly
-        if self._self.kernel_type == svm_parameter.RBF:
+        elif self._self.kernel_type == svm_parameter.RBF:
             self.kernel_function = kernel_rbf
-        if self._self.kernel_type == svm_parameter.SIGMOID:
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
             self.kernel_function = kernel_sigmoid
-        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
             self.kernel_function = kernel_precomputed
         else:
             self.kernel_function = kernel_linear
@@ -1375,13 +1375,13 @@ struct ONE_CLASS_Q(QMatrix):
 
         if self._self.kernel_type == svm_parameter.LINEAR:
             self.kernel_function = kernel_linear
-        if self._self.kernel_type == svm_parameter.POLY:
+        elif self._self.kernel_type == svm_parameter.POLY:
             self.kernel_function = kernel_poly
-        if self._self.kernel_type == svm_parameter.RBF:
+        elif self._self.kernel_type == svm_parameter.RBF:
             self.kernel_function = kernel_rbf
-        if self._self.kernel_type == svm_parameter.SIGMOID:
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
             self.kernel_function = kernel_sigmoid
-        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
             self.kernel_function = kernel_precomputed
         else:
             self.kernel_function = kernel_linear
@@ -1452,13 +1452,13 @@ struct SVR_Q(QMatrix):
 
         if self._self.kernel_type == svm_parameter.LINEAR:
             self.kernel_function = kernel_linear
-        if self._self.kernel_type == svm_parameter.POLY:
+        elif self._self.kernel_type == svm_parameter.POLY:
             self.kernel_function = kernel_poly
-        if self._self.kernel_type == svm_parameter.RBF:
+        elif self._self.kernel_type == svm_parameter.RBF:
             self.kernel_function = kernel_rbf
-        if self._self.kernel_type == svm_parameter.SIGMOID:
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
             self.kernel_function = kernel_sigmoid
-        if self._self.kernel_type == svm_parameter.PRECOMPUTED:
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
             self.kernel_function = kernel_precomputed
         else:
             self.kernel_function = kernel_linear
@@ -1913,7 +1913,7 @@ fn svm_binary_svc_probability(
         perm = UnsafePointer[Scalar[DType.int]].alloc(prob.l)
         for i in range(prob.l):
             perm[i]=i
-    #random.seed()
+
     for i in range(prob.l - 1, 0, -1):
         var j = Int(random.random_ui64(0, i))
         swap(perm[i],perm[j])
@@ -2502,6 +2502,8 @@ fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: 
             sum = algorithm.reduction.sum(NDBuffer[dtype=DType.float64, rank=1](values, model.l))
         except:
             print('Failed to calculate sum!')
+        values.free()
+        
         sum -= model.rho[0]
         dec_values[] = sum
 
@@ -2565,99 +2567,204 @@ fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: 
         return model.label[vote_max_idx]
 
 fn svm_predict(model: svm_model, x: UnsafePointer[svm_node]) -> Float64:
-	var nr_class = model.nr_class
-	var dec_values: UnsafePointer[Float64]
-	if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
-		dec_values = UnsafePointer[Float64].alloc(1)
-	else:
-		dec_values = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
-	var pred_result = svm_predict_values(model, x, dec_values)
-	dec_values.free()
-	return pred_result
+    var nr_class = model.nr_class
+    var dec_values: UnsafePointer[Float64]
+    if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
+        dec_values = UnsafePointer[Float64].alloc(1)
+    else:
+        dec_values = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+    var pred_result = svm_predict_values(model, x, dec_values)
+    dec_values.free()
+    return pred_result
 
 fn svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node], prob_estimates: UnsafePointer[Float64]) -> Float64:
-	if (model.param.svm_type == svm_parameter.C_SVC or model.param.svm_type == svm_parameter.NU_SVC) and model.probA and model.probB:
-		var nr_class = model.nr_class
-		var dec_values = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
-		_ = svm_predict_values(model, x, dec_values)
+    if (model.param.svm_type == svm_parameter.C_SVC or model.param.svm_type == svm_parameter.NU_SVC) and model.probA and model.probB:
+        var nr_class = model.nr_class
+        var dec_values = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+        _ = svm_predict_values(model, x, dec_values)
 
-		var min_prob=1e-7
-		var pairwise_prob=UnsafePointer[UnsafePointer[Float64]].alloc(nr_class)
-		for i in range(nr_class):
-			pairwise_prob[i]=UnsafePointer[Float64].alloc(nr_class)
-		var k=0
-		for i in range(nr_class):
-			for j in range(i+1, nr_class):
-				pairwise_prob[i][j]=min(max(sigmoid_predict(dec_values[k],model.probA[k],model.probB[k]),min_prob),1-min_prob)
-				pairwise_prob[j][i]=1-pairwise_prob[i][j]
-				k += 1
-		if nr_class == 2:
-			prob_estimates[0] = pairwise_prob[0][1]
-			prob_estimates[1] = pairwise_prob[1][0]
-		else:
-			multiclass_probability(nr_class,pairwise_prob,prob_estimates)
+        var min_prob=1e-7
+        var pairwise_prob=UnsafePointer[UnsafePointer[Float64]].alloc(nr_class)
+        for i in range(nr_class):
+            pairwise_prob[i]=UnsafePointer[Float64].alloc(nr_class)
+        var k=0
+        for i in range(nr_class):
+            for j in range(i+1, nr_class):
+                pairwise_prob[i][j]=min(max(sigmoid_predict(dec_values[k],model.probA[k],model.probB[k]),min_prob),1-min_prob)
+                pairwise_prob[j][i]=1-pairwise_prob[i][j]
+                k += 1
+        if nr_class == 2:
+            prob_estimates[0] = pairwise_prob[0][1]
+            prob_estimates[1] = pairwise_prob[1][0]
+        else:
+            multiclass_probability(nr_class,pairwise_prob,prob_estimates)
 
-		var prob_max_idx = 0
-		for i in range(1, nr_class):
-			if prob_estimates[i] > prob_estimates[prob_max_idx]:
-				prob_max_idx = i
-		for i in range(nr_class):
-			pairwise_prob[i].free()
-		dec_values.free()
-		pairwise_prob.free()
-		return model.label[prob_max_idx]
-	elif model.param.svm_type == svm_parameter.ONE_CLASS and model.prob_density_marks:
-		var dec_value = 0.0
-		var pred_result = svm_predict_values(model,x,UnsafePointer(to=dec_value))
-		prob_estimates[0] = predict_one_class_probability(model,dec_value)
-		prob_estimates[1] = 1-prob_estimates[0]
-		return pred_result
-	else:
-		return svm_predict(model, x)
+        var prob_max_idx = 0
+        for i in range(1, nr_class):
+            if prob_estimates[i] > prob_estimates[prob_max_idx]:
+                prob_max_idx = i
+        for i in range(nr_class):
+            pairwise_prob[i].free()
+        dec_values.free()
+        pairwise_prob.free()
+        return model.label[prob_max_idx]
+    elif model.param.svm_type == svm_parameter.ONE_CLASS and model.prob_density_marks:
+        var dec_value = 0.0
+        var pred_result = svm_predict_values(model,x,UnsafePointer(to=dec_value))
+        prob_estimates[0] = predict_one_class_probability(model,dec_value)
+        prob_estimates[1] = 1-prob_estimates[0]
+        return pred_result
+    else:
+        return svm_predict(model, x)
+
+fn svm_decision_function(model: svm_model, x: UnsafePointer[svm_node]) -> Tuple[UnsafePointer[Float64], Int]:
+    var nr_class = model.nr_class
+    var l: Int
+    var dec_values: UnsafePointer[Float64]
+    if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
+        l = 1
+    else:
+        l = nr_class*(nr_class-1)//2
+    dec_values = UnsafePointer[Float64].alloc(l)
+    _ = svm_predict_values(model, x, dec_values)
+    return dec_values, l
 
 fn svm_free_model_content(mut model_ptr: svm_model):
-	if model_ptr.free_sv and model_ptr.l > 0 and model_ptr.SV:
-		model_ptr.SV[0].free()
-	if model_ptr.sv_coef:
-		for i in range(model_ptr.nr_class-1):
-			model_ptr.sv_coef[i].free()
+    if model_ptr.free_sv and model_ptr.l > 0 and model_ptr.SV:
+        model_ptr.SV[0].free()
+    if model_ptr.sv_coef:
+        for i in range(model_ptr.nr_class-1):
+            model_ptr.sv_coef[i].free()
 
-	model_ptr.SV.free()
-	model_ptr.SV = UnsafePointer[UnsafePointer[svm_node]]()
+    model_ptr.SV.free()
+    model_ptr.SV = UnsafePointer[UnsafePointer[svm_node]]()
 
-	model_ptr.sv_coef.free()
-	model_ptr.sv_coef = UnsafePointer[UnsafePointer[Float64]]()
+    model_ptr.sv_coef.free()
+    model_ptr.sv_coef = UnsafePointer[UnsafePointer[Float64]]()
 
-	model_ptr.rho.free()
-	model_ptr.rho = UnsafePointer[Float64]()
+    model_ptr.rho.free()
+    model_ptr.rho = UnsafePointer[Float64]()
 
-	model_ptr.label.free()
-	model_ptr.label = UnsafePointer[Int]()
+    model_ptr.label.free()
+    model_ptr.label = UnsafePointer[Int]()
 
-	model_ptr.probA.free()
-	model_ptr.probA = UnsafePointer[Float64]()
+    model_ptr.probA.free()
+    model_ptr.probA = UnsafePointer[Float64]()
 
-	model_ptr.probB.free()
-	model_ptr.probB = UnsafePointer[Float64]()
+    model_ptr.probB.free()
+    model_ptr.probB = UnsafePointer[Float64]()
 
-	model_ptr.prob_density_marks.free()
-	model_ptr.prob_density_marks = UnsafePointer[Float64]()
+    model_ptr.prob_density_marks.free()
+    model_ptr.prob_density_marks = UnsafePointer[Float64]()
 
-	model_ptr.sv_indices.free()
-	model_ptr.sv_indices = UnsafePointer[Int]()
+    model_ptr.sv_indices.free()
+    model_ptr.sv_indices = UnsafePointer[Int]()
 
-	model_ptr.nSV.free()
-	model_ptr.nSV = UnsafePointer[Int]()
+    model_ptr.nSV.free()
+    model_ptr.nSV = UnsafePointer[Int]()
 
 fn svm_free_and_destroy_model(mut model_ptr_ptr: UnsafePointer[svm_model]):
-	if model_ptr_ptr:
-		svm_free_model_content(model_ptr_ptr[])
-		model_ptr_ptr.free()
-		model_ptr_ptr = UnsafePointer[svm_model]()
+    if model_ptr_ptr:
+        svm_free_model_content(model_ptr_ptr[])
+        model_ptr_ptr.free()
+        model_ptr_ptr = UnsafePointer[svm_model]()
 
 fn svm_destroy_param(param: svm_parameter):
-	param.weight_label.free()
-	param.weight.free()
+    if param.weight_label:
+        param.weight_label.free()
+    if param.weight:
+        param.weight.free()
+
+fn svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
+    # svm_type
+
+    var svm_type = param.svm_type
+    if svm_type != svm_parameter.C_SVC and svm_type != svm_parameter.NU_SVC and svm_type != svm_parameter.ONE_CLASS and svm_type != svm_parameter.EPSILON_SVR and svm_type != svm_parameter.NU_SVR:
+        return "unknown svm type"
+
+    # kernel_type, degree
+
+    var kernel_type = param.kernel_type
+    if kernel_type != svm_parameter.LINEAR and kernel_type != svm_parameter.POLY and kernel_type != svm_parameter.RBF and kernel_type != svm_parameter.SIGMOID and kernel_type != svm_parameter.PRECOMPUTED:
+        return "unknown kernel type"
+
+    if (kernel_type == svm_parameter.POLY or kernel_type == svm_parameter.RBF or kernel_type == svm_parameter.SIGMOID) and param.gamma < 0:
+        return "gamma < 0"
+
+    if kernel_type == svm_parameter.POLY and param.degree < 0:
+        return "degree of polynomial kernel < 0"
+
+    # cache_size,eps,C,nu,p,shrinking
+
+    if param.cache_size <= 0:
+        return "cache_size <= 0"
+
+    if param.eps <= 0:
+        return "eps <= 0"
+
+    if svm_type == svm_parameter.C_SVC or svm_type == svm_parameter.EPSILON_SVR or svm_type == svm_parameter.NU_SVR:
+        if param.C <= 0:
+            return "C <= 0"
+
+    if svm_type == svm_parameter.NU_SVC or svm_type == svm_parameter.ONE_CLASS or svm_type == svm_parameter.NU_SVR:
+        if param.nu <= 0 or param.nu > 1:
+            return "nu <= 0 or nu > 1"
+
+    if svm_type == svm_parameter.EPSILON_SVR:
+        if param.p < 0:
+            return "p < 0"
+
+    if param.shrinking != 0 and param.shrinking != 1:
+        return "shrinking != 0 and shrinking != 1"
+
+    if param.probability != 0 and param.probability != 1:
+        return "probability != 0 and probability != 1"
+
+
+    # check whether nu-svc is feasible
+
+    if svm_type == svm_parameter.NU_SVC:
+        var l = prob.l
+        var max_nr_class = 16
+        var nr_class = 0
+        var label = UnsafePointer[Int].alloc(max_nr_class)
+        var count = UnsafePointer[Int].alloc(max_nr_class)
+
+        for i in range(l):
+            var this_label = Int(prob.y[i])
+            var j = 0
+            while j<nr_class:
+                if this_label == label[j]:
+                    count[j] += 1
+                    break
+                j += 1
+            if j == nr_class:
+                if nr_class == max_nr_class:
+                    var new = UnsafePointer[Int].alloc(max_nr_class*2)
+                    memcpy(dest=new, src=label, count=max_nr_class)
+                    label.free()
+                    label = new
+                    new = UnsafePointer[Int].alloc(max_nr_class*2)
+                    memcpy(dest=new, src=count, count=max_nr_class)
+                    count.free()
+                    count = new
+                label[nr_class] = this_label
+                count[nr_class] = 1
+                nr_class += 1
+
+        for i in range(nr_class):
+            var n1 = count[i]
+            for j in range(i+1, nr_class):
+                var n2 = count[j]
+                if param.nu*(n1+n2)/2 > min(n1,n2):
+                    label.free()
+                    count.free()
+                    return "specified nu is infeasible"
+
+        label.free()
+        count.free()
+
+    return ""
 
 fn svm_check_probability_model(model: svm_model) -> Bool:
     return

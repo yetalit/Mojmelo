@@ -1,183 +1,247 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sign, polynomial_kernel, gaussian_kernel
+from mojmelo.utils.utils import CVM, sign
+from mojmelo.utils.libsvm.svm_parameter import svm_parameter
+from mojmelo.utils.libsvm.svm_problem import svm_problem
+from mojmelo.utils.libsvm.svm_node import svm_node
+from mojmelo.utils.libsvm.svm_model import svm_model
+from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
+from algorithm import parallelize
+import random
 
-struct SVM_Primal(CVM):
-    var lr: Float32
-    var lambda_param: Float32
-    var n_iters: Int
-    var class_zero: Bool
-    var weights: Matrix
-    var bias: Float32
-
-    fn __init__(out self, learning_rate: Float32 = 0.001, lambda_param: Float32 = 0.01, n_iters: Int = 1000, class_zero: Bool = False):
-        self.lr = learning_rate
-        self.lambda_param = lambda_param
-        self.n_iters = n_iters
-        self.class_zero = class_zero
-        self.weights = Matrix(0, 0)
-        self.bias = 0.0
-
-    fn _fit(mut self, X: Matrix, y: Matrix) raises:
-        self.weights = Matrix.zeros(X.width, 1)
-        self.bias = 0.0
-
-        for _ in range(self.n_iters):
-            for i in range(X.height):
-                if y.data[i] * ((X[i] * self.weights)[0, 0] - self.bias) >= 1:
-                    self.weights -= self.lr * (2 * self.lambda_param * self.weights)
-                else:
-                    self.weights -= self.lr * (
-                        2 * self.lambda_param * self.weights - (X[i] * y.data[i]).reshape(X.width, 1)
-                    )
-                    self.bias -= self.lr * y.data[i]
-
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
-        if self.class_zero:
-            self._fit(X, y.where(y <= 0.0, -1.0, 1.0))
-        else:
-            self._fit(X, y)
-
-    fn predict(self, X: Matrix) raises -> Matrix:
-        if self.class_zero:
-            var y_predicted = sign(X * self.weights - self.bias)
-            return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
-        return sign(X * self.weights - self.bias)
-
-    fn __init__(out self, params: Dict[String, String]) raises:
-        if 'learning_rate' in params:
-            self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
-        else:
-            self.lr = 0.001
-        if 'lambda_param' in params:
-            self.lambda_param = atof(String(params['lambda_param'])).cast[DType.float32]()
-        else:
-            self.lambda_param = 0.01
-        if 'n_iters' in params:
-            self.n_iters = atol(String(params['n_iters']))
-        else:
-            self.n_iters = 1000
-        if 'class_zero' in params:
-            if params['class_zero'] == 'True':
-                self.class_zero = True
-            else:
-                self.class_zero = False
-        else:
-            self.class_zero = False
-        self.weights = Matrix(0, 0)
-        self.bias = 0.0
-
-
-struct SVM_Dual(CVM):
-    var lr: Float32
-    var epoches: Int
-    var C: Float32
+struct SVC(CVM):
+    var C: Float64
+    var nu: Float64
     var kernel: String
-    var kernel_func: fn(Tuple[Float32, Int], Matrix, Matrix) raises -> Matrix
     var degree: Int
-    var gamma: Float32
-    var class_zero: Bool
-    var k_params: Tuple[Float32, Int]
-    var alpha: Matrix
-    var bias: Float32
-    var X: Matrix
-    var y: Matrix
+    var gamma: Float64
+    var coef0: Float64
 
-    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, C: Float32 = 1.0, kernel: String = 'poly', degree: Int = 2, gamma: Float32 = -1.0, class_zero: Bool = False):
-        self.lr = learning_rate
-        self.epoches = n_iters
+    var cache_size: Float64
+    var tol: Float64
+    var shrinking: Bool
+    var probability: Bool
+    var _model: UnsafePointer[svm_model]
+    var _n_features: Int
+    var _x_list: List[List[svm_node]]
+    var _x_ptr: List[UnsafePointer[svm_node]]
+
+    fn __init__(out self, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
+                degree: Int = 2, gamma: Float64 = -1.0, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
+        self.nu = nu
         self.kernel = kernel.lower()
-        if self.kernel == 'poly':
-            self.k_params = (C, degree)
-            self.kernel_func = polynomial_kernel
-        else:
-            self.k_params = (gamma, 0)
-            self.kernel_func = gaussian_kernel
         self.degree = degree
         self.gamma = gamma
-        self.class_zero = class_zero
-        self.alpha = Matrix(0, 0)
-        self.bias = 0.0
-        self.X = Matrix(0, 0)
-        self.y = Matrix(0, 0)
+        self.coef0 = coef0
+        self.cache_size = cache_size
+        self.tol = tol
+        self.shrinking = shrinking
+        self.probability = probability
+        if random_state != -1:
+            random.seed(random_state)
+        else:
+            random.seed()
+        self._model = UnsafePointer[svm_model]()
+        self._n_features = 0
+        self._x_list = List[List[svm_node]]()
+        self._x_ptr = List[UnsafePointer[svm_node]]()
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
-        self.X = X
-        if self.kernel == 'rbf' and self.gamma < 0.0:
-            self.gamma = 1.0 / (self.X.width * self.X._var())
-            self.k_params = (self.gamma, 0)
-        if self.class_zero:
-            self.y = y.where(y <= 0.0, -1.0, 1.0)
-        else:
-            self.y = y
-        self.alpha = Matrix.zeros(X.height, 1)
-        self.bias = 0.0
-        var ones = Matrix.ones(X.height, 1) 
+        self._n_features = X.width
 
-        var y_mul_kernal = self.y.outer(self.y).ele_mul(self.kernel_func(self.k_params, X, X)) # yi yj K(xi, xj)
+        var svm_type = 5
+        if self.C != 0.0:
+            svm_type = svm_parameter.C_SVC
+        elif self.nu != 0.0:
+            svm_type = svm_parameter.NU_SVC
 
-        var alpha_index = List[Int]()
+        if self.gamma == -1.0:
+            self.gamma = (1.0 / (X.width * X._var())).cast[DType.float64]()
+        elif self.gamma == -0.1:
+            self.gamma = 1.0 / X.width
 
-        for i in range(self.epoches):
-            self.alpha += self.lr * (ones - y_mul_kernal * self.alpha) # α = α + η*(1 – yk ∑ αj yj K(xj, xk)) to maximize
-            for j in range(self.alpha.size):
-                # 0<α<C
-                if self.alpha.data[j] > self.C:
-                    self.alpha.data[j] = self.C
-                elif self.alpha.data[j] < 0.0:
-                    self.alpha.data[j] = 0.0
+        var svm_kernel = 5
+        if self.kernel == 'linear':
+            svm_kernel = svm_parameter.LINEAR
+        elif self.kernel == 'poly':
+            svm_kernel = svm_parameter.POLY
+        elif self.kernel == 'rbf':
+            svm_kernel = svm_parameter.RBF
+        elif self.kernel == 'sigmoid':
+            svm_kernel = svm_parameter.SIGMOID
+        elif self.kernel == 'precomputed':
+            svm_kernel = svm_parameter.PRECOMPUTED
+
+        var param = svm_parameter(
+            svm_type = svm_type,
+            kernel_type = svm_kernel,
+            degree = self.degree,
+            gamma = self.gamma,
+            coef0 = self.coef0,
+            cache_size = self.cache_size,
+            eps = self.tol,
+            C = self.C,
+            nr_weight = 0,
+            weight_label = UnsafePointer[Int](),
+            weight = UnsafePointer[Float64](),
+            nu = self.nu,
+            p = 0.0,
+            shrinking = self.shrinking,
+            probability = self.probability)
+
+        var X_float64 = X.cast_ptr[DType.float64]()
+
+        self._x_list = List[List[svm_node]](capacity=X.height)
+        self._x_list.resize(X.height, List[svm_node]())
+        self._x_ptr = List[UnsafePointer[svm_node]](capacity=X.height)
+        self._x_ptr.resize(X.height, UnsafePointer[svm_node]())
+
+        @parameter
+        fn p(i: Int):
+            for c in range(X.width):
+                var val: Float64
+                if X.order == 'c':
+                    val = X_float64[(i * X.width) + c]
                 else:
-                    if i == self.epoches - 1:
-                        alpha_index.append(j)
+                    val = X_float64[(c * X.height) + i]
+                if val != 0.0:
+                    self._x_list[i].append(svm_node(c+1, val))
+            self._x_list[i].append(svm_node(-1, 0))
+            self._x_ptr[i] = self._x_list[i]._data
+        parallelize[p](X.height)
 
-        # for intercept b, we will only consider α which are 0<α<C 
-        self.bias = (self.y[alpha_index] - (self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel_func(self.k_params, X, X[alpha_index])).reshape(len(alpha_index), 1)).mean() # avgC≤αi≤0{ yi – ∑αjyj K(xj, xi) }
+        X_float64.free()
+
+        var prob = svm_problem()
+        prob.l = X.height
+        prob.y = y.cast_ptr[DType.float64]()
+        prob.x = self._x_ptr._data
+
+        var check = svm_check_parameter(prob, param)
+        if check != "":
+            prob.y.free()
+            raise Error('Error: ' + check)
+
+        self._model = svm_train(prob, param)
+
+        prob.y.free()
     
     fn predict(self, X: Matrix) raises -> Matrix:
-        if self.class_zero:
-            var y_predicted = sign(self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel_func(self.k_params, self.X, X) + self.bias).reshape(X.height, 1)
-            return y_predicted.where(y_predicted < 0.0, 0.0, 1.0)
-        return sign(self.alpha.ele_mul(self.y).reshape(1, self.y.height) * self.kernel_func(self.k_params, self.X, X) + self.bias).reshape(X.height, 1)
+        var X_float64 = X.cast_ptr[DType.float64]()
+        var y_ptr = UnsafePointer[Float64].alloc(X.height)
+
+        @parameter
+        fn p(i: Int):
+            var x_list = List[svm_node]()
+            for c in range(X.width):
+                var val: Float64
+                if X.order == 'c':
+                    val = X_float64[(i * X.width) + c]
+                else:
+                    val = X_float64[(c * X.height) + i]
+                if val != 0.0:
+                    x_list.append(svm_node(c+1, val))
+            x_list.append(svm_node(-1, 0))
+            y_ptr[i] = svm_predict(self._model[], x_list._data)
+            _ = x_list
+        parallelize[p](X.height)
+
+        X_float64.free()
+
+        return Matrix(data=y_ptr, height=X.height, width=1)
+
+    fn decision_function(self, X: Matrix) -> List[List[Float64]]:
+        var X_float64 = X.cast_ptr[DType.float64]()
+        var dec_values = List[List[Float64]](capacity=X.height)
+        dec_values.resize(X.height, List[Float64]())
+
+        @parameter
+        fn p(i: Int):
+            var x_list = List[svm_node]()
+            for c in range(X.width):
+                var val: Float64
+                if X.order == 'c':
+                    val = X_float64[(i * X.width) + c]
+                else:
+                    val = X_float64[(c * X.height) + i]
+                if val != 0.0:
+                    x_list.append(svm_node(c+1, val))
+            x_list.append(svm_node(-1, 0))
+            var result = svm_decision_function(self._model[], x_list._data)
+            dec_values[i] = List[Float64](unsafe_uninit_length=result[1])
+            dec_values[i]._data = result[0]
+            _ = x_list
+        parallelize[p](X.height)
+
+        X_float64.free()
+
+        return dec_values^
+
+    fn __del__(deinit self):
+        if self._model:
+            svm_free_and_destroy_model(self._model)
+
+    fn support_vectors(self) raises -> Matrix:
+        var support_vectors_ = Matrix.zeros(self._model[].l, self._n_features)
+        for row in range(support_vectors_.height):
+            var pointer = 0
+            while self._model[].SV[row][pointer].index != -1:
+                support_vectors_[row, self._model[].SV[row][pointer].index-1] = self._model[].SV[row][pointer].value.cast[DType.float32]()
+                pointer += 1
+        return support_vectors_^
 
     fn __init__(out self, params: Dict[String, String]) raises:
-        if 'learning_rate' in params:
-            self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
-        else:
-            self.lr = 0.001
-        if 'n_iters' in params:
-            self.epoches = atol(String(params['n_iters']))
-        else:
-            self.epoches = 1000
         if 'C' in params:
-            self.C = atof(String(params['C'])).cast[DType.float32]()
+            self.C = atof(String(params['C']))
         else:
-            self.C = 1.0
+            self.C = 0.0
+        if 'nu' in params:
+            self.nu = atof(String(params['nu']))
+        else:
+            self.nu = 0.0
         if 'kernel' in params:
             self.kernel = params['kernel']
         else:
-            self.kernel = 'poly'
+            self.kernel = 'rbf'
         if 'degree' in params:
             self.degree = atol(String(params['degree']))
         else:
             self.degree = 2
         if 'gamma' in params:
-            self.gamma = atof(String(params['gamma'])).cast[DType.float32]()
+            self.gamma = atof(String(params['gamma']))
         else:
             self.gamma = -1.0
-        if self.kernel == 'poly':
-            self.k_params = (self.C, self.degree)
-            self.kernel_func = polynomial_kernel
+        if 'coef0' in params:
+            self.coef0 = atof(String(params['coef0']))
         else:
-            self.k_params = (self.gamma, 0)
-            self.kernel_func = gaussian_kernel
-        if 'class_zero' in params:
-            if params['class_zero'] == 'True':
-                self.class_zero = True
+            self.coef0 = 0.0
+        if 'cache_size' in params:
+            self.cache_size = atof(String(params['cache_size']))
+        else:
+            self.cache_size = 200
+        if 'tol' in params:
+            self.tol = atof(String(params['tol']))
+        else:
+            self.tol = 1e-3
+        if 'shrinking' in params:
+            if params['shrinking'] == 'True':
+                self.shrinking = True
             else:
-                self.class_zero = False
+                self.shrinking = False
         else:
-            self.class_zero = False
-        self.alpha = Matrix(0, 0)
-        self.bias = 0.0
-        self.X = Matrix(0, 0)
-        self.y = Matrix(0, 0)
+            self.shrinking = True
+        if 'probability' in params:
+            if params['probability'] == 'True':
+                self.probability = True
+            else:
+                self.probability = False
+        else:
+            self.probability = False
+        if 'random_state' in params and atol(String(params['random_state'])) != -1:
+            random.seed(atol(String(params['random_state'])))
+        else:
+            random.seed()
+        self._model = UnsafePointer[svm_model]()
+        self._n_features = 0
+        self._x_list = List[List[svm_node]]()
+        self._x_ptr = List[UnsafePointer[svm_node]]()

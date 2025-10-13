@@ -221,19 +221,6 @@ fn sign(z: Matrix) -> Matrix:
     return mat^
 
 @always_inline
-fn ReLu(z: Matrix) -> Matrix:
-    return z.where(z > 0.0, z, 0.0)
-
-fn polynomial_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> Matrix:
-    return (params[0] + X * Z.T()) ** params[1] #(c + X.y)^degree
-
-fn gaussian_kernel(params: Tuple[Float32, Int], X: Matrix, Z: Matrix) raises -> Matrix:
-    var sq_dist = Matrix(X.height, Z.height, order= X.order)
-    for i in range(sq_dist.height):  # Loop over each sample in X
-        sq_dist[i] = ((X[i] - Z) ** 2).sum(axis=1)
-    return (-sq_dist * params[0]).exp() # e^-(1/ σ2) ||X-y|| ^2
-
-@always_inline
 fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Mean Squared Error.
 
