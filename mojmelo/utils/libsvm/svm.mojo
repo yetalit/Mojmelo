@@ -1,3 +1,5 @@
+# Re-implementation of libsvm, a library for support vector machines by Chih-Chung Chang and Chih-Jen Lin (https://www.csie.ntu.edu.tw/~cjlin/libsvm/) with some modifications.
+
 from memory import memcpy, memset_zero
 from .svm_node import svm_node
 from .svm_parameter import svm_parameter

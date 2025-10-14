@@ -1,4 +1,4 @@
-# I reimplemented the kd-tree implementation in C++ (and Fortran) by Matthew B. Kennel (https://github.com/jmhodges/kdtree2/) with some modifications.
+# Re-implementation of kdtree2, a kd-tree implementation in C++ (and Fortran) by Matthew B. Kennel (https://github.com/jmhodges/kdtree2/) with some modifications.
 
 from mojmelo.utils.Matrix import Matrix
 from buffer import NDBuffer
