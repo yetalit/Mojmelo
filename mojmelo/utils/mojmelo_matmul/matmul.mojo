@@ -3,8 +3,6 @@
 from algorithm import vectorize, parallelize
 from memory.memory import _malloc, stack_allocation
 from sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
-import benchmark
-from testing import assert_equal
 from utils import IndexList
 import random
 from .params import *
@@ -37,11 +35,11 @@ struct Layout(Copyable, Movable, Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 
-    fn __init__(out self, shape: (Int, Int), strides: (Int, Int)):
+    fn __init__(out self, shape: Tuple[Int, Int], strides: Tuple[Int, Int]):
         self.shape = IndexList[2](shape[0], shape[1])
         self.strides = IndexList[2](strides[0], strides[1])
 
-    fn __init__(out self, shape: (Int, Int)):
+    fn __init__(out self, shape: Tuple[Int, Int]):
         self.strides = IndexList[2](shape[1], 1)
         self.shape = IndexList[2](shape[0], shape[1])
 
@@ -62,7 +60,7 @@ struct Matrix[Type: DType]:
     var data: UnsafePointer[Scalar[Type]]
     var layout: Layout
 
-    fn __init__(out self, shape: (Int, Int)):
+    fn __init__(out self, shape: Tuple[Int, Int]):
         self.data = UnsafePointer[Scalar[Type]].alloc(shape[0] * shape[1])
         self.layout = Layout(shape)
 
@@ -75,7 +73,7 @@ struct Matrix[Type: DType]:
 
     @always_inline("nodebug")
     fn __init__(
-        out self, data: UnsafePointer[Scalar[Type]], shape: (Int, Int)
+        out self, data: UnsafePointer[Scalar[Type]], shape: Tuple[Int, Int]
     ):
         self.data = data
         self.layout = Layout(shape)

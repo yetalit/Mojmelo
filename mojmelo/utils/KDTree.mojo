@@ -520,14 +520,14 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
 
         sr.centeridx = -1
         sr.correltime = 0
-        sr.nn = nn
+        sr.nn = UInt(nn)
 
         self.root[].search(sr)
 
         _ = qv.data
 
         if (sort_results):
-            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
+            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= UInt(len(result))))
         
     fn n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int,
                         mut result: KDTreeResultVector):
@@ -543,13 +543,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         # construct the search record.
         sr.centeridx = idxin
         sr.correltime = correltime
-        sr.nn = nn; 
+        sr.nn = UInt(nn)
         self.root[].search(sr)
 
         buf.free()
 
         if (sort_results):
-            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
+            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= UInt(len(result))))
 
 
     fn r_nearest(self, qv: NDBuffer[dtype=DType.float32, rank=1], r2: Float32, mut result: KDTreeResultVector):
@@ -568,7 +568,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         _ = qv.data
 
         if (sort_results):
-            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
+            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= UInt(len(result))))
 
     fn r_count(self, qv: NDBuffer[dtype=DType.float32, rank=1], r2: Float32) -> Int:
         # search for all within a ball of a certain radius
@@ -606,7 +606,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
         buf.free()
 
         if (sort_results):
-            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
+            sort[KDTreeResult.__le__](Span[KDTreeResult, __origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= UInt(len(result))))
 
     fn r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) -> Int:
         var buf = UnsafePointer[Float32].alloc(self.dim)

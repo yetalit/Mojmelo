@@ -11,7 +11,7 @@ struct svm_model:
 	var probA: UnsafePointer[Float64] # pariwise probability information
 	var probB: UnsafePointer[Float64]
 	var prob_density_marks: UnsafePointer[Float64] # probability information for ONE_CLASS
-	var sv_indices: UnsafePointer[Int] # sv_indices[0,...,nSV-1] are values in [1,...,num_traning_data] to indicate SVs in the training set
+	var sv_indices: UnsafePointer[Scalar[DType.int]] # sv_indices[0,...,nSV-1] are values in [1,...,num_traning_data] to indicate SVs in the training set
 
 	# for classification only
 

@@ -107,7 +107,7 @@ fn kernel_sigmoid(k: kernel_params, i: Int, j: Int) -> Float64:
 fn kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64:
     return k.x[i][Int(k.x[j][0].value)].value
 
-struct head_t(Copyable, Movable):
+struct head_t:
     var prev: UnsafePointer[head_t]
     var next: UnsafePointer[head_t]	# a cicular list
     var data: UnsafePointer[Float32]
@@ -124,7 +124,7 @@ struct head_t(Copyable, Movable):
 #
 # l is the number of total data items
 # size is the cache size limit in bytes
-struct Cache(Copyable, Movable):
+struct Cache:
     var l: Int
     var size: UInt
     var head: UnsafePointer[head_t]
@@ -133,7 +133,7 @@ struct Cache(Copyable, Movable):
     @always_inline
     fn __init__(out self, l_: Int, size_: UInt):
         self.l = l_
-        self.size = (size_ - (self.l * size_of[head_t]())) // 4
+        self.size = (size_ - UInt(self.l * size_of[head_t]())) // 4
         self.head = UnsafePointer[head_t].alloc(self.l)
         memset_zero(self.head, self.l) # initialized to 0
         self.size = max(self.size, UInt(2) * UInt(self.l))  # cache must be large enough for two columns
@@ -162,7 +162,7 @@ struct Cache(Copyable, Movable):
         h[].next[].prev = h
 
     fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32]], var _len: Int) -> Int:
-        var h = self.head + index
+        var h = self.head.offset(index)
         if h[]._len:
             self.lru_delete(h)
         var more = _len - h[]._len
@@ -173,7 +173,7 @@ struct Cache(Copyable, Movable):
                 var old = self.lru_head.next
                 self.lru_delete(old)
                 old[].data.free()
-                self.size += old[]._len
+                self.size += UInt(old[]._len)
                 old[].data = UnsafePointer[Float32]()
                 old[]._len = 0
 
@@ -182,7 +182,7 @@ struct Cache(Copyable, Movable):
             memcpy(dest=new, src=h[].data, count=h[]._len)
             h[].data.free()
             h[].data = new
-            self.size -= more  # previous while loop guarantees size >= more and subtraction of size_t variable will not underflow
+            self.size -= UInt(more)  # previous while loop guarantees size >= more and subtraction of size_t variable will not underflow
             swap(h[]._len, _len)
 
         self.lru_insert(h)
@@ -194,15 +194,15 @@ struct Cache(Copyable, Movable):
             return
 
         if self.head[i]._len:
-            self.lru_delete(self.head + i)
+            self.lru_delete(self.head.offset(i))
         if self.head[j]._len:
-            self.lru_delete(self.head + j)
+            self.lru_delete(self.head.offset(j))
         swap(self.head[i].data,self.head[j].data)
         swap(self.head[i]._len,self.head[j]._len)
         if self.head[i]._len:
-            self.lru_insert(self.head + i)
+            self.lru_insert(self.head.offset(i))
         if self.head[j]._len:
-            self.lru_insert(self.head + j)
+            self.lru_insert(self.head.offset(j))
 
         if i>j:
             swap(i,j)
@@ -216,7 +216,7 @@ struct Cache(Copyable, Movable):
                     # give up
                     self.lru_delete(h)
                     h[].data.free()
-                    self.size += h[]._len
+                    self.size += UInt(h[]._len)
                     h[].data = UnsafePointer[Float32]()
                     h[]._len = 0
             h=h[].next
@@ -326,7 +326,7 @@ struct Solver:
     var Cp: Float64
     var Cn: Float64
     var p: UnsafePointer[Float64]
-    var active_set: UnsafePointer[Int]
+    var active_set: UnsafePointer[Scalar[DType.int]]
     var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
@@ -343,7 +343,7 @@ struct Solver:
         self.Cp = 0.0
         self.Cn = 0.0
         self.p = UnsafePointer[Float64]()
-        self.active_set = UnsafePointer[Int]()
+        self.active_set = UnsafePointer[Scalar[DType.int]]()
         self.G_bar = UnsafePointer[Float64]()
         self.l = 0
         self.unshrink = False
@@ -435,17 +435,20 @@ struct Solver:
                 self.alpha_status[i] = self.FREE
 
         # initialize active set (for shrinking)
-        self.active_set = UnsafePointer[Int].alloc(self.l)
-        for i in range(self.l):
-            self.active_set[i] = i
+        try:
+            self.active_set = fill_indices(self.l)
+        except:
+            self.active_set = UnsafePointer[Scalar[DType.int]].alloc(self.l)
+            for i in range(self.l):
+                self.active_set[i] = i
         self.active_size = self.l
 
         # initialize gradient
         self.G = UnsafePointer[Float64].alloc(self.l)
         self.G_bar = UnsafePointer[Float64].alloc(self.l)
-        for i in range(self.l):
-            self.G[i] = self.p[i]
-            self.G_bar[i] = 0
+        memcpy(dest=self.G, src=self.p, count=self.l)
+        memset_zero(self.G_bar, self.l)
+
         for i in range(self.l):
             if not self.is_lower_bound(i):
                 var Q_i = Q.get_Q(i,self.l)
@@ -652,7 +655,7 @@ struct Solver:
             Q_i = Q.get_Q(i,self.active_size)
 
         for j in range(self.active_size):
-            if(self.y[j]==+1):
+            if self.y[j]==1:
                 if not self.is_lower_bound(j):
                     var grad_diff=Gmax+self.G[j]
                     if self.G[j] >= Gmax2:
@@ -732,7 +735,8 @@ struct Solver:
             self.reconstruct_gradient(Q)
             self.active_size = self.l
 
-        for i in range(self.active_size):
+        var i = 0
+        while i < self.active_size:
             if self.be_shrunk(i, Gmax1, Gmax2):
                 self.active_size -= 1
                 while self.active_size > i:
@@ -740,6 +744,7 @@ struct Solver:
                         self.swap_index(Q, i,self.active_size)
                         break
                     self.active_size -= 1
+            i += 1
 
     fn calculate_rho(self) -> Float64:
         var r: Float64
@@ -792,7 +797,7 @@ struct Solver_NU:
     var Cp: Float64
     var Cn: Float64
     var p: UnsafePointer[Float64]
-    var active_set: UnsafePointer[Int]
+    var active_set: UnsafePointer[Scalar[DType.int]]
     var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
@@ -810,7 +815,7 @@ struct Solver_NU:
         self.Cp = 0.0
         self.Cn = 0.0
         self.p = UnsafePointer[Float64]()
-        self.active_set = UnsafePointer[Int]()
+        self.active_set = UnsafePointer[Scalar[DType.int]]()
         self.G_bar = UnsafePointer[Float64]()
         self.l = 0
         self.unshrink = False
@@ -904,17 +909,20 @@ struct Solver_NU:
                 self.alpha_status[i] = self.FREE
 
         # initialize active set (for shrinking)
-        self.active_set = UnsafePointer[Int].alloc(self.l)
-        for i in range(self.l):
-            self.active_set[i] = i
+        try:
+            self.active_set = fill_indices(self.l)
+        except:
+            self.active_set = UnsafePointer[Scalar[DType.int]].alloc(self.l)
+            for i in range(self.l):
+                self.active_set[i] = i
         self.active_size = self.l
 
         # initialize gradient
         self.G = UnsafePointer[Float64].alloc(self.l)
         self.G_bar = UnsafePointer[Float64].alloc(self.l)
-        for i in range(self.l):
-            self.G[i] = self.p[i]
-            self.G_bar[i] = 0
+        memcpy(dest=self.G, src=self.p, count=self.l)
+        memset_zero(self.G_bar, self.l)
+
         for i in range(self.l):
             if not self.is_lower_bound(i):
                 var Q_i = Q.get_Q(i,self.l)
@@ -1130,7 +1138,7 @@ struct Solver_NU:
             Q_in = Q.get_Q(i_n,self.active_size)
 
         for j in range(self.active_size):
-            if(self.y[j]==+1):
+            if self.y[j]==1:
                 if not self.is_lower_bound(j):
                     var grad_diff=Gmaxp+self.G[j]
                     if self.G[j] >= Gmaxp2:
@@ -1531,8 +1539,8 @@ fn solve_c_svc(
     var minus_ones = UnsafePointer[Float64].alloc(l)
     var y = UnsafePointer[Int8].alloc(l)
 
+    memset_zero(alpha, l)
     for i in range(l):
-        alpha[i] = 0
         minus_ones[i] = -1
         if prob.y[i] > 0:
             y[i] = 1
@@ -1580,9 +1588,7 @@ fn solve_nu_svc(
             sum_neg -= alpha[i]
 
     var zeros = UnsafePointer[Float64].alloc(l)
-
-    for i in range(l):
-        zeros[i] = 0
+    memset_zero(zeros, l)
 
     var s = Solver_NU()
     var q = SVC_Q(prob,param,y)
@@ -1617,8 +1623,8 @@ fn solve_one_class(
     for i in range(n+1, l):
         alpha[i] = 0
 
+    memset_zero(zeros, l)
     for i in range(l):
-        zeros[i] = 0
         ones[i] = 1
 
     var s = Solver()
@@ -2017,7 +2023,7 @@ fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_m
         Span[
             Float64,
             __origin_of(dec_values),
-        ](ptr=dec_values, length=prob.l)
+        ](ptr=dec_values, length=UInt(prob.l))
     )
 
     var neg_counter=0
@@ -2056,7 +2062,7 @@ fn svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
 
     var newparam = param.copy()
     newparam.probability = 0
-    #svm_cross_validation(prob, newparam, nr_fold, ymv)
+    svm_cross_validation(prob, newparam, nr_fold, ymv)
     for i in range(prob.l):
         ymv[i]=prob.y[i]-ymv[i]
         mae += abs(ymv[i])
@@ -2076,7 +2082,7 @@ fn svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
 
 # label: label name, start: begin of each class, count: #data of classes, perm: indices to the original data
 # perm, length l, must be allocated before calling this subroutine
-fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: UnsafePointer[Int], mut start_ret: UnsafePointer[Int], mut count_ret: UnsafePointer[Int], perm: UnsafePointer[Int]):
+fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: UnsafePointer[Int], mut start_ret: UnsafePointer[Int], mut count_ret: UnsafePointer[Int], perm: UnsafePointer[Scalar[DType.int]]):
     var l = prob.l
     var max_nr_class = 16
     var nr_class = 0
@@ -2168,7 +2174,7 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
         model[].l = nSV
         model[].SV = UnsafePointer[UnsafePointer[svm_node]].alloc(nSV)
         model[].sv_coef[0] = UnsafePointer[Float64].alloc(nSV)
-        model[].sv_indices = UnsafePointer[Int].alloc(nSV)
+        model[].sv_indices = UnsafePointer[Scalar[DType.int]].alloc(nSV)
         var j = 0
         for i in range(prob.l):
             if abs(f.alpha[i]) > 0:
@@ -2197,7 +2203,7 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
         var label = UnsafePointer[Int]()
         var start = UnsafePointer[Int]()
         var count = UnsafePointer[Int]()
-        var perm = UnsafePointer[Int].alloc(l)
+        var perm = UnsafePointer[Scalar[DType.int]].alloc(l)
 
         # group training data of the same class
         svm_group_classes(prob,nr_class,label,start,count,perm)
@@ -2306,7 +2312,7 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
 
         model[].l = total_sv
         model[].SV = UnsafePointer[UnsafePointer[svm_node]].alloc(total_sv)
-        model[].sv_indices = UnsafePointer[Int].alloc(total_sv)
+        model[].sv_indices = UnsafePointer[Scalar[DType.int]].alloc(total_sv)
         p = 0
         for i in range(l):
             if nonzero[i]:
@@ -2368,7 +2374,7 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
 fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: UnsafePointer[Float64]):
     var fold_start = UnsafePointer[Int].alloc(nr_fold+1)
     var l = prob.l
-    var perm = UnsafePointer[Int].alloc(l)
+    var perm = UnsafePointer[Scalar[DType.int]].alloc(l)
     var nr_class = 0
     if nr_fold > l:
         print("WARNING: # folds ("+ String(nr_fold) +") > # data ("+ String(l) +"). Will use # folds = # data instead (i.e., leave-one-out cross validation)\n")
@@ -2384,7 +2390,7 @@ fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: In
 
         # random shuffle and then data grouped by fold using the array perm
         var fold_count = UnsafePointer[Int].alloc(nr_fold)
-        var index = UnsafePointer[Int].alloc(l)
+        var index = UnsafePointer[Scalar[DType.int]].alloc(l)
         memcpy(dest=index, src=perm, count=l)
         for c in range(nr_class):
             for i in range(count[c] - 1, 0, -1):
@@ -2416,8 +2422,12 @@ fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: In
         index.free()
         fold_count.free()
     else:
-        for i in range(l):
-            perm[i]=i
+        try:
+            perm = fill_indices(l)
+        except:
+            perm = UnsafePointer[Scalar[DType.int]].alloc(l)
+            for i in range(l):
+                perm[i]=i
         for i in range(l - 1, 0, -1):
             var j = Int(random.random_ui64(0, i))
             swap(perm[i],perm[j])
@@ -2474,10 +2484,9 @@ fn svm_get_labels(model: svm_model, label: UnsafePointer[Int]):
         for i in range(model.nr_class):
             label[i] = model.label[i]
 
-fn svm_get_sv_indices(model: svm_model, indices: UnsafePointer[Int]):
+fn svm_get_sv_indices(model: svm_model, indices: UnsafePointer[Scalar[DType.int]]):
     if model.sv_indices:
-        for i in range(model.l):
-            indices[i] = model.sv_indices[i]
+        memcpy(dest=indices, src=model.sv_indices, count=model.l)
 
 @always_inline
 fn svm_get_nr_sv(model: svm_model) -> Int:
@@ -2660,7 +2669,7 @@ fn svm_free_model_content(mut model_ptr: svm_model):
     model_ptr.prob_density_marks = UnsafePointer[Float64]()
 
     model_ptr.sv_indices.free()
-    model_ptr.sv_indices = UnsafePointer[Int]()
+    model_ptr.sv_indices = UnsafePointer[Scalar[DType.int]]()
 
     model_ptr.nSV.free()
     model_ptr.nSV = UnsafePointer[Int]()

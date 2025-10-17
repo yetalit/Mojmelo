@@ -1330,7 +1330,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             Span[
                 Scalar[DType.int],
                 __origin_of(sorted_indices),
-            ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
+            ](ptr=sorted_indices.unsafe_ptr(), length=UInt(len(sorted_indices)))
         )
         return sorted_indices^
 
@@ -1349,7 +1349,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             Span[
                 Float32,
                 __origin_of(self),
-            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr()
+            ](ptr=self.data, length=UInt(self.size)), sorted_indices.unsafe_ptr()
         )
         return sorted_indices^
 
