@@ -706,9 +706,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             var mat = Self(self.height, rhs.width)
             for i in range(self.size):
                 var rhsr = i % self.width
-                var j_s = rhsr * rhs.width
-                var j_e = rhsr * rhs.width + rhs.width
-                for j in range(j_s, j_e):
+                for j in range(rhsr * rhs.width, rhsr * rhs.width + rhs.width):
                     if rhsr != 0:
                         mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[i] * rhs.data[j]
                     else:
@@ -1705,8 +1703,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     fn unique(data: PythonObject) raises -> Tuple[List[String], List[Int]]:
         var list = List[String]()
         var freq = List[Int]()
-        var rng = len(data)
-        for i in range(rng):
+        for i in range(len(data)):
             var d = String(data[i])
             if d in list:
                 freq[list.index(d)] += 1
@@ -1921,8 +1918,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 if len(strings[j]) > max_len:
                     max_len = len(strings[j])
             for j in range(self.height):
-                var rng: Int = max_len - len(strings[j]) + 1
-                for _ in range(rng):
+                for _ in range(max_len - len(strings[j]) + 1):
                     strings[j] += " "
 
         for i in range(self.height):

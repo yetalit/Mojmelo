@@ -186,12 +186,10 @@ struct KDTreeNode(Copyable, Movable):
     fn box_in_search_range(self, sr: SearchRecord) -> Bool:
         # does the bounding box, represented by minbox[*],maxbox[*]
         # have any point which is within 'sr.ballsize' to 'sr.qv'??
-        var dim = sr.dim
-        var dis2: Float32 = 0.0 
-        var ballsize = sr.ballsize 
-        for i in range(dim):
+        var dis2: Float32 = 0.0
+        for i in range(sr.dim):
             dis2 += self.metric(dis_from_bnd(sr.qv[i],self.box[i].lower,self.box[i].upper))
-            if dis2 > ballsize:
+            if dis2 > sr.ballsize:
                 return False
         return True
 

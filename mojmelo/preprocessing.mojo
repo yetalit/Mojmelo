@@ -153,14 +153,14 @@ fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     """
     return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
-fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
-fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)
@@ -173,14 +173,14 @@ struct SplittedPO(Copyable, Movable, ImplicitlyCopyable):
     var train: PythonObject
     var test: PythonObject
 
-fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     """Split matrix and python object into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
 
-fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float16 = 0.5, train_size: Float16 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
+fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
     """Split matrix and python object into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)

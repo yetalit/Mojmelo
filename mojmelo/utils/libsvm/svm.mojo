@@ -161,6 +161,7 @@ struct Cache:
         h[].prev[].next = h
         h[].next[].prev = h
 
+    @always_inline
     fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32]], var _len: Int) -> Int:
         var h = self.head.offset(index)
         if h[]._len:
@@ -189,6 +190,7 @@ struct Cache:
         data[] = h[].data
         return _len
 
+    @always_inline
     fn swap_index(mut self, var i: Int, var j: Int):
         if i==j:
             return
@@ -1223,7 +1225,8 @@ struct Solver_NU:
             self.reconstruct_gradient(Q)
             self.active_size = self.l
 
-        for i in range(self.active_size):
+        var i = 0
+        while i < self.active_size:
             if self.be_shrunk(i, Gmax1, Gmax2, Gmax3, Gmax4):
                 self.active_size -= 1
                 while self.active_size > i:
@@ -1231,6 +1234,7 @@ struct Solver_NU:
                         self.swap_index(Q, i,self.active_size)
                         break
                     self.active_size -= 1
+            i += 1
 
     fn calculate_rho(self) -> Float64:
         var nr_free1 = 0
