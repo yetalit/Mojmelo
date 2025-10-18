@@ -1327,7 +1327,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         sort[cmp_fn](
             Span[
                 Scalar[DType.int],
-                __origin_of(sorted_indices),
+                origin_of(sorted_indices),
             ](ptr=sorted_indices.unsafe_ptr(), length=UInt(len(sorted_indices)))
         )
         return sorted_indices^
@@ -1346,7 +1346,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         mojmelo.utils.sort.sort[cmp_fn](
             Span[
                 Float32,
-                __origin_of(self),
+                origin_of(self),
             ](ptr=self.data, length=UInt(self.size)), sorted_indices.unsafe_ptr()
         )
         return sorted_indices^
@@ -1698,29 +1698,15 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         list._data=vect
         return list^
 
-    @staticmethod
     @always_inline
-    fn unique(data: PythonObject) raises -> Tuple[List[String], List[Int]]:
-        var list = List[String]()
-        var freq = List[Int]()
-        for i in range(len(data)):
-            var d = String(data[i])
-            if d in list:
-                freq[list.index(d)] += 1
-            else:
-                list.append(d)
-                freq.append(1)
-        return list^, freq^
-
-    @always_inline
-    fn unique(self) raises -> Dict[Int, Int]:
-        var freq = Dict[Int, Int]()
+    fn unique(self) -> List[List[Int]]:
+        var freq = List[List[Int]]()
         for i in range(self.size):
-            var d = Int(self.data[i])
-            if d in freq:
-                freq[d] += 1
-            else:
-                freq[d] = 1
+            var data = Int(self.data[i])
+            if len(freq) <= data:
+                for _ in range(data - len(freq) + 1):
+                    freq.append(List[Int]())
+            freq[data].append(i)
         return freq^
 
     @always_inline

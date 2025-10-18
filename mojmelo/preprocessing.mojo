@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, CVP, cartesian_product, ids_to_numpy
+from mojmelo.utils.utils import CV, cartesian_product
 from algorithm import parallelize
 from sys import num_performance_cores
 from memory import UnsafePointer
@@ -168,27 +168,43 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
     var split_i = Int(X.height - (test_ratio * X.height))
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
-@fieldwise_init
-struct SplittedPO(Copyable, Movable, ImplicitlyCopyable):
-    var train: PythonObject
-    var test: PythonObject
+struct LabelEncoder:
+    var str_to_index: Dict[String, Int]
+    var index_to_str: Dict[Int, String]
 
-fn train_test_split(X: Matrix, y: PythonObject, *, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
-    """Split matrix and python object into random train and test subsets."""
-    var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
-    var ids = Matrix.rand_choice(X.height, X.height, False)
-    var split_i = Int(X.height - (test_ratio * X.height))
-    return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
+    fn __init__(out self):
+        self.str_to_index = Dict[String, Int]()
+        self.index_to_str = Dict[Int, String]()
 
-fn train_test_split(X: Matrix, y: PythonObject, *, random_state: Int, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, SplittedPO]:
-    """Split matrix and python object into random train and test subsets."""
-    var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
-    random.seed(random_state)
-    var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
-    var split_i = Int(X.height - (test_ratio * X.height))
-    return X[ids[:split_i]], X[ids[split_i:]], SplittedPO(y[ids_to_numpy(ids[:split_i])], y[ids_to_numpy(ids[split_i:])])
+    fn fit_transform(mut self, y: PythonObject) raises -> Matrix:
+        self.str_to_index = Dict[String, Int]()
+        self.index_to_str = Dict[Int, String]() 
+        var y_encoded = Matrix(len(y), 1)
+        var latest_index = 0
+        for i in range(len(y)):
+            var str_ = String(y[i])
+            if not (str_ in self.str_to_index):
+                self.str_to_index[str_] = latest_index
+                self.index_to_str[latest_index] = str_
+                latest_index += 1
+            y_encoded.data[i] = self.str_to_index[str_]
+        return y_encoded^
 
-fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+    fn transform(self, y: PythonObject) raises -> Matrix:
+        var y_encoded = Matrix(len(y), 1)
+        var latest_index = 0
+        for i in range(len(y)):
+            y_encoded.data[i] = self.str_to_index[String(y[i])]
+        return y_encoded^
+
+    fn inverse_transform(self, y: Matrix) raises -> PythonObject:
+        var np = Python.import_module("numpy")
+        var np_arr = np.empty(len(y), dtype='object')
+        for i in range(len(y)):
+            np_arr[i] = self.index_to_str[Int(y.data[i])]
+        return np_arr^
+
+fn KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     """K-Fold cross-validator.
 
     Parameters:
@@ -216,35 +232,7 @@ fn KFold[m_type: CVM](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matri
         start_of_test += test_count
     return mean_score
 
-fn KFold[m_type: CVP](mut model: m_type, X: Matrix, y: PythonObject, scoring: fn(PythonObject, List[String]) raises -> Float32, n_splits: Int = 5) raises -> Float32:
-    """K-Fold cross-validator.
-
-    Parameters:
-        m_type: Model type.
-
-    Args:
-        model: Model.
-        X: Samples.
-        y: Targets.
-        scoring: Scoring function.
-        n_splits: Number of folds.
-
-    Returns:
-        Score.
-    """
-    var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = Int((1 / n_splits) * X.height)
-    var start_of_test = 0
-    var mean_score: Float32 = 0.0
-    for _ in range(n_splits):
-        var end_of_test = min(start_of_test + test_count, X.height)
-        model.fit(X[ids[end_of_test:] + ids[:start_of_test]], y[ids_to_numpy(ids[end_of_test:] + ids[:start_of_test])])
-        y_pred = model.predict(X[ids[start_of_test:end_of_test]])
-        mean_score += scoring(y[ids_to_numpy(ids[start_of_test:end_of_test])], y_pred) / n_splits
-        start_of_test += test_count
-    return mean_score
-
-fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
+fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
                             scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
     """Exhaustive search over specified parameter values for an estimator.
 
@@ -258,76 +246,6 @@ fn GridSearchCV[m_type: CVM](X: Matrix, y: Matrix, param_grid: Dict[String, List
         scoring: Scoring function.
         neg_score: Invert the scoring results when finding the best params.
         n_jobs: Number of jobs to run in parallel. `-1` means using all processors.
-        cv: Number of folds in a KFold.
-
-    Returns:
-        Best parameters.
-    """
-    var dic_values = List[List[String]]()
-    for i in range(len(param_grid)):
-        dic_values.append(List[String]())
-        dic_values[i] = param_grid._entries[i].value().value.copy()
-    var combinations = cartesian_product(dic_values)
-    var scores = Matrix(1, len(combinations))
-    var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
-    if n_jobs == 0:
-        for i in range(len(combinations)):
-            params[i] = Dict[String, String]()
-            var j = 0
-            for key in param_grid.keys():
-                params[i][key] = combinations[i][j]
-                j += 1
-            var model = m_type(params[i])
-            var score = KFold(model, X, y, scoring, cv)
-            if neg_score:
-                score *= -1
-            scores.data[i] = score
-    else:
-        var n_workers = n_jobs
-        if n_workers == -1:
-            n_workers = num_performance_cores()
-        @parameter
-        fn p(i: Int):
-            params[i] = Dict[String, String]()
-            var j = 0
-            for key in param_grid.keys():
-                params[i][key] = combinations[i][j]
-                j += 1
-            try:
-                var model = m_type(params[i])
-                var score = KFold(model, X, y, scoring, cv)
-                if neg_score:
-                    score *= -1
-                scores.data[i] = score
-            except:
-                print('Error: Failed to perform KFold!')
-        parallelize[p](len(combinations), n_workers)
-    var best_score = scores.max()
-    var best = -1
-    for i in range(len(scores)):
-        if scores.data[i] == best_score:
-            best = i
-            break
-    var best_params = params[best].copy()
-    params.free()
-    if neg_score:
-        best_score *= -1
-    return best_params^, best_score
-
-fn GridSearchCV[m_type: CVP](X: Matrix, y: PythonObject, param_grid: Dict[String, List[String]],
-                            scoring: fn(PythonObject, List[String]) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
-    """Exhaustive search over specified parameter values for an estimator.
-
-    Parameters:
-        m_type: Model type.
-
-    Args:
-        X: Samples.
-        y: Targets.
-        param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
-        scoring: Scoring function.
-        neg_score: Invert the scoring results when finding the best params. `-1` means using all processors.
-        n_jobs: Number of jobs to run in parallel.
         cv: Number of folds in a KFold.
 
     Returns:

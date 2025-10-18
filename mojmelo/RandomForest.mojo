@@ -1,6 +1,6 @@
 from mojmelo.DecisionTree import DecisionTree
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM
+from mojmelo.utils.utils import CV
 from algorithm import parallelize
 import math
 import random
@@ -16,13 +16,13 @@ fn _predict(y: Matrix, criterion: String) raises -> Float32:
     var freq = y.unique()
     var max_val: Int = 0
     var most_common: Int = 0
-    for k in freq.keys():
-        if freq[k.copy()] > max_val:
-            max_val = freq[k.copy()]
-            most_common = k
+    for i in range(len(freq)):
+        if len(freq[i]) > max_val:
+            max_val = len(freq[i])
+            most_common = i
     return Float32(most_common)
 
-struct RandomForest(CVM):
+struct RandomForest(CV):
     """A random forest supporting both classification and regression."""
     var n_trees: Int
     """The number of trees in the forest."""

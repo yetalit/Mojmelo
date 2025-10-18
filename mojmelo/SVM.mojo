@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sign
+from mojmelo.utils.utils import CV, sign
 from mojmelo.utils.libsvm.svm_parameter import svm_parameter
 from mojmelo.utils.libsvm.svm_problem import svm_problem
 from mojmelo.utils.libsvm.svm_node import svm_node
@@ -8,7 +8,7 @@ from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict
 from algorithm import parallelize
 import random
 
-struct SVC(CVM):
+struct SVC(CV):
     var C: Float64
     var nu: Float64
     var kernel: String

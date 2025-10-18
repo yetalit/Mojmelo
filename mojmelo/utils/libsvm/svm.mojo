@@ -2026,7 +2026,7 @@ fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_m
     sort[cmp_fn](
         Span[
             Float64,
-            __origin_of(dec_values),
+            origin_of(dec_values),
         ](ptr=dec_values, length=UInt(prob.l))
     )
 

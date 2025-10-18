@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sigmoid, sign, cross_entropy
+from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy
 import math
 import time
 import random
 
-struct LogisticRegression(CVM):
+struct LogisticRegression(CV):
     """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""
     var lr: Float32
     """Learning rate."""

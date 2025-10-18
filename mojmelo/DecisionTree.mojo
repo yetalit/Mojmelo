@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
+from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
 from algorithm import parallelize
 import math
 import random
@@ -29,7 +29,7 @@ struct Node(Copyable, Movable):
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
+struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
     """A decision tree supporting both classification and regression."""
     var criterion: String
     """The function to measure the quality of a split:
@@ -143,7 +143,7 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
 
     fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
         var unique_targets: Int
-        var freq = Dict[Int, Int]()
+        var freq = List[List[Int]]()
         if self.criterion == 'mse':
             unique_targets = y.is_uniquef()
         else:
@@ -175,15 +175,15 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
-fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float32:
+fn set_value(y: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
     if criterion == 'mse':
         return y.mean()
     var max_val: Int = 0
     var most_common: Int = 0
-    for k in freq.keys():
-        if freq[k] > max_val:
-            max_val = freq[k]
-            most_common = k
+    for i in range(len(freq)):
+        if len(freq[i]) > max_val:
+            max_val = len(freq[i])
+            most_common = i
     return Float32(most_common)
 
 fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:

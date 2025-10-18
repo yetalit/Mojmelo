@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sign, mse
+from mojmelo.utils.utils import CV, sign, mse
 import math
 import time
 import random
 
-struct PolyRegression(CVM):
+struct PolyRegression(CV):
     """A Gradient Descent based polynomial regression with mse as the loss function."""
     var degree: Int
     """The maximal degree of the polynomial features."""

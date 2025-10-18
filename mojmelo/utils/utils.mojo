@@ -6,22 +6,13 @@ from algorithm import parallelize, elementwise, vectorize
 from sys import simd_width_of
 from utils import IndexList
 
-# Cross Validation y as Matrix
-trait CVM:
+# Cross Validation trait
+trait CV:
     fn __init__(out self, params: Dict[String, String]) raises:
         ...
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         ...
     fn predict(self, X: Matrix) raises -> Matrix:
-        ...
-
-# Cross Validation y as PythonObject
-trait CVP:
-    fn __init__(out self, params: Dict[String, String]) raises:
-        ...
-    fn fit(mut self, X: Matrix, y: PythonObject) raises:
-        ...
-    fn predict(self, X: Matrix) raises -> List[String]:
         ...
 
 fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
@@ -252,47 +243,13 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     Returns:
         The score.
     """
-    var correct_count: Float32 = 0.0
-    for i in range(y.size):
+    var correct_counts = Matrix.zeros(len(y), 1)
+    @parameter
+    fn p(i: Int):
         if y.data[i] == y_pred.data[i]:
-            correct_count += 1.0
-    return correct_count / y.size
-
-fn accuracy_score(y: List[String], y_pred: List[String]) raises -> Float32:
-    """Accuracy classification score.
-
-    Returns:
-        The score.
-    """
-    var correct_count: Float32 = 0.0
-    for i in range(len(y)):
-        if y[i] == y_pred[i]:
-            correct_count += 1.0
-    return correct_count / len(y)
-
-fn accuracy_score(y: PythonObject, y_pred: Matrix) raises -> Float32:
-    """Accuracy classification score.
-
-    Returns:
-        The score.
-    """
-    var correct_count: Float32 = 0.0
-    for i in range(y_pred.size):
-        if y[i] == y_pred.data[i]:
-            correct_count += 1.0
-    return correct_count / y_pred.size
-
-fn accuracy_score(y: PythonObject, y_pred: List[String]) raises -> Float32:
-    """Accuracy classification score.
-
-    Returns:
-        The score.
-    """
-    var correct_count: Float32 = 0.0
-    for i in range(len(y_pred)):
-        if String(y[i]) == y_pred[i]:
-            correct_count += 1.0
-    return correct_count / len(y_pred)
+            correct_counts.data[i] = 1.0
+    parallelize[p](len(y))
+    return correct_counts.mean()
 
 @always_inline
 fn entropy(y: Matrix) raises -> Float32:
@@ -440,29 +397,6 @@ fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src]], si
             ptr.store(idx, data.load[width=width](idx).cast[des]())
         parallelize[matrix_vectorize_parallelize](n_vects)
     return ptr
-
-fn l_to_numpy(list: List[String]) raises -> PythonObject:
-    """Converts list of strings to numpy array.
-
-    Returns:
-        The numpy array.
-    """
-    var np = Python.import_module("numpy")
-    var np_arr = np.empty(len(list), dtype='object')
-    for i in range(len(list)):
-        np_arr[i] = list[i]
-    return np_arr^
-
-fn ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
-    """Converts list of indices to numpy array.
-
-    Returns:
-        The numpy array.
-    """
-    var np = Python.import_module("numpy")
-    var np_arr = np.empty(len(list), dtype='int')
-    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data, count=len(list))
-    return np_arr^
 
 fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """Converts list of indices to numpy array.

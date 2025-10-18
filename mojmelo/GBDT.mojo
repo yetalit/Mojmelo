@@ -1,9 +1,9 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link
+from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link
 from algorithm import parallelize
 
-struct GBDT(CVM):
+struct GBDT(CV):
 	"""Gradient Boosting with support for both classification and regression."""
 	var criterion: String
 	"""The method to measure the quality of a split:

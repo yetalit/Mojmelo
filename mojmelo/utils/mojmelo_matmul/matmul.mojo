@@ -81,7 +81,7 @@ struct Matrix[Type: DType]:
     @always_inline("nodebug")
     fn __getitem__(
         ref [_]self, i: Int, j: Int
-    ) -> ref [__origin_of(self)] Scalar[Type]:
+    ) -> ref [origin_of(self)] Scalar[Type]:
         var offset = self.layout(i, j)
         return (self.data + offset)[]
 
