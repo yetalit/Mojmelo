@@ -42,6 +42,7 @@ Preprocessing:
 * StandardScaler
 * KFold
 * GridSearchCV
+* LabelEncoder
 
 **Documentation:** https://yetalit.github.io/Mojmelo/docs/_index.html
 
