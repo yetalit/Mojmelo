@@ -34,9 +34,9 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.size = height * width
         if src == DType.float32:
             self.data = data.bitcast[Float32]()
-            data.free()
         else:
             self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size)
+            data.free()
         self.order = order.lower()
 
     # initialize by copying from UnsafePointer
