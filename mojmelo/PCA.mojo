@@ -1,4 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
+from mojmelo.utils.svd import svd
 from algorithm import parallelize
 from python import Python
 
@@ -41,18 +42,11 @@ struct PCA:
         if self.lapack:
             numpy_linalg = Python.import_module('numpy.linalg')
             USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
-            S = Matrix.from_numpy(USVt[1])
+            S = Matrix.from_numpy(USVt[1]).load_columns(self.n_components)
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
-            _, S, Vt = (X - self.mean).svd()
-            var indices = S.argsort_inplace[ascending=False]()
-            self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
-            @parameter
-            fn p(i: Int):
-                self.components[i, unsafe=True] = Vt[Int(indices[i]), unsafe=True]
-            parallelize[p](self.n_components)
+            S, self.components = svd((X - self.mean), self.n_components)
 
-        S = S.load_columns(self.n_components)
         self.components_T = self.components.T()
 
         self.explained_variance = (S ** 2) / (X.height - 1)
