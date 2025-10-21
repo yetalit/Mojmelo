@@ -1,5 +1,5 @@
 from memory import memcpy, memset_zero
-from algorithm import vectorize, parallelize
+from algorithm import vectorize
 from sys import simd_width_of, CompilationTarget
 import math
 from mojmelo.utils.Matrix import Matrix
@@ -62,28 +62,13 @@ fn jacobi_eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64],
                     A[q * n + r] = A[r * n + q]
 
                 # update eigenvector matrix V (columns p and q)
-                var bp = UnsafePointer[Float64].alloc(n)
-                var bq = UnsafePointer[Float64].alloc(n)
-                var tmpPtr1 = V + p
-                var tmpPtr2 = V + q
                 @parameter
-                fn read[simd_width: Int](idx: Int):
-                    bp.store(idx, c * tmpPtr1.strided_load[width=simd_width](n) - s * tmpPtr2.strided_load[width=simd_width](n))
-                    bq.store(idx, s * tmpPtr1.strided_load[width=simd_width](n) + c * tmpPtr2.strided_load[width=simd_width](n))
-                    tmpPtr1 += simd_width * n
-                    tmpPtr2 += simd_width * n
-                vectorize[read, simd_width](n)
-                tmpPtr1 = V + p
-                tmpPtr2 = V + q
-                @parameter
-                fn write[simd_width: Int](idx: Int):
-                    tmpPtr1.strided_store[width=simd_width](bp.load[width=simd_width](idx), n)
-                    tmpPtr1 += simd_width * n
-                    tmpPtr2.strided_store[width=simd_width](bq.load[width=simd_width](idx), n)
-                    tmpPtr2 += simd_width * n
-                vectorize[write, simd_width](n)
-                bp.free()
-                bq.free()
+                fn column[simd_width: Int](idx: Int):
+                    var Vp = (V+p*n).load[width=simd_width](idx)
+                    var Vq = (V+q*n).load[width=simd_width](idx)
+                    (V+p*n).store(idx, c * Vp - s * Vq)
+                    (V+q*n).store(idx, s * Vp + c * Vq)
+                vectorize[column, simd_width](n)
         if max_off <= EPS:
             break
         elif sweep == MAX_JACOBI_SWEEPS-1:
@@ -121,10 +106,12 @@ fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix,
         ](ptr=eig, length=UInt(n)), sorted_indices.unsafe_ptr()
     )
 
-    var V_f = Matrix(V_full, n, n)['', sorted_indices]
+    var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
 
     # V_full columns are eigenvectors (n x n), copy into Vout row r as transpose
-    Vout = V_f.load_columns(k).T()
+    Vout = V_f.load_columns(k)
+    Vout.order = 'c'
+    Vout = Vout.reshape(k, n)
     # Build singular values S (k) and Vout (k x n) as the top-k eigenvectors
     for r in range(k):
         var lambda_ = eig[r]
