@@ -82,11 +82,6 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
 
 @always_inline
 fn leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
-    '''
-    Given the gradient and hessian of a tree leaf,
-    return the prediction (score) at this leaf.
-    The score is -G/(H+λ).
-    '''
     var g_sum = g.sum()
     return (-g_sum / (h.sum() + reg_lambda)) - reg_alpha * math.copysign(1, g_sum)
 
@@ -96,11 +91,6 @@ fn leaf_score_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32
 
 @always_inline
 fn leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
-    '''
-    Given the gradient and hessian of a tree leaf,
-    return the minimized loss at this leaf.
-    The minimized loss is -0.5*G^2/(H+λ).
-    .'''
     var g_sum = g.sum()
     var h_sum = h.sum()
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))

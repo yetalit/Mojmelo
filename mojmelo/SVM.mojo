@@ -9,17 +9,34 @@ from algorithm import parallelize
 import random
 
 struct SVC(CV):
+    """Support Vector Classification."""
     var C: Float64
+    """Regularization parameter. When C != 0, C-Support Vector Classification model will be used."""
     var nu: Float64
+    """An upper bound on the fraction of margin errors and a lower bound of the fraction of support vectors.
+    When nu != 0, Nu-Support Vector Classification model will be used.
+    """
     var kernel: String
+    """Specifies the kernel type to be used in the algorithm: {'linear', 'poly', 'rbf', 'sigmoid', 'precomputed'}."""
     var degree: Int
+    """Degree of the polynomial kernel function ('poly')."""
     var gamma: Float64
+    """Kernel coefficient for 'rbf', 'poly' and 'sigmoid':
+    if gamma = -1 (default) is passed then it uses 1 / (n_features * X.var());
+    if gamma = -0.1, it uses 1 / n_features;
+    if custom value, it must be non-negative.
+    """
     var coef0: Float64
+    """Independent term in kernel function. It is only significant in 'poly' and 'sigmoid'."""
 
     var cache_size: Float64
+    """Specify the size of the kernel cache (in MB)."""
     var tol: Float64
+    """Tolerance for stopping criterion."""
     var shrinking: Bool
+    """Whether to use the shrinking heuristic."""
     var probability: Bool
+    """Whether to enable probability estimates."""
     var _model: UnsafePointer[svm_model]
     var _n_features: Int
     var _x_list: List[List[svm_node]]
@@ -47,6 +64,7 @@ struct SVC(CV):
         self._x_ptr = List[UnsafePointer[svm_node]]()
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
+        """Fit the SVM model according to the given training data."""
         self._n_features = X.width
 
         var svm_type = 5
@@ -127,6 +145,11 @@ struct SVC(CV):
         prob.y.free()
     
     fn predict(self, X: Matrix) raises -> Matrix:
+        """Perform classification on samples in X.
+
+        Returns:
+            The predicted classes.
+        """
         var X_float64 = X.cast_ptr[DType.float64]()
         var y_ptr = UnsafePointer[Float64].alloc(X.height)
 
@@ -151,6 +174,11 @@ struct SVC(CV):
         return Matrix(data=y_ptr, height=X.height, width=1)
 
     fn decision_function(self, X: Matrix) -> List[List[Float64]]:
+        """Evaluate the decision function for the samples in X.
+        
+        Returns:
+            The decision values in a 2D List format.
+        """
         var X_float64 = X.cast_ptr[DType.float64]()
         var dec_values = List[List[Float64]](capacity=X.height)
         dec_values.resize(X.height, List[Float64]())
@@ -182,6 +210,7 @@ struct SVC(CV):
             svm_free_and_destroy_model(self._model)
 
     fn support_vectors(self) raises -> Matrix:
+        """Get support vectors."""
         var support_vectors_ = Matrix.zeros(self._model[].l, self._n_features)
         for row in range(support_vectors_.height):
             var pointer = 0

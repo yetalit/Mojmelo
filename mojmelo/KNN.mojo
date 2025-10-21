@@ -29,10 +29,10 @@ struct KNN(CV):
         self.y_train = y
 
     fn predict(self, X: Matrix) raises -> Matrix:
-        """Predict the class labels for the provided data.
+        """Predict the class indices for the provided data.
 
         Returns:
-            Class labels for each data sample.
+            Class indices for each data sample.
         """
         var y_pred = Matrix(X.height, 1)
         @parameter

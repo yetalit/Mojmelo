@@ -51,15 +51,35 @@ fn jacobi_eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64],
                 A[q * n + p] = 0.0
 
                 # update other entries
-                for r in range(n):
-                    if r == p or r == q:
-                        continue
+                for r in range(p):
                     var Arp = A[r * n + p]
                     var Arq = A[r * n + q]
-                    A[r * n + p] = c * Arp - s * Arq
-                    A[p * n + r] = A[r * n + p]
-                    A[r * n + q] = s * Arp + c * Arq
-                    A[q * n + r] = A[r * n + q]
+                    var Ap = c * Arp - s * Arq
+                    var Aq = s * Arp + c * Arq
+                    A[r * n + p] = Ap
+                    A[p * n + r] = Ap
+                    A[r * n + q] = Aq
+                    A[q * n + r] = Aq
+                
+                for r in range(p+1, q):
+                    var Arp = A[r * n + p]
+                    var Arq = A[r * n + q]
+                    var Ap = c * Arp - s * Arq
+                    var Aq = s * Arp + c * Arq
+                    A[r * n + p] = Ap
+                    A[p * n + r] = Ap
+                    A[r * n + q] = Aq
+                    A[q * n + r] = Aq
+
+                for r in range(q+1, n):
+                    var Arp = A[r * n + p]
+                    var Arq = A[r * n + q]
+                    var Ap = c * Arp - s * Arq
+                    var Aq = s * Arp + c * Arq
+                    A[r * n + p] = Ap
+                    A[p * n + r] = Ap
+                    A[r * n + q] = Aq
+                    A[q * n + r] = Aq
 
                 # update eigenvector matrix V (columns p and q)
                 @parameter

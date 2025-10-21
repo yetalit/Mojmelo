@@ -169,6 +169,9 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
     return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
 
 struct LabelEncoder:
+    """Encode target labels with value between 0 and n_classes-1.
+    This transformer can be used to encode target values from numpy, and not the input X.
+    """
     var str_to_index: Dict[String, Int]
     var index_to_str: Dict[Int, String]
 
@@ -177,6 +180,14 @@ struct LabelEncoder:
         self.index_to_str = Dict[Int, String]()
 
     fn fit_transform(mut self, y: PythonObject) raises -> Matrix:
+        """Fit label encoder and return encoded labels.
+            
+        Args:
+            y: Targets Python object.
+
+        Returns:
+            Encoded labels.
+        """
         self.str_to_index = Dict[String, Int]()
         self.index_to_str = Dict[Int, String]() 
         var y_encoded = Matrix(len(y), 1)
@@ -191,6 +202,14 @@ struct LabelEncoder:
         return y_encoded^
 
     fn transform(self, y: PythonObject) raises -> Matrix:
+        """Return encoded labels based on fitted encoder.
+
+        Args:
+            y: Targets Python object.
+
+        Returns:
+            Encoded labels.
+        """
         var y_encoded = Matrix(len(y), 1)
         var latest_index = 0
         for i in range(len(y)):
@@ -198,6 +217,14 @@ struct LabelEncoder:
         return y_encoded^
 
     fn inverse_transform(self, y: Matrix) raises -> PythonObject:
+        """Transform labels back to original encoding.
+            
+        Args:
+            y: Encoded targets.
+
+        Returns:
+            Original targets Python object.
+        """
         var np = Python.import_module("numpy")
         var np_arr = np.empty(len(y), dtype='object')
         for i in range(len(y)):
