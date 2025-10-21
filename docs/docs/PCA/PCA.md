@@ -9,6 +9,10 @@ struct PCA
 
 Principal component analysis (PCA). Linear dimensionality reduction using Singular Value Decomposition of the data to project it to a lower dimensional space.
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
 - **n_components** (`Int`): Number of components to keep.
@@ -19,7 +23,6 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 - **mean** (`Matrix`)
 - **whiten** (`Bool`): To transform data to have zero mean, unit variance, and no correlation between features.
 - **whiten_** (`Matrix`)
-- **jacobi_eps** (`SIMD[float32, 1]`): Epsilon value used for Jacobi svd.
 - **lapack** (`Bool`): Use LAPACK to calculate svd.
 
 ## Implemented traits
@@ -31,14 +34,13 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 ### `__init__`
 
 ```mojo
-fn __init__(out self, n_components: Int, whiten: Bool = False, jacobi_eps: SIMD[float32, 1] = 1.0E-8, lapack: Bool = False)
+fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False)
 ```
 
 **Args:**
 
 - **n_components** (`Int`)
 - **whiten** (`Bool`)
-- **jacobi_eps** (`SIMD`)
 - **lapack** (`Bool`)
 - **self** (`Self`)
 

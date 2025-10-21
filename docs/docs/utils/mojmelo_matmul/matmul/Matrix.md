@@ -7,13 +7,17 @@ Mojo struct
 struct Matrix[Type: DType]
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+
 ## Parameters
 
 - **Type** (`DType`)
 
 ## Fields
 
-- **data** (`UnsafePointer[SIMD[Type, 1]]`)
+- **data** (`UnsafePointer[Scalar[Type]]`)
 - **layout** (`Layout`)
 
 ## Implemented traits
@@ -38,7 +42,7 @@ fn __init__(out self, shape: Tuple[Int, Int])
 `Self`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[SIMD[Type, 1]], var layout: Layout)
+fn __init__(out self, data: UnsafePointer[Scalar[Type]], var layout: Layout)
 ```
 
 **Args:**
@@ -52,7 +56,7 @@ fn __init__(out self, data: UnsafePointer[SIMD[Type, 1]], var layout: Layout)
 `Self`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[SIMD[Type, 1]], shape: Tuple[Int, Int])
+fn __init__(out self, data: UnsafePointer[Scalar[Type]], shape: Tuple[Int, Int])
 ```
 
 **Args:**
@@ -68,7 +72,7 @@ fn __init__(out self, data: UnsafePointer[SIMD[Type, 1]], shape: Tuple[Int, Int]
 ### `__getitem__`
 
 ```mojo
-fn __getitem__(ref self, i: Int, j: Int) -> ref [self] SIMD[Type, 1]
+fn __getitem__(ref self, i: Int, j: Int) -> ref [self] Scalar[Type]
 ```
 
 **Args:**

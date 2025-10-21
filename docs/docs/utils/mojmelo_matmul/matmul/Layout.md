@@ -7,6 +7,12 @@ Mojo struct
 struct Layout
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
+
 ## Fields
 
 - **shape** (`IndexList[2]`)
@@ -14,7 +20,7 @@ struct Layout
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`, `Writable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`, `Writable`
 
 ## Methods
 

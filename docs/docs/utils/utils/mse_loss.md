@@ -3,7 +3,7 @@ Mojo function
 # `mse_loss`
 
 ```mojo
-fn mse_loss(y: Matrix) -> SIMD[float32, 1]
+fn mse_loss(y: Matrix) -> Float32
 ```
 
 **Args:**
@@ -12,7 +12,7 @@ fn mse_loss(y: Matrix) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

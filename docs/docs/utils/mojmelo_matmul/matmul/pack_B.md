@@ -3,7 +3,7 @@ Mojo function
 # `pack_B`
 
 ```mojo
-fn pack_B[Type: DType, //, kc: Int, nr: Int](Bc_buffer: UnsafePointer[SIMD[Type, 1]], Bc: Matrix[Type]) -> Matrix[Type]
+fn pack_B[Type: DType, //, kc: Int, nr: Int](Bc_buffer: UnsafePointer[Scalar[Type]], Bc: Matrix[Type]) -> Matrix[Type]
 ```
 
 **Parameters:**

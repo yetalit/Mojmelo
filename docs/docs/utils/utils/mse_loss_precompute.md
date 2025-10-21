@@ -3,18 +3,18 @@ Mojo function
 # `mse_loss_precompute`
 
 ```mojo
-fn mse_loss_precompute(size: Int, sum: SIMD[float32, 1], sum_sq: SIMD[float32, 1]) -> SIMD[float32, 1]
+fn mse_loss_precompute(size: Int, sum: Float32, sum_sq: Float32) -> Float32
 ```
 
 **Args:**
 
 - **size** (`Int`)
-- **sum** (`SIMD`)
-- **sum_sq** (`SIMD`)
+- **sum** (`Float32`)
+- **sum_sq** (`Float32`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

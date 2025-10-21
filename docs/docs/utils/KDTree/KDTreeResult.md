@@ -7,14 +7,20 @@ Mojo struct
 struct KDTreeResult
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
+
 ## Fields
 
-- **dis** (`SIMD[float32, 1]`)
+- **dis** (`Float32`)
 - **idx** (`Int`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
 
 ## Methods
 

@@ -3,7 +3,7 @@ Mojo function
 # `gini`
 
 ```mojo
-fn gini(y: Matrix) -> SIMD[float32, 1]
+fn gini(y: Matrix) -> Float32
 ```
 
 **Args:**
@@ -12,7 +12,7 @@ fn gini(y: Matrix) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

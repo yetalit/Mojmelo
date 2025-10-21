@@ -9,39 +9,43 @@ struct PolyRegression
 
 A Gradient Descent based polynomial regression with mse as the loss function.
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
 - **degree** (`Int`): The maximal degree of the polynomial features.
-- **lr** (`SIMD[float32, 1]`): Learning rate.
+- **lr** (`Float32`): Learning rate.
 - **n_iters** (`Int`): The maximum number of iterations.
-- **reg_alpha** (`SIMD[float32, 1]`): Constant that multiplies the regularization term.
-- **l1_ratio** (`SIMD[float32, 1]`): The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1.
-- **tol** (`SIMD[float32, 1]`): The stopping criterion based on loss.
+- **reg_alpha** (`Float32`): Constant that multiplies the regularization term.
+- **l1_ratio** (`Float32`): The Elastic Net mixing parameter, with 0 <= l1_ratio <= 1. l1_ratio=0 corresponds to L2 penalty, l1_ratio=1 to L1.
+- **tol** (`Float32`): The stopping criterion based on loss.
 - **batch_size** (`Int`): Batch size, with batch_size=1 corresponds to SGD, 1 < batch_size < n_samples corresponds to Mini-Batch Gradient Descent.
 - **random_state** (`Int`): Used for shuffling the data.
 - **weights** (`Matrix`): Weights per feature.
-- **bias** (`SIMD[float32, 1]`): Bias term.
+- **bias** (`Float32`): Bias term.
 
 ## Implemented traits
 
-`AnyType`, `CVM`, `UnknownDestructibility`
+`AnyType`, `CV`, `UnknownDestructibility`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, degree: Int = 2, learning_rate: SIMD[float32, 1] = 0.01, n_iters: Int = 1000, reg_alpha: SIMD[float32, 1] = 0, l1_ratio: SIMD[float32, 1] = 0, tol: SIMD[float32, 1] = 0, batch_size: Int = 0, random_state: Int = -1)
+fn __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
 ```
 
 **Args:**
 
 - **degree** (`Int`)
-- **learning_rate** (`SIMD`)
+- **learning_rate** (`Float32`)
 - **n_iters** (`Int`)
-- **reg_alpha** (`SIMD`)
-- **l1_ratio** (`SIMD`)
-- **tol** (`SIMD`)
+- **reg_alpha** (`Float32`)
+- **l1_ratio** (`Float32`)
+- **tol** (`Float32`)
 - **batch_size** (`Int`)
 - **random_state** (`Int`)
 - **self** (`Self`)

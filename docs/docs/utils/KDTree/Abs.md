@@ -3,14 +3,14 @@ Mojo function
 # `Abs`
 
 ```mojo
-fn Abs(val: SIMD[float32, 1]) -> SIMD[float32, 1]
+fn Abs(val: Float32) -> Float32
 ```
 
 **Args:**
 
-- **val** (`SIMD`)
+- **val** (`Float32`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 

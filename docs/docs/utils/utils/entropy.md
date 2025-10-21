@@ -3,7 +3,7 @@ Mojo function
 # `entropy`
 
 ```mojo
-fn entropy(y: Matrix) -> SIMD[float32, 1]
+fn entropy(y: Matrix) -> Float32
 ```
 
 **Args:**
@@ -12,7 +12,7 @@ fn entropy(y: Matrix) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

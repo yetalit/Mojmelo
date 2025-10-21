@@ -3,7 +3,7 @@ Mojo function
 # `cov_value`
 
 ```mojo
-fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) -> SIMD[float32, 1]
+fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) -> Float32
 ```
 
 **Args:**
@@ -13,7 +13,7 @@ fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

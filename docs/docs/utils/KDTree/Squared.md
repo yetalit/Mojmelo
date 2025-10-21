@@ -3,14 +3,14 @@ Mojo function
 # `Squared`
 
 ```mojo
-fn Squared(val: SIMD[float32, 1]) -> SIMD[float32, 1]
+fn Squared(val: Float32) -> Float32
 ```
 
 **Args:**
 
-- **val** (`SIMD`)
+- **val** (`Float32`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 

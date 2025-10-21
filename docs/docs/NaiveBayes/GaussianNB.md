@@ -9,9 +9,13 @@ struct GaussianNB
 
 Gaussian Naive Bayes (GaussianNB).
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
-- **var_smoothing** (`SIMD[float32, 1]`): Portion of the largest variance of all features that is added to variances for calculation stability.
+- **var_smoothing** (`Float32`): Portion of the largest variance of all features that is added to variances for calculation stability.
 
 ## Implemented traits
 
@@ -22,12 +26,12 @@ Gaussian Naive Bayes (GaussianNB).
 ### `__init__`
 
 ```mojo
-fn __init__(out self, var_smoothing: SIMD[float32, 1] = 1.0E-8)
+fn __init__(out self, var_smoothing: Float32 = 1.0E-8)
 ```
 
 **Args:**
 
-- **var_smoothing** (`SIMD`)
+- **var_smoothing** (`Float32`)
 - **self** (`Self`)
 
 **Returns:**
@@ -37,7 +41,7 @@ fn __init__(out self, var_smoothing: SIMD[float32, 1] = 1.0E-8)
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: PythonObject)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit Gaussian Naive Bayes.
@@ -46,14 +50,14 @@ Fit Gaussian Naive Bayes.
 
 - **self** (`Self`)
 - **X** (`Matrix`)
-- **y** (`PythonObject`)
+- **y** (`Matrix`)
 
 **Raises:**
 
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> List[String]
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class for X.
@@ -65,7 +69,7 @@ Predict class for X.
 
 **Returns:**
 
-`List`: The predicted classes.
+`Matrix`: The predicted classes.
 
 **Raises:**
 

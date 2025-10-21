@@ -9,6 +9,10 @@ struct RandomForest
 
 A random forest supporting both classification and regression.
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
 - **n_trees** (`Int`): The number of trees in the forest.
@@ -20,7 +24,7 @@ A random forest supporting both classification and regression.
 
 ## Implemented traits
 
-`AnyType`, `CVM`, `UnknownDestructibility`
+`AnyType`, `CV`, `UnknownDestructibility`
 
 ## Methods
 

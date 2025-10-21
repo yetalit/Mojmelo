@@ -3,16 +3,16 @@ Mojo function
 # `dis_from_bnd`
 
 ```mojo
-fn dis_from_bnd(x: SIMD[float32, 1], amin: SIMD[float32, 1], amax: SIMD[float32, 1]) -> SIMD[float32, 1]
+fn dis_from_bnd(x: Float32, amin: Float32, amax: Float32) -> Float32
 ```
 
 **Args:**
 
-- **x** (`SIMD`)
-- **amin** (`SIMD`)
-- **amax** (`SIMD`)
+- **x** (`Float32`)
+- **amin** (`Float32`)
+- **amax** (`Float32`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 

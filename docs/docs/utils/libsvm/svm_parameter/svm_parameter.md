@@ -19,26 +19,29 @@ struct svm_parameter
 - `RBF = 2`
 - `SIGMOID = 3`
 - `PRECOMPUTED = 4`
+- `__del__is_trivial = True`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
 
 ## Fields
 
 - **svm_type** (`Int`)
 - **kernel_type** (`Int`)
 - **degree** (`Int`)
-- **gamma** (`SIMD[float64, 1]`)
-- **coef0** (`SIMD[float64, 1]`)
-- **cache_size** (`SIMD[float64, 1]`)
-- **eps** (`SIMD[float64, 1]`)
-- **C** (`SIMD[float64, 1]`)
+- **gamma** (`Float64`)
+- **coef0** (`Float64`)
+- **cache_size** (`Float64`)
+- **eps** (`Float64`)
+- **C** (`Float64`)
 - **nr_weight** (`Int`)
 - **weight_label** (`UnsafePointer[Int]`)
-- **weight** (`UnsafePointer[SIMD[float64, 1]]`)
-- **nu** (`SIMD[float64, 1]`)
-- **p** (`SIMD[float64, 1]`)
+- **weight** (`UnsafePointer[Float64]`)
+- **nu** (`Float64`)
+- **p** (`Float64`)
 - **shrinking** (`Int`)
 - **probability** (`Int`)
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
 

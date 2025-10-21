@@ -3,7 +3,7 @@ Mojo function
 # `r2_score`
 
 ```mojo
-fn r2_score(y: Matrix, y_pred: Matrix) -> SIMD[float32, 1]
+fn r2_score(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Coefficient of determination.
@@ -15,7 +15,7 @@ Coefficient of determination.
 
 **Returns:**
 
-`SIMD`: The score.
+`Float32`: The score.
 
 **Raises:**
 

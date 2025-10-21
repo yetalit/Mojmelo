@@ -11,27 +11,34 @@ Native matrix data structure.
 
 ## Aliases
 
-- `simd_width = (simdwidthof[::DType,__mlir_type.!kgen.target]() * 4) if is_apple_silicon() else (simdwidthof[::DType,__mlir_type.!kgen.target]() * 2)`
+- `simd_width = (4 * simd_width_of[DType.float32]()) if CompilationTarget.is_apple_silicon[_current_target()]() else (2 * simd_width_of[DType.float32]())`
+- `__del__is_trivial = False`
+- `__moveinit__is_trivial = False`
+- `__copyinit__is_trivial = False`
 
 ## Fields
 
 - **height** (`Int`): The number of rows.
 - **width** (`Int`): The number of columns.
 - **size** (`Int`): The total size.
-- **data** (`UnsafePointer[SIMD[float32, 1]]`): The pointer to the underlying data.
+- **data** (`UnsafePointer[Float32]`): The pointer to the underlying data.
 - **order** (`String`): The order of matrix: Row-major -> 'c'; Column-major -> 'f'.
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `Sized`, `Stringable`, `UnknownDestructibility`, `Writable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `Sized`, `Stringable`, `UnknownDestructibility`, `Writable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[SIMD[float32, 1]], height: Int, width: Int, order: String = "c")
+fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src]], height: Int, width: Int, order: String = "c")
 ```
+
+**Parameters:**
+
+- **src** (`DType`)
 
 **Args:**
 
@@ -46,7 +53,7 @@ fn __init__(out self, data: UnsafePointer[SIMD[float32, 1]], height: Int, width:
 `Self`
 
 ```mojo
-fn __init__(out self, height: Int, width: Int, data: UnsafePointer[SIMD[float32, 1]] = UnsafePointer[SIMD[float32, 1]](0), order: String = "c")
+fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32, AddressSpace(0), True, MutableAnyOrigin](), order: String = "c")
 ```
 
 **Args:**
@@ -62,7 +69,7 @@ fn __init__(out self, height: Int, width: Int, data: UnsafePointer[SIMD[float32,
 `Self`
 
 ```mojo
-fn __init__(out self, def_input: List[List[SIMD[float32, 1]]])
+fn __init__(out self, def_input: List[List[Float32]])
 ```
 
 **Args:**
@@ -121,7 +128,7 @@ fn __del__(var self)
 ### `__getitem__`
 
 ```mojo
-fn __getitem__(self, row: Int, column: Int) -> SIMD[float32, 1]
+fn __getitem__(self, row: Int, column: Int) -> Float32
 ```
 
 The pattern to access a single value: [row, column] .
@@ -134,7 +141,7 @@ The pattern to access a single value: [row, column] .
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -283,7 +290,7 @@ fn __getitem__(self, rows: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-fn __getitem__(self, rows: List[SIMD[index, 1]]) -> Self
+fn __getitem__(self, rows: List[Scalar[DType.index]]) -> Self
 ```
 
 **Args:**
@@ -314,7 +321,7 @@ fn __getitem__(self, row: String, columns: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-fn __getitem__(self, row: String, columns: List[SIMD[index, 1]]) -> Self
+fn __getitem__(self, row: String, columns: List[Scalar[DType.index]]) -> Self
 ```
 
 **Args:**
@@ -332,7 +339,7 @@ fn __getitem__(self, row: String, columns: List[SIMD[index, 1]]) -> Self
 ### `__setitem__`
 
 ```mojo
-fn __setitem__(mut self, row: Int, column: Int, val: SIMD[float32, 1])
+fn __setitem__(mut self, row: Int, column: Int, val: Float32)
 ```
 
 **Args:**
@@ -340,7 +347,7 @@ fn __setitem__(mut self, row: Int, column: Int, val: SIMD[float32, 1])
 - **self** (`Self`)
 - **row** (`Int`)
 - **column** (`Int`)
-- **val** (`SIMD`)
+- **val** (`Float32`)
 
 **Raises:**
 
@@ -462,13 +469,13 @@ fn __neg__(self) -> Self
 ### `__lt__`
 
 ```mojo
-fn __lt__(self, rhs: SIMD[float32, 1]) -> List[Bool]
+fn __lt__(self, rhs: Float32) -> List[Bool]
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -477,13 +484,13 @@ fn __lt__(self, rhs: SIMD[float32, 1]) -> List[Bool]
 ### `__le__`
 
 ```mojo
-fn __le__(self, rhs: SIMD[float32, 1]) -> List[Bool]
+fn __le__(self, rhs: Float32) -> List[Bool]
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -492,13 +499,13 @@ fn __le__(self, rhs: SIMD[float32, 1]) -> List[Bool]
 ### `__eq__`
 
 ```mojo
-fn __eq__(self, rhs: SIMD[float32, 1]) -> List[Bool]
+fn __eq__(self, rhs: Float32) -> List[Bool]
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -520,13 +527,13 @@ fn __eq__(self, rhs: Self) -> Bool
 ### `__ne__`
 
 ```mojo
-fn __ne__(self, rhs: SIMD[float32, 1]) -> List[Bool]
+fn __ne__(self, rhs: Float32) -> List[Bool]
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -548,13 +555,13 @@ fn __ne__(self, rhs: Self) -> Bool
 ### `__gt__`
 
 ```mojo
-fn __gt__(self, rhs: SIMD[float32, 1]) -> List[Bool]
+fn __gt__(self, rhs: Float32) -> List[Bool]
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -563,13 +570,13 @@ fn __gt__(self, rhs: SIMD[float32, 1]) -> List[Bool]
 ### `__ge__`
 
 ```mojo
-fn __ge__(self, rhs: SIMD[float32, 1]) -> List[Bool]
+fn __ge__(self, rhs: Float32) -> List[Bool]
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -593,13 +600,13 @@ fn __add__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-fn __add__(self, rhs: SIMD[float32, 1]) -> Self
+fn __add__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -623,13 +630,13 @@ fn __sub__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-fn __sub__(self, rhs: SIMD[float32, 1]) -> Self
+fn __sub__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -653,13 +660,13 @@ fn __mul__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-fn __mul__(self, rhs: SIMD[float32, 1]) -> Self
+fn __mul__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -683,13 +690,13 @@ fn __truediv__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-fn __truediv__(self, rhs: SIMD[float32, 1]) -> Self
+fn __truediv__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 **Returns:**
 
@@ -713,13 +720,13 @@ fn __pow__(self, p: Int) -> Self
 ### `__radd__`
 
 ```mojo
-fn __radd__(self, lhs: SIMD[float32, 1]) -> Self
+fn __radd__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **lhs** (`SIMD`)
+- **lhs** (`Float32`)
 
 **Returns:**
 
@@ -728,13 +735,13 @@ fn __radd__(self, lhs: SIMD[float32, 1]) -> Self
 ### `__rsub__`
 
 ```mojo
-fn __rsub__(self, lhs: SIMD[float32, 1]) -> Self
+fn __rsub__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **lhs** (`SIMD`)
+- **lhs** (`Float32`)
 
 **Returns:**
 
@@ -743,13 +750,13 @@ fn __rsub__(self, lhs: SIMD[float32, 1]) -> Self
 ### `__rmul__`
 
 ```mojo
-fn __rmul__(self, lhs: SIMD[float32, 1]) -> Self
+fn __rmul__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **lhs** (`SIMD`)
+- **lhs** (`Float32`)
 
 **Returns:**
 
@@ -758,13 +765,13 @@ fn __rmul__(self, lhs: SIMD[float32, 1]) -> Self
 ### `__rtruediv__`
 
 ```mojo
-fn __rtruediv__(self, lhs: SIMD[float32, 1]) -> Self
+fn __rtruediv__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **lhs** (`SIMD`)
+- **lhs** (`Float32`)
 
 **Returns:**
 
@@ -784,13 +791,13 @@ fn __iadd__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-fn __iadd__(mut self, rhs: SIMD[float32, 1])
+fn __iadd__(mut self, rhs: Float32)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 ### `__isub__`
 
@@ -806,13 +813,13 @@ fn __isub__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-fn __isub__(mut self, rhs: SIMD[float32, 1])
+fn __isub__(mut self, rhs: Float32)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 ### `__imul__`
 
@@ -828,13 +835,13 @@ fn __imul__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-fn __imul__(mut self, rhs: SIMD[float32, 1])
+fn __imul__(mut self, rhs: Float32)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 ### `__itruediv__`
 
@@ -850,13 +857,13 @@ fn __itruediv__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-fn __itruediv__(mut self, rhs: SIMD[float32, 1])
+fn __itruediv__(mut self, rhs: Float32)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rhs** (`SIMD`)
+- **rhs** (`Float32`)
 
 ### `__ipow__`
 
@@ -872,7 +879,7 @@ fn __ipow__(mut self, rhs: Int)
 ### `load`
 
 ```mojo
-fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[float32, nelts]
+fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]
 ```
 
 **Parameters:**
@@ -892,7 +899,7 @@ fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[float32, nelts]
 ### `store`
 
 ```mojo
-fn store[nelts: Int](self, y: Int, x: Int, val: SIMD[float32, nelts])
+fn store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts])
 ```
 
 **Parameters:**
@@ -1005,22 +1012,22 @@ fn ele_mul(self, rhs: Self) -> Self
 ### `where`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: SIMD[float32, 1], _false: SIMD[float32, 1]) -> Self
+fn where(self, cmp: List[Bool], _true: Float32, _false: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **cmp** (`List`)
-- **_true** (`SIMD`)
-- **_false** (`SIMD`)
+- **_true** (`Float32`)
+- **_false** (`Float32`)
 
 **Returns:**
 
 `Self`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: Self, _false: SIMD[float32, 1]) -> Self
+fn where(self, cmp: List[Bool], _true: Self, _false: Float32) -> Self
 ```
 
 **Args:**
@@ -1028,21 +1035,21 @@ fn where(self, cmp: List[Bool], _true: Self, _false: SIMD[float32, 1]) -> Self
 - **self** (`Self`)
 - **cmp** (`List`)
 - **_true** (`Self`)
-- **_false** (`SIMD`)
+- **_false** (`Float32`)
 
 **Returns:**
 
 `Self`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: SIMD[float32, 1], _false: Self) -> Self
+fn where(self, cmp: List[Bool], _true: Float32, _false: Self) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **cmp** (`List`)
-- **_true** (`SIMD`)
+- **_true** (`Float32`)
 - **_false** (`Self`)
 
 **Returns:**
@@ -1153,7 +1160,7 @@ fn cumsum(self) -> Self
 ### `sum`
 
 ```mojo
-fn sum(self) -> SIMD[float32, 1]
+fn sum(self) -> Float32
 ```
 
 **Args:**
@@ -1162,7 +1169,7 @@ fn sum(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1184,7 +1191,7 @@ fn sum(self, axis: Int) -> Self
 ### `mean`
 
 ```mojo
-fn mean(self) -> SIMD[float32, 1]
+fn mean(self) -> Float32
 ```
 
 **Args:**
@@ -1193,7 +1200,7 @@ fn mean(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1215,7 +1222,7 @@ fn mean(self, axis: Int) -> Self
 ### `mean_slow`
 
 ```mojo
-fn mean_slow(self) -> SIMD[float32, 1]
+fn mean_slow(self) -> Float32
 ```
 
 **Args:**
@@ -1224,7 +1231,7 @@ fn mean_slow(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1247,7 +1254,7 @@ fn mean_slow0(self) -> Self
 ### `std`
 
 ```mojo
-fn std(self, correction: Bool = False) -> SIMD[float32, 1]
+fn std(self, correction: Bool = False) -> Float32
 ```
 
 **Args:**
@@ -1257,23 +1264,23 @@ fn std(self, correction: Bool = False) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
 ```mojo
-fn std(self, _mean: SIMD[float32, 1], correction: Bool = False) -> SIMD[float32, 1]
+fn std(self, _mean: Float32, correction: Bool = False) -> Float32
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **_mean** (`SIMD`)
+- **_mean** (`Float32`)
 - **correction** (`Bool`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1313,17 +1320,17 @@ fn std(self, axis: Int, _mean: Self, correction: Bool = False) -> Self
 ### `std_slow`
 
 ```mojo
-fn std_slow(self, _mean: SIMD[float32, 1]) -> SIMD[float32, 1]
+fn std_slow(self, _mean: Float32) -> Float32
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **_mean** (`SIMD`)
+- **_mean** (`Float32`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1471,7 +1478,7 @@ fn argmax_f(self, axis: Int) -> Self
 ### `argsort`
 
 ```mojo
-fn argsort[ascending: Bool = True](self) -> List[SIMD[index, 1]]
+fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.index]]
 ```
 
 **Parameters:**
@@ -1491,7 +1498,7 @@ fn argsort[ascending: Bool = True](self) -> List[SIMD[index, 1]]
 ### `argsort_inplace`
 
 ```mojo
-fn argsort_inplace[ascending: Bool = True](mut self) -> List[SIMD[index, 1]]
+fn argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.index]]
 ```
 
 **Parameters:**
@@ -1511,7 +1518,7 @@ fn argsort_inplace[ascending: Bool = True](mut self) -> List[SIMD[index, 1]]
 ### `min`
 
 ```mojo
-fn min(self) -> SIMD[float32, 1]
+fn min(self) -> Float32
 ```
 
 **Args:**
@@ -1520,7 +1527,7 @@ fn min(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1542,7 +1549,7 @@ fn min(self, axis: Int) -> Self
 ### `max`
 
 ```mojo
-fn max(self) -> SIMD[float32, 1]
+fn max(self) -> Float32
 ```
 
 **Args:**
@@ -1551,7 +1558,7 @@ fn max(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 
@@ -1688,7 +1695,7 @@ fn eye(n: Int, order: String = "c") -> Self
 ### `norm`
 
 ```mojo
-fn norm(self) -> SIMD[float32, 1]
+fn norm(self) -> Float32
 ```
 
 **Args:**
@@ -1697,24 +1704,7 @@ fn norm(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
-
-**Raises:**
-
-### `svd`
-
-```mojo
-fn svd(self, eps: SIMD[float32, 1] = 1.0E-8) -> Tuple[Matrix, Matrix, Matrix]
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **eps** (`SIMD`)
-
-**Returns:**
-
-`Tuple`
+`Float32`
 
 **Raises:**
 
@@ -1772,22 +1762,7 @@ fn bincount(self) -> List[Int]
 ### `unique`
 
 ```mojo
-@staticmethod
-fn unique(data: PythonObject) -> Tuple[List[String], List[Int]]
-```
-
-**Args:**
-
-- **data** (`PythonObject`)
-
-**Returns:**
-
-`Tuple`
-
-**Raises:**
-
-```mojo
-fn unique(self) -> Dict[Int, Int]
+fn unique(self) -> List[List[Int]]
 ```
 
 **Args:**
@@ -1796,9 +1771,7 @@ fn unique(self) -> Dict[Int, Int]
 
 **Returns:**
 
-`Dict`
-
-**Raises:**
+`List`
 
 ### `is_uniquef`
 
@@ -1852,14 +1825,14 @@ fn ones(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-fn full(height: Int, width: Int, val: SIMD[float32, 1], order: String = "c") -> Self
+fn full(height: Int, width: Int, val: Float32, order: String = "c") -> Self
 ```
 
 **Args:**
 
 - **height** (`Int`)
 - **width** (`Int`)
-- **val** (`SIMD`)
+- **val** (`Float32`)
 - **order** (`String`)
 
 **Returns:**
@@ -1879,13 +1852,13 @@ fn fill_zero(self)
 ### `fill`
 
 ```mojo
-fn fill(self, val: SIMD[float32, 1])
+fn fill(self, val: Float32)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **val** (`SIMD`)
+- **val** (`Float32`)
 
 ### `random`
 
@@ -1908,7 +1881,7 @@ fn random(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[SIMD[index, 1]]
+fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Scalar[DType.index]]
 ```
 
 **Args:**
@@ -1928,13 +1901,13 @@ fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -
 
 ```mojo
 @staticmethod
-fn linspace(start: SIMD[float32, 1], stop: SIMD[float32, 1], num: Int, order: String = "c") -> Self
+fn linspace(start: Float32, stop: Float32, num: Int, order: String = "c") -> Self
 ```
 
 **Args:**
 
-- **start** (`SIMD`)
-- **stop** (`SIMD`)
+- **start** (`Float32`)
+- **stop** (`Float32`)
 - **num** (`Int`)
 - **order** (`String`)
 
@@ -1982,11 +1955,15 @@ Converts the matrix to a numpy array.
 
 **Raises:**
 
-### `float64_ptr`
+### `cast_ptr`
 
 ```mojo
-fn float64_ptr(self) -> UnsafePointer[SIMD[float64, 1]]
+fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des]]
 ```
+
+**Parameters:**
+
+- **des** (`DType`)
 
 **Args:**
 

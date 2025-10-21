@@ -9,25 +9,29 @@ struct MultinomialNB
 
 Naive Bayes classifier for multinomial models.
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
-- **alpha** (`SIMD[float32, 1]`): Additive smoothing parameter.
+- **alpha** (`Float32`): Additive smoothing parameter.
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `CV`, `UnknownDestructibility`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, alpha: SIMD[float32, 1] = 0)
+fn __init__(out self, alpha: Float32 = 0)
 ```
 
 **Args:**
 
-- **alpha** (`SIMD`)
+- **alpha** (`Float32`)
 - **self** (`Self`)
 
 **Returns:**
@@ -52,7 +56,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: PythonObject)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit Naive Bayes classifier.
@@ -61,14 +65,14 @@ Fit Naive Bayes classifier.
 
 - **self** (`Self`)
 - **X** (`Matrix`)
-- **y** (`PythonObject`)
+- **y** (`Matrix`)
 
 **Raises:**
 
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> List[String]
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class for X.
@@ -80,7 +84,7 @@ Predict class for X.
 
 **Returns:**
 
-`List`: The predicted classes.
+`Matrix`: The predicted classes.
 
 **Raises:**
 

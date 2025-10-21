@@ -7,6 +7,10 @@ Mojo struct
 struct Cache
 ```
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
 - **l** (`Int`)
@@ -23,13 +27,13 @@ struct Cache
 ### `__init__`
 
 ```mojo
-fn __init__(out self, l: Int, size: UInt)
+fn __init__(out self, l_: Int, size_: UInt)
 ```
 
 **Args:**
 
-- **l** (`Int`)
-- **size** (`UInt`)
+- **l_** (`Int`)
+- **size_** (`UInt`)
 - **self** (`Self`)
 
 **Returns:**
@@ -71,7 +75,7 @@ fn lru_insert(self, h: UnsafePointer[head_t])
 ### `get_data`
 
 ```mojo
-fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[SIMD[float32, 1]]], var _len: Int) -> Int
+fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32]], var _len: Int) -> Int
 ```
 
 **Args:**

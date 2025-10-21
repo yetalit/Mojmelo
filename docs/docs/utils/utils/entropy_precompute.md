@@ -3,17 +3,17 @@ Mojo function
 # `entropy_precompute`
 
 ```mojo
-fn entropy_precompute(size: SIMD[float32, 1], histogram: List[Int]) -> SIMD[float32, 1]
+fn entropy_precompute(size: Float32, histogram: List[Int]) -> Float32
 ```
 
 **Args:**
 
-- **size** (`SIMD`)
+- **size** (`Float32`)
 - **histogram** (`List`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

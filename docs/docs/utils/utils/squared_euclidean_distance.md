@@ -3,7 +3,7 @@ Mojo function
 # `squared_euclidean_distance`
 
 ```mojo
-fn squared_euclidean_distance(x1: Matrix, x2: Matrix) -> SIMD[float32, 1]
+fn squared_euclidean_distance(x1: Matrix, x2: Matrix) -> Float32
 ```
 
 **Args:**
@@ -13,7 +13,7 @@ fn squared_euclidean_distance(x1: Matrix, x2: Matrix) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

@@ -7,16 +7,57 @@ Mojo struct
 struct Kernel
 ```
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
-- **x** (`UnsafePointer[UnsafePointer[svm_node]]`)
-- **x_square** (`UnsafePointer[SIMD[float64, 1]]`)
-- **kernel_type** (`Int`)
-- **degree** (`Int`)
-- **gamma** (`SIMD[float64, 1]`)
-- **coef0** (`SIMD[float64, 1]`)
+- **kernel_function** (`fn(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
 
 `AnyType`, `UnknownDestructibility`
+
+## Methods
+
+### `__init__`
+
+```mojo
+fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node]], param: svm_parameter)
+```
+
+**Args:**
+
+- **l** (`Int`)
+- **x_** (`UnsafePointer`)
+- **param** (`svm_parameter`)
+- **self** (`Self`)
+
+**Returns:**
+
+`Self`
+
+### `__del__`
+
+```mojo
+fn __del__(var self)
+```
+
+**Args:**
+
+- **self** (`Self`)
+
+### `swap_index`
+
+```mojo
+fn swap_index(self, i: Int, j: Int)
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **i** (`Int`)
+- **j** (`Int`)
+
 

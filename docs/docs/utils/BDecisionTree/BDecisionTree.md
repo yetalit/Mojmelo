@@ -7,35 +7,41 @@ Mojo struct
 struct BDecisionTree
 ```
 
+## Aliases
+
+- `__del__is_trivial = False`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
+
 ## Fields
 
 - **min_samples_split** (`Int`)
 - **max_depth** (`Int`)
-- **reg_lambda** (`SIMD[float32, 1]`)
-- **reg_alpha** (`SIMD[float32, 1]`)
-- **gamma** (`SIMD[float32, 1]`)
+- **reg_lambda** (`Float32`)
+- **reg_alpha** (`Float32`)
+- **gamma** (`Float32`)
 - **n_bins** (`Int`)
 - **root** (`UnsafePointer[Node]`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: SIMD[float32, 1] = 1, reg_alpha: SIMD[float32, 1] = 0, gamma: SIMD[float32, 1] = 0, n_bins: Int = 0)
+fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
 ```
 
 **Args:**
 
 - **min_samples_split** (`Int`)
 - **max_depth** (`Int`)
-- **reg_lambda** (`SIMD`)
-- **reg_alpha** (`SIMD`)
-- **gamma** (`SIMD`)
+- **reg_lambda** (`Float32`)
+- **reg_alpha** (`Float32`)
+- **gamma** (`Float32`)
 - **n_bins** (`Int`)
 - **self** (`Self`)
 

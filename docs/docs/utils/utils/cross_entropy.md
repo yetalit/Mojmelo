@@ -3,7 +3,7 @@ Mojo function
 # `cross_entropy`
 
 ```mojo
-fn cross_entropy(y: Matrix, y_pred: Matrix) -> SIMD[float32, 1]
+fn cross_entropy(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Binary Cross Entropy.
@@ -15,7 +15,7 @@ Binary Cross Entropy.
 
 **Returns:**
 
-`SIMD`: The loss.
+`Float32`: The loss.
 
 **Raises:**
 

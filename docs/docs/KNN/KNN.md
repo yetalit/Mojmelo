@@ -9,31 +9,33 @@ struct KNN
 
 Classifier implementing the k-nearest neighbors vote.
 
+## Aliases
+
+- `__del__is_trivial = False`
+
 ## Fields
 
 - **k** (`Int`): Number of neighbors to use.
 - **metric** (`String`): Metric to use for distance computation: Euclidean -> 'euc'; Manhattan -> 'man'.
-- **n_jobs** (`Int`): The number of parallel jobs to run for neighbors search. `-1` means using all processors.
 - **kdtree** (`KDTree`)
-- **y_train** (`List[String]`)
+- **y_train** (`Matrix`)
 
 ## Implemented traits
 
-`AnyType`, `CVP`, `UnknownDestructibility`
+`AnyType`, `CV`, `UnknownDestructibility`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, k: Int = 3, metric: String = "euc", n_jobs: Int = 0)
+fn __init__(out self, k: Int = 3, metric: String = "euc")
 ```
 
 **Args:**
 
 - **k** (`Int`)
 - **metric** (`String`)
-- **n_jobs** (`Int`)
 - **self** (`Self`)
 
 **Returns:**
@@ -60,7 +62,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: PythonObject)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the k-nearest neighbors classifier from the training dataset.
@@ -69,17 +71,17 @@ Fit the k-nearest neighbors classifier from the training dataset.
 
 - **self** (`Self`)
 - **X** (`Matrix`)
-- **y** (`PythonObject`)
+- **y** (`Matrix`)
 
 **Raises:**
 
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> List[String]
+fn predict(self, X: Matrix) -> Matrix
 ```
 
-Predict the class labels for the provided data.
+Predict the class indices for the provided data.
 
 **Args:**
 
@@ -88,7 +90,7 @@ Predict the class labels for the provided data.
 
 **Returns:**
 
-`List`: Class labels for each data sample.
+`Matrix`: Class indices for each data sample.
 
 **Raises:**
 

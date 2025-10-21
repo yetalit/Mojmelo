@@ -7,18 +7,24 @@ Mojo struct
 struct KDTreeNode
 ```
 
+## Aliases
+
+- `__del__is_trivial = False`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = False`
+
 ## Fields
 
 - **cut_dim** (`Int`)
-- **cut_val** (`SIMD[float32, 1]`)
-- **cut_val_left** (`SIMD[float32, 1]`)
-- **cut_val_right** (`SIMD[float32, 1]`)
+- **cut_val** (`Float32`)
+- **cut_val_left** (`Float32`)
+- **cut_val_right** (`Float32`)
 - **l** (`Int`)
 - **u** (`Int`)
 - **box** (`List[interval]`)
 - **left** (`UnsafePointer[KDTreeNode]`)
 - **right** (`UnsafePointer[KDTreeNode]`)
-- **metric** (`fn(SIMD[float32, 1]) -> SIMD[float32, 1]`)
+- **metric** (`fn(Float32) -> Float32`)
 
 ## Implemented traits
 
@@ -29,13 +35,13 @@ struct KDTreeNode
 ### `__init__`
 
 ```mojo
-fn __init__(out self, dim: Int, metric: fn(SIMD[float32, 1]) -> SIMD[float32, 1])
+fn __init__(out self, dim: Int, metric: fn(Float32) -> Float32)
 ```
 
 **Args:**
 
 - **dim** (`Int`)
-- **metric** (`fn(SIMD[float32, 1]) -> SIMD[float32, 1]`)
+- **metric** (`fn(Float32) -> Float32`)
 - **self** (`Self`)
 
 **Returns:**

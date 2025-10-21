@@ -3,21 +3,19 @@ Mojo function
 # `leaf_score`
 
 ```mojo
-fn leaf_score(reg_lambda: SIMD[float32, 1], reg_alpha: SIMD[float32, 1], g: Matrix, h: Matrix) -> SIMD[float32, 1]
+fn leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) -> Float32
 ```
-
-Given the gradient and hessian of a tree leaf, return the prediction (score) at this leaf. The score is -G/(H+λ).
 
 **Args:**
 
-- **reg_lambda** (`SIMD`)
-- **reg_alpha** (`SIMD`)
+- **reg_lambda** (`Float32`)
+- **reg_alpha** (`Float32`)
 - **g** (`Matrix`)
 - **h** (`Matrix`)
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 **Raises:**
 

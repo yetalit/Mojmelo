@@ -9,12 +9,18 @@ struct DecisionTree
 
 A decision tree supporting both classification and regression.
 
+## Aliases
+
+- `__del__is_trivial = False`
+- `__moveinit__is_trivial = False`
+- `__copyinit__is_trivial = False`
+
 ## Fields
 
 - **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **loss_func** (`fn(Matrix) raises -> SIMD[float32, 1]`)
-- **c_func** (`fn(SIMD[float32, 1], List[Int]) raises -> SIMD[float32, 1]`)
-- **r_func** (`fn(Int, SIMD[float32, 1], SIMD[float32, 1]) raises -> SIMD[float32, 1]`)
+- **loss_func** (`fn(Matrix) raises -> Float32`)
+- **c_func** (`fn(Float32, List[Int]) raises -> Float32`)
+- **r_func** (`fn(Int, Float32, Float32) raises -> Float32`)
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
@@ -22,7 +28,7 @@ A decision tree supporting both classification and regression.
 
 ## Implemented traits
 
-`AnyType`, `CVM`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
 
 ## Methods
 

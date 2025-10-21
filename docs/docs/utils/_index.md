@@ -8,6 +8,7 @@ Mojo package
 - [`KDTree`](KDTree/_index.md)
 - [`Matrix`](Matrix/_index.md)
 - [`sort`](sort/_index.md)
+- [`svd`](svd/_index.md)
 - [`utils`](utils/_index.md)
 
 ## Packages

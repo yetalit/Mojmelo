@@ -7,13 +7,34 @@ Mojo struct
 struct svm_problem
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+
 ## Fields
 
 - **l** (`Int`)
-- **y** (`UnsafePointer[SIMD[float64, 1]]`)
+- **y** (`UnsafePointer[Float64]`)
 - **x** (`UnsafePointer[UnsafePointer[svm_node]]`)
 
 ## Implemented traits
 
 `AnyType`, `UnknownDestructibility`
+
+## Methods
+
+### `__init__`
+
+```mojo
+fn __init__(out self)
+```
+
+**Args:**
+
+- **self** (`Self`)
+
+**Returns:**
+
+`Self`
+
 

@@ -3,7 +3,7 @@ Mojo function
 # `fill_indices_list`
 
 ```mojo
-fn fill_indices_list(N: Int) -> List[SIMD[index, 1]]
+fn fill_indices_list(N: Int) -> List[Scalar[DType.index]]
 ```
 
 Generates indices from 0 to N.

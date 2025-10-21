@@ -7,43 +7,34 @@ Mojo struct
 struct head_t
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+
 ## Fields
 
 - **prev** (`UnsafePointer[head_t]`)
 - **next** (`UnsafePointer[head_t]`)
-- **data** (`UnsafePointer[SIMD[float32, 1]]`)
+- **data** (`UnsafePointer[Float32]`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `UnknownDestructibility`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, p: UnsafePointer[head_t], n: UnsafePointer[head_t], _len: Int)
+fn __init__(out self)
 ```
 
 **Args:**
 
-- **p** (`UnsafePointer`)
-- **n** (`UnsafePointer`)
-- **_len** (`Int`)
 - **self** (`Self`)
 
 **Returns:**
 
 `Self`
-
-### `__del__`
-
-```mojo
-fn __del__(var self)
-```
-
-**Args:**
-
-- **self** (`Self`)
 
 

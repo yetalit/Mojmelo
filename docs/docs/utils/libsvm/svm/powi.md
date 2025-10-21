@@ -3,15 +3,15 @@ Mojo function
 # `powi`
 
 ```mojo
-fn powi(base: SIMD[float64, 1], times: Int) -> SIMD[float64, 1]
+fn powi(base: Float64, times: Int) -> Float64
 ```
 
 **Args:**
 
-- **base** (`SIMD`)
+- **base** (`Float64`)
 - **times** (`Int`)
 
 **Returns:**
 
-`SIMD`
+`Float64`
 

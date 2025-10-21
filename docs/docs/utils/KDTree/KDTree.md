@@ -10,6 +10,9 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 ## Aliases
 
 - `bucketsize = 12`
+- `__del__is_trivial = False`
+- `__moveinit__is_trivial = False`
+- `__copyinit__is_trivial = False`
 
 ## Parameters
 
@@ -21,8 +24,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 - **N** (`Int`)
 - **dim** (`Int`)
 - **root** (`UnsafePointer[KDTreeNode]`)
-- **ind** (`List[SIMD[index, 1]]`)
-- **metric** (`fn(SIMD[float32, 1]) -> SIMD[float32, 1]`)
+- **ind** (`List[Scalar[DType.index]]`)
+- **metric** (`fn(Float32) -> Float32`)
 
 ## Implemented traits
 
@@ -135,14 +138,14 @@ fn select_on_coordinate(mut self, c: Int, k: Int, var l: Int, var u: Int)
 ### `select_on_coordinate_value`
 
 ```mojo
-fn select_on_coordinate_value(mut self, c: Int, alpha: SIMD[float32, 1], l: Int, u: Int) -> Int
+fn select_on_coordinate_value(mut self, c: Int, alpha: Float32, l: Int, u: Int) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **c** (`Int`)
-- **alpha** (`SIMD`)
+- **alpha** (`Float32`)
 - **l** (`Int`)
 - **u** (`Int`)
 
@@ -153,7 +156,7 @@ fn select_on_coordinate_value(mut self, c: Int, alpha: SIMD[float32, 1], l: Int,
 ### `n_nearest`
 
 ```mojo
-fn n_nearest(self, qv: NDBuffer[float32, 1, origin], nn: Int, mut result: KDTreeResultVector)
+fn n_nearest(self, qv: NDBuffer[DType.float32, 1, origin], nn: Int, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -180,27 +183,27 @@ fn n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int, mut result
 ### `r_nearest`
 
 ```mojo
-fn r_nearest(self, qv: NDBuffer[float32, 1, origin], r2: SIMD[float32, 1], mut result: KDTreeResultVector)
+fn r_nearest(self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32, mut result: KDTreeResultVector)
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **qv** (`NDBuffer`)
-- **r2** (`SIMD`)
+- **r2** (`Float32`)
 - **result** (`KDTreeResultVector`)
 
 ### `r_count`
 
 ```mojo
-fn r_count(self, qv: NDBuffer[float32, 1, origin], r2: SIMD[float32, 1]) -> Int
+fn r_count(self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **qv** (`NDBuffer`)
-- **r2** (`SIMD`)
+- **r2** (`Float32`)
 
 **Returns:**
 
@@ -209,7 +212,7 @@ fn r_count(self, qv: NDBuffer[float32, 1, origin], r2: SIMD[float32, 1]) -> Int
 ### `r_nearest_around_point`
 
 ```mojo
-fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: SIMD[float32, 1], mut result: KDTreeResultVector)
+fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -217,13 +220,13 @@ fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: SIMD[float3
 - **self** (`Self`)
 - **idxin** (`Int`)
 - **correltime** (`Int`)
-- **r2** (`SIMD`)
+- **r2** (`Float32`)
 - **result** (`KDTreeResultVector`)
 
 ### `r_count_around_point`
 
 ```mojo
-fn r_count_around_point(self, idxin: Int, correltime: Int, r2: SIMD[float32, 1]) -> Int
+fn r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) -> Int
 ```
 
 **Args:**
@@ -231,7 +234,7 @@ fn r_count_around_point(self, idxin: Int, correltime: Int, r2: SIMD[float32, 1])
 - **self** (`Self`)
 - **idxin** (`Int`)
 - **correltime** (`Int`)
-- **r2** (`SIMD`)
+- **r2** (`Float32`)
 
 **Returns:**
 

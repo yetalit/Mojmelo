@@ -7,12 +7,18 @@ Mojo struct
 struct svm_node
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
+
 ## Fields
 
 - **index** (`Int`)
-- **value** (`SIMD[float64, 1]`)
+- **value** (`Float64`)
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
 

@@ -7,12 +7,18 @@ Mojo struct
 struct interval
 ```
 
+## Aliases
+
+- `__del__is_trivial = True`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
+
 ## Fields
 
-- **lower** (`SIMD[float32, 1]`)
-- **upper** (`SIMD[float32, 1]`)
+- **lower** (`Float32`)
+- **upper** (`Float32`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
 

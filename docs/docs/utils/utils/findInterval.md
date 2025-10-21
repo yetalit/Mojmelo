@@ -3,13 +3,13 @@ Mojo function
 # `findInterval`
 
 ```mojo
-fn findInterval(intervals: List[Tuple[SIMD[float32, 1], SIMD[float32, 1]]], x: SIMD[float32, 1]) -> Int
+fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int
 ```
 
 **Args:**
 
 - **intervals** (`List`)
-- **x** (`SIMD`)
+- **x** (`Float32`)
 
 **Returns:**
 

@@ -7,6 +7,12 @@ Mojo struct
 struct KDTreeResultVector
 ```
 
+## Aliases
+
+- `__del__is_trivial = False`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = False`
+
 ## Implemented traits
 
 `AnyType`, `Copyable`, `Movable`, `Sized`, `UnknownDestructibility`
@@ -102,7 +108,7 @@ fn pop_heap(mut self)
 ### `max_value`
 
 ```mojo
-fn max_value(self) -> SIMD[float32, 1]
+fn max_value(self) -> Float32
 ```
 
 **Args:**
@@ -111,12 +117,12 @@ fn max_value(self) -> SIMD[float32, 1]
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 ### `replace_maxpri_elt_return_new_maxpri`
 
 ```mojo
-fn replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> SIMD[float32, 1]
+fn replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> Float32
 ```
 
 **Args:**
@@ -126,6 +132,6 @@ fn replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> SIMD[float
 
 **Returns:**
 
-`SIMD`
+`Float32`
 
 

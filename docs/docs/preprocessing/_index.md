@@ -4,7 +4,7 @@ Mojo module
 
 ## Structs
 
-- [`SplittedPO`](SplittedPO.md)
+- [`LabelEncoder`](LabelEncoder.md): Encode target labels with value between 0 and n_classes-1. This transformer can be used to encode target values from numpy, and not the input X.
 
 ## Functions
 

@@ -4,6 +4,5 @@ Mojo module
 
 ## Structs
 
-- [`SVM_Primal`](SVM_Primal.md)
-- [`SVM_Dual`](SVM_Dual.md)
+- [`SVC`](SVC.md): Support Vector Classification.
 

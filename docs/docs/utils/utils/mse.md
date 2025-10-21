@@ -3,7 +3,7 @@ Mojo function
 # `mse`
 
 ```mojo
-fn mse(y: Matrix, y_pred: Matrix) -> SIMD[float32, 1]
+fn mse(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Mean Squared Error.
@@ -15,7 +15,7 @@ Mean Squared Error.
 
 **Returns:**
 
-`SIMD`: The error.
+`Float32`: The error.
 
 **Raises:**
 

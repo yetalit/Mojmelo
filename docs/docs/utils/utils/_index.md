@@ -4,8 +4,7 @@ Mojo module
 
 ## Traits
 
-- [`CVM`](CVM.md)
-- [`CVP`](CVP.md)
+- [`CV`](CV.md)
 
 ## Functions
 
@@ -23,9 +22,6 @@ Mojo module
 - [`normal_distr`](normal_distr.md)
 - [`unit_step`](unit_step.md)
 - [`sign`](sign.md)
-- [`ReLu`](ReLu.md)
-- [`polynomial_kernel`](polynomial_kernel.md)
-- [`gaussian_kernel`](gaussian_kernel.md)
 - [`mse`](mse.md)
 - [`cross_entropy`](cross_entropy.md)
 - [`r2_score`](r2_score.md)
@@ -46,7 +42,7 @@ Mojo module
 - [`findInterval`](findInterval.md)
 - [`fill_indices`](fill_indices.md)
 - [`fill_indices_list`](fill_indices_list.md)
-- [`l_to_numpy`](l_to_numpy.md)
+- [`cast`](cast.md)
 - [`ids_to_numpy`](ids_to_numpy.md)
 - [`cartesian_product`](cartesian_product.md)
 
