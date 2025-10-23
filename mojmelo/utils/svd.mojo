@@ -1,5 +1,6 @@
+from .mojmelo_matmul import matmul
 from memory import memcpy, memset_zero
-from algorithm import vectorize
+from algorithm import vectorize, parallelize
 from sys import simd_width_of, CompilationTarget
 import math
 from mojmelo.utils.Matrix import Matrix
@@ -143,7 +144,42 @@ fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix,
     ATA.free()
 
 fn svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
+    var A64 = A.cast_ptr[DType.float64]()
+    var A64T = C_transpose(A, A64)
+
     var S = UnsafePointer[Float64].alloc(k)
     var V = Matrix(0, 0)
-    svd_thin(A.height, A.width, k, S, V, (A.T() * A).cast_ptr[DType.float64]())
+
+    var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
+    var B = matmul.Matrix[DType.float64](A64, (A.height, A.width))
+    var ATA = matmul.Matrix[DType.float64]((A.width, A.width))
+    memset_zero(ATA.data, A.width * A.width)
+    matmul.matmul(A.width, A.height, A.width, ATA, AT, B)
+    A64.free()
+    A64T.free()
+    
+    svd_thin(A.height, A.width, k, S, V, ATA.data)
     return Matrix(S, 1, k), V^
+
+@always_inline
+fn C_transpose(A: Matrix, A64: UnsafePointer[Float64]) -> UnsafePointer[Float64]:
+    var AT = UnsafePointer[Float64].alloc(A.size)
+    if A.size < 98304:
+        for idx_col in range(A.width):
+            var tmpPtr = A64 + idx_col
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                AT.store(idx + idx_col * A.height, tmpPtr.strided_load[width=simd_width](A.width))
+                tmpPtr += simd_width * A.width
+            vectorize[convert, simd_width](A.height)
+    else:
+        @parameter
+        fn p(idx_col: Int):
+            var tmpPtr = A64 + idx_col
+            @parameter
+            fn pconvert[simd_width: Int](idx: Int):
+                AT.store(idx + idx_col * A.height, tmpPtr.strided_load[width=simd_width](A.width))
+                tmpPtr += simd_width * A.width
+            vectorize[pconvert, simd_width](A.height)
+        parallelize[p](A.width)
+    return AT
