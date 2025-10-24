@@ -7,11 +7,10 @@ from .svm_problem import svm_problem
 from .svm_model import svm_model
 from sys import size_of
 import math
-from algorithm import parallelize
+from algorithm import parallelize, reduction
 from mojmelo.utils.utils import fill_indices
 import random
 from buffer import NDBuffer
-import algorithm
 
 alias TAU = 1e-12
 
@@ -2514,7 +2513,7 @@ fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: 
             values[i] = sv_coef[i] * k_function(x,model.SV[i],model.param)
         parallelize[p](model.l)
         try:
-            sum = algorithm.reduction.sum(NDBuffer[dtype=DType.float64, rank=1](values, model.l))
+            sum = reduction.sum(NDBuffer[dtype=DType.float64, rank=1](values, model.l))
         except:
             print('Failed to calculate sum!')
         values.free()

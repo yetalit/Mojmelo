@@ -1,9 +1,8 @@
 from .mojmelo_matmul import matmul
 from sys import simd_width_of, CompilationTarget
 from memory import memcpy, memcmp, memset_zero
-from algorithm import vectorize, parallelize
+from algorithm import vectorize, parallelize, reduction
 from buffer import NDBuffer
-import algorithm
 import math
 import random
 from mojmelo.utils.utils import argn, cov_value, add, sub, mul, div, fill_indices, fill_indices_list, cast
@@ -942,12 +941,12 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        algorithm.reduction.cumsum(NDBuffer[dtype=DType.float32, rank=1](mat.data, self.size), NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
+        reduction.cumsum(NDBuffer[dtype=DType.float32, rank=1](mat.data, self.size), NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
         return mat^
 
     @always_inline
     fn sum(self) raises -> Float32:
-        return algorithm.reduction.sum(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
+        return reduction.sum(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn sum(self, axis: Int) raises -> Matrix:
@@ -1010,11 +1009,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @always_inline
     fn _var(self, correction: Bool = False) raises -> Float32:
-        return algorithm.reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), correction=correction)
+        return reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), correction=correction)
 
     @always_inline
     fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
-        return algorithm.reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
+        return reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
 
     @always_inline
     fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
@@ -1353,7 +1352,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @always_inline
     fn min(self) raises -> Float32:
-        return algorithm.reduction.min(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
+        return reduction.min(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -1388,7 +1387,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @always_inline
     fn max(self) raises -> Float32:
-        return algorithm.reduction.max(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
+        return reduction.max(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:

@@ -31,9 +31,9 @@ Here is the list of the algorithms:
 * Naive Bayes
     1. GaussianNB
     2. MultinomialNB
-* Decision Tree (both Regression/Classification)
-* Random Forest (both Regression/Classification)
-* GBDT (both Regression/Classification)
+* Decision Tree (Regression/Classification)
+* Random Forest (Regression/Classification)
+* GBDT (Regression/Classification)
 * PCA
 
 Preprocessing:

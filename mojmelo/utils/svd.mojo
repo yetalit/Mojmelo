@@ -39,10 +39,10 @@ fn jacobi_eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64],
                 var tau = (Aqq - App) / (2.0 * Apq)
                 var t: Float64
                 if (tau >= 0):
-                    t = 1.0 / (tau + math.sqrt(1.0 + tau * tau))
+                    t = 1.0 / (tau + math.hypot(1.0, tau))
                 else:
-                    t = -1.0 / (-tau + math.sqrt(1.0 + tau * tau))
-                var c = 1.0 / math.sqrt(1.0 + t * t)
+                    t = -1.0 / (-tau + math.hypot(1.0, tau))
+                var c = 1.0 / math.hypot(1.0, t)
                 var s = t * c
 
                 # Apply rotation to A: only rows/cols p and q change
