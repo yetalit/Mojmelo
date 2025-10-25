@@ -78,7 +78,7 @@ To start the setup process, Run the following command from the `main folder` of 
 bash ./.pixi/envs/default/etc/conda/test-files/mojmelo/0/tests/setup.sh
 ```
 
-Note: For better results, please try not to run other tasks on your pc during the setup process.
+Note: If CPU cache details are available by your OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
 
 #### Source Code
 
@@ -108,7 +108,7 @@ Then Run the following command to start the setup process:
 pixi run setup
 ```
 
-Note: For better results, please try not to run other tasks on your pc during the setup process.
+Note: If CPU cache details are available by your OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
 
 ## Usage
 
