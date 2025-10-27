@@ -6,104 +6,138 @@ import math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 
-alias EPS = 1e-10
-alias MAX_JACOBI_SWEEPS = 200
+alias EPS = 1e-13
 alias simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
 
-fn jacobi_eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: UnsafePointer[Float64], n: Int):
+fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: UnsafePointer[Float64], n: Int):
     var A = UnsafePointer[Float64].alloc(n * n)
     memcpy(dest=A, src=A_in, count=n*n)
+    memcpy(dest=V, src=A_in, count=n*n)
 
-    # initialize V = I
-    memset_zero(V, n*n)
-    var tmpPtr = V
-    @parameter
-    fn eye[simd_width: Int](idx: Int):
-        tmpPtr.strided_store[width=simd_width](1.0, (n + 1))
-        tmpPtr += simd_width * (n + 1)
-    vectorize[eye, simd_width](n)
+    var d = UnsafePointer[Float64].alloc(n)
+    memset_zero(d, n)
+    var e = UnsafePointer[Float64].alloc(n)
+    memset_zero(e, n)
 
-    for sweep in range(MAX_JACOBI_SWEEPS):
-        var max_off = 0.0
-        for p in range(n-1):
-            for q in range(p+1, n):
-                var Apq = A[p * n + q]
-                var a = abs(Apq)
-                if a > max_off:
-                    max_off = a
-                if a <= EPS:
-                    continue
+    # --- Householder reduction to tridiagonal ---
+    for i in range(n - 1, 0, -1):
+        var l = i - 1
+        var scale = 0.0; h = 0.0
+        if l > 0:
+            for k in range(l+1):
+                scale += abs(V[k * n + i])
+            if scale == 0.0:
+                e[i] = V[l * n + i]
+            else:
+                for k in range(l+1):
+                    V[k * n + i] /= scale
+                    h += V[k * n + i] * V[k * n + i]
 
-                var App = A[p * n + p]
-                var Aqq = A[q * n + q]
-                var tau = (Aqq - App) / (2.0 * Apq)
-                var t: Float64
-                if (tau >= 0):
-                    t = 1.0 / (tau + math.hypot(1.0, tau))
-                else:
-                    t = -1.0 / (-tau + math.hypot(1.0, tau))
-                var c = 1.0 / math.hypot(1.0, t)
-                var s = t * c
+                var f = V[l * n + i]
+                var g = -math.sqrt(h) if f >= 0.0 else math.sqrt(h)
+                e[i] = scale * g
+                h -= f * g
+                V[l * n + i] = f - g
+                f = 0.0
+                for j in range(l+1):
+                    V[i * n + j] = V[j * n + i] / h
+                    var s = 0.0
+                    for k in range(j+1):
+                        s += V[k * n + j] * V[k * n + i]
+                    for k in range(j + 1, l+1):
+                        s += V[j * n + k] * V[k * n + i]
+                    e[j] = s / h
+                    f += e[j] * V[j * n + i]
 
-                # Apply rotation to A: only rows/cols p and q change
-                A[p * n + p] = c*c*App - 2.0*c*s*Apq + s*s*Aqq
-                A[q * n + q] = s*s*App + 2.0*c*s*Apq + c*c*Aqq
-                A[p * n + q] = 0.0
-                A[q * n + p] = 0.0
+                var hh = f / (h + h)
+                for j in range(l+1):
+                    f = V[j * n + i]
+                    e[j] -= hh * f
+                    for k in range(j+1):
+                        V[k * n + j] -= (f * e[k] + e[j] * V[k * n + i])
 
-                # update other entries
-                for r in range(p):
-                    var Arp = A[r * n + p]
-                    var Arq = A[r * n + q]
-                    var Ap = c * Arp - s * Arq
-                    var Aq = s * Arp + c * Arq
-                    A[r * n + p] = Ap
-                    A[p * n + r] = Ap
-                    A[r * n + q] = Aq
-                    A[q * n + r] = Aq
-                
-                for r in range(p+1, q):
-                    var Arp = A[r * n + p]
-                    var Arq = A[r * n + q]
-                    var Ap = c * Arp - s * Arq
-                    var Aq = s * Arp + c * Arq
-                    A[r * n + p] = Ap
-                    A[p * n + r] = Ap
-                    A[r * n + q] = Aq
-                    A[q * n + r] = Aq
+        else:
+            e[i] = V[l * n + i]
+        d[i] = h
 
-                for r in range(q+1, n):
-                    var Arp = A[r * n + p]
-                    var Arq = A[r * n + q]
-                    var Ap = c * Arp - s * Arq
-                    var Aq = s * Arp + c * Arq
-                    A[r * n + p] = Ap
-                    A[p * n + r] = Ap
-                    A[r * n + q] = Aq
-                    A[q * n + r] = Aq
+    d[0] = 0.0
+    e[0] = 0.0
 
-                # update eigenvector matrix V (columns p and q)
+    # --- Accumulate transformations ---
+    for i in range(n):
+        var l = i - 1
+        if d[i] != 0.0:
+            for j in range(l+1):
+                var s = 0.0
+                for k in range(l+1):
+                    s += V[k * n + i] * V[j * n + k]
+                for k in range(l+1):
+                    V[j * n + k] -= s * V[i * n + k]
+
+        d[i] = V[i * n + i]
+        V[i * n + i] = 1.0
+        for j in range(i):
+            V[i * n + j] = V[j * n + i] = 0.0
+
+    # --- Implicit QL algorithm ---
+    for i in range(1, n):
+        e[i - 1] = e[i]
+    e[n - 1] = 0.0
+
+    for l in range(n):
+        var iter = 0
+        while True:
+            var m = l
+            while m < n - 1:
+                if abs(e[m]) <= EPS * (abs(d[m]) + abs(d[m + 1])):
+                    break
+                m += 1
+            if (m == l):
+                break # converged
+            if iter > 60:
+                break # too many iterations, fallback
+            iter += 1
+
+            var g = (d[l + 1] - d[l]) / (2.0 * e[l])
+            var r = math.hypot(g, 1.0)
+            if g < 0:
+                r = -r
+            g = d[m] - d[l] + e[l] / (g + r)
+
+            var s = 1.0; c = 1.0; p = 0.0
+            for i in range(m - 1, l-1, -1):
+                var f = s * e[i]
+                var b = c * e[i]
+                r = math.hypot(f, g)
+                if r < 1e-300:
+                    r = 1e-300
+                e[i + 1] = r
+                s = f / r
+                c = g / r
+                g = d[i + 1] - p
+                var t = (d[i] - g) * s + 2.0 * c * b
+                p = s * t
+                d[i + 1] = g + p
+                g = c * t - b
+
+                # update eigenvectors
                 @parameter
                 fn column[simd_width: Int](idx: Int):
-                    var Vp = (V+p*n).load[width=simd_width](idx)
-                    var Vq = (V+q*n).load[width=simd_width](idx)
-                    (V+p*n).store(idx, c * Vp - s * Vq)
-                    (V+q*n).store(idx, s * Vp + c * Vq)
+                    var tau = (V+(i + 1)*n).load[width=simd_width](idx)
+                    var Vki = (V+i*n).load[width=simd_width](idx)
+                    (V+(i + 1)*n).store(idx, s * Vki + c * tau)
+                    (V+i*n).store(idx, c * Vki - s * tau)
                 vectorize[column, simd_width](n)
-        if max_off <= EPS:
-            break
-        elif sweep == MAX_JACOBI_SWEEPS-1:
-            print("WARN: Jacobi iterations no converge!")
 
-    # extract eigenvalues (diagonal of A)
-    tmpPtr = A
-    @parameter
-    fn diagonal[simd_width: Int](idx: Int):
-        eig.store(idx, tmpPtr.strided_load[width=simd_width](n + 1))
-        tmpPtr += simd_width * (n + 1)
-    vectorize[diagonal, simd_width](n)
+            d[l] -= p
+            e[l] = g
+            e[m] = 0.0
+
+    memcpy(dest=eig, src=d, count=n)
 
     A.free()
+    d.free()
+    e.free()
 
 fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix, ATA: UnsafePointer[Float64]) raises:
     # Jacobi eigensolver on ATA to get eigenvalues (lambda) and eigenvectors (V_full)
@@ -112,7 +146,7 @@ fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix,
     var V_full = UnsafePointer[Float64].alloc(n*n)
     memset_zero(V_full, n*n)
 
-    jacobi_eigensystem(ATA, eig, V_full, n)
+    eigensystem(ATA, eig, V_full, n)
 
     # Sort eigenpairs descending by eigenvalue
     var sorted_indices = fill_indices_list(n)

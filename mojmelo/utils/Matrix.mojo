@@ -961,8 +961,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True].sum()
-                    except:
-                        print('Error: failed to find sum!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -974,8 +974,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True].sum()
-                    except:
-                        print('Error: failed to find sum!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1002,8 +1002,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             fn p0(i: Int):
                 try:
                     mat.data[i] = self['', i, unsafe=True].mean_slow()
-                except:
-                    print('Error: failed to find mean!')
+                except e:
+                    print('Error:', e)
             parallelize[p0](self.width)
         return mat^
 
@@ -1028,8 +1028,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
-                    except:
-                        print('Error: failed to find variance!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1041,8 +1041,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True]._var(correction=correction)
-                    except:
-                        print('Error: failed to find variance!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1059,8 +1059,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
-                    except:
-                        print('Error: failed to find variance!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1072,8 +1072,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
-                    except:
-                        print('Error: failed to find variance!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1098,8 +1098,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True].std(correction=correction)
-                    except:
-                        print('Error: failed to find std!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1111,8 +1111,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True].std(correction=correction)
-                    except:
-                        print('Error: failed to find std!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1129,8 +1129,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
-                    except:
-                        print('Error: failed to find std!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1142,8 +1142,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
-                    except:
-                        print('Error: failed to find std!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1162,8 +1162,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
-                    except:
-                        print('Error: failed to find std!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1175,8 +1175,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
-                    except:
-                        print('Error: failed to find std!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1367,8 +1367,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True].min()
-                    except:
-                        print('Error: failed to find min!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1380,8 +1380,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True].min()
-                    except:
-                        print('Error: failed to find min!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1402,8 +1402,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p0(i: Int):
                     try:
                         mat.data[i] = self['', i, unsafe=True].max()
-                    except:
-                        print('Error: failed to find max!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p0](self.width)
         elif axis == 1:
             mat = Matrix(self.height, 1, order= self.order)
@@ -1415,8 +1415,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 fn p1(i: Int):
                     try:
                         mat.data[i] = self[i, unsafe=True].max()
-                    except:
-                        print('Error: failed to find max!')
+                    except e:
+                        print('Error:', e)
                 parallelize[p1](self.height)
         return mat^
 
@@ -1435,8 +1435,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             try:
                 for j in range(self.height):
                     c[i, j] = cov_value(mean_diff[j], mean_diff[i])
-            except:
-                print('Error: failed to find cov!')
+            except e:
+                print('Error:', e)
         parallelize[p](self.height)
         return c^
 
@@ -1500,8 +1500,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             fn p(i: Int):
                 try:
                     Matrix.lu_solve(A, piv, b, X, N, i)
-                except:
-                    print('Error: failed to find LU solution!')
+                except e:
+                    print('Error:', e)
             parallelize[p](M)
         else:
             Matrix.lu_solve(A, piv, b, X, N, 0)
@@ -1538,16 +1538,16 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             fn p1(i: Int):
                 try:
                     mat[i] = self.data[i] * rhs
-                except:
-                    print('Error: failed to find outer!')
+                except e:
+                    print('Error:', e)
             parallelize[p1](mat.height)
         else:
             @parameter
             fn p2(i: Int):
                 try:
                     mat['', i] = self * rhs.data[i]
-                except:
-                    print('Error: failed to find outer!')
+                except e:
+                    print('Error:', e)
             parallelize[p2](mat.width)
         return mat^
 

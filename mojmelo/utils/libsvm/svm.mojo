@@ -2514,8 +2514,8 @@ fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: 
         parallelize[p](model.l)
         try:
             sum = reduction.sum(NDBuffer[dtype=DType.float64, rank=1](values, model.l))
-        except:
-            print('Failed to calculate sum!')
+        except e:
+            print('Error:', e)
         values.free()
         
         sum -= model.rho[0]

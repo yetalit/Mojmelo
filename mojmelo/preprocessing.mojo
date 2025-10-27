@@ -314,8 +314,8 @@ fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[
                 if neg_score:
                     score *= -1
                 scores.data[i] = score
-            except:
-                print('Error: Failed to perform KFold!')
+            except e:
+                print('Error:', e)
         parallelize[p](len(combinations), n_workers)
     var best_score = scores.max()
     var best = -1

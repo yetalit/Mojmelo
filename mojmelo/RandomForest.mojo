@@ -76,8 +76,8 @@ struct RandomForest(CV):
             try:
                 X_samp, y_samp = bootstrap_sample(X, _y)
                 tree.fit(X_samp, y_samp)
-            except:
-                print('Error: Tree fitting failed!')
+            except e:
+                print('Error:', e)
             (self.trees + i).init_pointee_move(tree)
             self.trees[i]._moveinit_(tree)
         parallelize[p](self.n_trees)
@@ -93,8 +93,8 @@ struct RandomForest(CV):
         fn predict_per_tree(i: Int):
             try:
                 tree_preds['', i] = self.trees[i].predict(X)
-            except:
-                print('Error: Failed to predict!')
+            except e:
+                print('Error:', e)
         parallelize[predict_per_tree](self.n_trees)
 
         var y_predicted = Matrix(X.height, 1)
@@ -102,8 +102,8 @@ struct RandomForest(CV):
         fn predict_per_sample(i: Int):
             try:
                 y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
-            except:
-                print('Error: Failed to predict!')
+            except e:
+                print('Error:', e)
         parallelize[predict_per_sample](tree_preds.height)
         return y_predicted^
 

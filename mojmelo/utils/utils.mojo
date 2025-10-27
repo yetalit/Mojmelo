@@ -2,9 +2,10 @@ from memory import memcpy
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
-from algorithm import parallelize, elementwise, vectorize
+from algorithm import parallelize, elementwise, vectorize, reduction
 from sys import simd_width_of
 from utils import IndexList
+from buffer import NDBuffer
 
 # Cross Validation trait
 trait CV:
@@ -243,13 +244,12 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     Returns:
         The score.
     """
-    var correct_counts = Matrix.zeros(len(y), 1)
+    var correct_counts = UnsafePointer[Scalar[DType.int]].alloc(len(y))
     @parameter
-    fn p(i: Int):
-        if y.data[i] == y_pred.data[i]:
-            correct_counts.data[i] = 1.0
-    parallelize[p](len(y))
-    return correct_counts.mean()
+    fn compare[simd_width: Int](idx: Int):
+        correct_counts.store(idx, y.data.load[width=simd_width](idx).eq(y_pred.data.load[width=simd_width](idx)).cast[DType.int]())
+    vectorize[compare, y_pred.simd_width](len(y))
+    return Int(reduction.sum(NDBuffer[dtype=DType.int, rank=1](correct_counts, len(y)))) / Float32(len(y))
 
 @always_inline
 fn entropy(y: Matrix) raises -> Float32:

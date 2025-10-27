@@ -39,8 +39,8 @@ struct KNN(CV):
         fn p(i: Int):
             try:
                 y_pred.data[i] = self._predict(X[i])
-            except:
-                print('Error predicting sample ', i)
+            except e:
+                print('Error:', e)
         parallelize[p](X.height)
         return y_pred^
 
