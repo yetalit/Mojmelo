@@ -9,13 +9,9 @@ from mojmelo.utils.utils import fill_indices_list
 alias EPS = 1e-13
 alias simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
 
-fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: UnsafePointer[Float64], n: Int):
-    var A = UnsafePointer[Float64].alloc(n * n)
-    memcpy(dest=A, src=A_in, count=n*n)
-    memcpy(dest=V, src=A_in, count=n*n)
+fn eigensystem(A: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: UnsafePointer[Float64], n: Int):
+    memcpy(dest=V, src=A, count=n*n)
 
-    var d = UnsafePointer[Float64].alloc(n)
-    memset_zero(d, n)
     var e = UnsafePointer[Float64].alloc(n)
     memset_zero(e, n)
 
@@ -58,15 +54,15 @@ fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: Uns
 
         else:
             e[i] = V[l * n + i]
-        d[i] = h
+        eig[i] = h
 
-    d[0] = 0.0
+    eig[0] = 0.0
     e[0] = 0.0
 
     # --- Accumulate transformations ---
     for i in range(n):
         var l = i - 1
-        if d[i] != 0.0:
+        if eig[i] != 0.0:
             for j in range(l+1):
                 var s = 0.0
                 for k in range(l+1):
@@ -74,7 +70,7 @@ fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: Uns
                 for k in range(l+1):
                     V[j * n + k] -= s * V[i * n + k]
 
-        d[i] = V[i * n + i]
+        eig[i] = V[i * n + i]
         V[i * n + i] = 1.0
         for j in range(i):
             V[i * n + j] = V[j * n + i] = 0.0
@@ -89,20 +85,20 @@ fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: Uns
         while True:
             var m = l
             while m < n - 1:
-                if abs(e[m]) <= EPS * (abs(d[m]) + abs(d[m + 1])):
+                if abs(e[m]) <= EPS * (abs(eig[m]) + abs(eig[m + 1])):
                     break
                 m += 1
-            if (m == l):
+            if m == l:
                 break # converged
             if iter > 60:
                 break # too many iterations, fallback
             iter += 1
 
-            var g = (d[l + 1] - d[l]) / (2.0 * e[l])
+            var g = (eig[l + 1] - eig[l]) / (2.0 * e[l])
             var r = math.hypot(g, 1.0)
             if g < 0:
                 r = -r
-            g = d[m] - d[l] + e[l] / (g + r)
+            g = eig[m] - eig[l] + e[l] / (g + r)
 
             var s = 1.0; c = 1.0; p = 0.0
             for i in range(m - 1, l-1, -1):
@@ -114,10 +110,10 @@ fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: Uns
                 e[i + 1] = r
                 s = f / r
                 c = g / r
-                g = d[i + 1] - p
-                var t = (d[i] - g) * s + 2.0 * c * b
+                g = eig[i + 1] - p
+                var t = (eig[i] - g) * s + 2.0 * c * b
                 p = s * t
-                d[i + 1] = g + p
+                eig[i + 1] = g + p
                 g = c * t - b
 
                 # update eigenvectors
@@ -129,14 +125,10 @@ fn eigensystem(A_in: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: Uns
                     (V+i*n).store(idx, c * Vki - s * tau)
                 vectorize[column, simd_width](n)
 
-            d[l] -= p
+            eig[l] -= p
             e[l] = g
             e[m] = 0.0
 
-    memcpy(dest=eig, src=d, count=n)
-
-    A.free()
-    d.free()
     e.free()
 
 fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix, ATA: UnsafePointer[Float64]) raises:
@@ -144,7 +136,6 @@ fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix,
     var eig = UnsafePointer[Float64].alloc(n)
     memset_zero(eig, n)
     var V_full = UnsafePointer[Float64].alloc(n*n)
-    memset_zero(V_full, n*n)
 
     eigensystem(ATA, eig, V_full, n)
 
@@ -173,9 +164,9 @@ fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix,
         if lambda_ < 0 and abs(lambda_) < 1e-14:
             lambda_ = 0.0 # clamp tiny negative
         S[r] = math.sqrt(lambda_) if lambda_ > 0.0 else 0.0
-
-    eig.free()
+    
     ATA.free()
+    eig.free()
 
 fn svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var A64 = A.cast_ptr[DType.float64]()

@@ -1,5 +1,6 @@
 from .svm_node import svm_node
 
+@register_passable("trivial")
 struct svm_problem:
 	var l: Int
 	var y: UnsafePointer[Float64]

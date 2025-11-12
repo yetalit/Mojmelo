@@ -44,6 +44,7 @@ fn dot(var px: UnsafePointer[svm_node], var py: UnsafePointer[svm_node]) -> Floa
     return sum
 
 @fieldwise_init
+@register_passable("trivial")
 struct kernel_params:
     var x: UnsafePointer[UnsafePointer[svm_node]]
     var x_square: UnsafePointer[Float64]
@@ -106,6 +107,7 @@ fn kernel_sigmoid(k: kernel_params, i: Int, j: Int) -> Float64:
 fn kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64:
     return k.x[i][Int(k.x[j][0].value)].value
 
+@register_passable("trivial")
 struct head_t:
     var prev: UnsafePointer[head_t]
     var next: UnsafePointer[head_t]	# a cicular list
@@ -280,6 +282,7 @@ struct Kernel:
         if self._self.x_square:
             self._self.x_square.free()
 
+@register_passable("trivial")
 struct SolutionInfo:
     var obj: Float64
     var rho: Float64
@@ -1705,6 +1708,7 @@ fn solve_nu_svr(
 # decision_function
 #
 @fieldwise_init
+@register_passable("trivial")
 struct decision_function(Copyable):
     var alpha: UnsafePointer[Float64]
     var rho: Float64

@@ -14,12 +14,14 @@ fn Squared(val: Float32) -> Float32:
     return val ** 2
 
 @fieldwise_init
-struct interval(Copyable, Movable, ImplicitlyCopyable):
+@register_passable("trivial")
+struct interval(Copyable, Movable):
     var lower: Float32
     var upper: Float32
 
 @fieldwise_init
-struct KDTreeResult(Copyable, Movable, ImplicitlyCopyable):
+@register_passable("trivial")
+struct KDTreeResult(Copyable, Movable):
     var dis: Float32  # its square Euclidean distance
     var idx: Int    # which neighbor was found
 
@@ -31,6 +33,7 @@ struct KDTreeResult(Copyable, Movable, ImplicitlyCopyable):
     fn __lt__(self, rhs: Self) -> Bool:
         return self.dis < rhs.dis
 
+    @always_inline
     fn __le__(self, rhs: Self) capturing -> Bool:
         return self.dis <= rhs.dis
 
@@ -42,11 +45,11 @@ struct KDTreeResultVector(Copyable, Movable, Sized):
 
     @always_inline
     fn __getitem__(self, index: Int) -> KDTreeResult:
-        return self._self[index]
+        return self._self[index].copy()
 
     @always_inline
     fn __setitem__(mut self, index: Int, val: KDTreeResult):
-        self._self[index] = val
+        self._self[index] = val.copy()
 
     @always_inline
     fn __len__(self) -> Int:
@@ -63,7 +66,7 @@ struct KDTreeResultVector(Copyable, Movable, Sized):
             parent = (child - 1) // 2        # Update the parent pointer
 
     fn append_element_and_heapify(mut self, e: KDTreeResult):
-        self._self.append(e)
+        self._self.append(e.copy())
         self.append_heap()
 
     fn pop_heap(mut self):
@@ -95,7 +98,7 @@ struct KDTreeResultVector(Copyable, Movable, Sized):
     fn replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> Float32:
         self.pop_heap()
         _ = self._self.pop()
-        self._self.append(e) # insert new
+        self._self.append(e.copy()) # insert new
         self.append_heap()  # and heapify.
         return self.max_value()
 
@@ -301,7 +304,7 @@ struct KDTreeNode(Copyable, Movable):
                 if abs(indexofi-centeridx) < correltime:
                     continue # skip this point.
             var e = KDTreeResult(dis, indexofi)
-            sr.result[]._self.append(e)
+            sr.result[]._self.append(e.copy())
 
 struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Movable):
     var _data: Matrix
@@ -388,7 +391,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
                 if (not parent) or (parent[].cut_dim == i):
                     self.spread_in_coordinate(i,l,u,node[].box[i])
                 else:
-                    node[].box[i] = parent[].box[i]
+                    node[].box[i] = parent[].box[i].copy()
                 var spread = node[].box[i].upper - node[].box[i].lower 
                 if spread > maxspread:
                     maxspread = spread
@@ -416,12 +419,12 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable, Mova
 
             if not node[].right:
                 for i in range(self.dim):
-                    node[].box[i] = node[].left[].box[i] 
+                    node[].box[i] = node[].left[].box[i].copy()
                 node[].cut_val = node[].left[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             elif not node[].left:
                 for i in range(self.dim):
-                    node[].box[i] = node[].right[].box[i]
+                    node[].box[i] = node[].right[].box[i].copy()
                 node[].cut_val = node[].right[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             else:

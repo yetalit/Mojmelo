@@ -5,7 +5,7 @@ from algorithm import vectorize, parallelize, reduction
 from buffer import NDBuffer
 import math
 import random
-from mojmelo.utils.utils import argn, cov_value, add, sub, mul, div, fill_indices, fill_indices_list, cast
+from mojmelo.utils.utils import argn, add, sub, mul, div, fill_indices, fill_indices_list, cast
 from python import Python, PythonObject
 
 struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized):
@@ -700,6 +700,13 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
             raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
+        
+        if self.height == 1 and rhs.width == 1:
+            # Dot product
+            var mat = Self(1, 1)
+            mat.data[0] = self.ele_mul(rhs.T()).sum()
+            return mat^
+        
         if self.height * self.width * rhs.width <= 4096:
             # matmul naive
             var mat = Self(self.height, rhs.width)
@@ -1427,19 +1434,6 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         mat.width = width
         return mat^
 
-    fn cov(self) raises -> Matrix:
-        var c = Matrix(self.height, self.height, order=self.order)
-        var mean_diff = self - self.mean(axis=1)
-        @parameter
-        fn p(i: Int):
-            try:
-                for j in range(self.height):
-                    c[i, j] = cov_value(mean_diff[j], mean_diff[i])
-            except e:
-                print('Error:', e)
-        parallelize[p](self.height)
-        return c^
-
     @staticmethod
     @always_inline
     fn lu_factor(mut A: Matrix, piv: UnsafePointer[Int], N: Int) raises:
@@ -1634,7 +1628,6 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         NDBuffer[dtype=DType.float32, rank=1](self.data, self.size).fill(val)
 
     @staticmethod
-    @always_inline
     fn random(height: Int, width: Int, order: String = 'c') -> Matrix:
         random.seed()
         var mat = Matrix(height, width, order= order)

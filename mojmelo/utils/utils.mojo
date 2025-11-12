@@ -16,9 +16,6 @@ trait CV:
     fn predict(self, X: Matrix) raises -> Matrix:
         ...
 
-fn cov_value(x_mean_diff: Matrix, y_mean_diff: Matrix) raises -> Float32:
-    return (y_mean_diff.ele_mul(x_mean_diff)).sum() / (x_mean_diff.size - 1)
-
 # ===-----------------------------------------------------------------------===#
 # argn
 # ===-----------------------------------------------------------------------===#

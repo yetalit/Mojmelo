@@ -94,16 +94,17 @@ struct PolyRegression(CV):
                     if self.tol > 0.0:
                         cost += mse(y_batch, y_batch_predicted) / num_b_iters
                     # compute gradients and update parameters
-                    dw['', 0] = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
+                    var y_error = y_batch_predicted - y_batch
+                    dw['', 0] = (X_batch.T() * y_error) / len(y_batch)
                     for i in range(1, self.degree):
-                        dw['', i] = (X_poly_batch[i - 1].T() * (y_batch_predicted - y_batch)) / len(y_batch)
+                        dw['', i] = (X_poly_batch[i - 1].T() * y_error) / len(y_batch)
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = (y_batch_predicted - y_batch).sum() / len(y_batch)
+                    var db = y_error.sum() / len(y_batch)
                     self.weights['', 0] -= self.lr * dw['', 0]
                     self.bias -= self.lr * db
                     for i in range(1, self.degree):
@@ -123,17 +124,18 @@ struct PolyRegression(CV):
                         break
                     prev_cost = cost
                 # compute gradients and update parameters
+                var y_error = y_predicted - y
                 var dw = Matrix(X.width, self.degree, order='f')
-                dw['', 0] = ((X_T * (y_predicted - y)) / X.height)
+                dw['', 0] = (X_T * y_error) / X.height
                 for i in range(1, self.degree):
-                    dw['', i] = ((X_poly_T[i - 1] * (y_predicted - y)) / X.height)
+                    dw['', i] = (X_poly_T[i - 1] * y_error) / X.height
                 if l1_lambda > 0.0:
                     # L1 regularization
                     dw += l1_lambda * sign(self.weights)
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
-                var db = ((y_predicted - y).sum() / X.height)
+                var db = y_error.sum() / X.height
                 self.weights['', 0] -= self.lr * dw['', 0]
                 self.bias -= self.lr * db
                 for i in range(1, self.degree):
