@@ -6,13 +6,13 @@ import math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 
-alias EPS = 1e-13
-alias simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
+comptime EPS = 1e-13
+comptime simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
 
-fn eigensystem(A: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: UnsafePointer[Float64], n: Int):
+fn eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Float64, MutAnyOrigin], V: UnsafePointer[Float64, MutAnyOrigin], n: Int):
     memcpy(dest=V, src=A, count=n*n)
 
-    var e = UnsafePointer[Float64].alloc(n)
+    var e = alloc[Float64](n)
     memset_zero(e, n)
 
     # --- Householder reduction to tridiagonal ---
@@ -131,11 +131,11 @@ fn eigensystem(A: UnsafePointer[Float64], eig: UnsafePointer[Float64], V: Unsafe
 
     e.free()
 
-fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix, ATA: UnsafePointer[Float64]) raises:
+fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin]) raises:
     # Jacobi eigensolver on ATA to get eigenvalues (lambda) and eigenvectors (V_full)
-    var eig = UnsafePointer[Float64].alloc(n)
+    var eig = alloc[Float64](n)
     memset_zero(eig, n)
-    var V_full = UnsafePointer[Float64].alloc(n*n)
+    var V_full = alloc[Float64](n*n)
 
     eigensystem(ATA, eig, V_full, n)
 
@@ -148,8 +148,8 @@ fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64], mut Vout: Matrix,
     mojmelo.utils.sort.sort[cmp_fn](
         Span[
             Float64,
-            origin_of(eig),
-        ](ptr=eig, length=UInt(n)), sorted_indices.unsafe_ptr()
+            MutAnyOrigin,
+        ](ptr=eig, length=n), sorted_indices.unsafe_ptr()
     )
 
     var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
@@ -172,7 +172,7 @@ fn svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var A64 = A.cast_ptr[DType.float64]()
     var A64T = C_transpose(A, A64)
 
-    var S = UnsafePointer[Float64].alloc(k)
+    var S = alloc[Float64](k)
     var V = Matrix(0, 0)
 
     var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
@@ -187,8 +187,8 @@ fn svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     return Matrix(S, 1, k), V^
 
 @always_inline
-fn C_transpose(A: Matrix, A64: UnsafePointer[Float64]) -> UnsafePointer[Float64]:
-    var AT = UnsafePointer[Float64].alloc(A.size)
+fn C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafePointer[Float64, MutAnyOrigin]:
+    var AT = alloc[Float64](A.size)
     if A.size < 98304:
         for idx_col in range(A.width):
             var tmpPtr = A64 + idx_col

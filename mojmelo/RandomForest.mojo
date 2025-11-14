@@ -37,7 +37,7 @@ struct RandomForest(CV):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var trees: UnsafePointer[DecisionTree]
+    var trees: UnsafePointer[DecisionTree, MutAnyOrigin]
 
     fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini', random_state: Int = 42):
         self.n_trees = n_trees
@@ -46,7 +46,7 @@ struct RandomForest(CV):
         self.n_feats = n_feats
         self.criterion = criterion.lower()
         random.seed(random_state)
-        self.trees = UnsafePointer[DecisionTree]()
+        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin]()
 
     fn __del__(deinit self):
         if self.trees:
@@ -56,7 +56,7 @@ struct RandomForest(CV):
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         """Build a forest of trees from the training set."""
-        self.trees = UnsafePointer[DecisionTree].alloc(self.n_trees)
+        self.trees = alloc[DecisionTree](self.n_trees)
         var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
         if self.n_feats < 1:
@@ -132,4 +132,4 @@ struct RandomForest(CV):
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed(42)
-        self.trees = UnsafePointer[DecisionTree]()
+        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin]()

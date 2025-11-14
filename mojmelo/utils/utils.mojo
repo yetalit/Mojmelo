@@ -13,7 +13,7 @@ trait CV:
         ...
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         ...
-    fn predict(self, X: Matrix) raises -> Matrix:
+    fn predict(mut self, X: Matrix) raises -> Matrix:
         ...
 
 # ===-----------------------------------------------------------------------===#
@@ -21,12 +21,12 @@ trait CV:
 # ===-----------------------------------------------------------------------===#
 
 fn argn[is_max: Bool](input: Matrix, output: Matrix):
-    alias simd_width = simd_width_of[DType.float32]()
+    comptime simd_width = simd_width_of[DType.float32]()
     var axis_size = input.size
     var input_stride = input.size
-    alias output_stride = 1
-    alias chunk_size = 1
-    alias parallel_size = 1
+    comptime output_stride = 1
+    comptime chunk_size = 1
+    comptime parallel_size = 1
 
     @__copy_capture(
         axis_size, chunk_size, output_stride, input_stride, parallel_size
@@ -59,8 +59,8 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
             return a.gt(b)
 
     # iterate over flattened axes
-    alias start = 0
-    alias end = 1
+    comptime start = 0
+    comptime end = 1
     for i in range(start, end):
         var input_offset = i * input_stride
         var output_offset = i * output_stride
@@ -162,7 +162,7 @@ fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -
     return a / b
 
 @always_inline
-fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size: Int) -> SIMD[DType.float32, width]:
+fn partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]:
     var nelts = size - offset
     if nelts >= width:
         return data.load[width=width](offset)
@@ -241,7 +241,7 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     Returns:
         The score.
     """
-    var correct_counts = UnsafePointer[Scalar[DType.int]].alloc(len(y))
+    var correct_counts = alloc[Scalar[DType.int]](len(y))
     @parameter
     fn compare[simd_width: Int](idx: Int):
         correct_counts.store(idx, y.data.load[width=simd_width](idx).eq(y_pred.data.load[width=simd_width](idx)).cast[DType.int]())
@@ -344,13 +344,14 @@ fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
 
     return -1  # not found
 
-fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int]]:
+@always_inline
+fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutOrigin.external]:
     """Generates indices from 0 to N.
 
     Returns:
         The pointer to indices.
     """
-    var indices = UnsafePointer[Scalar[DType.int]].alloc(N)
+    var indices = alloc[Scalar[DType.int]](N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
         indices.store(offset[0], math.iota[DType.int, width](offset[0]))
@@ -360,13 +361,14 @@ fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int]]:
     )
     return indices
 
+@always_inline
 fn fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     """Generates indices from 0 to N.
 
     Returns:
         The list of indices.
     """
-    var indices = UnsafePointer[Scalar[DType.int]].alloc(N)
+    var indices = alloc[Scalar[DType.int]](N)
     @parameter
     fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
         indices.store(offset[0], math.iota[DType.int, width](offset[0]))
@@ -379,8 +381,8 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     return list^
 
 @always_inline
-fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src]], size: Int) -> UnsafePointer[Scalar[des]]:
-    var ptr = UnsafePointer[Scalar[des]].alloc(size)
+fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutOrigin.external]:
+    var ptr = alloc[Scalar[des]](size)
     if size < 262144:
         @parameter
         fn matrix_vectorize[simd_width: Int](idx: Int):

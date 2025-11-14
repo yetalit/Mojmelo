@@ -16,18 +16,18 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     """The number of columns."""
     var size: Int
     """The total size."""
-    var data: UnsafePointer[Float32]
+    var data: UnsafePointer[Float32, MutAnyOrigin]
     """The pointer to the underlying data."""
     var order: String
     """The order of matrix:
     Row-major -> 'c';
     Column-major -> 'f'.
     """
-    alias simd_width: Int = 4 * simd_width_of[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float32]()
+    comptime simd_width: Int = 4 * simd_width_of[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float32]()
 
     # initialize from UnsafePointer
     @always_inline
-    fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src]], height: Int, width: Int, order: String = 'c'):
+    fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutAnyOrigin], height: Int, width: Int, order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
@@ -40,11 +40,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     # initialize by copying from UnsafePointer
     @always_inline
-    fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32](), order: String = 'c'):
+    fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32, MutAnyOrigin] = UnsafePointer[Float32, MutAnyOrigin](), order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = UnsafePointer[Float32].alloc(self.size)
+        self.data = alloc[Float32](self.size)
         self.order = order.lower()
         if data:
             memcpy(dest=self.data, src=data, count=self.size)
@@ -54,7 +54,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.height = len(def_input)
         self.width = len(def_input[0]) if self.height > 0 else 0
         self.size = self.height * self.width
-        self.data = UnsafePointer[Float32].alloc(self.size)
+        self.data = alloc[Float32](self.size)
         self.order = 'c'
         if self.size > 0:
             for row_i in range(len(def_input)):
@@ -64,7 +64,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.height = other.height
         self.width = other.width
         self.size = other.size
-        self.data = UnsafePointer[Float32].alloc(self.size)
+        self.data = alloc[Float32](self.size)
         self.order = other.order
         memcpy(dest=self.data, src=other.data, count=self.size)
 
@@ -76,7 +76,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         self.order = existing.order
         #existing.height = existing.width = existing.size = 0
         #existing.order = ''
-        #existing.data = UnsafePointer[Float32]()
+        #existing.data = UnsafePointer[Float32, MutAnyOrigin]()
 
     @always_inline
     fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]:
@@ -1016,11 +1016,11 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @always_inline
     fn _var(self, correction: Bool = False) raises -> Float32:
-        return reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), correction=correction)
+        return reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), correction=Int(correction))
 
     @always_inline
     fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
-        return reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=correction)
+        return reduction.variance(NDBuffer[dtype=DType.float32, rank=1](self.data, self.size), mean_value=_mean, correction=Int(correction))
 
     @always_inline
     fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
@@ -1227,10 +1227,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @always_inline
     fn argmin(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int]()
+        var vect = UnsafePointer[Int, MutOrigin.external]()
         var length = 0
         if axis == 0:
-            vect = UnsafePointer[Int].alloc(self.width)
+            vect = alloc[Int](self.width)
             length = self.width
             if self.width < 512:
                 for i in range(self.width):
@@ -1241,7 +1241,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                     vect[i] = self['', i, unsafe=True].argmin()
                 parallelize[p0](self.width)
         elif axis == 1:
-            vect = UnsafePointer[Int].alloc(self.height)
+            vect = alloc[Int](self.height)
             length = self.height
             if self.height < 512:
                 for i in range(self.height):
@@ -1266,10 +1266,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @always_inline
     fn argmax(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int]()
+        var vect = UnsafePointer[Int, MutOrigin.external]()
         var length = 0
         if axis == 0:
-            vect = UnsafePointer[Int].alloc(self.width)
+            vect = alloc[Int](self.width)
             length = self.width
             if self.width < 512:
                 for i in range(self.width):
@@ -1280,7 +1280,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                     vect[i] = self['', i, unsafe=True].argmax()
                 parallelize[p0](self.width)
         elif axis == 1:
-            vect = UnsafePointer[Int].alloc(self.height)
+            vect = alloc[Int](self.height)
             length = self.height
             if self.height < 512:
                 for i in range(self.height):
@@ -1297,7 +1297,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn argmax_f(self, axis: Int) -> Matrix:
         if axis == 0:
-            var vect = UnsafePointer[Float32].alloc(self.width)
+            var vect = alloc[Float32](self.width)
             if self.width < 512:
                 for i in range(self.width):
                     vect[i] = self['', i, unsafe=True].argmax()
@@ -1308,7 +1308,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 parallelize[p0](self.width)
             return Matrix(vect, 1, self.width, self.order)
         else:
-            var vect = UnsafePointer[Float32].alloc(self.height)
+            var vect = alloc[Float32](self.height)
             if self.height < 512:
                 for i in range(self.height):
                     vect[i] = self[i, unsafe=True].argmax()
@@ -1334,7 +1334,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             Span[
                 Scalar[DType.int],
                 origin_of(sorted_indices),
-            ](ptr=sorted_indices.unsafe_ptr(), length=UInt(len(sorted_indices)))
+            ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
         )
         return sorted_indices^
 
@@ -1352,8 +1352,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         mojmelo.utils.sort.sort[cmp_fn](
             Span[
                 Float32,
-                origin_of(self),
-            ](ptr=self.data, length=UInt(self.size)), sorted_indices.unsafe_ptr()
+                MutAnyOrigin,
+            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr()
         )
         return sorted_indices^
 
@@ -1436,7 +1436,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @staticmethod
     @always_inline
-    fn lu_factor(mut A: Matrix, piv: UnsafePointer[Int], N: Int) raises:
+    fn lu_factor(mut A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], N: Int) raises:
         for i in range(N):
             piv[i] = i
 
@@ -1460,7 +1460,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
 
     @staticmethod
     @always_inline
-    fn lu_solve(A: Matrix, piv: UnsafePointer[Int], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
+    fn lu_solve(A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
         var y = Matrix(1, N)
 
         # Forward substitution: solve L * y = P * b
@@ -1486,7 +1486,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         var N = A.height
         var M = b.width
         var X = Matrix(N, M, order=A.order)
-        var piv = UnsafePointer[Int].alloc(N)
+        var piv = alloc[Int](N)
 
         Matrix.lu_factor(A, piv, N)
         if M > 1:
@@ -1574,7 +1574,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn bincount(self) raises -> List[Int]:
         var max_val = Int(self.max())
-        var vect = UnsafePointer[Int].alloc(max_val + 1)
+        var vect = alloc[Int](max_val + 1)
         memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
@@ -1639,7 +1639,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Scalar[DType.int]]:
         if seed:
             random.seed()
-        var result = UnsafePointer[Scalar[DType.int]].alloc(size)
+        var result = alloc[Scalar[DType.int]](size)
         if replace:
             random.randint(result, size, 0, arang)
         else:
@@ -1720,7 +1720,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return mat^
 
     @always_inline
-    fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des]]:
+    fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutOrigin.external]:
         return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
 
     @always_inline

@@ -12,7 +12,7 @@ from mojmelo.utils.utils import fill_indices
 import random
 from buffer import NDBuffer
 
-alias TAU = 1e-12
+comptime TAU = 1e-12
 
 @always_inline
 fn powi(base: Float64, times: Int) -> Float64:
@@ -28,7 +28,7 @@ fn powi(base: Float64, times: Int) -> Float64:
     return ret
 
 @always_inline
-fn dot(var px: UnsafePointer[svm_node], var py: UnsafePointer[svm_node]) -> Float64:
+fn dot(var px: UnsafePointer[svm_node, MutOrigin.external], var py: UnsafePointer[svm_node, MutOrigin.external]) -> Float64:
     var sum = 0.0
     while px[].index != -1 and py[].index != -1:
         if px[].index == py[].index:
@@ -46,15 +46,15 @@ fn dot(var px: UnsafePointer[svm_node], var py: UnsafePointer[svm_node]) -> Floa
 @fieldwise_init
 @register_passable("trivial")
 struct kernel_params:
-    var x: UnsafePointer[UnsafePointer[svm_node]]
-    var x_square: UnsafePointer[Float64]
+    var x: UnsafePointer[UnsafePointer[svm_node, MutOrigin.external], MutOrigin.external]
+    var x_square: UnsafePointer[Float64, MutOrigin.external]
     # svm_parameter
     var kernel_type: Int
     var degree: Int
     var gamma: Float64
     var coef0: Float64
 
-fn k_function(var x: UnsafePointer[svm_node], var y: UnsafePointer[svm_node], param: svm_parameter) -> Float64:
+fn k_function(var x: UnsafePointer[svm_node, MutOrigin.external], var y: UnsafePointer[svm_node, MutOrigin.external], param: svm_parameter) -> Float64:
     if param.kernel_type == svm_parameter.LINEAR:
         return dot(x,y)
     if param.kernel_type == svm_parameter.POLY:
@@ -109,16 +109,16 @@ fn kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64:
 
 @register_passable("trivial")
 struct head_t:
-    var prev: UnsafePointer[head_t]
-    var next: UnsafePointer[head_t]	# a cicular list
-    var data: UnsafePointer[Float32]
+    var prev: UnsafePointer[head_t, MutAnyOrigin]
+    var next: UnsafePointer[head_t, MutAnyOrigin]	# a cicular list
+    var data: UnsafePointer[Float32, MutOrigin.external]
     var _len: Int		# data[0,len) is cached in this entry
 
     @always_inline
     fn __init__(out self):
-        self.prev = UnsafePointer[head_t]()
-        self.next = UnsafePointer[head_t]()
-        self.data = UnsafePointer[Float32]()
+        self.prev = UnsafePointer[head_t, MutOrigin.external]()
+        self.next = UnsafePointer[head_t, MutOrigin.external]()
+        self.data = UnsafePointer[Float32, MutOrigin.external]()
         self._len = 0
 
 # Kernel Cache
@@ -128,14 +128,14 @@ struct head_t:
 struct Cache:
     var l: Int
     var size: UInt
-    var head: UnsafePointer[head_t]
+    var head: UnsafePointer[head_t, MutOrigin.external]
     var lru_head: head_t
 
     @always_inline
     fn __init__(out self, l_: Int, size_: UInt):
         self.l = l_
         self.size = (size_ - UInt(self.l * size_of[head_t]())) // 4
-        self.head = UnsafePointer[head_t].alloc(self.l)
+        self.head = alloc[head_t](self.l)
         memset_zero(self.head, self.l) # initialized to 0
         self.size = max(self.size, UInt(2) * UInt(self.l))  # cache must be large enough for two columns
         self.lru_head = head_t()
@@ -150,12 +150,12 @@ struct Cache:
         if self.head:
             self.head.free()
 
-    fn lru_delete(self, h: UnsafePointer[head_t]):
+    fn lru_delete(self, h: UnsafePointer[head_t, MutAnyOrigin]):
         # delete from current location
         h[].prev[].next = h[].next
         h[].next[].prev = h[].prev
 
-    fn lru_insert(self, h: UnsafePointer[head_t]):
+    fn lru_insert(mut self, h: UnsafePointer[head_t, MutOrigin.external]):
         # insert to last position
         h[].next = UnsafePointer(to=self.lru_head)
         h[].prev = self.lru_head.prev
@@ -163,7 +163,7 @@ struct Cache:
         h[].next[].prev = h
 
     @always_inline
-    fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32]], var _len: Int) -> Int:
+    fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32, MutOrigin.external], MutAnyOrigin], var _len: Int) -> Int:
         var h = self.head.offset(index)
         if h[]._len:
             self.lru_delete(h)
@@ -176,11 +176,11 @@ struct Cache:
                 self.lru_delete(old)
                 old[].data.free()
                 self.size += UInt(old[]._len)
-                old[].data = UnsafePointer[Float32]()
+                old[].data = UnsafePointer[Float32, MutOrigin.external]()
                 old[]._len = 0
 
             # allocate new space
-            var new = UnsafePointer[Float32].alloc(_len)
+            var new = alloc[Float32](_len)
             memcpy(dest=new, src=h[].data, count=h[]._len)
             h[].data.free()
             h[].data = new
@@ -220,7 +220,7 @@ struct Cache:
                     self.lru_delete(h)
                     h[].data.free()
                     self.size += UInt(h[]._len)
-                    h[].data = UnsafePointer[Float32]()
+                    h[].data = UnsafePointer[Float32, MutOrigin.external]()
                     h[]._len = 0
             h=h[].next
 
@@ -231,9 +231,9 @@ struct Cache:
 # the member function get_Q is for getting one column from the Q Matrix
 #
 trait QMatrix:
-    fn get_Q(mut self, column: Int, _len: Int) -> UnsafePointer[Float32]:
+    fn get_Q(mut self, column: Int, _len: Int) -> UnsafePointer[Float32, MutOrigin.external]:
         ...
-    fn get_QD(self) -> UnsafePointer[Float64]:
+    fn get_QD(self) -> UnsafePointer[Float64, MutOrigin.external]:
         ...
     fn swap_index(mut self, i: Int, j: Int):
         ...
@@ -244,17 +244,17 @@ struct Kernel:
     var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
     @always_inline
-    fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node]], param: svm_parameter):
-        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
+    fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node, MutOrigin.external], MutOrigin.external], param: svm_parameter):
+        var x = alloc[UnsafePointer[svm_node, MutOrigin.external]](l)
         memcpy(dest=x, src=x_, count=l)
 
-        var x_square: UnsafePointer[Float64]
+        var x_square: UnsafePointer[Float64, MutOrigin.external]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = UnsafePointer[Float64].alloc(l)
+            x_square = alloc[Float64](l)
             for i in range(l):
                 x_square[i] = dot(x[i], x[i])
         else:
-            x_square = UnsafePointer[Float64]()
+            x_square = UnsafePointer[Float64, MutOrigin.external]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
 
@@ -318,37 +318,37 @@ struct SolutionInfo:
 #
 struct Solver:
     var active_size: Int
-    var y: UnsafePointer[Int8]
-    var G: UnsafePointer[Float64]	# gradient of objective function
-    alias LOWER_BOUND: Int8 = 0
-    alias UPPER_BOUND: Int8 = 1
-    alias FREE: Int8 = 2
-    var alpha_status: UnsafePointer[Int8]	# LOWER_BOUND, UPPER_BOUND, FREE
-    var alpha: UnsafePointer[Float64]
-    var QD: UnsafePointer[Float64]
+    var y: UnsafePointer[Int8, MutOrigin.external]
+    var G: UnsafePointer[Float64, MutOrigin.external]	# gradient of objective function
+    comptime LOWER_BOUND: Int8 = 0
+    comptime UPPER_BOUND: Int8 = 1
+    comptime FREE: Int8 = 2
+    var alpha_status: UnsafePointer[Int8, MutOrigin.external]	# LOWER_BOUND, UPPER_BOUND, FREE
+    var alpha: UnsafePointer[Float64, MutOrigin.external]
+    var QD: UnsafePointer[Float64, MutOrigin.external]
     var eps: Float64
     var Cp: Float64
     var Cn: Float64
-    var p: UnsafePointer[Float64]
-    var active_set: UnsafePointer[Scalar[DType.int]]
-    var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
+    var p: UnsafePointer[Float64, MutOrigin.external]
+    var active_set: UnsafePointer[Scalar[DType.int], MutOrigin.external]
+    var G_bar: UnsafePointer[Float64, MutOrigin.external]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
 
     @always_inline
     fn __init__(out self):
         self.active_size = 0
-        self.y = UnsafePointer[Int8]()
-        self.G = UnsafePointer[Float64]()
-        self.alpha_status = UnsafePointer[Int8]()
-        self.alpha = UnsafePointer[Float64]()
-        self.QD = UnsafePointer[Float64]()
+        self.y = UnsafePointer[Int8, MutOrigin.external]()
+        self.G = UnsafePointer[Float64, MutOrigin.external]()
+        self.alpha_status = UnsafePointer[Int8, MutOrigin.external]()
+        self.alpha = UnsafePointer[Float64, MutOrigin.external]()
+        self.QD = UnsafePointer[Float64, MutOrigin.external]()
         self.eps = 0.0
         self.Cp = 0.0
         self.Cn = 0.0
-        self.p = UnsafePointer[Float64]()
-        self.active_set = UnsafePointer[Scalar[DType.int]]()
-        self.G_bar = UnsafePointer[Float64]()
+        self.p = UnsafePointer[Float64, MutOrigin.external]()
+        self.active_set = UnsafePointer[Scalar[DType.int], MutOrigin.external]()
+        self.G_bar = UnsafePointer[Float64, MutOrigin.external]()
         self.l = 0
         self.unshrink = False
 
@@ -412,16 +412,16 @@ struct Solver:
                     for j in range(self.active_size, self.l):
                         self.G[j] += alpha_i * Q_i[j].cast[DType.float64]()
 
-    fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8],
-                alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: UnsafePointer[SolutionInfo], shrinking: Int):
+    fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64, MutOrigin.external], y_: UnsafePointer[Int8, MutOrigin.external],
+                alpha_: UnsafePointer[Float64, MutOrigin.external], Cp: Float64, Cn: Float64, eps: Float64, mut si: SolutionInfo, shrinking: Int):
         self.l = l
-        self.QD = UnsafePointer[Float64]()
+        self.QD = UnsafePointer[Float64, MutOrigin.external]()
         self.QD = Q.get_QD()
-        self.p = UnsafePointer[Float64].alloc(self.l)
+        self.p = alloc[Float64](self.l)
         memcpy(dest=self.p, src=p_, count=self.l)
-        self.y = UnsafePointer[Int8].alloc(self.l)
+        self.y = alloc[Int8](self.l)
         memcpy(dest=self.y, src=y_, count=self.l)
-        self.alpha = UnsafePointer[Float64].alloc(self.l)
+        self.alpha = alloc[Float64](self.l)
         memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
@@ -429,7 +429,7 @@ struct Solver:
         self.unshrink = False
 
         # initialize alpha_status
-        self.alpha_status = UnsafePointer[Int8].alloc(self.l)
+        self.alpha_status = alloc[Int8](self.l)
         for i in range(self.l):
             if self.alpha[i] >= (self.Cp if self.y[i] > 0 else self.Cn):
                 self.alpha_status[i] = self.UPPER_BOUND
@@ -442,14 +442,14 @@ struct Solver:
         try:
             self.active_set = fill_indices(self.l)
         except:
-            self.active_set = UnsafePointer[Scalar[DType.int]].alloc(self.l)
+            self.active_set = alloc[Scalar[DType.int]](self.l)
             for i in range(self.l):
                 self.active_set[i] = i
         self.active_size = self.l
 
         # initialize gradient
-        self.G = UnsafePointer[Float64].alloc(self.l)
-        self.G_bar = UnsafePointer[Float64].alloc(self.l)
+        self.G = alloc[Float64](self.l)
+        self.G_bar = alloc[Float64](self.l)
         memcpy(dest=self.G, src=self.p, count=self.l)
         memset_zero(self.G_bar, self.l)
 
@@ -594,14 +594,14 @@ struct Solver:
 
         # calculate rho
 
-        si[].rho = self.calculate_rho()
+        si.rho = self.calculate_rho()
 
         # calculate objective value
         var v = 0.0
         for i in range(self.l):
             v += self.alpha[i] * (self.G[i] + self.p[i])
 
-        si[].obj = v/2
+        si.obj = v/2
 
         # put back the solution
 
@@ -616,8 +616,8 @@ struct Solver:
         #       # or Q.swap_index(i,self.active_set[i])
 
 
-        si[].upper_bound_p = Cp
-        si[].upper_bound_n = Cn
+        si.upper_bound_p = Cp
+        si.upper_bound_n = Cn
 
         self.p.free()
         self.y.free()
@@ -654,7 +654,7 @@ struct Solver:
                         Gmax_idx = t
 
         var i = Gmax_idx
-        var Q_i = UnsafePointer[Float32]()
+        var Q_i = UnsafePointer[Float32, MutOrigin.external]()
         if i != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
             Q_i = Q.get_Q(i,self.active_size)
 
@@ -786,41 +786,41 @@ struct Solver:
 # additional constraint: e^T \alpha = constant
 #
 struct Solver_NU:
-    var si: UnsafePointer[SolutionInfo]
+    var si: SolutionInfo
 
     var active_size: Int
-    var y: UnsafePointer[Int8]
-    var G: UnsafePointer[Float64]	# gradient of objective function
-    alias LOWER_BOUND: Int8 = 0
-    alias UPPER_BOUND: Int8 = 1
-    alias FREE: Int8 = 2
-    var alpha_status: UnsafePointer[Int8]	# LOWER_BOUND, UPPER_BOUND, FREE
-    var alpha: UnsafePointer[Float64]
-    var QD: UnsafePointer[Float64]
+    var y: UnsafePointer[Int8, MutOrigin.external]
+    var G: UnsafePointer[Float64, MutOrigin.external]	# gradient of objective function
+    comptime LOWER_BOUND: Int8 = 0
+    comptime UPPER_BOUND: Int8 = 1
+    comptime FREE: Int8 = 2
+    var alpha_status: UnsafePointer[Int8, MutOrigin.external]	# LOWER_BOUND, UPPER_BOUND, FREE
+    var alpha: UnsafePointer[Float64, MutOrigin.external]
+    var QD: UnsafePointer[Float64, MutOrigin.external]
     var eps: Float64
     var Cp: Float64
     var Cn: Float64
-    var p: UnsafePointer[Float64]
-    var active_set: UnsafePointer[Scalar[DType.int]]
-    var G_bar: UnsafePointer[Float64]	# gradient, if we treat free variables as 0
+    var p: UnsafePointer[Float64, MutOrigin.external]
+    var active_set: UnsafePointer[Scalar[DType.int], MutOrigin.external]
+    var G_bar: UnsafePointer[Float64, MutOrigin.external]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
 
     @always_inline
     fn __init__(out self):
-        self.si = UnsafePointer[SolutionInfo]()
+        self.si = SolutionInfo()
         self.active_size = 0
-        self.y = UnsafePointer[Int8]()
-        self.G = UnsafePointer[Float64]()
-        self.alpha_status = UnsafePointer[Int8]()
-        self.alpha = UnsafePointer[Float64]()
-        self.QD = UnsafePointer[Float64]()
+        self.y = UnsafePointer[Int8, MutOrigin.external]()
+        self.G = UnsafePointer[Float64, MutOrigin.external]()
+        self.alpha_status = UnsafePointer[Int8, MutOrigin.external]()
+        self.alpha = UnsafePointer[Float64, MutOrigin.external]()
+        self.QD = UnsafePointer[Float64, MutOrigin.external]()
         self.eps = 0.0
         self.Cp = 0.0
         self.Cn = 0.0
-        self.p = UnsafePointer[Float64]()
-        self.active_set = UnsafePointer[Scalar[DType.int]]()
-        self.G_bar = UnsafePointer[Float64]()
+        self.p = UnsafePointer[Float64, MutOrigin.external]()
+        self.active_set = UnsafePointer[Scalar[DType.int], MutOrigin.external]()
+        self.G_bar = UnsafePointer[Float64, MutOrigin.external]()
         self.l = 0
         self.unshrink = False
 
@@ -884,18 +884,18 @@ struct Solver_NU:
                     for j in range(self.active_size, self.l):
                         self.G[j] += alpha_i * Q_i[j].cast[DType.float64]()
 
-    fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8],
-                alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: UnsafePointer[SolutionInfo], shrinking: Int):
+    fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64, MutOrigin.external], y_: UnsafePointer[Int8, MutOrigin.external],
+                alpha_: UnsafePointer[Float64, MutOrigin.external], Cp: Float64, Cn: Float64, eps: Float64, si: SolutionInfo, shrinking: Int):
         self.si = si
         # Solve
         self.l = l
-        self.QD = UnsafePointer[Float64]()
+        self.QD = UnsafePointer[Float64, MutOrigin.external]()
         self.QD = Q.get_QD()
-        self.p = UnsafePointer[Float64].alloc(self.l)
+        self.p = alloc[Float64](self.l)
         memcpy(dest=self.p, src=p_, count=self.l)
-        self.y = UnsafePointer[Int8].alloc(self.l)
+        self.y = alloc[Int8](self.l)
         memcpy(dest=self.y, src=y_, count=self.l)
-        self.alpha = UnsafePointer[Float64].alloc(self.l)
+        self.alpha = alloc[Float64](self.l)
         memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
@@ -903,7 +903,7 @@ struct Solver_NU:
         self.unshrink = False
 
         # initialize alpha_status
-        self.alpha_status = UnsafePointer[Int8].alloc(self.l)
+        self.alpha_status = alloc[Int8](self.l)
         for i in range(self.l):
             if self.alpha[i] >= (self.Cp if self.y[i] > 0 else self.Cn):
                 self.alpha_status[i] = self.UPPER_BOUND
@@ -916,14 +916,14 @@ struct Solver_NU:
         try:
             self.active_set = fill_indices(self.l)
         except:
-            self.active_set = UnsafePointer[Scalar[DType.int]].alloc(self.l)
+            self.active_set = alloc[Scalar[DType.int]](self.l)
             for i in range(self.l):
                 self.active_set[i] = i
         self.active_size = self.l
 
         # initialize gradient
-        self.G = UnsafePointer[Float64].alloc(self.l)
-        self.G_bar = UnsafePointer[Float64].alloc(self.l)
+        self.G = alloc[Float64](self.l)
+        self.G_bar = alloc[Float64](self.l)
         memcpy(dest=self.G, src=self.p, count=self.l)
         memset_zero(self.G_bar, self.l)
 
@@ -1068,14 +1068,14 @@ struct Solver_NU:
 
         # calculate rho
 
-        si[].rho = self.calculate_rho()
+        self.si.rho = self.calculate_rho()
 
         # calculate objective value
         var v = 0.0
         for i in range(self.l):
             v += self.alpha[i] * (self.G[i] + self.p[i])
 
-        si[].obj = v/2
+        self.si.obj = v/2
 
         # put back the solution
 
@@ -1090,8 +1090,8 @@ struct Solver_NU:
         #       # or Q.swap_index(i,self.active_set[i])
 
 
-        si[].upper_bound_p = Cp
-        si[].upper_bound_n = Cn
+        self.si.upper_bound_p = Cp
+        self.si.upper_bound_n = Cn
 
         self.p.free()
         self.y.free()
@@ -1134,8 +1134,8 @@ struct Solver_NU:
 
         var i_p = Gmaxp_idx
         var i_n = Gmaxn_idx
-        var Q_ip = UnsafePointer[Float32]()
-        var Q_in = UnsafePointer[Float32]()
+        var Q_ip = UnsafePointer[Float32, MutOrigin.external]()
+        var Q_in = UnsafePointer[Float32, MutOrigin.external]()
         if i_p != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
             Q_ip = Q.get_Q(i_p,self.active_size)
         if i_n != -1: # NULL Q_i not accessed: Gmax=-INF if i=-1
@@ -1238,7 +1238,7 @@ struct Solver_NU:
                     self.active_size -= 1
             i += 1
 
-    fn calculate_rho(self) -> Float64:
+    fn calculate_rho(mut self) -> Float64:
         var nr_free1 = 0
         var nr_free2 = 0
         var ub1 = math.inf[DType.float64]()
@@ -1278,34 +1278,34 @@ struct Solver_NU:
         else:
             r2 = (ub2+lb2)/2
 
-        self.si[].r = (r1+r2)/2
+        self.si.r = (r1+r2)/2
         return (r1-r2)/2
 
 #
 # Q matrices for various formulations
 #
 struct SVC_Q(QMatrix):
-    var y: UnsafePointer[Int8]
+    var y: UnsafePointer[Int8, MutOrigin.external]
     var cache: Cache
-    var QD: UnsafePointer[Float64]
+    var QD: UnsafePointer[Float64, MutOrigin.external]
 
     var _self: kernel_params
 
     var kernel_function: fn(kernel_params, Int, Int) -> Float64
 
     @always_inline
-    fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8]):
+    fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, MutOrigin.external]):
         # Kernel
-        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
+        var x = alloc[UnsafePointer[svm_node, MutOrigin.external]](prob.l)
         memcpy(dest=x, src=prob.x, count=prob.l)
 
-        var x_square: UnsafePointer[Float64]
+        var x_square: UnsafePointer[Float64, MutOrigin.external]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = UnsafePointer[Float64].alloc(prob.l)
+            x_square = alloc[Float64](prob.l)
             for i in range(prob.l):
                 x_square[i] = dot(x[i], x[i])
         else:
-            x_square = UnsafePointer[Float64]()
+            x_square = UnsafePointer[Float64, MutOrigin.external]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
 
@@ -1322,17 +1322,17 @@ struct SVC_Q(QMatrix):
         else:
             self.kernel_function = kernel_linear
         ##
-        self.y = UnsafePointer[Int8].alloc(prob.l)
+        self.y = alloc[Int8](prob.l)
         memcpy(dest=self.y, src=y_, count=prob.l)
 
         self.cache = Cache(prob.l, UInt(Int(param.cache_size*(1<<20))))
 
-        self.QD = UnsafePointer[Float64].alloc(prob.l)
+        self.QD = alloc[Float64](prob.l)
         for i in range(prob.l):
             self.QD[i] = self.kernel_function(self._self, i,i)
 
-    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]:
-        var data = UnsafePointer[Float32]()
+    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutOrigin.external]:
+        var data = UnsafePointer[Float32, MutOrigin.external]()
         var start = self.cache.get_data(i,UnsafePointer(to=data),_len)
         if start < _len:
             @parameter
@@ -1341,7 +1341,7 @@ struct SVC_Q(QMatrix):
             parallelize[p](_len - start)
         return data
 
-    fn get_QD(self) -> UnsafePointer[Float64]:
+    fn get_QD(self) -> UnsafePointer[Float64, MutOrigin.external]:
         return self.QD
 
     fn swap_index(mut self, i: Int, j: Int):
@@ -1367,7 +1367,7 @@ struct SVC_Q(QMatrix):
 
 struct ONE_CLASS_Q(QMatrix):
     var cache: Cache
-    var QD: UnsafePointer[Float64]
+    var QD: UnsafePointer[Float64, MutOrigin.external]
 
     var _self: kernel_params
 
@@ -1376,16 +1376,16 @@ struct ONE_CLASS_Q(QMatrix):
     @always_inline
     fn __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
-        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
+        var x = alloc[UnsafePointer[svm_node, MutOrigin.external]](prob.l)
         memcpy(dest=x, src=prob.x, count=prob.l)
 
-        var x_square: UnsafePointer[Float64]
+        var x_square: UnsafePointer[Float64, MutOrigin.external]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = UnsafePointer[Float64].alloc(prob.l)
+            x_square = alloc[Float64](prob.l)
             for i in range(prob.l):
                 x_square[i] = dot(x[i], x[i])
         else:
-            x_square = UnsafePointer[Float64]()
+            x_square = UnsafePointer[Float64, MutOrigin.external]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
 
@@ -1404,19 +1404,19 @@ struct ONE_CLASS_Q(QMatrix):
         ##
         self.cache = Cache(prob.l, UInt(Int(param.cache_size*(1<<20))))
 
-        self.QD = UnsafePointer[Float64].alloc(prob.l)
+        self.QD = alloc[Float64](prob.l)
         for i in range(prob.l):
             self.QD[i] = self.kernel_function(self._self, i,i)
 
-    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]:
-        var data = UnsafePointer[Float32]()
+    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutOrigin.external]:
+        var data = UnsafePointer[Float32, MutOrigin.external]()
         var start = self.cache.get_data(i,UnsafePointer(to=data),_len)
         if start < _len:
             for j in range(start, _len):
                 data[j] = self.kernel_function(self._self, i,j).cast[DType.float32]()
         return data
 
-    fn get_QD(self) -> UnsafePointer[Float64]:
+    fn get_QD(self) -> UnsafePointer[Float64, MutOrigin.external]:
         return self.QD
 
     fn swap_index(mut self, i: Int, j: Int):
@@ -1440,11 +1440,11 @@ struct ONE_CLASS_Q(QMatrix):
 struct SVR_Q(QMatrix):
     var l: Int
     var cache: Cache
-    var sign: UnsafePointer[Int8]
-    var index: UnsafePointer[Int]
+    var sign: UnsafePointer[Int8, MutOrigin.external]
+    var index: UnsafePointer[Int, MutOrigin.external]
     var next_buffer: Int
-    var buffer: InlineArray[UnsafePointer[Float32], 2]
-    var QD: UnsafePointer[Float64]
+    var buffer: InlineArray[UnsafePointer[Float32, MutOrigin.external], 2]
+    var QD: UnsafePointer[Float64, MutOrigin.external]
 
     var _self: kernel_params
 
@@ -1453,16 +1453,16 @@ struct SVR_Q(QMatrix):
     @always_inline
     fn __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
-        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(prob.l)
+        var x = alloc[UnsafePointer[svm_node, MutOrigin.external]](prob.l)
         memcpy(dest=x, src=prob.x, count=prob.l)
 
-        var x_square: UnsafePointer[Float64]
+        var x_square: UnsafePointer[Float64, MutOrigin.external]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = UnsafePointer[Float64].alloc(prob.l)
+            x_square = alloc[Float64](prob.l)
             for i in range(prob.l):
                 x_square[i] = dot(x[i], x[i])
         else:
-            x_square = UnsafePointer[Float64]()
+            x_square = UnsafePointer[Float64, MutOrigin.external]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
 
@@ -1481,9 +1481,9 @@ struct SVR_Q(QMatrix):
         ##
         self.l = prob.l
         self.cache = Cache(self.l, UInt(Int(param.cache_size*(1<<20))))
-        self.QD = UnsafePointer[Float64].alloc(2*self.l)
-        self.sign = UnsafePointer[Int8].alloc(2*self.l)
-        self.index = UnsafePointer[Int].alloc(2*self.l)
+        self.QD = alloc[Float64](2*self.l)
+        self.sign = alloc[Int8](2*self.l)
+        self.index = alloc[Int](2*self.l)
         for k in range(self.l):
             self.sign[k] = 1
             self.sign[k+self.l] = -1
@@ -1491,7 +1491,7 @@ struct SVR_Q(QMatrix):
             self.index[k+self.l] = k
             self.QD[k] = self.kernel_function(self._self, k,k)
             self.QD[k+self.l] = self.QD[k]
-        self.buffer = InlineArray[UnsafePointer[Float32], 2](UnsafePointer[Float32].alloc(2*self.l), UnsafePointer[Float32].alloc(2*self.l))
+        self.buffer = InlineArray[UnsafePointer[Float32, MutOrigin.external], 2](alloc[Float32](2*self.l), alloc[Float32](2*self.l))
         self.next_buffer = 0
 
     fn swap_index(self, i: Int, j: Int):
@@ -1499,8 +1499,8 @@ struct SVR_Q(QMatrix):
         swap(self.index[i],self.index[j])
         swap(self.QD[i],self.QD[j])
 
-    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]:
-        var data = UnsafePointer[Float32]()
+    fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutOrigin.external]:
+        var data = UnsafePointer[Float32, MutOrigin.external]()
         var real_i = self.index[i]
         if self.cache.get_data(real_i,UnsafePointer(to=data),self.l) < self.l:
             @parameter
@@ -1509,13 +1509,13 @@ struct SVR_Q(QMatrix):
             parallelize[p](self.l)
         # reorder and copy
         var buf = self.buffer[self.next_buffer]
-        var next_buffer = 1 - self.next_buffer
+        self.next_buffer = 1 - self.next_buffer
         var si = self.sign[i]
         for j in range(_len):
             buf[j] = si.cast[DType.float32]() * self.sign[j].cast[DType.float32]() * data[self.index[j]]
         return buf
 
-    fn get_QD(self) -> UnsafePointer[Float64]:
+    fn get_QD(self) -> UnsafePointer[Float64, MutOrigin.external]:
         return self.QD
 
     fn __del__(deinit self):
@@ -1540,10 +1540,10 @@ struct SVR_Q(QMatrix):
 #
 fn solve_c_svc(
     prob: svm_problem, param: svm_parameter,
-    alpha: UnsafePointer[Float64], si: SolutionInfo, Cp: Float64, Cn: Float64):
+    alpha: UnsafePointer[Float64, MutOrigin.external], mut si: SolutionInfo, Cp: Float64, Cn: Float64):
     var l = prob.l
-    var minus_ones = UnsafePointer[Float64].alloc(l)
-    var y = UnsafePointer[Int8].alloc(l)
+    var minus_ones = alloc[Float64](l)
+    var y = alloc[Int8](l)
 
     memset_zero(alpha, l)
     for i in range(l):
@@ -1556,7 +1556,7 @@ fn solve_c_svc(
     var s = Solver()
     var q = SVC_Q(prob,param,y)
     s.Solve(l, q, minus_ones, y,
-        alpha, Cp, Cn, param.eps, UnsafePointer(to=si), param.shrinking)
+        alpha, Cp, Cn, param.eps, si, param.shrinking)
 
     var sum_alpha=0.0
     for i in range(l):
@@ -1570,11 +1570,11 @@ fn solve_c_svc(
 
 fn solve_nu_svc(
     prob: svm_problem, param: svm_parameter,
-    alpha: UnsafePointer[Float64], mut si: SolutionInfo):
+    alpha: UnsafePointer[Float64, MutOrigin.external], mut si: SolutionInfo):
     var l = prob.l
     var nu = param.nu
 
-    var y = UnsafePointer[Int8].alloc(l)
+    var y = alloc[Int8](l)
 
     for i in range(l):
         if prob.y[i]>0:
@@ -1593,13 +1593,13 @@ fn solve_nu_svc(
             alpha[i] = min(1.0,sum_neg)
             sum_neg -= alpha[i]
 
-    var zeros = UnsafePointer[Float64].alloc(l)
+    var zeros = alloc[Float64](l)
     memset_zero(zeros, l)
 
     var s = Solver_NU()
     var q = SVC_Q(prob,param,y)
     s.Solve(l, q, zeros, y,
-        alpha, 1.0, 1.0, param.eps, UnsafePointer(to=si), param.shrinking)
+        alpha, 1.0, 1.0, param.eps, si, param.shrinking)
     var r = si.r
 
     for i in range(l):
@@ -1615,10 +1615,10 @@ fn solve_nu_svc(
 
 fn solve_one_class(
     prob: svm_problem, param: svm_parameter,
-    alpha: UnsafePointer[Float64], mut si: SolutionInfo):
+    alpha: UnsafePointer[Float64, MutOrigin.external], mut si: SolutionInfo):
     var l = prob.l
-    var zeros = UnsafePointer[Float64].alloc(l)
-    var ones = UnsafePointer[Int8].alloc(l)
+    var zeros = alloc[Float64](l)
+    var ones = alloc[Int8](l)
 
     var n = Int(param.nu*prob.l)	# # of alpha's at upper bound
 
@@ -1636,18 +1636,18 @@ fn solve_one_class(
     var s = Solver()
     var q = ONE_CLASS_Q(prob,param)
     s.Solve(l, q, zeros, ones,
-        alpha, 1.0, 1.0, param.eps, UnsafePointer(to=si), param.shrinking)
+        alpha, 1.0, 1.0, param.eps, si, param.shrinking)
 
     zeros.free()
     ones.free()
 
 fn solve_epsilon_svr(
     prob: svm_problem, param: svm_parameter,
-    alpha: UnsafePointer[Float64], mut si: SolutionInfo):
+    alpha: UnsafePointer[Float64, MutOrigin.external], mut si: SolutionInfo):
     var l = prob.l
-    var alpha2 = UnsafePointer[Float64].alloc(2*l)
-    var linear_term = UnsafePointer[Float64].alloc(2*l)
-    var y = UnsafePointer[Int8].alloc(2*l)
+    var alpha2 = alloc[Float64](2*l)
+    var linear_term = alloc[Float64](2*l)
+    var y = alloc[Int8](2*l)
 
     for i in range(l):
         alpha2[i] = 0
@@ -1661,7 +1661,7 @@ fn solve_epsilon_svr(
     var s = Solver()
     var q = SVR_Q(prob,param)
     s.Solve(2*l, q, linear_term, y,
-        alpha2, param.C, param.C, param.eps, UnsafePointer(to=si), param.shrinking)
+        alpha2, param.C, param.C, param.eps, si, param.shrinking)
 
     var sum_alpha = 0.0
     for i in range(l):
@@ -1674,12 +1674,12 @@ fn solve_epsilon_svr(
 
 fn solve_nu_svr(
     prob: svm_problem, param: svm_parameter,
-    alpha: UnsafePointer[Float64], mut si: SolutionInfo):
+    alpha: UnsafePointer[Float64, MutOrigin.external], mut si: SolutionInfo):
     var l = prob.l
     var C = param.C
-    var alpha2 = UnsafePointer[Float64].alloc(2*l)
-    var linear_term = UnsafePointer[Float64].alloc(2*l)
-    var y = UnsafePointer[Int8].alloc(2*l)
+    var alpha2 = alloc[Float64](2*l)
+    var linear_term = alloc[Float64](2*l)
+    var y = alloc[Int8](2*l)
 
     var sum = C * param.nu * l / 2
     for i in range(l):
@@ -1695,7 +1695,7 @@ fn solve_nu_svr(
     var s = Solver_NU()
     var q = SVR_Q(prob,param)
     s.Solve(2*l, q, linear_term, y,
-        alpha2, C, C, param.eps, UnsafePointer(to=si), param.shrinking)
+        alpha2, C, C, param.eps, si, param.shrinking)
 
     for i in range(l):
         alpha[i] = alpha2[i] - alpha2[i+l]
@@ -1710,13 +1710,13 @@ fn solve_nu_svr(
 @fieldwise_init
 @register_passable("trivial")
 struct decision_function(Copyable):
-    var alpha: UnsafePointer[Float64]
+    var alpha: UnsafePointer[Float64, MutOrigin.external]
     var rho: Float64
 
 fn svm_train_one(
     prob: svm_problem, param: svm_parameter,
     Cp: Float64, Cn: Float64) -> decision_function:
-    var alpha = UnsafePointer[Float64].alloc(prob.l)
+    var alpha = alloc[Float64](prob.l)
     var si = SolutionInfo()
     if param.svm_type == svm_parameter.C_SVC:
         solve_c_svc(prob,param,alpha,si,Cp,Cn)
@@ -1747,7 +1747,7 @@ fn svm_train_one(
 
 # Platt's binary SVM Probablistic Output: an improvement from Lin et al.
 fn sigmoid_train(
-    l: Int, dec_values: UnsafePointer[Float64], labels: UnsafePointer[Float64],
+    l: Int, dec_values: UnsafePointer[Float64, MutOrigin.external], labels: UnsafePointer[Float64],
     mut A: Float64, mut B: Float64):
     var prior1 = 0.0
     var prior0 = 0.0
@@ -1764,7 +1764,7 @@ fn sigmoid_train(
     var eps=1e-5
     var hiTarget=(prior1+1.0)/(prior1+2.0)
     var loTarget=1/(prior0+2.0)
-    var t=UnsafePointer[Float64].alloc(l)
+    var t= alloc[Float64](l)
     var fApB: Float64; p: Float64; q: Float64; h11: Float64; h22: Float64; h21: Float64; g1: Float64; g2: Float64; det: Float64; dA: Float64; dB: Float64; gd: Float64; stepsize: Float64
     var newA: Float64; newB: Float64; newf: Float64; d1: Float64; d2: Float64
     var iter: Int
@@ -1859,17 +1859,16 @@ fn sigmoid_predict(decision_value: Float64, A: Float64, B: Float64) -> Float64:
         return 1.0/(1+math.exp(fApB))
 
 # Method 2 from the multiclass_prob paper by Wu, Lin, and Weng to predict probabilities
-fn multiclass_probability(k: Int, r: UnsafePointer[UnsafePointer[Float64]], p: UnsafePointer[Float64]):
-    var iter = 0
+fn multiclass_probability(k: Int, r: UnsafePointer[UnsafePointer[Float64, MutOrigin.external], MutOrigin.external], p: UnsafePointer[Float64, MutOrigin.external]):
     var max_iter=max(100,k)
-    var Q=UnsafePointer[UnsafePointer[Float64]].alloc(k)
-    var Qp=UnsafePointer[Float64].alloc(k)
+    var Q=alloc[UnsafePointer[Float64, MutOrigin.external]](k)
+    var Qp=alloc[Float64](k)
     var pQp: Float64
     var eps=0.005/k
 
     for t in range(k):
         p[t]=1.0/k  # Valid if k = 1
-        Q[t]=UnsafePointer[Float64].alloc(k)
+        Q[t]=alloc[Float64](k)
         Q[t][t]=0
         for j in range(t):
             Q[t][t]+=r[j][t]*r[j][t]
@@ -1877,7 +1876,7 @@ fn multiclass_probability(k: Int, r: UnsafePointer[UnsafePointer[Float64]], p: U
         for j in range(t+1,k):
             Q[t][t]+=r[j][t]*r[j][t]
             Q[t][j]=-r[j][t]*r[t][j]
-    iter = 0
+    var iter = 0
     while iter<max_iter:
         # stopping condition, recalculate QP,pQP for numerical accuracy
         pQp=0.0
@@ -1918,14 +1917,14 @@ fn svm_binary_svc_probability(
     prob: svm_problem, param: svm_parameter,
     Cp: Float64, Cn: Float64, mut probA: Float64, mut probB: Float64):
     var nr_fold = 5
-    var perm: UnsafePointer[Scalar[DType.int]]
-    var dec_values = UnsafePointer[Float64].alloc(prob.l)
+    var perm: UnsafePointer[Scalar[DType.int], MutOrigin.external]
+    var dec_values = alloc[Float64](prob.l)
 
     # random shuffle
     try:
         perm = fill_indices(prob.l)
     except:
-        perm = UnsafePointer[Scalar[DType.int]].alloc(prob.l)
+        perm = alloc[Scalar[DType.int]](prob.l)
         for i in range(prob.l):
             perm[i]=i
 
@@ -1940,8 +1939,8 @@ fn svm_binary_svc_probability(
         var subprob = svm_problem()
 
         subprob.l = prob.l-(end-begin)
-        subprob.x = UnsafePointer[UnsafePointer[svm_node]].alloc(subprob.l)
-        subprob.y = UnsafePointer[Float64].alloc(subprob.l)
+        subprob.x = alloc[UnsafePointer[svm_node, MutOrigin.external]](subprob.l)
+        subprob.y = alloc[Float64](subprob.l)
 
         for j in range(begin):
             subprob.x[k] = prob.x[perm[j]]
@@ -1974,8 +1973,8 @@ fn svm_binary_svc_probability(
             subparam.probability=0
             subparam.C=1.0
             subparam.nr_weight=2
-            subparam.weight_label = UnsafePointer[Int].alloc(2)
-            subparam.weight = UnsafePointer[Float64].alloc(2)
+            subparam.weight_label = alloc[Int](2)
+            subparam.weight = alloc[Float64](2)
             subparam.weight_label[0]=+1
             subparam.weight_label[1]=-1
             subparam.weight[0]=Cp
@@ -2014,9 +2013,9 @@ fn predict_one_class_probability(model: svm_model, dec_value: Float64) -> Float6
     return prob_estimate
 
 # Get parameters for one-class SVM probability estimates
-fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_marks: UnsafePointer[Float64]) -> Int:
-    var dec_values = UnsafePointer[Float64].alloc(prob.l)
-    var pred_results = UnsafePointer[Float64].alloc(prob.l)
+fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_marks: UnsafePointer[Float64, MutOrigin.external]) -> Int:
+    var dec_values = alloc[Float64](prob.l)
+    var pred_results = alloc[Float64](prob.l)
     var ret = 0
     var nr_marks = 10
 
@@ -2029,8 +2028,8 @@ fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_m
     sort[cmp_fn](
         Span[
             Float64,
-            origin_of(dec_values),
-        ](ptr=dec_values, length=UInt(prob.l))
+            MutOrigin.external,
+        ](ptr=dec_values, length=prob.l)
     )
 
     var neg_counter=0
@@ -2045,7 +2044,7 @@ fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_m
         ret = -1
     else:
         # Binning by density
-        var tmp_marks = UnsafePointer[Float64].alloc(nr_marks+1)
+        var tmp_marks = alloc[Float64](nr_marks+1)
         var mid = nr_marks//2
         for i in range(mid):
             tmp_marks[i] = dec_values[i*neg_counter//mid]
@@ -2064,7 +2063,7 @@ fn svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_m
 # Return parameter of a Laplace distribution
 fn svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
     var nr_fold = 5
-    var ymv = UnsafePointer[Float64].alloc(prob.l)
+    var ymv = alloc[Float64](prob.l)
     var mae = 0.0
 
     var newparam = param.copy()
@@ -2089,13 +2088,13 @@ fn svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
 
 # label: label name, start: begin of each class, count: #data of classes, perm: indices to the original data
 # perm, length l, must be allocated before calling this subroutine
-fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: UnsafePointer[Int], mut start_ret: UnsafePointer[Int], mut count_ret: UnsafePointer[Int], perm: UnsafePointer[Scalar[DType.int]]):
+fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: UnsafePointer[Int, MutOrigin.external], mut start_ret: UnsafePointer[Int, MutOrigin.external], mut count_ret: UnsafePointer[Int, MutOrigin.external], perm: UnsafePointer[Scalar[DType.int], MutOrigin.external]):
     var l = prob.l
     var max_nr_class = 16
     var nr_class = 0
-    var label = UnsafePointer[Int].alloc(max_nr_class)
-    var count = UnsafePointer[Int].alloc(max_nr_class)
-    var data_label = UnsafePointer[Int].alloc(l)
+    var label = alloc[Int](max_nr_class)
+    var count = alloc[Int](max_nr_class)
+    var data_label = alloc[Int](l)
 
     for i in range(l):
         var this_label = Int(prob.y[i])
@@ -2109,11 +2108,11 @@ fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: Un
         data_label[i] = j
         if j == nr_class:
             if nr_class == max_nr_class:
-                var new = UnsafePointer[Int].alloc(max_nr_class*2)
+                var new = alloc[Int](max_nr_class*2)
                 memcpy(dest=new, src=label, count=max_nr_class)
                 label.free()
                 label = new
-                new = UnsafePointer[Int].alloc(max_nr_class*2)
+                new = alloc[Int](max_nr_class*2)
                 memcpy(dest=new, src=count, count=max_nr_class)
                 count.free()
                 count = new
@@ -2135,7 +2134,7 @@ fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: Un
             else:
                 data_label[i] = 0
 
-    var start = UnsafePointer[Int].alloc(nr_class)
+    var start = alloc[Int](nr_class)
     start[0] = 0
     for i in range(1,nr_class):
         start[i] = start[i-1]+count[i-1]
@@ -2155,23 +2154,23 @@ fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: Un
 #
 # Interface functions
 #
-fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model]:
-    var model = UnsafePointer[svm_model].alloc(1)
+fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model, MutOrigin.external]:
+    var model = alloc[svm_model](1)
     model[].param = param.copy()
     model[].free_sv = 0
 
     if param.svm_type == svm_parameter.ONE_CLASS or param.svm_type == svm_parameter.EPSILON_SVR or param.svm_type == svm_parameter.NU_SVR:
         # regression or one-class-svm
         model[].nr_class = 2
-        model[].label = UnsafePointer[Int]()
-        model[].nSV = UnsafePointer[Int]()
-        model[].probA = UnsafePointer[Float64]()
-        model[].probB = UnsafePointer[Float64]()
-        model[].prob_density_marks = UnsafePointer[Float64]()
-        model[].sv_coef = UnsafePointer[UnsafePointer[Float64]].alloc(1)
+        model[].label = UnsafePointer[Int, MutOrigin.external]()
+        model[].nSV = UnsafePointer[Int, MutOrigin.external]()
+        model[].probA = UnsafePointer[Float64, MutOrigin.external]()
+        model[].probB = UnsafePointer[Float64, MutOrigin.external]()
+        model[].prob_density_marks = UnsafePointer[Float64, MutOrigin.external]()
+        model[].sv_coef = alloc[UnsafePointer[Float64, MutOrigin.external]](1)
 
         var f = svm_train_one(prob,param,0,0)
-        model[].rho = UnsafePointer[Float64].alloc(1)
+        model[].rho = alloc[Float64](1)
         model[].rho[0] = f.rho
 
         var nSV = 0
@@ -2179,9 +2178,9 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
             if abs(f.alpha[i]) > 0:
                 nSV += 1
         model[].l = nSV
-        model[].SV = UnsafePointer[UnsafePointer[svm_node]].alloc(nSV)
-        model[].sv_coef[0] = UnsafePointer[Float64].alloc(nSV)
-        model[].sv_indices = UnsafePointer[Scalar[DType.int]].alloc(nSV)
+        model[].SV = alloc[UnsafePointer[svm_node, MutOrigin.external]](nSV)
+        model[].sv_coef[0] = alloc[Float64](nSV)
+        model[].sv_indices = alloc[Scalar[DType.int]](nSV)
         var j = 0
         for i in range(prob.l):
             if abs(f.alpha[i]) > 0:
@@ -2191,11 +2190,11 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
                 j += 1
 
         if param.probability and (param.svm_type == svm_parameter.EPSILON_SVR or param.svm_type == svm_parameter.NU_SVR):
-            model[].probA = UnsafePointer[Float64].alloc(1)
+            model[].probA = alloc[Float64](1)
             model[].probA[0] = svm_svr_probability(prob,param)
         elif param.probability and param.svm_type == svm_parameter.ONE_CLASS:
             var nr_marks = 10
-            var prob_density_marks = UnsafePointer[Float64].alloc(nr_marks)
+            var prob_density_marks = alloc[Float64](nr_marks)
 
             if svm_one_class_probability(prob,model[],prob_density_marks) == 0:
                 model[].prob_density_marks = prob_density_marks
@@ -2207,20 +2206,20 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
         # classification
         var l = prob.l
         var nr_class = 0
-        var label = UnsafePointer[Int]()
-        var start = UnsafePointer[Int]()
-        var count = UnsafePointer[Int]()
-        var perm = UnsafePointer[Scalar[DType.int]].alloc(l)
+        var label = UnsafePointer[Int, MutOrigin.external]()
+        var start = UnsafePointer[Int, MutOrigin.external]()
+        var count = UnsafePointer[Int, MutOrigin.external]()
+        var perm = alloc[Scalar[DType.int]](l)
 
         # group training data of the same class
         svm_group_classes(prob,nr_class,label,start,count,perm)
 
-        var x = UnsafePointer[UnsafePointer[svm_node]].alloc(l)
+        var x = alloc[UnsafePointer[svm_node, MutOrigin.external]](l)
         for i in range(l):
             x[i] = prob.x[perm[i]]
 
         # calculate weighted C
-        var weighted_C = UnsafePointer[Float64].alloc(nr_class)
+        var weighted_C = alloc[Float64](nr_class)
         for i in range(nr_class):
             weighted_C[i] = param.C
         for i in range(param.nr_weight):
@@ -2236,15 +2235,15 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
 
         # train k*(k-1)/2 models
 
-        var nonzero = UnsafePointer[Bool].alloc(l)
+        var nonzero = alloc[Bool](l)
         memset_zero(nonzero, l)
-        var f = UnsafePointer[decision_function].alloc(nr_class*(nr_class-1)//2)
+        var f = alloc[decision_function](nr_class*(nr_class-1)//2)
 
-        var probA=UnsafePointer[Float64]()
-        var probB=UnsafePointer[Float64]()
+        var probA = UnsafePointer[Float64, MutOrigin.external]()
+        var probB = UnsafePointer[Float64, MutOrigin.external]()
         if param.probability:
-            probA=UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
-            probB=UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+            probA = alloc[Float64](nr_class*(nr_class-1)//2)
+            probB = alloc[Float64](nr_class*(nr_class-1)//2)
 
         var p = 0
         for i in range(nr_class):
@@ -2255,8 +2254,8 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
                 var ci = count[i]
                 var cj = count[j]
                 sub_prob.l = ci+cj
-                sub_prob.x = UnsafePointer[UnsafePointer[svm_node]].alloc(sub_prob.l)
-                sub_prob.y = UnsafePointer[Float64].alloc(sub_prob.l)
+                sub_prob.x = alloc[UnsafePointer[svm_node, MutOrigin.external]](sub_prob.l)
+                sub_prob.y = alloc[Float64](sub_prob.l)
 
                 for k in range(ci):
                     sub_prob.x[k] = x[si+k]
@@ -2284,29 +2283,29 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
 
         model[].nr_class = nr_class
 
-        model[].label = UnsafePointer[Int].alloc(nr_class)
+        model[].label = alloc[Int](nr_class)
         for i in range(nr_class):
             model[].label[i] = label[i]
 
-        model[].rho = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+        model[].rho = alloc[Float64](nr_class*(nr_class-1)//2)
         for i in range(nr_class*(nr_class-1)//2):
             model[].rho[i] = f[i].rho
 
         if param.probability:
-            model[].probA = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
-            model[].probB = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+            model[].probA = alloc[Float64](nr_class*(nr_class-1)//2)
+            model[].probB = alloc[Float64](nr_class*(nr_class-1)//2)
             for i in range(nr_class*(nr_class-1)//2):
                 model[].probA[i] = probA[i]
                 model[].probB[i] = probB[i]
         else:
-            model[].probA=UnsafePointer[Float64]()
-            model[].probB=UnsafePointer[Float64]()
+            model[].probA=UnsafePointer[Float64, MutOrigin.external]()
+            model[].probB=UnsafePointer[Float64, MutOrigin.external]()
 
-        model[].prob_density_marks=UnsafePointer[Float64]()	# for one-class SVM probabilistic outputs only
+        model[].prob_density_marks=UnsafePointer[Float64, MutOrigin.external]()	# for one-class SVM probabilistic outputs only
 
         var total_sv = 0
-        var nz_count = UnsafePointer[Int].alloc(nr_class)
-        model[].nSV = UnsafePointer[Int].alloc(nr_class)
+        var nz_count = alloc[Int](nr_class)
+        model[].nSV = alloc[Int](nr_class)
         for i in range(nr_class):
             var nSV = 0
             for j in range(count[i]):
@@ -2318,8 +2317,8 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
             nz_count[i] = nSV
 
         model[].l = total_sv
-        model[].SV = UnsafePointer[UnsafePointer[svm_node]].alloc(total_sv)
-        model[].sv_indices = UnsafePointer[Scalar[DType.int]].alloc(total_sv)
+        model[].SV = alloc[UnsafePointer[svm_node, MutOrigin.external]](total_sv)
+        model[].sv_indices = alloc[Scalar[DType.int]](total_sv)
         p = 0
         for i in range(l):
             if nonzero[i]:
@@ -2327,14 +2326,14 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
                 model[].sv_indices[p] = perm[i] + 1
                 p += 1
 
-        var nz_start = UnsafePointer[Int].alloc(nr_class)
+        var nz_start = alloc[Int](nr_class)
         nz_start[0] = 0
         for i in range(1, nr_class):
             nz_start[i] = nz_start[i-1]+nz_count[i-1]
 
-        model[].sv_coef = UnsafePointer[UnsafePointer[Float64]].alloc(nr_class-1)
+        model[].sv_coef = alloc[UnsafePointer[Float64, MutOrigin.external]](nr_class-1)
         for i in range(nr_class-1):
-            model[].sv_coef[i] = UnsafePointer[Float64].alloc(total_sv)
+            model[].sv_coef[i] = alloc[Float64](total_sv)
 
         p = 0
         for i in range(nr_class):
@@ -2378,10 +2377,10 @@ fn svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model
     return model
 
 # Stratified cross validation
-fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: UnsafePointer[Float64]):
-    var fold_start = UnsafePointer[Int].alloc(nr_fold+1)
+fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: UnsafePointer[Float64, MutOrigin.external]):
+    var fold_start = alloc[Int](nr_fold+1)
     var l = prob.l
-    var perm = UnsafePointer[Scalar[DType.int]].alloc(l)
+    var perm = alloc[Scalar[DType.int]](l)
     var nr_class = 0
     if nr_fold > l:
         print("WARNING: # folds ("+ String(nr_fold) +") > # data ("+ String(l) +"). Will use # folds = # data instead (i.e., leave-one-out cross validation)\n")
@@ -2390,14 +2389,14 @@ fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: In
     # stratified cv may not give leave-one-out rate
     # Each class to l folds -> some folds may have zero elements
     if (param.svm_type == svm_parameter.C_SVC or param.svm_type == svm_parameter.NU_SVC) and nr_fold < l:
-        var start = UnsafePointer[Int]()
-        var label = UnsafePointer[Int]()
-        var count = UnsafePointer[Int]()
+        var start = UnsafePointer[Int, MutOrigin.external]()
+        var label = UnsafePointer[Int, MutOrigin.external]()
+        var count = UnsafePointer[Int, MutOrigin.external]()
         svm_group_classes(prob,nr_class,label,start,count,perm)
 
         # random shuffle and then data grouped by fold using the array perm
-        var fold_count = UnsafePointer[Int].alloc(nr_fold)
-        var index = UnsafePointer[Scalar[DType.int]].alloc(l)
+        var fold_count = alloc[Int](nr_fold)
+        var index = alloc[Scalar[DType.int]](l)
         memcpy(dest=index, src=perm, count=l)
         for c in range(nr_class):
             for i in range(count[c] - 1, 0, -1):
@@ -2432,7 +2431,7 @@ fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: In
         try:
             perm = fill_indices(l)
         except:
-            perm = UnsafePointer[Scalar[DType.int]].alloc(l)
+            perm = alloc[Scalar[DType.int]](l)
             for i in range(l):
                 perm[i]=i
         for i in range(l - 1, 0, -1):
@@ -2449,8 +2448,8 @@ fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: In
         var subprob = svm_problem()
 
         subprob.l = l-(end-begin)
-        subprob.x = UnsafePointer[UnsafePointer[svm_node]].alloc(subprob.l)
-        subprob.y = UnsafePointer[Float64].alloc(subprob.l)
+        subprob.x = alloc[UnsafePointer[svm_node, MutOrigin.external]](subprob.l)
+        subprob.y = alloc[Float64](subprob.l)
 
         for j in range(begin):
             subprob.x[k] = prob.x[perm[j]]
@@ -2464,7 +2463,7 @@ fn svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: In
 
         var submodel = svm_train(subprob,param)
         if param.probability and (param.svm_type == svm_parameter.C_SVC or param.svm_type == svm_parameter.NU_SVC):
-            var prob_estimates = UnsafePointer[Float64].alloc(svm_get_nr_class(submodel[]))
+            var prob_estimates = alloc[Float64](svm_get_nr_class(submodel[]))
             for j in range(begin, end):
                 target[perm[j]] = svm_predict_probability(submodel[],prob.x[perm[j]],prob_estimates)
             prob_estimates.free()
@@ -2486,12 +2485,12 @@ fn svm_get_svm_type(model: svm_model) -> Int:
 fn svm_get_nr_class(model: svm_model) -> Int:
     return model.nr_class
 
-fn svm_get_labels(model: svm_model, label: UnsafePointer[Int]):
+fn svm_get_labels(model: svm_model, label: UnsafePointer[Int, MutOrigin.external]):
     if model.label:
         for i in range(model.nr_class):
             label[i] = model.label[i]
 
-fn svm_get_sv_indices(model: svm_model, indices: UnsafePointer[Scalar[DType.int]]):
+fn svm_get_sv_indices(model: svm_model, indices: UnsafePointer[Scalar[DType.int], MutOrigin.external]):
     if model.sv_indices:
         memcpy(dest=indices, src=model.sv_indices, count=model.l)
 
@@ -2506,12 +2505,12 @@ fn svm_get_svr_probability(model: svm_model) -> Float64:
         print("Model doesn't contain information for SVR probability inference\n")
         return 0.0
 
-fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: UnsafePointer[Float64]) -> Float64:
+fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, MutOrigin.external], dec_values: UnsafePointer[Float64, MutAnyOrigin]) -> Float64:
     if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
         var sv_coef = model.sv_coef[0]
         var sum = 0.0
 
-        var values = UnsafePointer[Float64].alloc(model.l)
+        var values = alloc[Float64](model.l)
         @parameter
         fn p(i: Int):
             values[i] = sv_coef[i] * k_function(x,model.SV[i],model.param)
@@ -2534,19 +2533,19 @@ fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: 
         var nr_class = model.nr_class
         var l = model.l
 
-        var kvalue = UnsafePointer[Float64].alloc(l)
+        var kvalue = alloc[Float64](l)
 
         @parameter
         fn pv(i: Int):
             kvalue[i] = k_function(x,model.SV[i],model.param)
         parallelize[pv](l)
 
-        var start = UnsafePointer[Int].alloc(nr_class)
+        var start = alloc[Int](nr_class)
         start[0] = 0
         for i in range(1, nr_class):
             start[i] = start[i-1]+model.nSV[i-1]
 
-        var vote = UnsafePointer[Int].alloc(nr_class)
+        var vote = alloc[Int](nr_class)
         for i in range(nr_class):
             vote[i] = 0
 
@@ -2584,27 +2583,27 @@ fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: 
         vote.free()
         return model.label[vote_max_idx]
 
-fn svm_predict(model: svm_model, x: UnsafePointer[svm_node]) -> Float64:
+fn svm_predict(model: svm_model, x: UnsafePointer[svm_node, MutOrigin.external]) -> Float64:
     var nr_class = model.nr_class
-    var dec_values: UnsafePointer[Float64]
+    var dec_values: UnsafePointer[Float64, MutOrigin.external]
     if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
-        dec_values = UnsafePointer[Float64].alloc(1)
+        dec_values = alloc[Float64](1)
     else:
-        dec_values = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+        dec_values = alloc[Float64](nr_class*(nr_class-1)//2)
     var pred_result = svm_predict_values(model, x, dec_values)
     dec_values.free()
     return pred_result
 
-fn svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node], prob_estimates: UnsafePointer[Float64]) -> Float64:
+fn svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node, MutOrigin.external], prob_estimates: UnsafePointer[Float64, MutOrigin.external]) -> Float64:
     if (model.param.svm_type == svm_parameter.C_SVC or model.param.svm_type == svm_parameter.NU_SVC) and model.probA and model.probB:
         var nr_class = model.nr_class
-        var dec_values = UnsafePointer[Float64].alloc(nr_class*(nr_class-1)//2)
+        var dec_values = alloc[Float64](nr_class*(nr_class-1)//2)
         _ = svm_predict_values(model, x, dec_values)
 
         var min_prob=1e-7
-        var pairwise_prob=UnsafePointer[UnsafePointer[Float64]].alloc(nr_class)
+        var pairwise_prob=alloc[UnsafePointer[Float64, MutOrigin.external]](nr_class)
         for i in range(nr_class):
-            pairwise_prob[i]=UnsafePointer[Float64].alloc(nr_class)
+            pairwise_prob[i]=alloc[Float64](nr_class)
         var k=0
         for i in range(nr_class):
             for j in range(i+1, nr_class):
@@ -2635,15 +2634,15 @@ fn svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node], prob_es
     else:
         return svm_predict(model, x)
 
-fn svm_decision_function(model: svm_model, x: UnsafePointer[svm_node]) -> Tuple[UnsafePointer[Float64], Int]:
+fn svm_decision_function(model: svm_model, x: UnsafePointer[svm_node, MutOrigin.external]) -> Tuple[UnsafePointer[Float64, MutOrigin.external], Int]:
     var nr_class = model.nr_class
     var l: Int
-    var dec_values: UnsafePointer[Float64]
+    var dec_values: UnsafePointer[Float64, MutOrigin.external]
     if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
         l = 1
     else:
         l = nr_class*(nr_class-1)//2
-    dec_values = UnsafePointer[Float64].alloc(l)
+    dec_values = alloc[Float64](l)
     _ = svm_predict_values(model, x, dec_values)
     return dec_values, l
 
@@ -2655,37 +2654,37 @@ fn svm_free_model_content(mut model_ptr: svm_model):
             model_ptr.sv_coef[i].free()
 
     model_ptr.SV.free()
-    model_ptr.SV = UnsafePointer[UnsafePointer[svm_node]]()
+    model_ptr.SV = UnsafePointer[UnsafePointer[svm_node, MutOrigin.external], MutOrigin.external]()
 
     model_ptr.sv_coef.free()
-    model_ptr.sv_coef = UnsafePointer[UnsafePointer[Float64]]()
+    model_ptr.sv_coef = UnsafePointer[UnsafePointer[Float64, MutOrigin.external], MutOrigin.external]()
 
     model_ptr.rho.free()
-    model_ptr.rho = UnsafePointer[Float64]()
+    model_ptr.rho = UnsafePointer[Float64, MutOrigin.external]()
 
     model_ptr.label.free()
-    model_ptr.label = UnsafePointer[Int]()
+    model_ptr.label = UnsafePointer[Int, MutOrigin.external]()
 
     model_ptr.probA.free()
-    model_ptr.probA = UnsafePointer[Float64]()
+    model_ptr.probA = UnsafePointer[Float64, MutOrigin.external]()
 
     model_ptr.probB.free()
-    model_ptr.probB = UnsafePointer[Float64]()
+    model_ptr.probB = UnsafePointer[Float64, MutOrigin.external]()
 
     model_ptr.prob_density_marks.free()
-    model_ptr.prob_density_marks = UnsafePointer[Float64]()
+    model_ptr.prob_density_marks = UnsafePointer[Float64, MutOrigin.external]()
 
     model_ptr.sv_indices.free()
-    model_ptr.sv_indices = UnsafePointer[Scalar[DType.int]]()
+    model_ptr.sv_indices = UnsafePointer[Scalar[DType.int], MutOrigin.external]()
 
     model_ptr.nSV.free()
-    model_ptr.nSV = UnsafePointer[Int]()
+    model_ptr.nSV = UnsafePointer[Int, MutOrigin.external]()
 
-fn svm_free_and_destroy_model(mut model_ptr_ptr: UnsafePointer[svm_model]):
+fn svm_free_and_destroy_model(mut model_ptr_ptr: UnsafePointer[svm_model, MutOrigin.external]):
     if model_ptr_ptr:
         svm_free_model_content(model_ptr_ptr[])
         model_ptr_ptr.free()
-        model_ptr_ptr = UnsafePointer[svm_model]()
+        model_ptr_ptr = UnsafePointer[svm_model, MutOrigin.external]()
 
 fn svm_destroy_param(param: svm_parameter):
     if param.weight_label:
@@ -2745,8 +2744,8 @@ fn svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
         var l = prob.l
         var max_nr_class = 16
         var nr_class = 0
-        var label = UnsafePointer[Int].alloc(max_nr_class)
-        var count = UnsafePointer[Int].alloc(max_nr_class)
+        var label = alloc[Int](max_nr_class)
+        var count = alloc[Int](max_nr_class)
 
         for i in range(l):
             var this_label = Int(prob.y[i])
@@ -2758,11 +2757,11 @@ fn svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
                 j += 1
             if j == nr_class:
                 if nr_class == max_nr_class:
-                    var new = UnsafePointer[Int].alloc(max_nr_class*2)
+                    var new = alloc[Int](max_nr_class*2)
                     memcpy(dest=new, src=label, count=max_nr_class)
                     label.free()
                     label = new
-                    new = UnsafePointer[Int].alloc(max_nr_class*2)
+                    new = alloc[Int](max_nr_class*2)
                     memcpy(dest=new, src=count, count=max_nr_class)
                     count.free()
                     count = new

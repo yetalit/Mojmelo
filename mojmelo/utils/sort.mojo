@@ -1,10 +1,13 @@
 from bit import count_leading_zeros
+from sys import bit_width_of
 from math import ceil
 
 @always_inline
 fn _estimate_initial_height(size: Int) -> Int:
     # Compute the log2 of the size rounded upward.
-    var log2 = Int((DType.int.bit_width() - 1) ^ count_leading_zeros(size | 1))
+    var log2 = Int(
+        (bit_width_of[DType.int]() - 1) ^ count_leading_zeros(size | 1)
+    )
     # The number 1.3 was chosen by experimenting the max stack size for random
     # input. This also depends on insertion_sort_threshold
     return max(2, Int(ceil(1.3 * log2)))
@@ -13,14 +16,14 @@ fn _estimate_initial_height(size: Int) -> Int:
 # sort
 # ===-----------------------------------------------------------------------===#
 
-alias insertion_sort_threshold = 32
+comptime insertion_sort_threshold = 32
 
 @always_inline
 fn _insertion_sort[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
     """Sort the array[start:end] slice"""
     var array = span.unsafe_ptr().as_any_origin()
     var size = len(span)
@@ -46,9 +49,9 @@ fn _insertion_sort[
 @always_inline
 fn _quicksort_partition_right[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]) -> Int:
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]) -> Int:
     var size = len(span)
 
     var left = 1
@@ -76,9 +79,9 @@ fn _quicksort_partition_right[
 @always_inline
 fn _quicksort_partition_left[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]) -> Int:
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]) -> Int:
     var size = len(span)
 
     var left = 1
@@ -104,9 +107,9 @@ fn _quicksort_partition_left[
 @always_inline
 fn _delegate_small_sort[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
     var size = len(span)
     if size == 2:
         _small_sort[2, T, cmp_fn](span, indices)
@@ -134,21 +137,21 @@ fn _delegate_small_sort[
 @always_inline
 fn _quicksort[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
     *,
     do_smallsort: Bool = False,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
     var size = len(span)
     if size == 0:
         return
 
     # Work with an immutable span so we don't run into exclusivity problems with
     # the List[Span].
-    alias ImmSpan = span.Immutable
+    comptime ImmSpan = span.Immutable
 
     var stack = List[Span[T, origin]](capacity=_estimate_initial_height(size))
-    var stack_b = List[UnsafePointer[Scalar[DType.int]]](capacity=stack.capacity)
+    var stack_b = List[UnsafePointer[Scalar[DType.int], MutAnyOrigin]](capacity=stack.capacity)
     stack.append(span)
     stack_b.append(indices)
     while len(stack) > 0:
@@ -208,10 +211,10 @@ fn _quicksort[
 # Junction from public to private API
 fn _sort[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
     do_smallsort: Bool = False,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
     @parameter
     if do_smallsort:
         if len(span) <= 5:
@@ -226,38 +229,38 @@ fn _sort[
 
 fn sort[
     T: Copyable & Movable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
     *,
     __disambiguate: NoneType = None,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
 
     _sort[cmp_fn](span, indices)
 
 
 fn sort[
     dtype: DType,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (Scalar[dtype], Scalar[dtype]) capturing [_] -> Bool,
     *,
-](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
 
     _sort[cmp_fn, do_smallsort=True](span, indices)
 
 
 fn sort[
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     cmp_fn: fn (Int, Int) capturing [_] -> Bool,
     *,
-](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
 
     _sort[cmp_fn, do_smallsort=True](span, indices)
 
 
 fn sort[
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     *,
-](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
 
     @parameter
     fn _cmp_fn(lhs: Int, rhs: Int) -> Bool:
@@ -268,9 +271,9 @@ fn sort[
 
 fn sort[
     T: Copyable & Movable & Comparable,
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     *,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
 
     @parameter
     fn _cmp_fn(a: T, b: T) -> Bool:
@@ -284,14 +287,14 @@ fn sort[
 
 @always_inline
 fn _sort2[
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
     span: Span[T, origin],
     offset0: Int,
     offset1: Int,
-    indices: UnsafePointer[Scalar[DType.int]]
+    indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]
 ):
     if not cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
         span.unsafe_swap_elements(offset0, offset1)
@@ -299,7 +302,7 @@ fn _sort2[
 
 @always_inline
 fn _sort3[
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
@@ -307,7 +310,7 @@ fn _sort3[
     offset0: Int,
     offset1: Int,
     offset2: Int,
-    indices: UnsafePointer[Scalar[DType.int]]
+    indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]
 ):
     _sort2[T, cmp_fn](span, offset0, offset1, indices)
     _sort2[T, cmp_fn](span, offset1, offset2, indices)
@@ -316,7 +319,7 @@ fn _sort3[
 
 @always_inline
 fn _sort_partial_3[
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
 ](
@@ -324,7 +327,7 @@ fn _sort_partial_3[
     offset0: Int,
     offset1: Int,
     offset2: Int,
-    indices: UnsafePointer[Scalar[DType.int]]
+    indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]
 ):
     """Sorts [a, b, c] assuming [b, c] is already sorted."""
     if cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
@@ -338,11 +341,11 @@ fn _sort_partial_3[
 
 @always_inline
 fn _small_sort[
-    origin: MutableOrigin, //,
+    origin: MutOrigin, //,
     n: Int,
     T: Copyable & Movable,
     cmp_fn: fn (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int]]):
+](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
     @parameter
     if n == 2:
         _sort2[T, cmp_fn](span, 0, 1, indices)

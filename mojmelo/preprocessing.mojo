@@ -2,7 +2,6 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, cartesian_product
 from algorithm import parallelize
 from sys import num_performance_cores
-from memory import UnsafePointer
 from python import Python, PythonObject
 import time
 import random
@@ -211,7 +210,6 @@ struct LabelEncoder:
             Encoded labels.
         """
         var y_encoded = Matrix(len(y), 1)
-        var latest_index = 0
         for i in range(len(y)):
             y_encoded.data[i] = self.str_to_index[String(y[i])]
         return y_encoded^
@@ -284,7 +282,7 @@ fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[
         dic_values[i] = param_grid._entries[i].value().value.copy()
     var combinations = cartesian_product(dic_values)
     var scores = Matrix(1, len(combinations))
-    var params = UnsafePointer[Dict[String, String]].alloc(len(combinations))
+    var params = alloc[Dict[String, String]](len(combinations))
     if n_jobs == 0:
         for i in range(len(combinations)):
             params[i] = Dict[String, String]()

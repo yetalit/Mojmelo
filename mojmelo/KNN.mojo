@@ -28,7 +28,7 @@ struct KNN(CV):
         self.kdtree = KDTree(X, self.metric)
         self.y_train = y
 
-    fn predict(self, X: Matrix) raises -> Matrix:
+    fn predict(mut self, X: Matrix) raises -> Matrix:
         """Predict the class indices for the provided data.
 
         Returns:
@@ -45,7 +45,7 @@ struct KNN(CV):
         return y_pred^
 
     @always_inline
-    fn _predict(self, x: Matrix) raises -> Float32:
+    fn _predict(mut self, x: Matrix) raises -> Float32:
         var kd_results = KDTreeResultVector()
         self.kdtree.n_nearest(NDBuffer[dtype=DType.float32, rank=1](x.data, x.size), self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label

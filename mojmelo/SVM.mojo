@@ -37,10 +37,10 @@ struct SVC(CV):
     """Whether to use the shrinking heuristic."""
     var probability: Bool
     """Whether to enable probability estimates."""
-    var _model: UnsafePointer[svm_model]
+    var _model: UnsafePointer[svm_model, MutOrigin.external]
     var _n_features: Int
     var _x_list: List[List[svm_node]]
-    var _x_ptr: List[UnsafePointer[svm_node]]
+    var _x_ptr: List[UnsafePointer[svm_node, MutOrigin.external]]
 
     fn __init__(out self, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
                 degree: Int = 2, gamma: Float64 = -1.0, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
@@ -58,10 +58,10 @@ struct SVC(CV):
             random.seed(random_state)
         else:
             random.seed()
-        self._model = UnsafePointer[svm_model]()
+        self._model = UnsafePointer[svm_model, MutOrigin.external]()
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node]]()
+        self._x_ptr = List[UnsafePointer[svm_node, MutOrigin.external]]()
 
     fn fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the SVM model according to the given training data."""
@@ -100,19 +100,19 @@ struct SVC(CV):
             eps = self.tol,
             C = self.C,
             nr_weight = 0,
-            weight_label = UnsafePointer[Int](),
-            weight = UnsafePointer[Float64](),
+            weight_label = UnsafePointer[Int, MutOrigin.external](),
+            weight = UnsafePointer[Float64, MutOrigin.external](),
             nu = self.nu,
             p = 0.0,
-            shrinking = self.shrinking,
-            probability = self.probability)
+            shrinking = Int(self.shrinking),
+            probability = Int(self.probability))
 
         var X_float64 = X.cast_ptr[DType.float64]()
 
         self._x_list = List[List[svm_node]](capacity=X.height)
         self._x_list.resize(X.height, List[svm_node]())
-        self._x_ptr = List[UnsafePointer[svm_node]](capacity=X.height)
-        self._x_ptr.resize(X.height, UnsafePointer[svm_node]())
+        self._x_ptr = List[UnsafePointer[svm_node, MutOrigin.external]](capacity=X.height)
+        self._x_ptr.resize(X.height, UnsafePointer[svm_node, MutOrigin.external]())
 
         @parameter
         fn p(i: Int):
@@ -151,7 +151,7 @@ struct SVC(CV):
             The predicted classes.
         """
         var X_float64 = X.cast_ptr[DType.float64]()
-        var y_ptr = UnsafePointer[Float64].alloc(X.height)
+        var y_ptr = alloc[Float64](X.height)
 
         @parameter
         fn p(i: Int):
@@ -270,7 +270,7 @@ struct SVC(CV):
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed()
-        self._model = UnsafePointer[svm_model]()
+        self._model = UnsafePointer[svm_model, MutOrigin.external]()
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node]]()
+        self._x_ptr = List[UnsafePointer[svm_node, MutOrigin.external]]()

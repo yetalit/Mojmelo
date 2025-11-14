@@ -3,11 +3,11 @@ from sys.ffi import *
 
 fn cachel1() -> Int32:
     var l1_cache_size: c_int = 0
-    alias length: c_size_t = 4
+    comptime length: c_size_t = 4
     # Get L1 Cache Size
-    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer(), 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
         if l1_cache_size <= 1:
-            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer(), 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
                 if l1_cache_size <= 1:
                     return 65536
                 return l1_cache_size
@@ -15,7 +15,7 @@ fn cachel1() -> Int32:
                 return 65536
         return l1_cache_size
     else:
-        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer(), 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
             if l1_cache_size <= 1:
                 return 65536
             return l1_cache_size
@@ -25,11 +25,11 @@ fn cachel1() -> Int32:
 
 fn cachel2() -> Int32:
     var l2_cache_size: c_int = 0
-    alias length: c_size_t = 4
+    comptime length: c_size_t = 4
     # Get L2 Cache Size
-    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer(), 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
         if l2_cache_size <= 1:
-            if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer(), 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
                 if l2_cache_size <= 1:
                     return 4194304
                 return l2_cache_size
@@ -37,7 +37,7 @@ fn cachel2() -> Int32:
                 return 4194304
         return l2_cache_size
     else:
-        if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer(), 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
             if l2_cache_size <= 1:
                 return 4194304
             return l2_cache_size
@@ -62,25 +62,25 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
             possible_l2_associativities[1] = possible_l2_associativities[0] * 2
             possible_l2_associativities[2] = possible_l2_associativities[0] * 4
         with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
-            code = 'alias L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
-            code += 'alias L1_ASSOCIATIVITY = ' + String(possible_l1_associativities[0]) + '\n'
-            code += 'alias L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
-            code += 'alias L2_ASSOCIATIVITY = ' + String(possible_l2_associativities[0]) + '\n'
+            code = 'comptime L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
+            code += 'comptime L1_ASSOCIATIVITY = ' + String(possible_l1_associativities[0]) + '\n'
+            code += 'comptime L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
+            code += 'comptime L2_ASSOCIATIVITY = ' + String(possible_l2_associativities[0]) + '\n'
             f.write(code)
         for i in range(3):
             for j in range(1, 4):
                 with open("./param" + String(i * 3 + j), "w") as f:
-                    code = 'alias L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
-                    code += 'alias L1_ASSOCIATIVITY = ' + String(possible_l1_associativities[i]) + '\n'
-                    code += 'alias L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
-                    code += 'alias L2_ASSOCIATIVITY = ' + String(possible_l2_associativities[j - 1]) + '\n'
+                    code = 'comptime L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
+                    code += 'comptime L1_ASSOCIATIVITY = ' + String(possible_l1_associativities[i]) + '\n'
+                    code += 'comptime L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
+                    code += 'comptime L2_ASSOCIATIVITY = ' + String(possible_l2_associativities[j - 1]) + '\n'
                     f.write(code)
     else:
         with open("./mojmelo/utils/mojmelo_matmul/params.mojo", "w") as f:
-            code = 'alias L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
-            code += 'alias L1_ASSOCIATIVITY = ' + String(cache_l1_associativity) + '\n'
-            code += 'alias L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
-            code += 'alias L2_ASSOCIATIVITY = ' + String(cache_l2_associativity) + '\n'
+            code = 'comptime L1_CACHE_SIZE = ' + String(cache_l1_size) + '\n'
+            code += 'comptime L1_ASSOCIATIVITY = ' + String(cache_l1_associativity) + '\n'
+            code += 'comptime L2_CACHE_SIZE = ' + String(cache_l2_size) + '\n'
+            code += 'comptime L2_ASSOCIATIVITY = ' + String(cache_l2_associativity) + '\n'
             f.write(code)
         with open("./done", "w") as f:
             f.write("done")
@@ -135,7 +135,7 @@ fn main() raises:
         from mojmelo.utils.Matrix import Matrix
         import time
 
-        alias NUM_ITER = 16
+        comptime NUM_ITER = 16
         results = InlineArray[Int, 3](fill=0)
         var junk: Float32 = 0.0
         a = Matrix.random(512, 4096)
@@ -146,7 +146,7 @@ fn main() raises:
             finish = time.perf_counter_ns()
             junk += c[0, 0]
             if i != 0:
-                results[0] += (finish - start) // (NUM_ITER - 1)
+                results[0] += Int(finish - start) // (NUM_ITER - 1)
         a = Matrix.random(4096, 4096)
         b = Matrix.random(4096, 4096)
         for i in range(NUM_ITER):
@@ -155,7 +155,7 @@ fn main() raises:
             finish = time.perf_counter_ns()
             junk += c[0, 0]
             if i != 0:
-                results[1] += (finish - start) // (NUM_ITER - 1)
+                results[1] += Int(finish - start) // (NUM_ITER - 1)
         a = Matrix.random(4096, 512)
         b = Matrix.random(512, 4096)
         for i in range(NUM_ITER):
@@ -164,7 +164,7 @@ fn main() raises:
             finish = time.perf_counter_ns()
             junk += c[0, 0]
             if i != 0:
-                results[2] += (finish - start) // (NUM_ITER - 1)
+                results[2] += Int(finish - start) // (NUM_ITER - 1)
         if command != '9':
             with open("./results" + command, "w") as f:
                 f.write(String(results[0]) + ',' + String(results[1]) + ',' + String(results[2]) + ',' + String(junk))

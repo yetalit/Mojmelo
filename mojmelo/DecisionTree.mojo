@@ -7,12 +7,12 @@ import random
 struct Node(Copyable, Movable):
     var feature: Int
     var threshold: Float32
-    var left: UnsafePointer[Node]
-    var right: UnsafePointer[Node]
+    var left: UnsafePointer[Node, MutAnyOrigin]
+    var right: UnsafePointer[Node, MutAnyOrigin]
     var value: Float32
 
     fn __init__(
-        out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node] = UnsafePointer[Node](), right: UnsafePointer[Node] = UnsafePointer[Node](), value: Float32 = math.inf[DType.float32]()
+        out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
         self.threshold = threshold
@@ -45,7 +45,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
     """The maximum depth of the tree."""
     var n_feats: Int
     """The number of features to consider when looking for the best split."""
-    var root: UnsafePointer[Node]
+    var root: UnsafePointer[Node, MutAnyOrigin]
     
     fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
         self.criterion = criterion.lower()
@@ -66,7 +66,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         self.n_feats = n_feats
         if random_state != -1:
             random.seed(random_state)
-        self.root = UnsafePointer[Node]()
+        self.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'criterion' in params:
@@ -103,7 +103,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
                 random.seed(seed)
         else:
             random.seed(42)
-        self.root = UnsafePointer[Node]()
+        self.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn _moveinit_(mut self, mut existing: Self):
         self.criterion = existing.criterion
@@ -114,7 +114,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         self.root = existing.root
         existing.criterion = ''
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
-        existing.root = UnsafePointer[Node]()
+        existing.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn __del__(deinit self):
         if self.root:
@@ -141,7 +141,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
+    fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
         var unique_targets: Int
         var freq = List[List[Int]]()
         if self.criterion == 'mse':
@@ -150,7 +150,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
             freq = y.unique()
             unique_targets = len(freq)
 
-        var new_node = UnsafePointer[Node].alloc(1)
+        var new_node = alloc[Node](1)
         # stopping criteria
         if (
             depth >= self.max_depth
@@ -266,7 +266,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.int]], loss
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 
-fn _traverse_tree(x: Matrix, node: UnsafePointer[Node]) -> Float32:
+fn _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -274,7 +274,7 @@ fn _traverse_tree(x: Matrix, node: UnsafePointer[Node]) -> Float32:
         return _traverse_tree(x, node[].left)
     return _traverse_tree(x, node[].right)
 
-fn delTree(node: UnsafePointer[Node]):
+fn delTree(node: UnsafePointer[Node, MutAnyOrigin]):
     if node[].left:
         delTree(node[].left)
     if node[].right:
