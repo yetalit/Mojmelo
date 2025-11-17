@@ -106,7 +106,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         else:
             loc = (column * self.height) + row
         if loc > self.size - 1 or loc < 0:
-            raise Error("Error: Location is out of range!")
+            raise Error("Location is out of range!")
         return self.data[loc]
 
     # access a row
@@ -114,7 +114,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     fn __getitem__(self, row: Int) raises -> Matrix:
         """The pattern to access a row: [row] ."""
         if row >= self.height or row < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
             return Matrix(1, self.width, self.data + (row * self.width), self.order)
         var mat = Matrix(1, self.width, order= self.order)
@@ -144,7 +144,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn __getitem__(self, row: Int, offset: Bool, start_i: Int) raises -> Matrix:
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
             return Matrix(1, self.width - start_i, self.data + (row * self.width) + start_i, self.order)
         var mat = Matrix(1, self.width - start_i, order= self.order)
@@ -161,7 +161,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     fn __getitem__(self, row: String, column: Int) raises -> Matrix:
         """The pattern to access a column: ['', column] ."""
         if column >= self.width or column < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
             var mat = Matrix(self.height, 1)
             var tmpPtr = self.data + column
@@ -191,7 +191,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn __getitem__(self, offset: Bool, start_i: Int, column: Int) raises -> Matrix:
         if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
             var mat = Matrix(self.height - start_i, 1)
             var tmpPtr = self.data + column + (start_i * self.width)
@@ -210,7 +210,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if rows.size > 96:
             @parameter
             fn p(i: Int):
-                mat[i, unsafe=True] = self[Int(rows.data[i]), unsafe=True]
+                try:
+                    mat[i] = self[Int(rows.data[i])]
+                except e:
+                    print('Error:', e)
             parallelize[p](rows.size)
         else:
             for i in range(rows.size):
@@ -224,7 +227,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if columns.size > 96 or (self.order == 'c' and self.height * columns.size > 24576):
             @parameter
             fn p(i: Int):
-                mat[row, i, unsafe=True] = self[row, Int(columns.data[i]), unsafe=True]
+                try:
+                    mat[row, i] = self[row, Int(columns.data[i])]
+                except e:
+                    print('Error:', e)
             parallelize[p](columns.size)
         else:
             for i in range(columns.size):
@@ -238,7 +244,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if len(rows) > 96:
             @parameter
             fn p(i: Int):
-                mat[i, unsafe=True] = self[rows[i], unsafe=True]
+                try:
+                    mat[i] = self[rows[i]]
+                except e:
+                    print('Error:', e)
             parallelize[p](len(rows))
         else:
             for i in range(mat.height):
@@ -252,7 +261,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if len(rows) > 96:
             @parameter
             fn p(i: Int):
-                mat[i, unsafe=True] = self[Int(rows[i]), unsafe=True]
+                try:
+                    mat[i] = self[Int(rows[i])]
+                except e:
+                    print('Error:', e)
             parallelize[p](len(rows))
         else:
             for i in range(mat.height):
@@ -266,7 +278,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
             @parameter
             fn p(i: Int):
-                mat[row, i, unsafe=True] = self[row, columns[i], unsafe=True]
+                try:
+                    mat[row, i] = self[row, columns[i]]
+                except e:
+                    print('Error:', e)
             parallelize[p](len(columns))
         else:
             for i in range(mat.width):
@@ -280,7 +295,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
             @parameter
             fn p(i: Int):
-                mat[row, i, unsafe=True] = self[row, Int(columns[i]), unsafe=True]
+                try:
+                    mat[row, i] = self[row, Int(columns[i])]
+                except e:
+                    print('Error:', e)
             parallelize[p](len(columns))
         else:
             for i in range(mat.width):
@@ -296,14 +314,14 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         else:
             loc = (column * self.height) + row
         if loc > self.size - 1:
-            raise Error("Error: Location is out of range!")
+            raise Error("Location is out of range!")
         self.data[loc] = val
 
     # replace the given row
     @always_inline
     fn __setitem__(mut self, row: Int, val: Matrix) raises:
         if row >= self.height or row < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
             memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
         else:
@@ -331,7 +349,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Matrix) raises:
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
             memcpy(dest=self.data + (row * self.width) + start_i, src=val.data, count=val.size)
         else:
@@ -346,7 +364,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn __setitem__(mut self, row: String, column: Int, val: Matrix) raises:
         if column >= self.width or column < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
             var tmpPtr = self.data + column
             @parameter
@@ -374,7 +392,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Matrix) raises:
         if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
             var tmpPtr = self.data + column + (start_i * self.width)
             @parameter
@@ -385,22 +403,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         else:
             memcpy(dest=self.data + (column * self.height) + start_i, src=val.data, count=val.size)
 
-    # replace given rows (by their indices)
-    @always_inline
-    fn __setitem__(mut self, rows: Matrix, rhs: Matrix) raises:
-        for i in range(rows.size):
-            self[Int(rows.data[i])] = rhs[i]
-
-    # replace given columns (by their indices)
-    @always_inline
-    fn __setitem__(mut self, row: String, columns: Matrix, rhs: Matrix) raises:
-        for i in range(columns.size):
-            self[row, Int(columns.data[i])] = rhs[row, i]
-
     @always_inline
     fn load_columns(self, _range: Int) raises -> Matrix:
         if _range > self.width:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         var mat = Matrix(self.height, _range, order=self.order)
         if self.order == 'f' or self.height == 1:
             memcpy(dest=mat.data, src=self.data, count=mat.size)
@@ -414,7 +420,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn load_rows(self, _range: Int) raises -> Matrix:
         if _range > self.height:
-            raise Error("Error: Index out of range!")
+            raise Error("Index out of range!")
         var mat = Matrix(_range, self.width, order=self.order)
         if self.order == 'c' or self.width == 1:
             memcpy(dest=mat.data, src=self.data, count=mat.size)
@@ -989,6 +995,10 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
     @always_inline
     fn mean(self) raises -> Float32:
         return self.sum() / self.size
+
+    @always_inline
+    fn mean_weighted(self, weights: Matrix) raises -> Float32:
+        return (self.ele_mul(weights)).sum() / weights.sum()
 
     @always_inline
     fn mean(self, axis: Int) raises -> Matrix:
@@ -1584,6 +1594,18 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return list^
 
     @always_inline
+    fn bincount(self, weights: Matrix) raises -> List[Int]:
+        var max_val = Int(self.max())
+        var vect = alloc[Int](max_val + 1)
+        memset_zero(vect, max_val + 1)
+
+        for i in range(self.size):
+            vect[Int(self.data[i])] += Int(weights.data[i])
+        var list = List[Int](unsafe_uninit_length=max_val + 1)
+        list._data=vect
+        return list^
+
+    @always_inline
     fn unique(self) -> List[List[Int]]:
         var freq = List[List[Int]]()
         for i in range(self.size):
@@ -1592,6 +1614,18 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
                 for _ in range(data - len(freq) + 1):
                     freq.append(List[Int]())
             freq[data].append(i)
+        return freq^
+
+    @always_inline
+    fn unique(self, weights: Matrix) -> List[List[Int]]:
+        var freq = List[List[Int]]()
+        for i in range(self.size):
+            var data = Int(self.data[i])
+            if len(freq) <= data:
+                for _ in range(data - len(freq) + 1):
+                    freq.append(List[Int]())
+            for _ in range(weights.data[i]):
+                freq[data].append(i)
         return freq^
 
     @always_inline
@@ -1641,7 +1675,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             random.seed()
         var result = alloc[Scalar[DType.int]](size)
         if replace:
-            random.randint(result, size, 0, arang)
+            random.randint(result, size, 0, arang - 1)
         else:
             var indices = fill_indices(arang)
             for i in range(arang - 1, 0, -1):

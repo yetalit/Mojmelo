@@ -8,7 +8,17 @@ import random
 @always_inline
 fn bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
     var idxs = Matrix.rand_choice(X.height, X.height, True, seed = False)
-    return X[idxs], y[idxs]
+    var unique_idxs = List[Scalar[DType.int]]()
+    var freqs = Matrix.zeros(X.height, 1)
+    for idx in idxs:
+        freqs.data[idx] += 1
+        if freqs.data[idx] == 1:
+            unique_idxs.append(idx)
+    var y_with_weights = Matrix(len(unique_idxs), 2, order='f')
+    for i in range(len(unique_idxs)):
+        y_with_weights[i, 0] = y.data[unique_idxs[i]]
+        y_with_weights[i, 1] = freqs.data[unique_idxs[i]]
+    return X[unique_idxs], y_with_weights^
 
 fn _predict(y: Matrix, criterion: String) raises -> Float32:
     if criterion == 'mse':
@@ -74,8 +84,8 @@ struct RandomForest(CV):
                 criterion = self.criterion
             )
             try:
-                X_samp, y_samp = bootstrap_sample(X, _y)
-                tree.fit(X_samp, y_samp)
+                X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
+                tree.fit_rf(X_samp, y_samp_with_weights)
             except e:
                 print('Error:', e)
             (self.trees + i).init_pointee_move(tree)

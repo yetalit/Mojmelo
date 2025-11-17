@@ -36,7 +36,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var loss_func: fn(Matrix) raises -> Float32
+    var loss_func: fn(Matrix, Matrix) raises -> Float32
     var c_func: fn(Float32, List[Int]) raises -> Float32
     var r_func: fn(Int, Float32, Float32) raises -> Float32
     var min_samples_split: Int
@@ -128,6 +128,11 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         else:
             self.root = self._grow_tree(X.asorder('f'), y)
 
+    fn fit_rf(mut self, X: Matrix, y_with_weights: Matrix) raises:
+        """Build a decision tree for Random Forest training."""
+        self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
+        self.root = self._grow_tree(X.asorder('f'), y_with_weights)
+
     fn predict(self, X: Matrix) raises -> Matrix:
         """Predict class or regression value for X.
         
@@ -142,12 +147,16 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         return y_predicted^
 
     fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
+        var _y = y['', 0]
+        var weights = Matrix(0, 0)
+        if y.width == 2:
+            weights = y['', 1]
         var unique_targets: Int
         var freq = List[List[Int]]()
         if self.criterion == 'mse':
-            unique_targets = y.is_uniquef()
+            unique_targets = _y.is_uniquef()
         else:
-            freq = y.unique()
+            freq = _y.unique() if y.width == 1 else _y.unique(weights)
             unique_targets = len(freq)
 
         var new_node = alloc[Node](1)
@@ -157,7 +166,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
             or unique_targets == 1
             or X.height < self.min_samples_split
         ):
-            new_node.init_pointee_move(Node(value = set_value(y, freq, self.criterion)))
+            new_node.init_pointee_move(Node(value = set_value(_y, weights, freq, self.criterion)))
             return new_node
 
         var feat_idxs = Matrix.rand_choice(X.width, self.n_feats, False, seed = False)
@@ -165,7 +174,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         # greedily select the best split according to information gain
         var best_feat: Int
         var best_thresh: Float32
-        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
+        best_feat, best_thresh = _best_criteria(X, y, _y, weights, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
         # grow the children that result from the split
         var left_right_idxs = _split(X['', best_feat], best_thresh)
         var left_idxs = left_right_idxs[0].copy()
@@ -175,9 +184,11 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
-fn set_value(y: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
+fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
     if criterion == 'mse':
-        return y.mean()
+        if weights.size == 0:
+            return y.mean()
+        return y.mean_weighted(weights)
     var max_val: Int = 0
     var most_common: Int = 0
     for i in range(len(freq)):
@@ -186,35 +197,42 @@ fn set_value(y: Matrix, freq: List[List[Int]], criterion: String) raises -> Floa
             most_common = i
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
-    var parent_loss = loss_func(y)
+fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+    var parent_loss = loss_func(_y, weights)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
+    var total_samples = len(_y) if y.width == 1 else weights.sum()
     if criterion != 'mse':
-        var num_classes = Int(y.max() + 1)  # assuming y is 0-indexed
+        var num_classes = Int(_y.max() + 1)  # assuming y is 0-indexed
         @parameter
         fn p_c(idx: Int):
             try:
                 var column = X['', Int(feat_idxs[idx]), unsafe=True]
-                var sorted_indices = column.argsort_inplace()
-                var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
-                var right_histogram = y_sorted.bincount()
-
-                for step in range(1, len(y)):
+                var right_histogram = _y.bincount() if weights.size == 0 else _y.bincount(weights)
+                var sorted_indices = column.argsort_inplace()
+                var y_sorted = y[sorted_indices]
+                var n_left: Float32 = 0.0
+                for step in range(1, len(_y)):
                     var c = y_sorted.data[step - 1]
-                    left_histogram[Int(c)] += 1
-                    right_histogram[Int(c)] -= 1
+                    if y_sorted.width == 1:
+                        n_left += 1
+                        left_histogram[Int(c)] += 1
+                        right_histogram[Int(c)] -= 1
+                    else:
+                        var weight = Int(y_sorted[step - 1, 1])
+                        n_left += weight
+                        left_histogram[Int(c)] += weight
+                        right_histogram[Int(c)] -= weight
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
                     
-                    var n_left = Float32(step)
-                    var n_right = Float32(len(y) - step)
+                    var n_right = total_samples - n_left
 
-                    var child_loss = (n_left / len(y)) * c_precompute(n_left, left_histogram) + (n_right / len(y)) * c_precompute(n_right, right_histogram)
+                    var child_loss = (n_left / total_samples) * c_precompute(n_left, left_histogram) + (n_right / total_samples) * c_precompute(n_right, right_histogram)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig
@@ -223,8 +241,8 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.int]], loss
                 print('Error:', e)
         parallelize[p_c](len(feat_idxs))
     else:
-        var sum_total = y.sum()
-        var sum_sq_total = (y ** 2).sum()
+        var sum_total = _y.sum() if y.width == 1 else _y.ele_mul(weights).sum()
+        var sum_sq_total = _y.ele_mul(_y).sum() if y.width == 1 else (_y.ele_mul(_y).ele_mul(weights)).sum()
         @parameter
         fn p_r(idx: Int):
             try:
@@ -234,23 +252,25 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.int]], loss
 
                 var left_sum: Float32 = 0.0
                 var left_sum_sq: Float32 = 0.0
-                var right_sum = sum_total
-                var right_sum_sq = sum_sq_total
-
-                for step in range(1, len(y)):
+                var n_left: Float32 = 0.0
+                for step in range(1, len(_y)):
                     var yi = y_sorted.data[step - 1]
-                    left_sum += yi
-                    left_sum_sq += yi ** 2
-                    right_sum -= yi
-                    right_sum_sq -= yi ** 2
+                    if y_sorted.width == 1:
+                        n_left += 1
+                        left_sum += yi
+                        left_sum_sq += yi * yi
+                    else:
+                        var weight = y_sorted[step - 1, 1]
+                        n_left += weight
+                        left_sum += yi * weight
+                        left_sum_sq += yi * yi * weight
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
                     
-                    var n_left = step
-                    var n_right = len(y) - step
+                    var n_right = total_samples - n_left
 
-                    var child_loss = (Float32(n_left) / len(y)) * r_precompute(n_left, left_sum, left_sum_sq) + (Float32(n_right) / len(y)) * r_precompute(n_right, right_sum, right_sum_sq)
+                    var child_loss = (n_left / total_samples) * r_precompute(Int(n_left), left_sum, left_sum_sq) + (n_right / total_samples) * r_precompute(Int(n_right), sum_total - left_sum, sum_sq_total - left_sum_sq)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig

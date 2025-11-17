@@ -118,21 +118,15 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
 
                 var left_g_sum: Float32 = 0.0
                 var left_h_sum: Float32 = 0.0
-                var right_g_sum = total_g_sum
-                var right_h_sum = total_h_sum
 
                 for step in range(1, X.height):
-                    var gi = g_sorted.data[step - 1]
-                    var hi = h_sorted.data[step - 1]
-                    left_g_sum += gi
-                    left_h_sum += hi
-                    right_g_sum -= gi
-                    right_h_sum -= hi
+                    left_g_sum += g_sorted.data[step - 1]
+                    left_h_sum += h_sorted.data[step - 1]
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
 
-                    var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, right_g_sum, right_h_sum)
+                    var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig
@@ -162,16 +156,12 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
                     
                     var left_g_sum: Float32 = 0.0
                     var left_h_sum: Float32 = 0.0
-                    var right_g_sum = total_g_sum
-                    var right_h_sum = total_h_sum
 
                     for step in range(len(intervals)-1):
                         left_g_sum += g_sum.data[step]
                         left_h_sum += h_sum.data[step]
-                        right_g_sum -= g_sum.data[step]
-                        right_h_sum -= h_sum.data[step]
 
-                        var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, right_g_sum, right_h_sum)
+                        var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                         var ig = parent_loss - child_loss
                         if ig > max_gains.data[idx]:
                             max_gains.data[idx] = ig
