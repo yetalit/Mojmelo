@@ -38,7 +38,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
     """
     var loss_func: fn(Matrix, Matrix, Float32) raises -> Float32
     var c_func: fn(Float32, List[Int]) raises -> Float32
-    var r_func: fn(Int, Float32, Float32) raises -> Float32
+    var r_func: fn(Float32, Float32, Float32) raises -> Float32
     var min_samples_split: Int
     """The minimum number of samples required to split an internal node."""
     var max_depth: Int
@@ -197,7 +197,7 @@ fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Strin
             most_common = i
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Float32, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
     var total_samples = len(_y) if y.width == 1 else weights.sum()
     var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))
@@ -216,16 +216,16 @@ fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: 
                 var y_sorted = y[sorted_indices]
                 var n_left: Float32 = 0.0
                 for step in range(1, len(_y)):
-                    var c = y_sorted.data[step - 1]
+                    var c = Int(y_sorted.data[step - 1])
                     if y_sorted.width == 1:
                         n_left += 1
-                        left_histogram[Int(c)] += 1
-                        right_histogram[Int(c)] -= 1
+                        left_histogram[c] += 1
+                        right_histogram[c] -= 1
                     else:
                         var weight = Int(y_sorted[step - 1, 1])
                         n_left += weight
-                        left_histogram[Int(c)] += weight
-                        right_histogram[Int(c)] -= weight
+                        left_histogram[c] += weight
+                        right_histogram[c] -= weight
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
@@ -270,7 +270,7 @@ fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: 
                     
                     var n_right = total_samples - n_left
 
-                    var child_loss = (n_left / total_samples) * r_precompute(Int(n_left), left_sum, left_sum_sq) + (n_right / total_samples) * r_precompute(Int(n_right), sum_total - left_sum, sum_sq_total - left_sum_sq)
+                    var child_loss = (n_left / total_samples) * r_precompute(n_left, left_sum, left_sum_sq) + (n_right / total_samples) * r_precompute(n_right, sum_total - left_sum, sum_sq_total - left_sum_sq)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig

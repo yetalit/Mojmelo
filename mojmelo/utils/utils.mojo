@@ -291,7 +291,7 @@ fn mse_loss(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     return ((y - y.mean_weighted(weights, size)) ** 2).mean_weighted(weights, size)
 
 @always_inline
-fn mse_loss_precompute(size: Int, sum: Float32, sum_sq: Float32) raises -> Float32:
+fn mse_loss_precompute(size: Float32, sum: Float32, sum_sq: Float32) raises -> Float32:
     if size == 0:
         return 0.0
     return sum_sq / size - (sum / size) ** 2
