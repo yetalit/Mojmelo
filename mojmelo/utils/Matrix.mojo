@@ -997,8 +997,8 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return self.sum() / self.size
 
     @always_inline
-    fn mean_weighted(self, weights: Matrix) raises -> Float32:
-        return (self.ele_mul(weights)).sum() / weights.sum()
+    fn mean_weighted(self, weights: Matrix, size: Float32) raises -> Float32:
+        return (self.ele_mul(weights)).sum() / size
 
     @always_inline
     fn mean(self, axis: Int) raises -> Matrix:

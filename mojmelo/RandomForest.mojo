@@ -85,7 +85,7 @@ struct RandomForest(CV):
             )
             try:
                 X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
-                tree.fit_rf(X_samp, y_samp_with_weights)
+                tree.fit_weighted(X_samp, y_samp_with_weights)
             except e:
                 print('Error:', e)
             (self.trees + i).init_pointee_move(tree)

@@ -249,9 +249,8 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     return Int(reduction.sum(NDBuffer[dtype=DType.int, rank=1](correct_counts, len(y)))) / Float32(len(y))
 
 @always_inline
-fn entropy(y: Matrix, weights: Matrix) raises -> Float32:
+fn entropy(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     var histogram = y.bincount() if weights.size == 0 else y.bincount(weights)
-    var size = Float32(y.size) if weights.size == 0 else weights.sum()
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
         var p: Float32 = histogram[i] / size
@@ -269,9 +268,8 @@ fn entropy_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
     return -_sum
 
 @always_inline
-fn gini(y: Matrix, weights: Matrix) raises -> Float32:
+fn gini(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     var histogram = y.bincount() if weights.size == 0 else y.bincount(weights)
-    var size = Float32(y.size) if weights.size == 0 else weights.sum()
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
         _sum += (histogram[i] / size) ** 2
@@ -285,12 +283,12 @@ fn gini_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
     return 1 - _sum
 
 @always_inline
-fn mse_loss(y: Matrix, weights: Matrix) raises -> Float32:
+fn mse_loss(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     if len(y) == 0:
         return 0.0
     if weights.size == 0:
         return ((y - y.mean()) ** 2).mean()
-    return ((y - y.mean_weighted(weights)) ** 2).mean_weighted(weights)
+    return ((y - y.mean_weighted(weights, size)) ** 2).mean_weighted(weights, size)
 
 @always_inline
 fn mse_loss_precompute(size: Int, sum: Float32, sum_sq: Float32) raises -> Float32:

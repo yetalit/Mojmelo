@@ -36,7 +36,7 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var loss_func: fn(Matrix, Matrix) raises -> Float32
+    var loss_func: fn(Matrix, Matrix, Float32) raises -> Float32
     var c_func: fn(Float32, List[Int]) raises -> Float32
     var r_func: fn(Int, Float32, Float32) raises -> Float32
     var min_samples_split: Int
@@ -128,8 +128,8 @@ struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
         else:
             self.root = self._grow_tree(X.asorder('f'), y)
 
-    fn fit_rf(mut self, X: Matrix, y_with_weights: Matrix) raises:
-        """Build a decision tree for Random Forest training."""
+    fn fit_weighted(mut self, X: Matrix, y_with_weights: Matrix) raises:
+        """Build a decision tree from a weighted training set."""
         self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
         self.root = self._grow_tree(X.asorder('f'), y_with_weights)
 
@@ -188,7 +188,7 @@ fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Strin
     if criterion == 'mse':
         if weights.size == 0:
             return y.mean()
-        return y.mean_weighted(weights)
+        return y.mean_weighted(weights, weights.sum())
     var max_val: Int = 0
     var most_common: Int = 0
     for i in range(len(freq)):
@@ -197,12 +197,12 @@ fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Strin
             most_common = i
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
-    var parent_loss = loss_func(_y, weights)
+fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+    var total_samples = len(_y) if y.width == 1 else weights.sum()
+    var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
-    var total_samples = len(_y) if y.width == 1 else weights.sum()
     if criterion != 'mse':
         var num_classes = Int(_y.max() + 1)  # assuming y is 0-indexed
         @parameter
