@@ -4,13 +4,13 @@ Mojo module
 
 ## Aliases
 
-- `EPS = 1.0E-10`
-- `MAX_JACOBI_SWEEPS = 200`
+- `EPS = 1.0E-13`
 - `simd_width = (4 * simd_width_of[DType.float64]()) if CompilationTarget.is_apple_silicon[_current_target()]() else (2 * simd_width_of[DType.float64]())`
 
 ## Functions
 
-- [`jacobi_eigensystem`](jacobi_eigensystem.md)
+- [`eigensystem`](eigensystem.md)
 - [`svd_thin`](svd_thin.md)
 - [`svd`](svd.md)
+- [`C_transpose`](C_transpose.md)
 

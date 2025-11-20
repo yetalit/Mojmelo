@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sign, mse
+from mojmelo.utils.utils import CV, sign, mse
 import math
 import time
 import random
 
-struct LinearRegression(CVM):
+struct LinearRegression(CV):
     """A Gradient Descent based linear regression with mse as the loss function."""
     var lr: Float32
     """Learning rate."""
@@ -58,7 +58,7 @@ struct LinearRegression(CVM):
         # gradient descent
         for _ in range(self.n_iters):
             if self.batch_size > 0:
-                var ids: List[Scalar[DType.index]]
+                var ids: List[Scalar[DType.int]]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
                 else:
@@ -75,14 +75,15 @@ struct LinearRegression(CVM):
                     if self.tol > 0.0:
                         cost += mse(y_batch, y_batch_predicted) / num_b_iters
                     # compute gradients and update parameters
-                    var dw = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
+                    var y_error = y_batch_predicted - y_batch
+                    var dw = (X_batch.T() * y_error) / len(y_batch)
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = (y_batch_predicted - y_batch).sum() / len(y_batch)
+                    var db = y_error.sum() / len(y_batch)
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
                 if self.tol > 0.0:
@@ -98,14 +99,15 @@ struct LinearRegression(CVM):
                         break
                     prev_cost = cost
                 # compute gradients and update parameters
-                var dw = ((X_T * (y_predicted - y)) / X.height)
+                var y_error = y_predicted - y
+                var dw = (X_T * y_error) / X.height
                 if l1_lambda > 0.0:
                     # L1 regularization
                     dw += l1_lambda * sign(self.weights)
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
-                var db = ((y_predicted - y).sum() / X.height)
+                var db = y_error.sum() / X.height
                 self.weights -= self.lr * dw
                 self.bias -= self.lr * db
 

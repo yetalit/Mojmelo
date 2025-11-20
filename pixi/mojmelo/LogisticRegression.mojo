@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sigmoid, sign, cross_entropy
+from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy
 import math
 import time
 import random
 
-struct LogisticRegression(CVM):
+struct LogisticRegression(CV):
     """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""
     var lr: Float32
     """Learning rate."""
@@ -61,7 +61,7 @@ struct LogisticRegression(CVM):
         var _reg = (1e-5 + l2_lambda) * Matrix.eye(X.width)
         for _ in range(self.n_iters):
             if self.batch_size > 0:
-                var ids: List[Scalar[DType.index]]
+                var ids: List[Scalar[DType.int]]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
                 else:
@@ -77,9 +77,11 @@ struct LogisticRegression(CVM):
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
                     if self.tol > 0.0:
                         cost += cross_entropy(y_batch, y_batch_predicted) / num_b_iters
-                    var dw = (X_batch.T() * (y_batch_predicted - y_batch)) / len(y_batch)
+                    var y_error = y_batch_predicted - y_batch
+                    var X_batch_T = X_batch.T()
+                    var dw = (X_batch_T * y_error) / len(y_batch)
                     if self.method == 'newton':
-                        var H = (X_batch.T() * X_batch.ele_mul(y_batch_predicted.ele_mul(1.0 - y_batch_predicted))) / len(y_batch)
+                        var H = (X_batch_T * X_batch.ele_mul(y_batch_predicted.ele_mul(1.0 - y_batch_predicted))) / len(y_batch)
                         # Add regularization to Hessian for L2 only
                         # Update weights using Newton's method
                         self.weights -= Matrix.solve((H + _reg), dw)
@@ -94,7 +96,7 @@ struct LogisticRegression(CVM):
                         
                         self.weights -= self.lr * dw
                     
-                    var db = ((y_batch_predicted - y_batch).sum() / len(y_batch))
+                    var db = y_error.sum() / len(y_batch)
                     self.bias -= self.lr * db
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
@@ -110,7 +112,8 @@ struct LogisticRegression(CVM):
                         break
                     prev_cost = cost
 
-                var dw = ((X_T * (y_predicted - y)) / X.height)
+                var y_error = y_predicted - y
+                var dw = (X_T * y_error) / X.height
                 if self.method == 'newton':
                     var H = (X_T * X.ele_mul(y_predicted.ele_mul(1.0 - y_predicted))) / X.height
                     # Add regularization to Hessian for L2 only
@@ -127,7 +130,7 @@ struct LogisticRegression(CVM):
                     
                     self.weights -= self.lr * dw
                 
-                var db = ((y_predicted - y).sum() / X.height)
+                var db = y_error.sum() / X.height
                 self.bias -= self.lr * db
 
     fn predict(self, X: Matrix) raises -> Matrix:

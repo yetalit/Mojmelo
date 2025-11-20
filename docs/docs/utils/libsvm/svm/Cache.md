@@ -15,7 +15,7 @@ struct Cache
 
 - **l** (`Int`)
 - **size** (`UInt`)
-- **head** (`UnsafePointer[head_t]`)
+- **head** (`UnsafePointer[head_t, origin_of(MutOrigin.external)]`)
 - **lru_head** (`head_t`)
 
 ## Implemented traits
@@ -53,7 +53,7 @@ fn __del__(var self)
 ### `lru_delete`
 
 ```mojo
-fn lru_delete(self, h: UnsafePointer[head_t])
+fn lru_delete(self, h: UnsafePointer[head_t, MutAnyOrigin])
 ```
 
 **Args:**
@@ -64,7 +64,7 @@ fn lru_delete(self, h: UnsafePointer[head_t])
 ### `lru_insert`
 
 ```mojo
-fn lru_insert(self, h: UnsafePointer[head_t])
+fn lru_insert(mut self, h: UnsafePointer[head_t, origin_of(MutOrigin.external)])
 ```
 
 **Args:**
@@ -75,7 +75,7 @@ fn lru_insert(self, h: UnsafePointer[head_t])
 ### `get_data`
 
 ```mojo
-fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32]], var _len: Int) -> Int
+fn get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32, origin_of(MutOrigin.external)], MutAnyOrigin], var _len: Int) -> Int
 ```
 
 **Args:**

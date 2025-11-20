@@ -18,13 +18,13 @@ A decision tree supporting both classification and regression.
 ## Fields
 
 - **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **loss_func** (`fn(Matrix) raises -> Float32`)
+- **loss_func** (`fn(Matrix, Matrix, Float32) raises -> Float32`)
 - **c_func** (`fn(Float32, List[Int]) raises -> Float32`)
-- **r_func** (`fn(Int, Float32, Float32) raises -> Float32`)
+- **r_func** (`fn(Float32, Float32, Float32) raises -> Float32`)
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
-- **root** (`UnsafePointer[Node]`)
+- **root** (`UnsafePointer[Node, MutAnyOrigin]`)
 
 ## Implemented traits
 
@@ -89,6 +89,22 @@ Build a decision tree from the training set.
 - **self** (`Self`)
 - **X** (`Matrix`)
 - **y** (`Matrix`)
+
+**Raises:**
+
+### `fit_weighted`
+
+```mojo
+fn fit_weighted(mut self, X: Matrix, y_with_weights: Matrix)
+```
+
+Build a decision tree from a weighted training set.
+
+**Args:**
+
+- **self** (`Self`)
+- **X** (`Matrix`)
+- **y_with_weights** (`Matrix`)
 
 **Raises:**
 

@@ -8,7 +8,6 @@ Mojo module
 
 ## Functions
 
-- [`cov_value`](cov_value.md)
 - [`argn`](argn.md)
 - [`euclidean_distance`](euclidean_distance.md)
 - [`squared_euclidean_distance`](squared_euclidean_distance.md)

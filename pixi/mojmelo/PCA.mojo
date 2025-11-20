@@ -1,4 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
+from mojmelo.utils.svd import svd
 from algorithm import parallelize
 from python import Python
 
@@ -18,12 +19,10 @@ struct PCA:
     var whiten: Bool
     """To transform data to have zero mean, unit variance, and no correlation between features."""
     var whiten_: Matrix
-    var jacobi_eps: Float32
-    """Epsilon value used for Jacobi svd."""
     var lapack: Bool
     """Use LAPACK to calculate svd."""
 
-    fn __init__(out self, n_components: Int, whiten: Bool = False, jacobi_eps: Float32 = 1.0e-08, lapack: Bool = False):
+    fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False):
         self.n_components = n_components
         self.components = Matrix(0, 0)
         self.components_T = Matrix(0, 0)
@@ -32,7 +31,6 @@ struct PCA:
         self.mean = Matrix(0, 0)
         self.whiten = whiten
         self.whiten_ = Matrix(0, 0)
-        self.jacobi_eps = jacobi_eps
         self.lapack = lapack
 
     fn fit(mut self, X: Matrix) raises:
@@ -44,18 +42,11 @@ struct PCA:
         if self.lapack:
             numpy_linalg = Python.import_module('numpy.linalg')
             USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
-            S = Matrix.from_numpy(USVt[1])
+            S = Matrix.from_numpy(USVt[1]).load_columns(self.n_components)
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
-            _, S, Vt = (X - self.mean).svd(eps=self.jacobi_eps)
-            var indices = S.argsort_inplace[ascending=False]()
-            self.components = Matrix.zeros(self.n_components, Vt.width, order=X.order)
-            @parameter
-            fn p(i: Int):
-                self.components[i, unsafe=True] = Vt[Int(indices[i]), unsafe=True]
-            parallelize[p](self.n_components)
+            S, self.components = svd((X - self.mean), self.n_components)
 
-        S = S.load_columns(self.n_components)
         self.components_T = self.components.T()
 
         self.explained_variance = (S ** 2) / (X.height - 1)

@@ -17,8 +17,8 @@ struct Node
 
 - **feature** (`Int`)
 - **threshold** (`Float32`)
-- **left** (`UnsafePointer[Node]`)
-- **right** (`UnsafePointer[Node]`)
+- **left** (`UnsafePointer[Node, MutAnyOrigin]`)
+- **right** (`UnsafePointer[Node, MutAnyOrigin]`)
 - **value** (`Float32`)
 
 ## Implemented traits
@@ -30,7 +30,7 @@ struct Node
 ### `__init__`
 
 ```mojo
-fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePointer[Node] = UnsafePointer[Node, AddressSpace(0), True, MutableAnyOrigin](), right: UnsafePointer[Node] = UnsafePointer[Node, AddressSpace(0), True, MutableAnyOrigin](), value: Float32 = inf[DType.float32]())
+fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[True, Node, MutAnyOrigin, AddressSpace.GENERIC](), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[True, Node, MutAnyOrigin, AddressSpace.GENERIC](), value: Float32 = inf[DType.float32]())
 ```
 
 **Args:**

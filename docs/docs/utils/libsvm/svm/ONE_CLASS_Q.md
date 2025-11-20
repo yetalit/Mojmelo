@@ -14,7 +14,7 @@ struct ONE_CLASS_Q
 ## Fields
 
 - **cache** (`Cache`)
-- **QD** (`UnsafePointer[Float64]`)
+- **QD** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
 - **kernel_function** (`fn(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
@@ -52,7 +52,7 @@ fn __del__(var self)
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]
+fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOrigin.external)]
 ```
 
 **Args:**
@@ -68,7 +68,7 @@ fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]
 ### `get_QD`
 
 ```mojo
-fn get_QD(self) -> UnsafePointer[Float64]
+fn get_QD(self) -> UnsafePointer[Float64, origin_of(MutOrigin.external)]
 ```
 
 **Args:**

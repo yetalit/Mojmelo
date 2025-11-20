@@ -15,11 +15,11 @@ struct SVR_Q
 
 - **l** (`Int`)
 - **cache** (`Cache`)
-- **sign** (`UnsafePointer[Int8]`)
-- **index** (`UnsafePointer[Int]`)
+- **sign** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
+- **index** (`UnsafePointer[Int, origin_of(MutOrigin.external)]`)
 - **next_buffer** (`Int`)
-- **buffer** (`InlineArray[UnsafePointer[Float32], 2]`)
-- **QD** (`UnsafePointer[Float64]`)
+- **buffer** (`InlineArray[UnsafePointer[Float32, origin_of(MutOrigin.external)], 2]`)
+- **QD** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
 - **kernel_function** (`fn(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
@@ -69,7 +69,7 @@ fn swap_index(self, i: Int, j: Int)
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]
+fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOrigin.external)]
 ```
 
 **Args:**
@@ -85,7 +85,7 @@ fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]
 ### `get_QD`
 
 ```mojo
-fn get_QD(self) -> UnsafePointer[Float64]
+fn get_QD(self) -> UnsafePointer[Float64, origin_of(MutOrigin.external)]
 ```
 
 **Args:**

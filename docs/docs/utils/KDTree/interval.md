@@ -3,7 +3,7 @@ Mojo struct
 # `interval`
 
 ```mojo
-@memory_only
+@register_passable_trivial
 struct interval
 ```
 

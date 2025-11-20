@@ -3,7 +3,7 @@ Mojo struct
 # `svm_node`
 
 ```mojo
-@memory_only
+@register_passable_trivial
 struct svm_node
 ```
 
@@ -20,5 +20,5 @@ struct svm_node
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
 

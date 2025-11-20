@@ -23,8 +23,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 
 - **N** (`Int`)
 - **dim** (`Int`)
-- **root** (`UnsafePointer[KDTreeNode]`)
-- **ind** (`List[Scalar[DType.index]]`)
+- **root** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
+- **ind** (`List[Scalar[DType.int]]`)
 - **metric** (`fn(Float32) -> Float32`)
 
 ## Implemented traits
@@ -93,7 +93,7 @@ fn build_tree(mut self)
 ### `build_tree_for_range`
 
 ```mojo
-fn build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode]) -> UnsafePointer[KDTreeNode]
+fn build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode, MutAnyOrigin]) -> UnsafePointer[KDTreeNode, MutAnyOrigin]
 ```
 
 **Args:**
@@ -156,7 +156,7 @@ fn select_on_coordinate_value(mut self, c: Int, alpha: Float32, l: Int, u: Int) 
 ### `n_nearest`
 
 ```mojo
-fn n_nearest(self, qv: NDBuffer[DType.float32, 1, origin], nn: Int, mut result: KDTreeResultVector)
+fn n_nearest(mut self, qv: NDBuffer[DType.float32, 1, origin], nn: Int, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -169,7 +169,7 @@ fn n_nearest(self, qv: NDBuffer[DType.float32, 1, origin], nn: Int, mut result: 
 ### `n_nearest_around_point`
 
 ```mojo
-fn n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int, mut result: KDTreeResultVector)
+fn n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -183,7 +183,7 @@ fn n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int, mut result
 ### `r_nearest`
 
 ```mojo
-fn r_nearest(self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32, mut result: KDTreeResultVector)
+fn r_nearest(mut self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -196,7 +196,7 @@ fn r_nearest(self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32, mut resu
 ### `r_count`
 
 ```mojo
-fn r_count(self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32) -> Int
+fn r_count(mut self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32) -> Int
 ```
 
 **Args:**
@@ -226,7 +226,7 @@ fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32, mu
 ### `r_count_around_point`
 
 ```mojo
-fn r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) -> Int
+fn r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) -> Int
 ```
 
 **Args:**

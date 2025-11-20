@@ -24,7 +24,7 @@ struct Kernel
 ### `__init__`
 
 ```mojo
-fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node]], param: svm_parameter)
+fn __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node, origin_of(MutOrigin.external)], origin_of(MutOrigin.external)], param: svm_parameter)
 ```
 
 **Args:**

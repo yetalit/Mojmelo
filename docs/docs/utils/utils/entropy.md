@@ -3,12 +3,14 @@ Mojo function
 # `entropy`
 
 ```mojo
-fn entropy(y: Matrix) -> Float32
+fn entropy(y: Matrix, weights: Matrix, size: Float32) -> Float32
 ```
 
 **Args:**
 
 - **y** (`Matrix`)
+- **weights** (`Matrix`)
+- **size** (`Float32`)
 
 **Returns:**
 

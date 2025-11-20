@@ -20,7 +20,7 @@ A random forest supporting both classification and regression.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
 - **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **trees** (`UnsafePointer[DecisionTree]`)
+- **trees** (`UnsafePointer[DecisionTree, MutAnyOrigin]`)
 
 ## Implemented traits
 

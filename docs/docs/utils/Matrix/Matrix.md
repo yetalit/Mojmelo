@@ -21,7 +21,7 @@ Native matrix data structure.
 - **height** (`Int`): The number of rows.
 - **width** (`Int`): The number of columns.
 - **size** (`Int`): The total size.
-- **data** (`UnsafePointer[Float32]`): The pointer to the underlying data.
+- **data** (`UnsafePointer[Float32, MutAnyOrigin]`): The pointer to the underlying data.
 - **order** (`String`): The order of matrix: Row-major -> 'c'; Column-major -> 'f'.
 
 ## Implemented traits
@@ -33,7 +33,7 @@ Native matrix data structure.
 ### `__init__`
 
 ```mojo
-fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src]], height: Int, width: Int, order: String = "c")
+fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutAnyOrigin], height: Int, width: Int, order: String = "c")
 ```
 
 **Parameters:**
@@ -53,7 +53,7 @@ fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src
 `Self`
 
 ```mojo
-fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32] = UnsafePointer[Float32, AddressSpace(0), True, MutableAnyOrigin](), order: String = "c")
+fn __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32, MutAnyOrigin] = UnsafePointer[True, Float32, MutAnyOrigin, AddressSpace.GENERIC](), order: String = "c")
 ```
 
 **Args:**
@@ -290,7 +290,7 @@ fn __getitem__(self, rows: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-fn __getitem__(self, rows: List[Scalar[DType.index]]) -> Self
+fn __getitem__(self, rows: List[Scalar[DType.int]]) -> Self
 ```
 
 **Args:**
@@ -321,7 +321,7 @@ fn __getitem__(self, row: String, columns: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-fn __getitem__(self, row: String, columns: List[Scalar[DType.index]]) -> Self
+fn __getitem__(self, row: String, columns: List[Scalar[DType.int]]) -> Self
 ```
 
 **Args:**
@@ -424,31 +424,6 @@ fn __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Self)
 - **start_i** (`Int`)
 - **column** (`Int`)
 - **val** (`Self`)
-
-**Raises:**
-
-```mojo
-fn __setitem__(mut self, rows: Self, rhs: Self)
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **rows** (`Self`)
-- **rhs** (`Self`)
-
-**Raises:**
-
-```mojo
-fn __setitem__(mut self, row: String, columns: Self, rhs: Self)
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **row** (`String`)
-- **columns** (`Self`)
-- **rhs** (`Self`)
 
 **Raises:**
 
@@ -1219,6 +1194,24 @@ fn mean(self, axis: Int) -> Self
 
 **Raises:**
 
+### `mean_weighted`
+
+```mojo
+fn mean_weighted(self, weights: Self, size: Float32) -> Float32
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **weights** (`Self`)
+- **size** (`Float32`)
+
+**Returns:**
+
+`Float32`
+
+**Raises:**
+
 ### `mean_slow`
 
 ```mojo
@@ -1478,7 +1471,7 @@ fn argmax_f(self, axis: Int) -> Self
 ### `argsort`
 
 ```mojo
-fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.index]]
+fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.int]]
 ```
 
 **Parameters:**
@@ -1498,7 +1491,7 @@ fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.index]]
 ### `argsort_inplace`
 
 ```mojo
-fn argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.index]]
+fn argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.int]]
 ```
 
 **Parameters:**
@@ -1593,27 +1586,11 @@ fn reshape(self, height: Int, width: Int) -> Self
 
 `Self`
 
-### `cov`
-
-```mojo
-fn cov(self) -> Self
-```
-
-**Args:**
-
-- **self** (`Self`)
-
-**Returns:**
-
-`Self`
-
-**Raises:**
-
 ### `lu_factor`
 
 ```mojo
 @staticmethod
-fn lu_factor(mut A, piv: UnsafePointer[Int], N: Int)
+fn lu_factor(mut A, piv: UnsafePointer[Int, MutAnyOrigin], N: Int)
 ```
 
 **Args:**
@@ -1628,7 +1605,7 @@ fn lu_factor(mut A, piv: UnsafePointer[Int], N: Int)
 
 ```mojo
 @staticmethod
-fn lu_solve(A, piv: UnsafePointer[Int], b: Self, mut x: Self, N: Int, Mi: Int)
+fn lu_solve(A, piv: UnsafePointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: Int, Mi: Int)
 ```
 
 **Args:**
@@ -1759,6 +1736,21 @@ fn bincount(self) -> List[Int]
 
 **Raises:**
 
+```mojo
+fn bincount(self, weights: Self) -> List[Int]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **weights** (`Self`)
+
+**Returns:**
+
+`List`
+
+**Raises:**
+
 ### `unique`
 
 ```mojo
@@ -1768,6 +1760,19 @@ fn unique(self) -> List[List[Int]]
 **Args:**
 
 - **self** (`Self`)
+
+**Returns:**
+
+`List`
+
+```mojo
+fn unique(self, weights: Self) -> List[List[Int]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **weights** (`Self`)
 
 **Returns:**
 
@@ -1881,7 +1886,7 @@ fn random(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Scalar[DType.index]]
+fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Scalar[DType.int]]
 ```
 
 **Args:**
@@ -1958,7 +1963,7 @@ Converts the matrix to a numpy array.
 ### `cast_ptr`
 
 ```mojo
-fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des]]
+fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], origin_of(MutOrigin.external)]
 ```
 
 **Parameters:**

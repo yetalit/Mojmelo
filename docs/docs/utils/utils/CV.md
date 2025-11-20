@@ -50,7 +50,7 @@ fn fit(mut self: _Self, X: Matrix, y: Matrix)
 ### `predict`
 
 ```mojo
-fn predict(self: _Self, X: Matrix) -> Matrix
+fn predict(mut self: _Self, X: Matrix) -> Matrix
 ```
 
 **Args:**

@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
+from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
 from algorithm import parallelize
 import math
 import random
@@ -7,12 +7,12 @@ import random
 struct Node(Copyable, Movable):
     var feature: Int
     var threshold: Float32
-    var left: UnsafePointer[Node]
-    var right: UnsafePointer[Node]
+    var left: UnsafePointer[Node, MutAnyOrigin]
+    var right: UnsafePointer[Node, MutAnyOrigin]
     var value: Float32
 
     fn __init__(
-        out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node] = UnsafePointer[Node](), right: UnsafePointer[Node] = UnsafePointer[Node](), value: Float32 = math.inf[DType.float32]()
+        out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
         self.threshold = threshold
@@ -29,23 +29,23 @@ struct Node(Copyable, Movable):
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
+struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
     """A decision tree supporting both classification and regression."""
     var criterion: String
     """The function to measure the quality of a split:
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var loss_func: fn(Matrix) raises -> Float32
+    var loss_func: fn(Matrix, Matrix, Float32) raises -> Float32
     var c_func: fn(Float32, List[Int]) raises -> Float32
-    var r_func: fn(Int, Float32, Float32) raises -> Float32
+    var r_func: fn(Float32, Float32, Float32) raises -> Float32
     var min_samples_split: Int
     """The minimum number of samples required to split an internal node."""
     var max_depth: Int
     """The maximum depth of the tree."""
     var n_feats: Int
     """The number of features to consider when looking for the best split."""
-    var root: UnsafePointer[Node]
+    var root: UnsafePointer[Node, MutAnyOrigin]
     
     fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
         self.criterion = criterion.lower()
@@ -66,7 +66,7 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
         self.n_feats = n_feats
         if random_state != -1:
             random.seed(random_state)
-        self.root = UnsafePointer[Node]()
+        self.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'criterion' in params:
@@ -103,7 +103,7 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
                 random.seed(seed)
         else:
             random.seed(42)
-        self.root = UnsafePointer[Node]()
+        self.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn _moveinit_(mut self, mut existing: Self):
         self.criterion = existing.criterion
@@ -114,7 +114,7 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
         self.root = existing.root
         existing.criterion = ''
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
-        existing.root = UnsafePointer[Node]()
+        existing.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn __del__(deinit self):
         if self.root:
@@ -127,6 +127,11 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
             self.root = self._grow_tree(X.asorder('f'), y.reshape(y.size, 1))
         else:
             self.root = self._grow_tree(X.asorder('f'), y)
+
+    fn fit_weighted(mut self, X: Matrix, y_with_weights: Matrix) raises:
+        """Build a decision tree from a weighted training set."""
+        self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
+        self.root = self._grow_tree(X.asorder('f'), y_with_weights)
 
     fn predict(self, X: Matrix) raises -> Matrix:
         """Predict class or regression value for X.
@@ -141,23 +146,27 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
+    fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
+        var _y = y['', 0]
+        var weights = Matrix(0, 0)
+        if y.width == 2:
+            weights = y['', 1]
         var unique_targets: Int
-        var freq = Dict[Int, Int]()
+        var freq = List[List[Int]]()
         if self.criterion == 'mse':
-            unique_targets = y.is_uniquef()
+            unique_targets = _y.is_uniquef()
         else:
-            freq = y.unique()
+            freq = _y.unique() if y.width == 1 else _y.unique(weights)
             unique_targets = len(freq)
 
-        var new_node = UnsafePointer[Node].alloc(1)
+        var new_node = alloc[Node](1)
         # stopping criteria
         if (
             depth >= self.max_depth
             or unique_targets == 1
             or X.height < self.min_samples_split
         ):
-            new_node.init_pointee_move(Node(value = set_value(y, freq, self.criterion)))
+            new_node.init_pointee_move(Node(value = set_value(_y, weights, freq, self.criterion)))
             return new_node
 
         var feat_idxs = Matrix.rand_choice(X.width, self.n_feats, False, seed = False)
@@ -165,7 +174,7 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
         # greedily select the best split according to information gain
         var best_feat: Int
         var best_thresh: Float32
-        best_feat, best_thresh = _best_criteria(X, y, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
+        best_feat, best_thresh = _best_criteria(X, y, _y, weights, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
         # grow the children that result from the split
         var left_right_idxs = _split(X['', best_feat], best_thresh)
         var left_idxs = left_right_idxs[0].copy()
@@ -175,46 +184,55 @@ struct DecisionTree(CVM, Copyable, Movable, ImplicitlyCopyable):
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
-fn set_value(y: Matrix, freq: Dict[Int, Int], criterion: String) raises -> Float32:
+fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
     if criterion == 'mse':
-        return y.mean()
+        if weights.size == 0:
+            return y.mean()
+        return y.mean_weighted(weights, weights.sum())
     var max_val: Int = 0
     var most_common: Int = 0
-    for k in freq.keys():
-        if freq[k] > max_val:
-            max_val = freq[k]
-            most_common = k
+    for i in range(len(freq)):
+        if len(freq[i]) > max_val:
+            max_val = len(freq[i])
+            most_common = i
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], loss_func: fn(Matrix) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Int, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
-    var parent_loss = loss_func(y)
+fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Float32, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+    var total_samples = len(_y) if y.width == 1 else weights.sum()
+    var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
     if criterion != 'mse':
-        var num_classes = Int(y.max() + 1)  # assuming y is 0-indexed
+        var num_classes = Int(_y.max() + 1)  # assuming y is 0-indexed
         @parameter
         fn p_c(idx: Int):
             try:
                 var column = X['', Int(feat_idxs[idx]), unsafe=True]
-                var sorted_indices = column.argsort_inplace()
-                var y_sorted = y[sorted_indices]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
-                var right_histogram = y_sorted.bincount()
-
-                for step in range(1, len(y)):
-                    var c = y_sorted.data[step - 1]
-                    left_histogram[Int(c)] += 1
-                    right_histogram[Int(c)] -= 1
+                var right_histogram = _y.bincount() if weights.size == 0 else _y.bincount(weights)
+                var sorted_indices = column.argsort_inplace()
+                var y_sorted = y[sorted_indices]
+                var n_left: Float32 = 0.0
+                for step in range(1, len(_y)):
+                    var c = Int(y_sorted.data[step - 1])
+                    if y_sorted.width == 1:
+                        n_left += 1
+                        left_histogram[c] += 1
+                        right_histogram[c] -= 1
+                    else:
+                        var weight = Int(y_sorted[step - 1, 1])
+                        n_left += weight
+                        left_histogram[c] += weight
+                        right_histogram[c] -= weight
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
                     
-                    var n_left = Float32(step)
-                    var n_right = Float32(len(y) - step)
+                    var n_right = total_samples - n_left
 
-                    var child_loss = (n_left / len(y)) * c_precompute(n_left, left_histogram) + (n_right / len(y)) * c_precompute(n_right, right_histogram)
+                    var child_loss = (n_left / total_samples) * c_precompute(n_left, left_histogram) + (n_right / total_samples) * c_precompute(n_right, right_histogram)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig
@@ -223,8 +241,8 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
                 print('Error:', e)
         parallelize[p_c](len(feat_idxs))
     else:
-        var sum_total = y.sum()
-        var sum_sq_total = (y ** 2).sum()
+        var sum_total = _y.sum() if y.width == 1 else _y.ele_mul(weights).sum()
+        var sum_sq_total = _y.ele_mul(_y).sum() if y.width == 1 else (_y.ele_mul(_y).ele_mul(weights)).sum()
         @parameter
         fn p_r(idx: Int):
             try:
@@ -234,23 +252,25 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
 
                 var left_sum: Float32 = 0.0
                 var left_sum_sq: Float32 = 0.0
-                var right_sum = sum_total
-                var right_sum_sq = sum_sq_total
-
-                for step in range(1, len(y)):
+                var n_left: Float32 = 0.0
+                for step in range(1, len(_y)):
                     var yi = y_sorted.data[step - 1]
-                    left_sum += yi
-                    left_sum_sq += yi ** 2
-                    right_sum -= yi
-                    right_sum_sq -= yi ** 2
+                    if y_sorted.width == 1:
+                        n_left += 1
+                        left_sum += yi
+                        left_sum_sq += yi * yi
+                    else:
+                        var weight = y_sorted[step - 1, 1]
+                        n_left += weight
+                        left_sum += yi * weight
+                        left_sum_sq += yi * yi * weight
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
                     
-                    var n_left = step
-                    var n_right = len(y) - step
+                    var n_right = total_samples - n_left
 
-                    var child_loss = (Float32(n_left) / len(y)) * r_precompute(n_left, left_sum, left_sum_sq) + (Float32(n_right) / len(y)) * r_precompute(n_right, right_sum, right_sum_sq)
+                    var child_loss = (n_left / total_samples) * r_precompute(n_left, left_sum, left_sum_sq) + (n_right / total_samples) * r_precompute(n_right, sum_total - left_sum, sum_sq_total - left_sum_sq)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig
@@ -266,7 +286,7 @@ fn _best_criteria(X: Matrix, y: Matrix, feat_idxs: List[Scalar[DType.index]], lo
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 
-fn _traverse_tree(x: Matrix, node: UnsafePointer[Node]) -> Float32:
+fn _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -274,7 +294,7 @@ fn _traverse_tree(x: Matrix, node: UnsafePointer[Node]) -> Float32:
         return _traverse_tree(x, node[].left)
     return _traverse_tree(x, node[].right)
 
-fn delTree(node: UnsafePointer[Node]):
+fn delTree(node: UnsafePointer[Node, MutAnyOrigin]):
     if node[].left:
         delTree(node[].left)
     if node[].right:

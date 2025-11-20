@@ -3,7 +3,7 @@ Mojo struct
 # `KDTreeResult`
 
 ```mojo
-@memory_only
+@register_passable_trivial
 struct KDTreeResult
 ```
 

@@ -1,9 +1,9 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CVM, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link
+from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link
 from algorithm import parallelize
 
-struct GBDT(CVM):
+struct GBDT(CV):
 	"""Gradient Boosting with support for both classification and regression."""
 	var criterion: String
 	"""The method to measure the quality of a split:
@@ -28,7 +28,7 @@ struct GBDT(CVM):
 	"""Minimum loss reduction required to make a further partition on a leaf node of the tree."""
 	var n_bins: Int
 	"""Generates histogram boundaries as possible threshold values when n_bins >= 2 instead of all possible values."""
-	var trees: UnsafePointer[BDecisionTree]
+	var trees: UnsafePointer[BDecisionTree, MutAnyOrigin]
 	var score_start: Float32
 	var num_class: Int
 
@@ -55,7 +55,7 @@ struct GBDT(CVM):
 		self.reg_alpha = reg_alpha
 		self.gamma = gamma
 		self.n_bins = n_bins
-		self.trees = UnsafePointer[BDecisionTree]()
+		self.trees = UnsafePointer[BDecisionTree, MutAnyOrigin]()
 		self.score_start = 0.0
 		self.num_class = 0
 
@@ -72,11 +72,11 @@ struct GBDT(CVM):
 		if self.criterion == 'softmax':
 			self.num_class = len(y.unique())
 			self.score_start = 0.0
-			self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees * self.num_class)
+			self.trees = alloc[BDecisionTree](self.n_trees * self.num_class)
 			score = Matrix.zeros(X.height, self.num_class)
 		else:
 			self.num_class = 1
-			self.trees = UnsafePointer[BDecisionTree].alloc(self.n_trees)
+			self.trees = alloc[BDecisionTree](self.n_trees)
 			self.score_start = y.mean()
 			score = Matrix.full(X.height, 1, self.score_start)
 
@@ -167,6 +167,6 @@ struct GBDT(CVM):
 			self.n_bins = atol(String(params['n_bins']))
 		else:
 			self.n_bins = 0
-		self.trees = UnsafePointer[BDecisionTree]()
+		self.trees = UnsafePointer[BDecisionTree, MutAnyOrigin]()
 		self.score_start = 0.0
 		self.num_class = 0

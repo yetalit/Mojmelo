@@ -3,13 +3,15 @@ Mojo struct
 # `SolutionInfo`
 
 ```mojo
-@memory_only
+@register_passable_trivial
 struct SolutionInfo
 ```
 
 ## Aliases
 
 - `__del__is_trivial = True`
+- `__moveinit__is_trivial = True`
+- `__copyinit__is_trivial = True`
 
 ## Fields
 
@@ -21,19 +23,15 @@ struct SolutionInfo
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self)
+fn __init__() -> Self
 ```
-
-**Args:**
-
-- **self** (`Self`)
 
 **Returns:**
 

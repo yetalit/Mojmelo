@@ -78,7 +78,7 @@ Fit the k-nearest neighbors classifier from the training dataset.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+fn predict(mut self, X: Matrix) -> Matrix
 ```
 
 Predict the class indices for the provided data.

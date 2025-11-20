@@ -3,8 +3,6 @@
 from algorithm import vectorize, parallelize
 from memory.memory import _malloc, stack_allocation
 from sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
-import benchmark
-from testing import assert_equal
 from utils import IndexList
 import random
 from .params import *
@@ -37,11 +35,11 @@ struct Layout(Copyable, Movable, Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 
-    fn __init__(out self, shape: (Int, Int), strides: (Int, Int)):
+    fn __init__(out self, shape: Tuple[Int, Int], strides: Tuple[Int, Int]):
         self.shape = IndexList[2](shape[0], shape[1])
         self.strides = IndexList[2](strides[0], strides[1])
 
-    fn __init__(out self, shape: (Int, Int)):
+    fn __init__(out self, shape: Tuple[Int, Int]):
         self.strides = IndexList[2](shape[1], 1)
         self.shape = IndexList[2](shape[0], shape[1])
 
@@ -59,23 +57,23 @@ struct Layout(Copyable, Movable, Writable):
 
 
 struct Matrix[Type: DType]:
-    var data: UnsafePointer[Scalar[Type]]
+    var data: UnsafePointer[Scalar[Type], MutAnyOrigin]
     var layout: Layout
 
-    fn __init__(out self, shape: (Int, Int)):
-        self.data = UnsafePointer[Scalar[Type]].alloc(shape[0] * shape[1])
+    fn __init__(out self, shape: Tuple[Int, Int]):
+        self.data = alloc[Scalar[Type]](shape[0] * shape[1])
         self.layout = Layout(shape)
 
     @always_inline("nodebug")
     fn __init__(
-        out self, data: UnsafePointer[Scalar[Type]], var layout: Layout
+        out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout
     ):
-        self.data = UnsafePointer[Scalar[Type]](data)
+        self.data = data
         self.layout = layout
 
     @always_inline("nodebug")
     fn __init__(
-        out self, data: UnsafePointer[Scalar[Type]], shape: (Int, Int)
+        out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int]
     ):
         self.data = data
         self.layout = Layout(shape)
@@ -83,7 +81,7 @@ struct Matrix[Type: DType]:
     @always_inline("nodebug")
     fn __getitem__(
         ref [_]self, i: Int, j: Int
-    ) -> ref [__origin_of(self)] Scalar[Type]:
+    ) -> ref [origin_of(self)] Scalar[Type]:
         var offset = self.layout(i, j)
         return (self.data + offset)[]
 
@@ -146,7 +144,7 @@ struct Matrix[Type: DType]:
 @always_inline
 fn pack_A[
     Type: DType, //, mr: Int
-](mc: Int, Ac_buffer: UnsafePointer[Scalar[Type]], Ac: Matrix[Type]) -> Matrix[Type]:
+](mc: Int, Ac_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin], Ac: Matrix[Type]) -> Matrix[Type]:
     @parameter
     fn pack_panel(idx: Int):
         var i = idx * mr
@@ -184,7 +182,7 @@ fn pack_A[
 @always_inline
 fn pack_B[
     Type: DType, //, kc: Int, nr: Int
-](Bc_buffer: UnsafePointer[Scalar[Type]], Bc: Matrix[Type]) -> Matrix[Type]:
+](Bc_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
     var dst_ptr = Bc_buffer
     for i in range(0, Bc.shape[1](), nr):
         var src_ptr = Bc.data + i
@@ -267,7 +265,7 @@ fn loop_n[
 
     @parameter
     fn parallelize_balanced_part(idx: Int):
-        var Bc_buffer = UnsafePointer[Scalar[Type]](
+        var Bc_buffer = UnsafePointer[Scalar[Type], MutAnyOrigin](
             _malloc[Scalar[Type]](
                 kc * nc_per_thread * size_of[Type](), alignment=64
             )
@@ -290,7 +288,7 @@ fn loop_n[
 
     @parameter
     fn parallelize_remainder(idx: Int):
-        var Bc_buffer = UnsafePointer[Scalar[Type]](
+        var Bc_buffer = UnsafePointer[Scalar[Type], MutAnyOrigin](
             _malloc[Scalar[Type]](
                 kc * remainder_per_thread * size_of[Type](), alignment=64
             )
@@ -348,7 +346,7 @@ fn macro_kernel[
 fn micro_kernel[
     Type: DType, //, mr: Int, nr: Int, padding: Bool
 ](mut Cr: Matrix[Type], Ar: Matrix[Type], Br: Matrix[Type]):
-    alias simd_width = simd_width_of[Type]()
+    comptime simd_width = simd_width_of[Type]()
     constrained[nr % simd_width == 0, "nr must be multiple of simd_width"]()
 
     var Ar_ptr = Ar.data
@@ -440,31 +438,31 @@ fn micro_kernel[
 
 @always_inline
 fn matmul_params[Type: DType]() -> IndexList[5]:
-    alias mc = 8192 // size_of[Type]()  # fix this for simplicity
-    alias N = simd_width_of[Type]()
+    comptime mc = 8192 // size_of[Type]()  # fix this for simplicity
+    comptime N = simd_width_of[Type]()
 
-    alias Vectors = 32 if CompilationTarget.has_avx512f() else 16
+    comptime Vectors = 32 if CompilationTarget.has_avx512f() else 16
 
     @parameter
     fn compute_kc[mr: Int, nr: Int]() -> Int:
-        alias CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
+        comptime CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
         return (CBr * L1_CACHE_SIZE) // (nr * size_of[Type]() * L1_ASSOCIATIVITY)
 
     @parameter
     fn compute_params[C: Int]() -> IndexList[5]:
-        alias p = C // (intsqrt[C]() + 1)
-        alias mr = C // p - 1
-        alias nr = p * N
-        alias CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
-        alias kc = compute_kc[mr, nr]()
-        alias nc = (L2_ASSOCIATIVITY - 1) * L2_CACHE_SIZE // (
+        comptime p = C // (intsqrt[C]() + 1)
+        comptime mr = C // p - 1
+        comptime nr = p * N
+        comptime CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
+        comptime kc = compute_kc[mr, nr]()
+        comptime nc = (L2_ASSOCIATIVITY - 1) * L2_CACHE_SIZE // (
             kc * size_of[Type]() * L2_ASSOCIATIVITY
         ) - mr
         return IndexList[5](mc, nc, kc, mr, nr)
 
     @parameter
     if Type.is_floating_point():
-        alias TempVectors = 1
+        comptime TempVectors = 1
         return compute_params[Vectors - TempVectors]()
     else:
 
@@ -473,25 +471,25 @@ fn matmul_params[Type: DType]() -> IndexList[5]:
 
             @parameter
             if CompilationTarget.has_avx512f():
-                alias TempVectors = 2
+                comptime TempVectors = 2
                 return compute_params[Vectors - TempVectors]()
             else:
-                alias TempVectors = 3
+                comptime TempVectors = 3
                 return compute_params[Vectors - TempVectors]()
         else:
-            alias TempVectors = 2
+            comptime TempVectors = 2
             return compute_params[Vectors - TempVectors]()
 
 
 fn matmul[
     Type: DType
 ](m: Int, n: Int, k: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type]):
-    alias params = matmul_params[Type]()
-    alias mc = params[0]
-    alias nc = params[1]
-    alias kc = params[2]
-    alias mr = params[3]
-    alias nr = params[4]
+    comptime params = matmul_params[Type]()
+    comptime mc = params[0]
+    comptime nc = params[1]
+    comptime kc = params[2]
+    comptime mr = params[3]
+    comptime nr = params[4]
     var resized_mc = roundup(min(mc, m), mr)
     var resized_nc = roundup(min(nc, n), nr)
     matmul_impl[kc, mr, nr](resized_mc, resized_nc, C, A, B)

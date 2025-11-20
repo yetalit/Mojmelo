@@ -22,8 +22,8 @@ struct KDTreeNode
 - **l** (`Int`)
 - **u** (`Int`)
 - **box** (`List[interval]`)
-- **left** (`UnsafePointer[KDTreeNode]`)
-- **right** (`UnsafePointer[KDTreeNode]`)
+- **left** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
+- **right** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
 - **metric** (`fn(Float32) -> Float32`)
 
 ## Implemented traits

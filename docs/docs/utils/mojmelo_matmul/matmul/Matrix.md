@@ -17,7 +17,7 @@ struct Matrix[Type: DType]
 
 ## Fields
 
-- **data** (`UnsafePointer[Scalar[Type]]`)
+- **data** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
 - **layout** (`Layout`)
 
 ## Implemented traits
@@ -42,7 +42,7 @@ fn __init__(out self, shape: Tuple[Int, Int])
 `Self`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[Scalar[Type]], var layout: Layout)
+fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout)
 ```
 
 **Args:**
@@ -56,7 +56,7 @@ fn __init__(out self, data: UnsafePointer[Scalar[Type]], var layout: Layout)
 `Self`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[Scalar[Type]], shape: Tuple[Int, Int])
+fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int])
 ```
 
 **Args:**

@@ -74,7 +74,7 @@ struct KMeans:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
 
         return self.labels.copy()
-        
+
     fn _kmeans_plus_plus(mut self) raises:
         # Randomly select the first centroid
         self.centroids = Matrix(self.K, self.X.width)

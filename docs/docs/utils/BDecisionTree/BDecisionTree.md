@@ -21,7 +21,7 @@ struct BDecisionTree
 - **reg_alpha** (`Float32`)
 - **gamma** (`Float32`)
 - **n_bins** (`Int`)
-- **root** (`UnsafePointer[Node]`)
+- **root** (`UnsafePointer[Node, MutAnyOrigin]`)
 
 ## Implemented traits
 

@@ -13,9 +13,9 @@ struct SVC_Q
 
 ## Fields
 
-- **y** (`UnsafePointer[Int8]`)
+- **y** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
 - **cache** (`Cache`)
-- **QD** (`UnsafePointer[Float64]`)
+- **QD** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
 - **kernel_function** (`fn(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
@@ -27,7 +27,7 @@ struct SVC_Q
 ### `__init__`
 
 ```mojo
-fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8])
+fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, origin_of(MutOrigin.external)])
 ```
 
 **Args:**
@@ -54,7 +54,7 @@ fn __del__(var self)
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]
+fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOrigin.external)]
 ```
 
 **Args:**
@@ -70,7 +70,7 @@ fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32]
 ### `get_QD`
 
 ```mojo
-fn get_QD(self) -> UnsafePointer[Float64]
+fn get_QD(self) -> UnsafePointer[Float64, origin_of(MutOrigin.external)]
 ```
 
 **Args:**

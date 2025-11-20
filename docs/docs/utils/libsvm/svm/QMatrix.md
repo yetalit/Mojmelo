@@ -19,7 +19,7 @@ In practice, it means that the `__del__` can be considered as no-op.
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32]
+fn get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOrigin.external)]
 ```
 
 **Args:**
@@ -35,7 +35,7 @@ fn get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32]
 ### `get_QD`
 
 ```mojo
-fn get_QD(self: _Self) -> UnsafePointer[Float64]
+fn get_QD(self: _Self) -> UnsafePointer[Float64, origin_of(MutOrigin.external)]
 ```
 
 **Args:**

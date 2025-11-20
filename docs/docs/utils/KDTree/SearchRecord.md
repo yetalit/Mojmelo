@@ -13,16 +13,16 @@ struct SearchRecord
 
 ## Fields
 
-- **qv** (`UnsafePointer[Float32]`)
+- **qv** (`UnsafePointer[Float32, MutAnyOrigin]`)
 - **dim** (`Int`)
 - **rearrange** (`Bool`)
 - **nn** (`UInt`)
 - **ballsize** (`Float32`)
 - **centeridx** (`Int`)
 - **correltime** (`Int`)
-- **result** (`UnsafePointer[KDTreeResultVector]`)
-- **data** (`UnsafePointer[Matrix]`)
-- **ind** (`UnsafePointer[List[Scalar[DType.index]]]`)
+- **result** (`UnsafePointer[KDTreeResultVector, MutAnyOrigin]`)
+- **data** (`UnsafePointer[Matrix, MutAnyOrigin]`)
+- **ind** (`UnsafePointer[List[Scalar[DType.int]], MutAnyOrigin]`)
 
 ## Implemented traits
 
@@ -33,7 +33,7 @@ struct SearchRecord
 ### `__init__`
 
 ```mojo
-fn __init__(out self, qv_in: NDBuffer[DType.float32, 1, origin], tree_in: KDTree[sort_results, rearrange], result_in: KDTreeResultVector)
+fn __init__(out self, qv_in: NDBuffer[DType.float32, 1, origin], mut tree_in: KDTree[sort_results, rearrange], mut result_in: KDTreeResultVector)
 ```
 
 **Args:**

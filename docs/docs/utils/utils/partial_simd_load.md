@@ -3,7 +3,7 @@ Mojo function
 # `partial_simd_load`
 
 ```mojo
-fn partial_simd_load[width: Int](data: UnsafePointer[Float32], offset: Int, size: Int) -> SIMD[DType.float32, width]
+fn partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]
 ```
 
 **Parameters:**

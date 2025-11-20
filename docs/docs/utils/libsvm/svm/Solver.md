@@ -17,17 +17,17 @@ struct Solver
 ## Fields
 
 - **active_size** (`Int`)
-- **y** (`UnsafePointer[Int8]`)
-- **G** (`UnsafePointer[Float64]`)
-- **alpha_status** (`UnsafePointer[Int8]`)
-- **alpha** (`UnsafePointer[Float64]`)
-- **QD** (`UnsafePointer[Float64]`)
+- **y** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
+- **G** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **alpha_status** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
+- **alpha** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **QD** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
 - **eps** (`Float64`)
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
-- **p** (`UnsafePointer[Float64]`)
-- **active_set** (`UnsafePointer[Scalar[DType.index]]`)
-- **G_bar** (`UnsafePointer[Float64]`)
+- **p** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **active_set** (`UnsafePointer[Scalar[DType.int], origin_of(MutOrigin.external)]`)
+- **G_bar** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
 - **l** (`Int`)
 - **unshrink** (`Bool`)
 
@@ -157,7 +157,7 @@ fn reconstruct_gradient[QM: QMatrix](self, mut Q: QM)
 ### `Solve`
 
 ```mojo
-fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64], y_: UnsafePointer[Int8], alpha_: UnsafePointer[Float64], Cp: Float64, Cn: Float64, eps: Float64, si: UnsafePointer[SolutionInfo], shrinking: Int)
+fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64, origin_of(MutOrigin.external)], y_: UnsafePointer[Int8, origin_of(MutOrigin.external)], alpha_: UnsafePointer[Float64, origin_of(MutOrigin.external)], Cp: Float64, Cn: Float64, eps: Float64, mut si: SolutionInfo, shrinking: Int)
 ```
 
 **Parameters:**
@@ -175,7 +175,7 @@ fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64], y
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
 - **eps** (`Float64`)
-- **si** (`UnsafePointer`)
+- **si** (`SolutionInfo`)
 - **shrinking** (`Int`)
 
 ### `select_working_set`

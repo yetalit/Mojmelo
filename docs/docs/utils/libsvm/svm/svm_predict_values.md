@@ -3,7 +3,7 @@ Mojo function
 # `svm_predict_values`
 
 ```mojo
-fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node], dec_values: UnsafePointer[Float64]) -> Float64
+fn svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, origin_of(MutOrigin.external)], dec_values: UnsafePointer[Float64, MutAnyOrigin]) -> Float64
 ```
 
 **Args:**

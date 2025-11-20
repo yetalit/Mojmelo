@@ -26,7 +26,7 @@ Gradient Boosting with support for both classification and regression.
 - **reg_alpha** (`Float32`): The L1 regularization parameter.
 - **gamma** (`Float32`): Minimum loss reduction required to make a further partition on a leaf node of the tree.
 - **n_bins** (`Int`): Generates histogram boundaries as possible threshold values when n_bins >= 2 instead of all possible values.
-- **trees** (`UnsafePointer[BDecisionTree]`)
+- **trees** (`UnsafePointer[BDecisionTree, MutAnyOrigin]`)
 - **score_start** (`Float32`)
 - **num_class** (`Int`)
 

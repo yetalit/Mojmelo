@@ -11,7 +11,7 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
     var reg_alpha: Float32
     var gamma: Float32
     var n_bins: Int
-    var root: UnsafePointer[Node]
+    var root: UnsafePointer[Node, MutAnyOrigin]
 
     fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0):
         self.min_samples_split = min_samples_split
@@ -20,7 +20,7 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
         self.reg_alpha = reg_alpha
         self.gamma = gamma
         self.n_bins = n_bins if n_bins >= 2 else 0
-        self.root = UnsafePointer[Node]()
+        self.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn _moveinit_(mut self, mut existing: Self):
         self.min_samples_split = existing.min_samples_split
@@ -32,7 +32,7 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
         self.root = existing.root
         existing.min_samples_split = existing.max_depth = 0
         existing.reg_lambda = existing.reg_alpha = existing.gamma = 0.0
-        existing.root = UnsafePointer[Node]()
+        existing.root = UnsafePointer[Node, MutAnyOrigin]()
 
     fn __del__(deinit self):
         if self.root:
@@ -49,8 +49,8 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    fn _grow_tree(self, X: Matrix, g: Matrix, h: Matrix, depth: Int = 0) raises -> UnsafePointer[Node]:
-        var new_node = UnsafePointer[Node].alloc(1)
+    fn _grow_tree(self, X: Matrix, g: Matrix, h: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
+        var new_node = alloc[Node](1)
         # stopping criteria
         if (
             depth >= self.max_depth
@@ -82,11 +82,6 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
 
 @always_inline
 fn leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
-    '''
-    Given the gradient and hessian of a tree leaf,
-    return the prediction (score) at this leaf.
-    The score is -G/(H+λ).
-    '''
     var g_sum = g.sum()
     return (-g_sum / (h.sum() + reg_lambda)) - reg_alpha * math.copysign(1, g_sum)
 
@@ -96,11 +91,6 @@ fn leaf_score_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32
 
 @always_inline
 fn leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
-    '''
-    Given the gradient and hessian of a tree leaf,
-    return the minimized loss at this leaf.
-    The minimized loss is -0.5*G^2/(H+λ).
-    .'''
     var g_sum = g.sum()
     var h_sum = h.sum()
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
@@ -109,7 +99,7 @@ fn leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) rais
 fn leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 
-fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.index]], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
+fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.int]], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
     var total_g_sum = g.sum()
     var total_h_sum = h.sum()
     var parent_loss = leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum, total_h_sum)
@@ -128,21 +118,15 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
 
                 var left_g_sum: Float32 = 0.0
                 var left_h_sum: Float32 = 0.0
-                var right_g_sum = total_g_sum
-                var right_h_sum = total_h_sum
 
                 for step in range(1, X.height):
-                    var gi = g_sorted.data[step - 1]
-                    var hi = h_sorted.data[step - 1]
-                    left_g_sum += gi
-                    left_h_sum += hi
-                    right_g_sum -= gi
-                    right_h_sum -= hi
+                    left_g_sum += g_sorted.data[step - 1]
+                    left_h_sum += h_sorted.data[step - 1]
 
                     if column.data[step] == column.data[step - 1]:
                         continue  # skip redundant thresholds
 
-                    var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, right_g_sum, right_h_sum)
+                    var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig
@@ -172,16 +156,12 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
                     
                     var left_g_sum: Float32 = 0.0
                     var left_h_sum: Float32 = 0.0
-                    var right_g_sum = total_g_sum
-                    var right_h_sum = total_h_sum
 
                     for step in range(len(intervals)-1):
                         left_g_sum += g_sum.data[step]
                         left_h_sum += h_sum.data[step]
-                        right_g_sum -= g_sum.data[step]
-                        right_h_sum -= h_sum.data[step]
 
-                        var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, right_g_sum, right_h_sum)
+                        var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                         var ig = parent_loss - child_loss
                         if ig > max_gains.data[idx]:
                             max_gains.data[idx] = ig
@@ -197,7 +177,7 @@ fn _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix,
 fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 
-fn _traverse_tree(x: Matrix, node: UnsafePointer[Node]) -> Float32:
+fn _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -205,7 +185,7 @@ fn _traverse_tree(x: Matrix, node: UnsafePointer[Node]) -> Float32:
         return _traverse_tree(x, node[].left)
     return _traverse_tree(x, node[].right)
 
-fn delTree(node: UnsafePointer[Node]):
+fn delTree(node: UnsafePointer[Node, MutAnyOrigin]):
     if node[].left:
         delTree(node[].left)
     if node[].right:
