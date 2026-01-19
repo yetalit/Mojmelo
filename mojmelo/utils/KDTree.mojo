@@ -11,7 +11,7 @@ fn Abs(val: Float32) -> Float32:
 
 @always_inline
 fn Squared(val: Float32) -> Float32:
-    return val ** 2
+    return val*val
 
 @fieldwise_init
 @register_passable("trivial")
