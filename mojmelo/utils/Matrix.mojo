@@ -467,87 +467,231 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return self.size
 
     @always_inline
-    fn __eq__(self, rhs: Float32) -> List[Bool]:
-        var result = List[Bool](capacity=self.size)
-        result.resize(self.size, False)
-        if self.size < 131072:
-            for i in range(self.size):
-                result[i] = self.data[i] == rhs
-        else:
+    fn __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
             @parameter
-            fn cmp(i: Int):
-                result[i] = self.data[i] == rhs
-            parallelize[cmp](self.size)
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).eq(rhs))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).eq(rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
         return result^
 
     @always_inline
-    fn __ne__(self, rhs: Float32) -> List[Bool]:
-        var result = List[Bool](capacity=self.size)
-        result.resize(self.size, False)
-        if self.size < 131072:
-            for i in range(self.size):
-                result[i] = self.data[i] != rhs
-        else:
+    fn ele_eq(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
             @parameter
-            fn cmp(i: Int):
-                result[i] = self.data[i] != rhs
-            parallelize[cmp](self.size)
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).eq(rhs.data.load(idx)))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).eq(rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
         return result^
 
     @always_inline
-    fn __gt__(self, rhs: Float32) -> List[Bool]:
-        var result = List[Bool](capacity=self.size)
-        result.resize(self.size, False)
-        if self.size < 131072:
-            for i in range(self.size):
-                result[i] = self.data[i] > rhs
-        else:
+    fn __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
             @parameter
-            fn cmp(i: Int):
-                result[i] = self.data[i] > rhs
-            parallelize[cmp](self.size)
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).ne(rhs))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).ne(rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
         return result^
 
     @always_inline
-    fn __ge__(self, rhs: Float32) -> List[Bool]:
-        var result = List[Bool](capacity=self.size)
-        result.resize(self.size, False)
-        if self.size < 131072:
-            for i in range(self.size):
-                result[i] = self.data[i] >= rhs
-        else:
+    fn ele_ne(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
             @parameter
-            fn cmp(i: Int):
-                result[i] = self.data[i] >= rhs
-            parallelize[cmp](self.size)
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).ne(rhs.data.load(idx)))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).ne(rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
         return result^
 
     @always_inline
-    fn __lt__(self, rhs: Float32) -> List[Bool]:
-        var result = List[Bool](capacity=self.size)
-        result.resize(self.size, False)
-        if self.size < 131072:
-            for i in range(self.size):
-                result[i] = self.data[i] < rhs
-        else:
+    fn __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
             @parameter
-            fn cmp(i: Int):
-                result[i] = self.data[i] < rhs
-            parallelize[cmp](self.size)
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).gt(rhs))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).gt(rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
         return result^
 
     @always_inline
-    fn __le__(self, rhs: Float32) -> List[Bool]:
-        var result = List[Bool](capacity=self.size)
-        result.resize(self.size, False)
-        if self.size < 131072:
-            for i in range(self.size):
-                result[i] = self.data[i] <= rhs
-        else:
+    fn ele_gt(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
             @parameter
-            fn cmp(i: Int):
-                result[i] = self.data[i] <= rhs
-            parallelize[cmp](self.size)
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).gt(rhs.data.load(idx)))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).gt(rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
+        return result^
+
+    @always_inline
+    fn __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).ge(rhs))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).ge(rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
+        return result^
+
+    @always_inline
+    fn ele_ge(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).ge(rhs.data.load(idx)))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).ge(rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
+        return result^
+
+    @always_inline
+    fn __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).lt(rhs))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).lt(rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
+        return result^
+
+    @always_inline
+    fn ele_lt(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).lt(rhs.data.load(idx)))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).lt(rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
+        return result^
+
+    @always_inline
+    fn __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).le(rhs))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).le(rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
+        return result^
+
+    @always_inline
+    fn ele_le(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            @parameter
+            fn convert[simd_width: Int](idx: Int):
+                result_ptr.store(idx, self.data.load[width=simd_width](idx).le(rhs.data.load(idx)))
+            vectorize[convert, self.simd_width](self.size)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, self.data.load[width=self.simd_width](idx).le(rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data=result_ptr
         return result^
 
     @always_inline
@@ -808,7 +952,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
-    fn where(self, cmp: List[Bool], _true: Float32, _false: Float32) -> Matrix:
+    fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -826,7 +970,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             parallelize[p](self.size)
         return mat^
 
-    fn where(self, cmp: List[Bool], _true: Matrix, _false: Float32) -> Matrix:
+    fn where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -844,7 +988,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
             parallelize[p](self.size)
         return mat^
 
-    fn where(self, cmp: List[Bool], _true: Float32, _false: Matrix) -> Matrix:
+    fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -863,7 +1007,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return mat^
 
     @always_inline
-    fn where(self, cmp: List[Bool], _true: Matrix, _false: Matrix) -> Matrix:
+    fn where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 40960:
             for i in range(self.size):
@@ -882,7 +1026,7 @@ struct Matrix(Stringable, Writable, Copyable, Movable, ImplicitlyCopyable, Sized
         return mat^
 
     @always_inline
-    fn argwhere_l(self, cmp: List[Bool]) -> List[Int]:
+    fn argwhere_l(self, cmp: List[Scalar[DType.bool]]) -> List[Int]:
         var args = List[Int]()
         for i in range(self.size):
             if cmp[i]:

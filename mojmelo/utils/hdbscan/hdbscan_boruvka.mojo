@@ -269,7 +269,8 @@ struct HDBSCANBoruvka:
                     var d: Float32=0.0
                     @parameter
                     fn v[simd_width: Int](idx: Int):
-                        d += ((xp.load[width=simd_width](idx) - xq.load[width=simd_width](idx)) ** 2).reduce_add()
+                        var t = xp.load[width=simd_width](idx) - xq.load[width=simd_width](idx)
+                        d += (t * t).reduce_add()
                     vectorize[v, mojmelo.utils.Matrix.Matrix.simd_width](self.dim)
                     var mr = self.mr_rdist(d,p,q)
                     if mr < self.candidate_dist[cp]:
