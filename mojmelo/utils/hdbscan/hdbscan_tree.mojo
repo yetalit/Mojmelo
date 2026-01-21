@@ -737,7 +737,7 @@ fn get_clusters(tree: Dict[String, List[Scalar[DType.int]]], lambda_array: List[
     # a topological sort of the tree; This is valid given the
     # current implementation above, so don't change that ... or
     # if you do, change this accordingly!
-    var node_list = List[Scalar[DType.int]](capacity=len(stability))
+    var node_list = List[Scalar[DType.int]]()
     for key in stability.keys():
         node_list.append(key)
     @parameter
