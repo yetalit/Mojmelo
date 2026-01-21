@@ -162,6 +162,30 @@ fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -
     return a / b
 
 @always_inline
+fn eq[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+    return a.eq(b)
+
+@always_inline
+fn ne[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+    return a.ne(b)
+
+@always_inline
+fn gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+    return a.gt(b)
+
+@always_inline
+fn ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+    return a.ge(b)
+
+@always_inline
+fn lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+    return a.lt(b)
+
+@always_inline
+fn le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+    return a.le(b)
+
+@always_inline
 fn partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]:
     var nelts = size - offset
     if nelts >= width:
