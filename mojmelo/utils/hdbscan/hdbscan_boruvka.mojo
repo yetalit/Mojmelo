@@ -86,7 +86,8 @@ struct HDBSCANBoruvka:
         self.component_remap = List[Scalar[DType.int]](capacity=self.n)
         self.component_remap.resize(self.n, -1)
 
-    fn mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32:
+    @always_inline
+    fn mr_rdist(self, d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32:
         var d = math.sqrt(d2)
 
         if self.alpha != 1.0:
