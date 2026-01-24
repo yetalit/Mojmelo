@@ -120,42 +120,57 @@ struct UnionFind:
         self.size.resize(2*N-1, 0)
 
     fn union(mut self, m: Scalar[DType.int], n: Scalar[DType.int]):
-        self.size[self.next_label] = self.size[m] + self.size[n]
         self.parent[m] = self.next_label
         self.parent[n] = self.next_label
+
+        self.parent[self.next_label] = -1   # <-- MUST set root
+
         self.size[self.next_label] = self.size[m] + self.size[n]
         self.next_label += 1
 
     fn fast_find(mut self, var n: Scalar[DType.int]) -> Scalar[DType.int]:
-        var p = n
-        while self.parent[n] != -1:
-            n = self.parent[n]
-        # label up to the root
-        while self.parent[p] != n:
-            p, self.parent[p] = self.parent[p], n
-        return n
+        var root = n
+
+        # find root
+        while self.parent[root] != -1:
+            root = self.parent[root]
+
+        # path compression
+        while n != root:
+            var p = self.parent[n]
+            self.parent[n] = root
+            n = p
+
+        return root
 
 
 fn label(L: Matrix) raises -> Matrix:
-    var result = Matrix.zeros(L.height, L.width + 1)
     var N = L.height + 1
     var U = UnionFind(N)
+
+    var result = Matrix.zeros(L.height, 4)
+    var out = 0
 
     for index in range(L.height):
         var a = L[index, 0].cast[DType.int]()
         var b = L[index, 1].cast[DType.int]()
         var delta = L[index, 2]
 
-        aa, bb = U.fast_find(a), U.fast_find(b)
+        var aa = U.fast_find(a)
+        var bb = U.fast_find(b)
 
-        result[index, 0] = aa.cast[DType.float32]()
-        result[index, 1] = bb.cast[DType.float32]()
-        result[index, 2] = delta
-        result[index, 3] = (U.size[aa] + U.size[bb]).cast[DType.float32]()
+        if aa == bb:
+            continue
+
+        result[out, 0] = aa.cast[DType.float32]()
+        result[out, 1] = bb.cast[DType.float32]()
+        result[out, 2] = delta
+        result[out, 3] = (U.size[aa] + U.size[bb]).cast[DType.float32]()
 
         U.union(aa, bb)
+        out += 1
 
-    return result^
+    return result.load_rows(out)
 
 
 fn single_linkage(distance_matrix: Matrix) raises -> Matrix:
