@@ -26,6 +26,7 @@ Here is the list of the algorithms:
 * Logistic Regression
 * KNN
 * KMeans
+* HDBSCAN
 * DBSCAN
 * SVM
 * Naive Bayes

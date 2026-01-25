@@ -119,11 +119,11 @@ struct HDBSCANBoruvka:
             if nd[].is_leaf:
                 var start = nd[].idx_start
                 var end = nd[].idx_end
-                var c = self.component_of_point[self.tree[].idx_array[start]]
+                var c = self.component_of_point[start]
 
                 var same = True
                 for i in range(start + 1, end):
-                    if self.component_of_point[self.tree[].idx_array[i]] != c:
+                    if self.component_of_point[i] != c:
                         same = False
                         break
 
@@ -149,11 +149,11 @@ struct HDBSCANBoruvka:
         if node1 == node2:
             if nd1[].is_leaf:
                 for i in range(nd1[].idx_start, nd1[].idx_end):
-                    var p = self.tree[].idx_array[i]
+                    var p = i
                     var cp = Int(self.u_f.find(p))
 
                     for j in range(i + 1, nd1[].idx_end):
-                        var q = self.tree[].idx_array[j]
+                        var q = j
                         var cq = Int(self.u_f.find(q))
 
                         if cp == cq:
@@ -192,11 +192,11 @@ struct HDBSCANBoruvka:
         # leaf–leaf
         if nd1[].is_leaf and nd2[].is_leaf:
             for i in range(nd1[].idx_start, nd1[].idx_end):
-                var p = self.tree[].idx_array[i]
+                var p = i
                 var cp = Int(self.u_f.find(p))
 
                 for j in range(nd2[].idx_start, nd2[].idx_end):
-                    var q = self.tree[].idx_array[j]
+                    var q = j
                     if p == q:
                         continue
 

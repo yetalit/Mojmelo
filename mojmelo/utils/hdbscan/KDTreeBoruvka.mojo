@@ -104,7 +104,6 @@ struct KDTreeBoruvka:
     var leaf_size: Int
     var nodes: List[NodeData]
     var core_dist: UnsafePointer[Float32, MutAnyOrigin]
-    var idx_array: List[Scalar[DType.int]]       # stable indices (0..n-1)
     var build_idx: List[Scalar[DType.int]]       # permuted indices for building
     var proj_buf: List[Float32]
 
@@ -117,9 +116,6 @@ struct KDTreeBoruvka:
         self.leaf_size = leaf_size
         self.nodes = List[NodeData]()
         self.core_dist = alloc[Float32](self.n)
-
-        # stable identity index array
-        self.idx_array = fill_indices_list(self.n)
 
         # build index array (will be permuted)
         self.build_idx = fill_indices_list(self.n)

@@ -3,7 +3,7 @@ import math
 from mojmelo.utils.hdbscan.KDTreeBoruvka import KDTreeBoruvka
 from mojmelo.utils.hdbscan.hdbscan_boruvka import HDBSCANBoruvka
 from mojmelo.utils.hdbscan.hdbscan_linkage import label
-from mojmelo.utils.hdbscan.hdbscan_tree import condense_tree, get_clusters, compute_stability
+from mojmelo.utils.hdbscan.hdbscan_tree import condense_tree, get_clusters, compute_stability, simplify_hierarchy
 
 struct HDBSCAN:
     var min_samples: Int
@@ -13,6 +13,7 @@ struct HDBSCAN:
     var leaf_size: Int
     var cluster_selection_epsilon: Float32
     var cluster_selection_epsilon_max: Float32
+    var cluster_selection_persistence: Float32
     var max_cluster_size: Int
     var allow_single_cluster: Bool
     var match_reference_implementation: Bool
@@ -31,6 +32,7 @@ struct HDBSCAN:
         leaf_size: Int=32,
         cluster_selection_epsilon: Float32 = 0,
         cluster_selection_epsilon_max: Float32 = math.inf[DType.float32](),
+        cluster_selection_persistence: Float32 = 0,
         max_cluster_size: Int = 0,
         allow_single_cluster: Bool = False,
         match_reference_implementation: Bool = False
@@ -42,6 +44,7 @@ struct HDBSCAN:
         self.leaf_size = leaf_size
         self.cluster_selection_epsilon = cluster_selection_epsilon
         self.cluster_selection_epsilon_max = cluster_selection_epsilon_max
+        self.cluster_selection_persistence = cluster_selection_persistence
         self.max_cluster_size = max_cluster_size
         self.allow_single_cluster = allow_single_cluster
         self.match_reference_implementation = match_reference_implementation
@@ -67,6 +70,8 @@ struct HDBSCAN:
         mst_edges = mst_edges[mst_edges['', 2].argsort()]
         var hierarchy = label(mst_edges)
         var resulted_tree = condense_tree(hierarchy, min_cluster_size=self.min_cluster_size)
+        if self.cluster_selection_persistence > 0.0 and len(resulted_tree[1]) > 0:
+            resulted_tree = simplify_hierarchy(resulted_tree[0].copy(), resulted_tree[1].copy(), self.cluster_selection_persistence)
         var condensed_tree = resulted_tree[0].copy()
         var lambda_vals = resulted_tree[1].copy()
         var stability = compute_stability(condensed_tree, lambda_vals)
