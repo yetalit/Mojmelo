@@ -80,11 +80,10 @@ fn node_pair_lower_bound(
 
     vectorize[v, Matrix.simd_width](dim)
 
-    var dist = math.sqrt(dist2)
-    var min_possible = dist - (r1 + r2)
-
+    var min_possible = dist2 - (r1 + r2) * (r1 + r2)
     if min_possible < 0.0:
         return 0.0
+
     return min_possible
 
 @fieldwise_init
