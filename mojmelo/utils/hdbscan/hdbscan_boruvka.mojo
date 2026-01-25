@@ -189,15 +189,6 @@ struct HDBSCANBoruvka:
             self.dual_tree_traversal(r, r)
             return
 
-        # lower-bound pruning
-        var lb = node_pair_lower_bound(
-            nd1[].center._data,
-            nd2[].center._data,
-            nd1[].radius,
-            nd2[].radius,
-            self.dim
-        )
-
         # leaf–leaf
         if nd1[].is_leaf and nd2[].is_leaf:
             for i in range(nd1[].idx_start, nd1[].idx_end):
@@ -212,6 +203,18 @@ struct HDBSCANBoruvka:
                     var cq = Int(self.u_f.find(q))
                     if cp == cq:
                         continue
+
+                    # lower-bound pruning
+                    var lb = node_pair_lower_bound(
+                        nd1[].center._data,
+                        nd2[].center._data,
+                        nd1[].radius,
+                        nd2[].radius,
+                        self.dim
+                    )
+
+                    if lb >= self.candidate_dist[min(cp, cq)]:
+                        return
 
                     var xp = self.tree[].data + p * self.dim
                     var xq = self.tree[].data + q * self.dim
