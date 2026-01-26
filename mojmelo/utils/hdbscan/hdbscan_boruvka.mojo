@@ -189,6 +189,13 @@ struct HDBSCANBoruvka:
 
         # leaf–leaf
         if nd1[].is_leaf and nd2[].is_leaf:
+            var lb2 = node_pair_lower_bound(
+                nd1[].center._data,
+                nd2[].center._data,
+                nd1[].radius,
+                nd2[].radius,
+                self.dim
+            )
             for i in range(nd1[].idx_start, nd1[].idx_end):
                 var p = i
                 var cp = Int(self.u_f.find(p))
@@ -203,15 +210,7 @@ struct HDBSCANBoruvka:
                         continue
 
                     # lower-bound pruning
-                    var lb = node_pair_lower_bound(
-                        nd1[].center._data,
-                        nd2[].center._data,
-                        nd1[].radius,
-                        nd2[].radius,
-                        self.dim
-                    )
-
-                    if lb >= self.candidate_dist[min(cp, cq)]:
+                    if lb2 >= self.candidate_dist[min(cp, cq)]:
                         return
 
                     var xp = self.tree[].data + p * self.dim
@@ -273,12 +272,13 @@ struct HDBSCANBoruvka:
                     continue
 
                 var q = self.candidate_neighbor[i]
-                var d = math.sqrt(self.candidate_dist[i])
 
                 var cp = self.u_f.find(p)
                 var cq = self.u_f.find(q)
                 if cp == cq:
                     continue
+
+                var d = math.sqrt(self.candidate_dist[i])
 
                 self.edges[self.num_edges, 0] = p.cast[DType.float32]()
                 self.edges[self.num_edges, 1] = q.cast[DType.float32]()
