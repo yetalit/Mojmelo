@@ -93,8 +93,6 @@ struct NodeData(Copyable, Movable):
     var idx_end: Int
     var radius: Float32
     var center: List[Float32]
-    var core_min: Float32
-    var core_max: Float32
 
 struct KDTreeBoruvka:
     var data: UnsafePointer[Float32, MutAnyOrigin]
@@ -154,7 +152,7 @@ struct KDTreeBoruvka:
 
     fn ensure_node(mut self, i: Int):
         if len(self.nodes) <= i:
-            self.nodes.resize(i + 1, NodeData(0, 0, 0, 0, List[Float32](), 0, 0))
+            self.nodes.resize(i + 1, NodeData(0, 0, 0, 0, List[Float32]()))
 
     fn choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.int]]) -> Int:
         var best = 0
@@ -213,17 +211,6 @@ struct KDTreeBoruvka:
                 maxd = d2
 
         nd[].radius = math.sqrt(maxd)
-
-        nd[].core_min = math.inf[DType.float32]()
-        nd[].core_max = -math.inf[DType.float32]()
-
-        for i in range(start, end):
-            var p = self.build_idx[i]
-            var c = self.core_dist[p]
-            if c < nd[].core_min:
-                nd[].core_min = c
-            if c > nd[].core_max:
-                nd[].core_max = c
 
         if count <= self.leaf_size:
             nd[].is_leaf = True
