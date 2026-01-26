@@ -71,7 +71,9 @@ struct HDBSCAN:
         var hierarchy = label(mst_edges)
         var resulted_tree = condense_tree(hierarchy, min_cluster_size=self.min_cluster_size)
         if self.cluster_selection_persistence > 0.0 and len(resulted_tree[1]) > 0:
-            resulted_tree = simplify_hierarchy(resulted_tree[0].copy(), resulted_tree[1].copy(), self.cluster_selection_persistence)
+            var tree = resulted_tree[0].copy()
+            var lambda_ = resulted_tree[1].copy()
+            resulted_tree = simplify_hierarchy(tree, lambda_, self.cluster_selection_persistence)
         var condensed_tree = resulted_tree[0].copy()
         var lambda_vals = resulted_tree[1].copy()
         var stability = compute_stability(condensed_tree, lambda_vals)

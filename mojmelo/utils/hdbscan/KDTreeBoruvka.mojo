@@ -177,23 +177,6 @@ struct KDTreeBoruvka:
 
         return best
 
-    fn compute_radius(self, start: Int, end: Int, centroid: UnsafePointer[Float32, MutAnyOrigin]) -> Float32:
-        var r2: Float32 = 0.0
-
-        for i in range(start, end):
-            var dist2: Float32 = 0.0
-            var p = self.data + self.build_idx[i]*self.dim
-
-            @parameter
-            fn v[simd_width: Int](idx: Int):
-                var t = p.load[width=Matrix.simd_width](idx) - centroid.load[width=Matrix.simd_width](idx)
-                dist2 += (t * t).reduce_add()
-            vectorize[v, Matrix.simd_width](self.dim)
-
-            r2 = max(r2, dist2)
-
-        return math.sqrt(r2)
-
     fn build_node(mut self, node: Int, start: Int, end: Int):
         self.ensure_node(node)
         var nd = self.nodes._data + node
