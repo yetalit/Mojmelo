@@ -80,11 +80,10 @@ fn node_pair_lower_bound(
 
     vectorize[v, Matrix.simd_width](dim)
 
-    var min_possible = dist2 - (r1 + r2) * (r1 + r2)
-    if min_possible < 0.0:
-        return 0.0
+    var R = r1 + r2
+    var lb2 = dist2 - (R * R)
 
-    return min_possible
+    return lb2 if lb2 > 0.0 else 0.0
 
 @fieldwise_init
 struct NodeData(Copyable, Movable):
@@ -131,7 +130,7 @@ struct KDTreeBoruvka:
                 kd_results
             )
 
-            self.core_dist[p] = math.sqrt(kd_results[min_samples].dis)
+            self.core_dist[p] = kd_results[min_samples].dis
 
         parallelize[compute_core_dist](self.n)
 

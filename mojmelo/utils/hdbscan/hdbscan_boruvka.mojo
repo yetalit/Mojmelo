@@ -87,13 +87,11 @@ struct HDBSCANBoruvka:
         self.component_remap.resize(self.n, -1)
 
     @always_inline
-    fn mr_rdist(self, d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32:
-        var d = math.sqrt(d2)
-
+    fn mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32:
         if self.alpha != 1.0:
-            d /= self.alpha
+            d2 /= (self.alpha * self.alpha)
 
-        return max(max(d, self.tree[].core_dist[p]), self.tree[].core_dist[q])
+        return max(max(d2, self.tree[].core_dist[p]), self.tree[].core_dist[q])
 
     fn update_components_and_nodes(mut self) raises -> Int:
         @parameter
@@ -275,7 +273,7 @@ struct HDBSCANBoruvka:
                     continue
 
                 var q = self.candidate_neighbor[i]
-                var d = self.candidate_dist[i]
+                var d = math.sqrt(self.candidate_dist[i])
 
                 var cp = self.u_f.find(p)
                 var cq = self.u_f.find(q)
