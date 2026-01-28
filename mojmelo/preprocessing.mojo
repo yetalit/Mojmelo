@@ -157,7 +157,9 @@ fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float64 = 0.5, train_siz
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(X.height - (test_ratio * X.height))
-    return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
+    var split_train = List[Scalar[DType.int]](ids[:split_i])
+    var split_test = List[Scalar[DType.int]](ids[split_i:])
+    return X[split_train], X[split_test], y[split_train], y[split_test]
 
 fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     """Split matrices into random train and test subsets."""
@@ -165,7 +167,9 @@ fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
     var split_i = Int(X.height - (test_ratio * X.height))
-    return X[ids[:split_i]], X[ids[split_i:]], y[ids[:split_i]], y[ids[split_i:]]
+    var split_train = List[Scalar[DType.int]](ids[:split_i])
+    var split_test = List[Scalar[DType.int]](ids[split_i:])
+    return X[split_train], X[split_test], y[split_train], y[split_test]
 
 struct LabelEncoder:
     """Encode target labels with value between 0 and n_classes-1.
@@ -251,9 +255,11 @@ fn KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):
         var end_of_test = min(start_of_test + test_count, X.height)
-        model.fit(X[ids[end_of_test:] + ids[:start_of_test]], y[ids[end_of_test:] + ids[:start_of_test]])
-        y_pred = model.predict(X[ids[start_of_test:end_of_test]])
-        mean_score += scoring(y[ids[start_of_test:end_of_test]], y_pred) / n_splits
+        var train_ids = List[Scalar[DType.int]](ids[end_of_test:]) + List[Scalar[DType.int]](ids[:start_of_test])
+        model.fit(X[train_ids], y[train_ids])
+        var test_ids = List[Scalar[DType.int]](ids[start_of_test:end_of_test])
+        y_pred = model.predict(X[test_ids])
+        mean_score += scoring(y[test_ids], y_pred) / n_splits
         start_of_test += test_count
     return mean_score
 
