@@ -55,6 +55,7 @@ struct HDBSCANBoruvka:
     var candidate_neighbor: List[Scalar[DType.int]]
     var candidate_dist: List[Scalar[DType.float32]]
     var u_f: UnionFind
+    var u_f_finds: List[Int]
     var edges: Matrix
     var num_edges: Int
 
@@ -77,6 +78,8 @@ struct HDBSCANBoruvka:
         self.candidate_dist.resize(self.n, math.inf[DType.float32]())
 
         self.u_f = UnionFind(self.n)
+        self.u_f_finds = List[Int](capacity=self.n)
+        self.u_f_finds.resize(self.n, 0)
         self.edges = Matrix(self.tree[].n - 1, 3)
         self.num_edges = 0
 
@@ -97,6 +100,7 @@ struct HDBSCANBoruvka:
         @parameter
         fn update_point(i: Int):
             self.component_of_point[i] = self.u_f.find(i)
+            self.u_f_finds[i] = Int(self.component_of_point[i])
         parallelize[update_point](self.n)
 
         var next_id = 0
@@ -148,11 +152,11 @@ struct HDBSCANBoruvka:
             if nd1[].is_leaf:
                 for i in range(nd1[].idx_start, nd1[].idx_end):
                     var p = i
-                    var cp = Int(self.u_f.find(p))
+                    var cp = self.u_f_finds[p]
 
                     for j in range(i + 1, nd1[].idx_end):
                         var q = j
-                        var cq = Int(self.u_f.find(q))
+                        var cq = self.u_f_finds[q]
 
                         if cp == cq:
                             continue
@@ -198,14 +202,14 @@ struct HDBSCANBoruvka:
             )
             for i in range(nd1[].idx_start, nd1[].idx_end):
                 var p = i
-                var cp = Int(self.u_f.find(p))
+                var cp = self.u_f_finds[p]
 
                 for j in range(nd2[].idx_start, nd2[].idx_end):
                     var q = j
                     if p == q:
                         continue
 
-                    var cq = Int(self.u_f.find(q))
+                    var cq = self.u_f_finds[q]
                     if cp == cq:
                         continue
 
