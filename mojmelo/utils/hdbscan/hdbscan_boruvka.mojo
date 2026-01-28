@@ -3,7 +3,7 @@ from mojmelo.utils.Matrix import Matrix
 from .KDTreeBoruvka import KDTreeBoruvka, node_pair_lower_bound
 import math
 from algorithm import vectorize, parallelize
-from buffer import NDBuffer
+from memory import memset
 
 struct UnionFind:
     var parent: List[Scalar[DType.int]]
@@ -107,7 +107,7 @@ struct HDBSCANBoruvka:
                 next_id += 1
             self.component_of_point[i] = self.component_remap[c]
 
-        NDBuffer[dtype=DType.int, rank=1](self.component_remap, self.n).fill(-1)
+        memset(self.component_remap.unsafe_ptr(), -1, self.n)
 
         var num_components = next_id
 
@@ -162,10 +162,10 @@ struct HDBSCANBoruvka:
 
                         var d2: Float32 = 0.0
                         @parameter
-                        fn v[simd_width: Int](k: Int):
+                        fn v1[simd_width: Int](k: Int) unified {mut}:
                             var t = xp.load[width=simd_width](k) - xq.load[width=simd_width](k)
                             d2 += (t * t).reduce_add()
-                        vectorize[v, Matrix.simd_width](self.dim)
+                        vectorize[Matrix.simd_width](self.dim, v1)
 
                         var mr = self.mr_rdist(d2, p, q)
 
@@ -218,10 +218,10 @@ struct HDBSCANBoruvka:
 
                     var d2: Float32 = 0.0
                     @parameter
-                    fn v2[simd_width: Int](k: Int):
+                    fn v2[simd_width: Int](k: Int) unified {mut}:
                         var t = xp.load[width=simd_width](k) - xq.load[width=simd_width](k)
                         d2 += (t * t).reduce_add()
-                    vectorize[v2, Matrix.simd_width](self.dim)
+                    vectorize[Matrix.simd_width](self.dim, v2)
 
                     var mr = self.mr_rdist(d2, p, q)
 
@@ -254,9 +254,9 @@ struct HDBSCANBoruvka:
             if self.num_components <= 1:
                 break
 
-            NDBuffer[dtype=DType.int, rank=1](self.candidate_point, self.n).fill(-1)
-            NDBuffer[dtype=DType.int, rank=1](self.candidate_neighbor, self.n).fill(-1)
-            NDBuffer[dtype=DType.float32, rank=1](self.candidate_dist, self.n).fill(math.inf[DType.float32]())
+            memset(self.candidate_point.unsafe_ptr(), -1, self.n)
+            memset(self.candidate_neighbor.unsafe_ptr(), -1, self.n)
+            Span[Float32, origin_of(self.candidate_dist)](ptr=self.candidate_dist.unsafe_ptr(), length=self.n).fill(math.inf[DType.float32]())
 
             self.dual_tree_traversal(0, 0)
 

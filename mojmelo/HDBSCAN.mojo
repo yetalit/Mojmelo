@@ -17,6 +17,8 @@ struct HDBSCAN:
     var max_cluster_size: Int
     var allow_single_cluster: Bool
     var match_reference_implementation: Bool
+    var search_deepness_coef: Int
+
     var labels_: List[Scalar[DType.int]]
     var probabilities_: List[Float32]
     var cluster_persistence_: List[Float32]
@@ -35,7 +37,8 @@ struct HDBSCAN:
         cluster_selection_persistence: Float32 = 0,
         max_cluster_size: Int = 0,
         allow_single_cluster: Bool = False,
-        match_reference_implementation: Bool = False
+        match_reference_implementation: Bool = False,
+        search_deepness_coef: Int = 1
     ):
         self.min_samples = min_samples
         self.min_cluster_size = min_cluster_size
@@ -48,6 +51,8 @@ struct HDBSCAN:
         self.max_cluster_size = max_cluster_size
         self.allow_single_cluster = allow_single_cluster
         self.match_reference_implementation = match_reference_implementation
+        self.search_deepness_coef = search_deepness_coef
+        
         self.labels_ = List[Scalar[DType.int]]()
         self.probabilities_ = List[Float32]()
         self.cluster_persistence_ = List[Float32]()
@@ -63,7 +68,7 @@ struct HDBSCAN:
         if self.cluster_selection_method != 'eom' and self.cluster_selection_method != 'leaf':
             raise Error('Invalid cluster_selection_method value!')
 
-        var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=self.leaf_size)
+        var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=self.leaf_size, search_deepness_coef=self.search_deepness_coef)
         var boruvka_alg = HDBSCANBoruvka(UnsafePointer(to=tree), min_samples=self.min_samples, alpha=self.alpha)
         var mst_edges = boruvka_alg.spanning_tree()
         _ = tree

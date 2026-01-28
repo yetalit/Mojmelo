@@ -66,7 +66,7 @@ struct LinearRegression(CV):
                 var cost: Float32 = 0.0
                 # Iterate over mini-batches
                 for start_idx in range(0, X.height, self.batch_size):
-                    var batch_indices = ids[start_idx:start_idx + self.batch_size]
+                    var batch_indices = List[Scalar[DType.int]](ids[start_idx:start_idx + self.batch_size])
                     
                     var X_batch = X[batch_indices]
                     var y_batch = y[batch_indices]

@@ -5,9 +5,9 @@ fn cachel1() -> Int32:
     var l1_cache_size: c_int = 0
     comptime length: c_size_t = 4
     # Get L1 Cache Size
-    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".as_c_string_slice(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutExternalOrigin](), 0) == 0:
         if l1_cache_size <= 1:
-            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".as_c_string_slice(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutExternalOrigin](), 0) == 0:
                 if l1_cache_size <= 1:
                     return 65536
                 return l1_cache_size
@@ -15,7 +15,7 @@ fn cachel1() -> Int32:
                 return 65536
         return l1_cache_size
     else:
-        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".unsafe_cstr_ptr(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".as_c_string_slice(), UnsafePointer(to=l1_cache_size), UnsafePointer(to=length), OpaquePointer[MutExternalOrigin](), 0) == 0:
             if l1_cache_size <= 1:
                 return 65536
             return l1_cache_size
@@ -27,9 +27,9 @@ fn cachel2() -> Int32:
     var l2_cache_size: c_int = 0
     comptime length: c_size_t = 4
     # Get L2 Cache Size
-    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".as_c_string_slice(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutExternalOrigin](), 0) == 0:
         if l2_cache_size <= 1:
-            if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l2cachesize".as_c_string_slice(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutExternalOrigin](), 0) == 0:
                 if l2_cache_size <= 1:
                     return 4194304
                 return l2_cache_size
@@ -37,7 +37,7 @@ fn cachel2() -> Int32:
                 return 4194304
         return l2_cache_size
     else:
-        if external_call["sysctlbyname", c_int]("hw.l2cachesize".unsafe_cstr_ptr(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutOrigin.external](), 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l2cachesize".as_c_string_slice(), UnsafePointer(to=l2_cache_size), UnsafePointer(to=length), OpaquePointer[MutExternalOrigin](), 0) == 0:
             if l2_cache_size <= 1:
                 return 4194304
             return l2_cache_size
@@ -183,7 +183,7 @@ fn main() raises:
                     results_list[i - 1][0] = atol(res[0])
                     results_list[i - 1][1] = atol(res[1])
                     results_list[i - 1][2] = atol(res[2])
-            results_list.append(results)
+            results_list.append(results.copy())
 
             from collections import Counter
 

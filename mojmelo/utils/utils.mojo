@@ -5,7 +5,6 @@ from python import Python, PythonObject
 from algorithm import parallelize, elementwise, vectorize, reduction
 from sys import simd_width_of
 from utils import IndexList
-from buffer import NDBuffer
 
 # Cross Validation trait
 trait CV:
@@ -64,8 +63,8 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
     for i in range(start, end):
         var input_offset = i * input_stride
         var output_offset = i * output_stride
-        var input_dim_ptr = input.data.offset(input_offset)
-        var output_dim_ptr = output.data.offset(output_offset)
+        var input_dim_ptr = input.data + input_offset
+        var output_dim_ptr = output.data + output_offset
         var global_val: Float32
 
         # initialize limits
@@ -266,11 +265,13 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
         The score.
     """
     var correct_counts = alloc[Scalar[DType.int]](len(y))
+    var y_data = y.data
+    var y_pred_data = y_pred.data
     @parameter
-    fn compare[simd_width: Int](idx: Int):
-        correct_counts.store(idx, y.data.load[width=simd_width](idx).eq(y_pred.data.load[width=simd_width](idx)).cast[DType.int]())
-    vectorize[compare, y_pred.simd_width](len(y))
-    return Int(reduction.sum(NDBuffer[dtype=DType.int, rank=1](correct_counts, len(y)))) / Float32(len(y))
+    fn compare[simd_width: Int](idx: Int) unified {mut}:
+        correct_counts.store(idx, y_data.load[width=simd_width](idx).eq(y_pred_data.load[width=simd_width](idx)).cast[DType.int]())
+    vectorize[y_pred.simd_width](len(y), compare)
+    return Int(reduction.sum(Span[Scalar[DType.int]](ptr=correct_counts, length=len(y)))) / Float32(len(y))
 
 @always_inline
 fn entropy(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
@@ -369,7 +370,7 @@ fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     return -1  # not found
 
 @always_inline
-fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutOrigin.external]:
+fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalOrigin]:
     """Generates indices from 0 to N.
 
     Returns:
@@ -405,13 +406,13 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     return list^
 
 @always_inline
-fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutOrigin.external]:
+fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
     var ptr = alloc[Scalar[des]](size)
     if size < 262144:
         @parameter
-        fn matrix_vectorize[simd_width: Int](idx: Int):
+        fn matrix_vectorize[simd_width: Int](idx: Int) unified {mut}:
             ptr.store(idx, data.load[width=simd_width](idx).cast[des]())
-        vectorize[matrix_vectorize, width](size)
+        vectorize[width](size, matrix_vectorize)
     else:
         var n_vects = Int(math.ceil(size / width))
         @parameter
@@ -432,6 +433,17 @@ fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
     return np_arr^
 
+fn ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
+    """Converts list of indices to numpy array.
+
+    Returns:
+        The numpy array.
+    """
+    var np = Python.import_module("numpy")
+    var np_arr = np.empty(len(list), dtype='int')
+    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
+    return np_arr^
+
 fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
     var result = List[List[String]]()
     if not lists:
@@ -440,11 +452,11 @@ fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
 
     var first = lists[0].copy()
     var rest = lists[1:].copy()
-    var rest_product = cartesian_product(rest)
+    var rest_product = cartesian_product(List[List[String]](rest))
 
     # Create the Cartesian product
     for item in first:
         for prod in rest_product:
-            result.append(List[String](item) + prod.copy())
+            result.append([item] + prod.copy())
 
     return result^

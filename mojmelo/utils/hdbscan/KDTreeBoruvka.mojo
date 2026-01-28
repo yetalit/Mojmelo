@@ -4,7 +4,6 @@ from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
 import math
 from algorithm import vectorize, parallelize
 from sys import size_of
-from buffer import NDBuffer
 
 @always_inline
 fn key(idx: Scalar[DType.int],
@@ -74,11 +73,11 @@ fn node_pair_lower_bound(
     var dist2: Float32 = 0.0
 
     @parameter
-    fn v[simd_width: Int](k: Int):
+    fn v[simd_width: Int](k: Int) unified {mut}:
         var t = center1.load[width=simd_width](k) - center2.load[width=simd_width](k)
         dist2 += (t * t).reduce_add()
 
-    vectorize[v, Matrix.simd_width](dim)
+    vectorize[Matrix.simd_width](dim, v)
 
     var R = r1 + r2
     var lb2 = dist2 - (R * R)
@@ -86,7 +85,7 @@ fn node_pair_lower_bound(
     return lb2 if lb2 > 0.0 else 0.0
 
 @fieldwise_init
-struct NodeData(Copyable, Movable):
+struct NodeData(Copyable):
     var is_leaf: Bool
     var idx_start: Int
     var idx_end: Int
@@ -105,7 +104,7 @@ struct KDTreeBoruvka:
     var proj_buf: List[Float32]
 
     @always_inline
-    fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int) raises:
+    fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_deepness_coef: Int) raises:
         self.data = data.data
         self.kdtree = KDTree[sort_results=True](data, metric='euc')
         self.n = data.height
@@ -120,13 +119,14 @@ struct KDTreeBoruvka:
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
+        var k = search_deepness_coef * min_samples + 1
         @parameter
         fn compute_core_dist(p: Int):
             # core_dist must use stable indices
             var kd_results = KDTreeResultVector()
             self.kdtree.n_nearest(
-                NDBuffer[dtype=DType.float32, rank=1](self.data + p * self.dim, self.dim),
-                min_samples + 1,
+                Span(ptr=self.data + p * self.dim, length=self.dim),
+                k,
                 kd_results
             )
 
@@ -151,7 +151,7 @@ struct KDTreeBoruvka:
 
     fn ensure_node(mut self, i: Int):
         if len(self.nodes) <= i:
-            self.nodes.resize(i + 1, NodeData(0, 0, 0, 0, List[Float32]()))
+            self.nodes.resize(i + 1, NodeData(False, 0, 0, 0, List[Float32]()))
 
     fn choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.int]]) -> Int:
         var best = 0
@@ -188,9 +188,9 @@ struct KDTreeBoruvka:
         for i in range(start, end):
             var p = self.data + self.build_idx[i] * self.dim
             @parameter
-            fn v[simd_width: Int](k: Int):
+            fn v1[simd_width: Int](k: Int) unified {mut}:
                 nd[].center._data.store(k, nd[].center._data.load[width=simd_width](k) + p.load[width=simd_width](k))
-            vectorize[v, Matrix.simd_width](self.dim)
+            vectorize[Matrix.simd_width](self.dim, v1)
 
         for d in range(self.dim):
             nd[].center[d] /= count
@@ -201,10 +201,10 @@ struct KDTreeBoruvka:
             var d2: Float32 = 0.0
 
             @parameter
-            fn v2[simd_width: Int](k: Int):
+            fn v2[simd_width: Int](k: Int) unified {mut}:
                 var t = p.load[width=simd_width](k) - nd[].center._data.load[width=simd_width](k)
                 d2 += (t * t).reduce_add()
-            vectorize[v2, Matrix.simd_width](self.dim)
+            vectorize[Matrix.simd_width](self.dim, v2)
 
             if d2 > maxd:
                 maxd = d2

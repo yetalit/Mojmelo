@@ -4,7 +4,7 @@ from algorithm import parallelize
 import math
 import random
 
-struct Node(Copyable, Movable):
+struct Node(Copyable):
     var feature: Int
     var threshold: Float32
     var left: UnsafePointer[Node, MutAnyOrigin]
@@ -29,7 +29,7 @@ struct Node(Copyable, Movable):
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-struct DecisionTree(CV, Copyable, Movable, ImplicitlyCopyable):
+struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
     """A decision tree supporting both classification and regression."""
     var criterion: String
     """The function to measure the quality of a split:
