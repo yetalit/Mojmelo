@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign
+from mojmelo.utils.utils import CV
 from mojmelo.utils.libsvm.svm_parameter import svm_parameter
 from mojmelo.utils.libsvm.svm_problem import svm_problem
 from mojmelo.utils.libsvm.svm_node import svm_node

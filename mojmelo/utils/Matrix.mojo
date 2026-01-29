@@ -786,7 +786,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 40960:
+        if self.size < 147456:
             for i in range(self.size):
                 if cmp[i]:
                     mat.data[i] = _true
@@ -804,7 +804,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 40960:
+        if self.size < 147456:
             for i in range(self.size):
                 if cmp[i]:
                     mat.data[i] = _true.data[i]
@@ -822,7 +822,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 40960:
+        if self.size < 147456:
             for i in range(self.size):
                 if cmp[i]:
                     mat.data[i] = _true
@@ -841,7 +841,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 40960:
+        if self.size < 147456:
             for i in range(self.size):
                 if cmp[i]:
                     mat.data[i] = _true.data[i]

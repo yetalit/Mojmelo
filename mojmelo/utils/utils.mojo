@@ -197,9 +197,10 @@ fn partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], off
 
 @always_inline
 fn sigmoid(z: Matrix) raises -> Matrix:
+    var z_exp = z.exp()
     return z.where(z >= 0,
                     1 / (1 + (-z).exp()),
-                    z.exp() / (1 + z.exp()))
+                    z_exp / (1 + z_exp))
 
 @always_inline
 fn normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
