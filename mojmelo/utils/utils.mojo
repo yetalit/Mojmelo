@@ -265,14 +265,14 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     Returns:
         The score.
     """
-    var correct_counts = alloc[Scalar[DType.int]](len(y))
+    var correct_count = 0
     var y_data = y.data
     var y_pred_data = y_pred.data
     @parameter
     fn compare[simd_width: Int](idx: Int) unified {mut}:
-        correct_counts.store(idx, y_data.load[width=simd_width](idx).eq(y_pred_data.load[width=simd_width](idx)).cast[DType.int]())
+        correct_count += y_data.load[width=simd_width](idx).eq(y_pred_data.load[width=simd_width](idx)).reduce_bit_count()
     vectorize[y_pred.simd_width](len(y), compare)
-    return Int(reduction.sum(Span[Scalar[DType.int]](ptr=correct_counts, length=len(y)))) / Float32(len(y))
+    return correct_count / Float32(len(y))
 
 @always_inline
 fn entropy(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
