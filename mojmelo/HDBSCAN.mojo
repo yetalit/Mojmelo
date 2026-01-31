@@ -6,6 +6,7 @@ from mojmelo.utils.hdbscan.hdbscan_linkage import label
 from mojmelo.utils.hdbscan.hdbscan_tree import condense_tree, get_clusters, compute_stability, simplify_hierarchy
 
 struct HDBSCAN:
+    """Cluster data using hierarchical density-based clustering."""
     var min_samples: Int
     var min_cluster_size: Int
     var cluster_selection_method: String
@@ -19,12 +20,12 @@ struct HDBSCAN:
     var match_reference_implementation: Bool
     var search_deepness_coef: Int
 
-    var labels_: List[Scalar[DType.int]]
-    var probabilities_: List[Float32]
-    var cluster_persistence_: List[Float32]
-    var condensed_tree_: Dict[String, List[Scalar[DType.int]]]
-    var condensed_tree_lambda_: List[Float32]
-    var single_linkage_tree_: Matrix
+    var labels: List[Scalar[DType.int]]
+    var probabilities: List[Float32]
+    var cluster_persistence: List[Float32]
+    var condensed_tree: Dict[String, List[Scalar[DType.int]]]
+    var condensed_tree_lambda: List[Float32]
+    var single_linkage_tree: Matrix
 
     fn __init__(out self,
         min_samples: Int = 5,
@@ -53,12 +54,12 @@ struct HDBSCAN:
         self.match_reference_implementation = match_reference_implementation
         self.search_deepness_coef = search_deepness_coef
         
-        self.labels_ = List[Scalar[DType.int]]()
-        self.probabilities_ = List[Float32]()
-        self.cluster_persistence_ = List[Float32]()
-        self.condensed_tree_ = Dict[String, List[Scalar[DType.int]]]()
-        self.condensed_tree_lambda_ = List[Float32]()
-        self.single_linkage_tree_ = Matrix(0, 0)
+        self.labels = List[Scalar[DType.int]]()
+        self.probabilities = List[Float32]()
+        self.cluster_persistence = List[Float32]()
+        self.condensed_tree = Dict[String, List[Scalar[DType.int]]]()
+        self.condensed_tree_lambda = List[Float32]()
+        self.single_linkage_tree = Matrix(0, 0)
 
     fn fit(mut self, X: Matrix) raises:
         if self.min_samples < 1:
@@ -92,13 +93,13 @@ struct HDBSCAN:
         cluster_selection_epsilon_max=self.cluster_selection_epsilon_max
         )
 
-        self.labels_ = resulted_clusters[0].copy()
-        self.probabilities_ = resulted_clusters[1].copy()
-        self.cluster_persistence_ = resulted_clusters[2].copy()
-        self.condensed_tree_ = condensed_tree^
-        self.condensed_tree_lambda_ = lambda_vals^
-        self.single_linkage_tree_ = hierarchy^
+        self.labels = resulted_clusters[0].copy()
+        self.probabilities = resulted_clusters[1].copy()
+        self.cluster_persistence = resulted_clusters[2].copy()
+        self.condensed_tree = condensed_tree^
+        self.condensed_tree_lambda = lambda_vals^
+        self.single_linkage_tree = hierarchy^
     
     fn fit_predict(mut self, X: Matrix) raises -> List[Scalar[DType.int]]:
         self.fit(X)
-        return self.labels_.copy()
+        return self.labels.copy()

@@ -786,83 +786,88 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 147456:
-            for i in range(self.size):
-                if cmp[i]:
-                    mat.data[i] = _true
-                else:
-                    mat.data[i] = _false
-        else:
+        if self.size < 262144:
+            var data = cmp._data
             @parameter
-            fn p(i: Int):
-                if cmp[i]:
-                    mat.data[i] = _true
-                else:
-                    mat.data[i] = _false
-            parallelize[p](self.size)
+            fn convert[simd_width: Int](idx: Int) unified {mut}:
+                mat.data.store(idx, data.load[width=simd_width](idx).select(_true, _false))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp._data.load[width=self.simd_width](idx).select(_true, _false))
+            parallelize[vectorize_parallelize](n_vects)
         return mat^
 
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 147456:
-            for i in range(self.size):
-                if cmp[i]:
-                    mat.data[i] = _true.data[i]
-                else:
-                    mat.data[i] = _false
-        else:
+        if self.size < 262144:
+            var data = cmp._data
+            var _true_data = _true.data
             @parameter
-            fn p(i: Int):
-                if cmp[i]:
-                    mat.data[i] = _true.data[i]
-                else:
-                    mat.data[i] = _false
-            parallelize[p](self.size)
+            fn convert[simd_width: Int](idx: Int) unified {mut}:
+                mat.data.store(idx, data.load[width=simd_width](idx).select(_true_data.load[width=simd_width](idx), _false))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp._data.load[width=self.simd_width](idx).select(_true.data.load[width=self.simd_width](idx), _false))
+            parallelize[vectorize_parallelize](n_vects)
         return mat^
 
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 147456:
-            for i in range(self.size):
-                if cmp[i]:
-                    mat.data[i] = _true
-                else:
-                    mat.data[i] = _false.data[i]
-        else:
+        if self.size < 262144:
+            var data = cmp._data
+            var _false_data = _false.data
             @parameter
-            fn p(i: Int):
-                if cmp[i]:
-                    mat.data[i] = _true
-                else:
-                    mat.data[i] = _false.data[i]
-            parallelize[p](self.size)
+            fn convert[simd_width: Int](idx: Int) unified {mut}:
+                mat.data.store(idx, data.load[width=simd_width](idx).select(_true, _false_data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp._data.load[width=self.simd_width](idx).select(_true, _false.data.load[width=self.simd_width](idx)))
+            parallelize[vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 147456:
-            for i in range(self.size):
-                if cmp[i]:
-                    mat.data[i] = _true.data[i]
-                else:
-                    mat.data[i] = _false.data[i]
-        else:
+        if self.size < 262144:
+            var data = cmp._data
+            var _true_data = _true.data
+            var _false_data = _false.data
             @parameter
-            fn p(i: Int):
-                if cmp[i]:
-                    mat.data[i] = _true.data[i]
-                else:
-                    mat.data[i] = _false.data[i]
-            parallelize[p](self.size)
+            fn convert[simd_width: Int](idx: Int) unified {mut}:
+                mat.data.store(idx, data.load[width=simd_width](idx).select(_true_data.load[width=simd_width](idx), _false_data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            fn vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp._data.load[width=self.simd_width](idx).select(_true.data.load[width=self.simd_width](idx), _false.data.load[width=self.simd_width](idx)))
+            parallelize[vectorize_parallelize](n_vects)
         return mat^
 
     @always_inline
     fn argwhere_l(self, cmp: List[Scalar[DType.bool]]) -> List[Int]:
         var args = List[Int]()
-        for i in range(self.size):
-            if cmp[i]:
-                args.append(i)
+        var data = cmp._data
+        @parameter
+        fn convert[simd_width: Int](idx: Int) unified {mut}:
+            var vector = data.load[width=simd_width](idx)
+            for i in range(simd_width):
+                if vector[i]:
+                    args.append(idx + i)
+        vectorize[self.simd_width](self.size, convert)
         return args^
 
     @always_inline

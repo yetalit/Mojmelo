@@ -140,7 +140,7 @@ struct LogisticRegression(CV):
             The predicted classes.
         """
         var y_predicted = sigmoid(X * self.weights + self.bias)
-        return y_predicted.where(y_predicted > 0.5, 1.0, 0.0)
+        return y_predicted.where(y_predicted >= 0.5, 1.0, 0.0)
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:

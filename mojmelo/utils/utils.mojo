@@ -2,7 +2,7 @@ from memory import memcpy
 import math
 from mojmelo.utils.Matrix import Matrix
 from python import Python, PythonObject
-from algorithm import parallelize, elementwise, vectorize, reduction
+from algorithm import parallelize, elementwise, vectorize
 from sys import simd_width_of
 from utils import IndexList
 
