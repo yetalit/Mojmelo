@@ -288,10 +288,10 @@ fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[
         dic_values[i] = param_grid._entries[i].value().value.copy()
     var combinations = cartesian_product(dic_values)
     var scores = Matrix(1, len(combinations))
-    var params = alloc[Dict[String, String]](len(combinations))
+    var params = List[Dict[String, String]](capacity=len(combinations))
+    params.resize(len(combinations), Dict[String, String]())
     if n_jobs == 0:
         for i in range(len(combinations)):
-            params[i] = Dict[String, String]()
             var j = 0
             for key in param_grid.keys():
                 params[i][key] = combinations[i][j]
@@ -328,7 +328,6 @@ fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[
             best = i
             break
     var best_params = params[best].copy()
-    params.free()
     if neg_score:
         best_score *= -1
     return best_params^, best_score
