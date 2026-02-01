@@ -122,7 +122,7 @@ struct GBDT(CV):
 		if self.criterion == 'softmax':
 			return softmax_link(scores).argmax_f(axis=1) # predicted class
 		scores = sigmoid(scores)
-		return scores.where(scores > 0.5, 1.0, 0.0)
+		return scores.where(scores >= 0.5, 1.0, 0.0)
 
 	fn __init__(out self, params: Dict[String, String]) raises:
 		if 'criterion' in params:

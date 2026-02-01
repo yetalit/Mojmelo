@@ -39,12 +39,8 @@ struct KMeans:
         self.inertia = 0.0
         self.X = Matrix(0, 0)
 
-    fn predict(mut self, X: Matrix) raises -> List[Int]:
-        """Compute cluster centers and predict cluster index for each sample.
-
-        Returns:
-            List of cluster indices.
-        """
+    fn fit(mut self, X: Matrix) raises:
+        """Compute cluster centers and cluster index for each sample."""
         self.X = X
 
         if self.init == 'random':
@@ -73,6 +69,13 @@ struct KMeans:
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
 
+    fn fit_predict(mut self, X: Matrix) raises -> List[Int]:
+        """Compute cluster centers and predict cluster index for each sample.
+
+        Returns:
+            List of cluster indices.
+        """
+        self.fit(X)
         return self.labels.copy()
 
     fn _kmeans_plus_plus(mut self) raises:

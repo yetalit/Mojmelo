@@ -31,7 +31,7 @@ fn intsqrt[n: Int]() -> Int:
 
 
 @register_passable("trivial")
-struct Layout(Copyable, Movable, Writable):
+struct Layout(Copyable, Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 
@@ -57,23 +57,23 @@ struct Layout(Copyable, Movable, Writable):
 
 
 struct Matrix[Type: DType]:
-    var data: UnsafePointer[Scalar[Type], MutAnyOrigin]
+    var data: UnsafePointer[Scalar[Self.Type], MutAnyOrigin]
     var layout: Layout
 
     fn __init__(out self, shape: Tuple[Int, Int]):
-        self.data = alloc[Scalar[Type]](shape[0] * shape[1])
+        self.data = alloc[Scalar[Self.Type]](shape[0] * shape[1])
         self.layout = Layout(shape)
 
     @always_inline("nodebug")
     fn __init__(
-        out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout
+        out self, data: UnsafePointer[Scalar[Self.Type], MutAnyOrigin], var layout: Layout
     ):
         self.data = data
         self.layout = layout
 
     @always_inline("nodebug")
     fn __init__(
-        out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int]
+        out self, data: UnsafePointer[Scalar[Self.Type], MutAnyOrigin], shape: Tuple[Int, Int]
     ):
         self.data = data
         self.layout = Layout(shape)
@@ -81,7 +81,7 @@ struct Matrix[Type: DType]:
     @always_inline("nodebug")
     fn __getitem__(
         ref [_]self, i: Int, j: Int
-    ) -> ref [origin_of(self)] Scalar[Type]:
+    ) -> ref [origin_of(self)] Scalar[Self.Type]:
         var offset = self.layout(i, j)
         return (self.data + offset)[]
 
@@ -104,7 +104,7 @@ struct Matrix[Type: DType]:
         random.rand(self.data, self.layout.size())
 
     @always_inline("nodebug")
-    fn load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]:
+    fn load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Self.Type, width]:
         var offset = self.layout(i, j)
         var ptr = self.data + offset
 
@@ -117,7 +117,7 @@ struct Matrix[Type: DType]:
     @always_inline("nodebug")
     fn store[
         width: Int, *, dim: Int
-    ](self, value: SIMD[Type, width], i: Int, j: Int):
+    ](self, value: SIMD[Self.Type, width], i: Int, j: Int):
         var offset = self.layout(i, j)
         var ptr = self.data + offset
 
@@ -149,19 +149,20 @@ fn pack_A[
     fn pack_panel(idx: Int):
         var i = idx * mr
         # for i in range(0, Ac.shape[0](), mr):
+        var Ac_stride = Ac.stride[0]()
         var dst_ptr = Ac_buffer + i * Ac.shape[1]()
-        var src_ptr = Ac.data + i * Ac.stride[0]()
+        var src_ptr = Ac.data + i * Ac_stride
         for _ in range(Ac.shape[1]()):
 
             @parameter
-            fn pack_col[width: Int](l: Int):
+            fn pack_col[width: Int](l: Int) unified {mut}:
                 (dst_ptr + l).store(
-                    (src_ptr + l * Ac.stride[0]()).strided_load[
+                    (src_ptr + l * Ac_stride).strided_load[
                         width=width
-                    ](Ac.stride[0]()),
+                    ](Ac_stride),
                 )
 
-            vectorize[pack_col, simd_width_of[Type]()](min(Ac.shape[0]() - i, mr))
+            vectorize[simd_width_of[Type]()](min(Ac.shape[0]() - i, mr), pack_col)
 
             for l in range(min(Ac.shape[0]() - i, mr), mr):
                 dst_ptr[l] = Scalar[Type](0)
@@ -189,7 +190,7 @@ fn pack_B[
         for _ in range(Bc.shape[0]()):
 
             @parameter
-            fn pack_row[width: Int](l: Int):
+            fn pack_row[width: Int](l: Int) unified {mut}:
                 (dst_ptr + l).store[
                     alignment = size_of[Type]() * simd_width_of[Type]()
                 ](
@@ -197,10 +198,9 @@ fn pack_B[
                 )
 
             vectorize[
-                pack_row,
                 simd_width_of[Type](),
                 unroll_factor = nr // simd_width_of[Type](),
-            ](min(Bc.shape[1]() - i, nr))
+            ](min(Bc.shape[1]() - i, nr), pack_row)
 
             for l in range(min(Bc.shape[1]() - i, nr), nr):
                 dst_ptr[l] = Scalar[Type](0)
@@ -367,12 +367,12 @@ fn micro_kernel[
             if i < Cr.shape[0]():
 
                 @parameter
-                fn load_col[width: Int](j: Int):
+                fn load_col[width: Int](j: Int) unified {mut}:
                     (cr_ptr + (i * nr + j)).store(
                         (Cr_ptr + (i * Cr.stride[0]() + j)).load[width=width](),
                     )
 
-                vectorize[load_col, simd_width](Cr.shape[1]())
+                vectorize[simd_width](Cr.shape[1](), load_col)
     else:
 
         @parameter
@@ -418,12 +418,12 @@ fn micro_kernel[
             if i < Cr.shape[0]():
 
                 @parameter
-                fn store_row[width: Int](j: Int):
+                fn store_row[width: Int](j: Int) unified {mut}:
                     (Cr_ptr + (i * Cr.stride[0]() + j)).store(
                         (cr_ptr + (i * nr + j)).load[width=width](),
                     )
 
-                vectorize[store_row, simd_width](Cr.shape[1]())
+                vectorize[simd_width](Cr.shape[1](), store_row)
     else:
 
         @parameter
@@ -467,7 +467,7 @@ fn matmul_params[Type: DType]() -> IndexList[5]:
     else:
 
         @parameter
-        if Type is DType.int64:
+        if Type == DType.int64:
 
             @parameter
             if CompilationTarget.has_avx512f():

@@ -118,12 +118,12 @@ fn eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Float
 
                 # update eigenvectors
                 @parameter
-                fn column[simd_width: Int](idx: Int):
+                fn column[simd_width: Int](idx: Int) unified {mut}:
                     var tau = (V+(i + 1)*n).load[width=simd_width](idx)
                     var Vki = (V+i*n).load[width=simd_width](idx)
                     (V+(i + 1)*n).store(idx, s * Vki + c * tau)
                     (V+i*n).store(idx, c * Vki - s * tau)
-                vectorize[column, simd_width](n)
+                vectorize[simd_width](n, column)
 
             eig[l] -= p
             e[l] = g
@@ -189,22 +189,24 @@ fn svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
 @always_inline
 fn C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafePointer[Float64, MutAnyOrigin]:
     var AT = alloc[Float64](A.size)
+    var height = A.height
+    var width = A.width
     if A.size < 98304:
         for idx_col in range(A.width):
             var tmpPtr = A64 + idx_col
             @parameter
-            fn convert[simd_width: Int](idx: Int):
-                AT.store(idx + idx_col * A.height, tmpPtr.strided_load[width=simd_width](A.width))
-                tmpPtr += simd_width * A.width
-            vectorize[convert, simd_width](A.height)
+            fn convert[simd_width: Int](idx: Int) unified {mut}:
+                AT.store(idx + idx_col * height, tmpPtr.strided_load[width=simd_width](width))
+                tmpPtr += simd_width * width
+            vectorize[simd_width](A.height, convert)
     else:
         @parameter
         fn p(idx_col: Int):
             var tmpPtr = A64 + idx_col
             @parameter
-            fn pconvert[simd_width: Int](idx: Int):
-                AT.store(idx + idx_col * A.height, tmpPtr.strided_load[width=simd_width](A.width))
-                tmpPtr += simd_width * A.width
-            vectorize[pconvert, simd_width](A.height)
+            fn pconvert[simd_width: Int](idx: Int) unified {mut}:
+                AT.store(idx + idx_col * height, tmpPtr.strided_load[width=simd_width](width))
+                tmpPtr += simd_width * width
+            vectorize[simd_width](A.height, pconvert)
         parallelize[p](A.width)
     return AT

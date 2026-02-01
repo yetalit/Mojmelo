@@ -4,7 +4,7 @@ from mojmelo.utils.utils import findInterval
 from algorithm import parallelize
 import math
 
-struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
+struct BDecisionTree(Copyable, ImplicitlyCopyable):
     var min_samples_split: Int
     var max_depth: Int
     var reg_lambda: Float32
@@ -83,11 +83,11 @@ struct BDecisionTree(Copyable, Movable, ImplicitlyCopyable):
 @always_inline
 fn leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
     var g_sum = g.sum()
-    return (-g_sum / (h.sum() + reg_lambda)) - reg_alpha * math.copysign(1, g_sum)
+    return (-g_sum / (h.sum() + reg_lambda)) - reg_alpha * math.copysign(Float32(1), g_sum)
 
 @always_inline
 fn leaf_score_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
-    return (-g_sum / (h_sum + reg_lambda)) - reg_alpha * math.copysign(1, g_sum)
+    return (-g_sum / (h_sum + reg_lambda)) - reg_alpha * math.copysign(Float32(1), g_sum)
 
 @always_inline
 fn leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
