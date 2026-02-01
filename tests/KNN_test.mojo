@@ -13,7 +13,7 @@ def main():
     params = Dict[String, List[String]]()
     params['k'] = ['3', '5', '7']
     best_params = GridSearchCV[KNN](X, y, params, accuracy_score, cv=4, n_jobs=-1)[0].copy()
-    print('tuned parameters: ', best_params.__str__())
+    print('tuned parameters: ', best_params)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
     knn = KNN(best_params)
     knn.fit(X_train, y_train)

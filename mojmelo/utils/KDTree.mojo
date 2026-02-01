@@ -383,8 +383,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             # all coordinates except for the parent's cut dimension.  
             # That, we recompute ourself.
             var c = -1
-            var maxspread: Float32 = 0.0
-            var m: Int 
+            var maxspread: Float32 = 0.0 
 
             for i in range(self.dim):
                 if (not parent) or (parent[].cut_dim == i):
@@ -405,7 +404,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
                 sum += self._data.load[1](Int(self.ind[k]), c)
             average = sum / (u-l+1)
 	
-            m = self.select_on_coordinate_value(c,average,l,u)
+            var m = self.select_on_coordinate_value(c,average,l,u)
 
 
             # move the indices around to cut on dim 'c'.
