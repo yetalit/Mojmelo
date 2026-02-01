@@ -18,10 +18,11 @@ A density based clustering method that expands clusters from samples that have m
 - **eps** (`Float32`): The maximum distance between two samples for one to be considered as in the neighborhood of the other.
 - **min_samples** (`Int`): The number of samples in a neighborhood for a point to be considered as a core point.
 - **metric** (`String`): Metric to use for distance computation: Euclidean -> 'euc'; Manhattan -> 'man'.
+- **labels** (`List[Int]`)
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 
@@ -44,13 +45,28 @@ fn __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = "
 
 **Raises:**
 
-### `predict`
+### `fit`
 
 ```mojo
-fn predict(mut self, X: Matrix) -> Matrix
+fn fit(mut self, X: Matrix)
 ```
 
-Predict cluster indices.
+Perform clustering.
+
+**Args:**
+
+- **self** (`Self`)
+- **X** (`Matrix`)
+
+**Raises:**
+
+### `fit_predict`
+
+```mojo
+fn fit_predict(mut self, X: Matrix) -> List[Int]
+```
+
+Perform clustering and predict cluster indices.
 
 **Args:**
 
@@ -59,7 +75,7 @@ Predict cluster indices.
 
 **Returns:**
 
-`Matrix`: Vector of cluster indices.
+`List`: List of cluster indices.
 
 **Raises:**
 

@@ -12,7 +12,7 @@ In practice, it means that the `__del__` can be considered as no-op.
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 

@@ -3,7 +3,7 @@ Mojo function
 # `inv_MinMaxScaler`
 
 ```mojo
-fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = Tuple[Int, Int](VariadicPack[True, True, origin_of(), Copyable & Movable, Int, Int](0, 1))) -> Matrix
+fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = Tuple[Int, Int](VariadicPack[True, MutExternalOrigin, True, Movable, Int, Int](0, 1))) -> Matrix
 ```
 
 Reproduce scaled data given its range, data_min and data_max.

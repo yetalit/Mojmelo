@@ -28,7 +28,7 @@ A Gradient Descent based polynomial regression with mse as the loss function.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `UnknownDestructibility`
+`AnyType`, `CV`, `ImplicitlyDestructible`
 
 ## Methods
 

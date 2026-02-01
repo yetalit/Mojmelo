@@ -22,7 +22,7 @@ struct Matrix[Type: DType]
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 

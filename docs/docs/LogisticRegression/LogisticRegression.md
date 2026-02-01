@@ -28,7 +28,7 @@ A Gradient Descent based logistic regression with binary cross entropy as the lo
 
 ## Implemented traits
 
-`AnyType`, `CV`, `UnknownDestructibility`
+`AnyType`, `CV`, `ImplicitlyDestructible`
 
 ## Methods
 

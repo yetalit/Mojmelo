@@ -17,11 +17,11 @@ struct head_t
 
 - **prev** (`UnsafePointer[head_t, MutAnyOrigin]`)
 - **next** (`UnsafePointer[head_t, MutAnyOrigin]`)
-- **data** (`UnsafePointer[Float32, origin_of(MutOrigin.external)]`)
+- **data** (`UnsafePointer[Float32, MutExternalOrigin]`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 

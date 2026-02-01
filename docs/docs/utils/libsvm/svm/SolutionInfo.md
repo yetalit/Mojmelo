@@ -23,7 +23,7 @@ struct SolutionInfo
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 

@@ -19,7 +19,7 @@ Gaussian Naive Bayes (GaussianNB).
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 

@@ -7,6 +7,7 @@ Mojo package
 - [`DBSCAN`](DBSCAN/_index.md)
 - [`DecisionTree`](DecisionTree/_index.md)
 - [`GBDT`](GBDT/_index.md)
+- [`HDBSCAN`](HDBSCAN/_index.md)
 - [`KMeans`](KMeans/_index.md)
 - [`KNN`](KNN/_index.md)
 - [`LinearRegression`](LinearRegression/_index.md)

@@ -17,23 +17,23 @@ struct Solver
 ## Fields
 
 - **active_size** (`Int`)
-- **y** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
-- **G** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **alpha_status** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
-- **alpha** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **QD** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **y** (`UnsafePointer[Int8, MutExternalOrigin]`)
+- **G** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **alpha_status** (`UnsafePointer[Int8, MutExternalOrigin]`)
+- **alpha** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **QD** (`UnsafePointer[Float64, MutExternalOrigin]`)
 - **eps** (`Float64`)
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
-- **p** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **active_set** (`UnsafePointer[Scalar[DType.int], origin_of(MutOrigin.external)]`)
-- **G_bar** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **p** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **active_set** (`UnsafePointer[Scalar[DType.index], MutExternalOrigin]`)
+- **G_bar** (`UnsafePointer[Float64, MutExternalOrigin]`)
 - **l** (`Int`)
 - **unshrink** (`Bool`)
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 
@@ -157,7 +157,7 @@ fn reconstruct_gradient[QM: QMatrix](self, mut Q: QM)
 ### `Solve`
 
 ```mojo
-fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64, origin_of(MutOrigin.external)], y_: UnsafePointer[Int8, origin_of(MutOrigin.external)], alpha_: UnsafePointer[Float64, origin_of(MutOrigin.external)], Cp: Float64, Cn: Float64, eps: Float64, mut si: SolutionInfo, shrinking: Int)
+fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: UnsafePointer[Float64, MutExternalOrigin], y_: UnsafePointer[Int8, MutExternalOrigin], alpha_: UnsafePointer[Float64, MutExternalOrigin], Cp: Float64, Cn: Float64, eps: Float64, mut si: SolutionInfo, shrinking: Int)
 ```
 
 **Parameters:**

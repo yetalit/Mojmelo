@@ -34,8 +34,8 @@ struct svm_parameter
 - **eps** (`Float64`)
 - **C** (`Float64`)
 - **nr_weight** (`Int`)
-- **weight_label** (`UnsafePointer[Int, origin_of(MutOrigin.external)]`)
-- **weight** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **weight_label** (`UnsafePointer[Int, MutExternalOrigin]`)
+- **weight** (`UnsafePointer[Float64, MutExternalOrigin]`)
 - **nu** (`Float64`)
 - **p** (`Float64`)
 - **shrinking** (`Int`)
@@ -43,5 +43,5 @@ struct svm_parameter
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 

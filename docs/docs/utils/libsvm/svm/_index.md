@@ -11,7 +11,6 @@ Mojo module
 - [`kernel_params`](kernel_params.md)
 - [`head_t`](head_t.md)
 - [`Cache`](Cache.md)
-- [`Kernel`](Kernel.md)
 - [`SolutionInfo`](SolutionInfo.md)
 - [`Solver`](Solver.md)
 - [`Solver_NU`](Solver_NU.md)

@@ -16,18 +16,18 @@ struct svm_model
 - **param** (`svm_parameter`)
 - **nr_class** (`Int`)
 - **l** (`Int`)
-- **SV** (`UnsafePointer[UnsafePointer[svm_node, origin_of(MutOrigin.external)], origin_of(MutOrigin.external)]`)
-- **sv_coef** (`UnsafePointer[UnsafePointer[Float64, origin_of(MutOrigin.external)], origin_of(MutOrigin.external)]`)
-- **rho** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **probA** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **probB** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **prob_density_marks** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **sv_indices** (`UnsafePointer[Scalar[DType.int], origin_of(MutOrigin.external)]`)
-- **label** (`UnsafePointer[Int, origin_of(MutOrigin.external)]`)
-- **nSV** (`UnsafePointer[Int, origin_of(MutOrigin.external)]`)
+- **SV** (`UnsafePointer[UnsafePointer[svm_node, MutExternalOrigin], MutExternalOrigin]`)
+- **sv_coef** (`UnsafePointer[UnsafePointer[Float64, MutExternalOrigin], MutExternalOrigin]`)
+- **rho** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **probA** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **probB** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **prob_density_marks** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **sv_indices** (`UnsafePointer[Scalar[DType.index], MutExternalOrigin]`)
+- **label** (`UnsafePointer[Int, MutExternalOrigin]`)
+- **nSV** (`UnsafePointer[Int, MutExternalOrigin]`)
 - **free_sv** (`Int`)
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 

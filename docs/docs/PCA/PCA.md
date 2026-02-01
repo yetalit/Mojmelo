@@ -27,7 +27,7 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 

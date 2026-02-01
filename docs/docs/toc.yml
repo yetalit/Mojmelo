@@ -10,6 +10,8 @@
   href: KNN/_index.md
 - name: KMeans
   href: KMeans/_index.md
+- name: HDBSCAN
+  href: HDBSCAN/_index.md
 - name: DBSCAN
   href: DBSCAN/_index.md
 - name: SVM

@@ -22,7 +22,7 @@ Classifier implementing the k-nearest neighbors vote.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `UnknownDestructibility`
+`AnyType`, `CV`, `ImplicitlyDestructible`
 
 ## Methods
 

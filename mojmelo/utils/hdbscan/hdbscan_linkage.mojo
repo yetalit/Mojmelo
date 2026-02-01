@@ -1,3 +1,5 @@
+# Based on hdbscan (https://github.com/scikit-learn-contrib/hdbscan) _hdbscan_linkage.pyx by Leland McInnes and Steve Astels.
+
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import squared_euclidean_distance
 from .hdbscan_tree import arange

@@ -20,7 +20,7 @@ Encode target labels with value between 0 and n_classes-1. This transformer can 
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 

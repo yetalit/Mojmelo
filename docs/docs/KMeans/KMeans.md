@@ -27,7 +27,7 @@ K-Means clustering.
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 
@@ -51,10 +51,25 @@ fn __init__(out self, K: Int = 5, init: String = "kmeans++", max_iters: Int = 10
 
 `Self`
 
-### `predict`
+### `fit`
 
 ```mojo
-fn predict(mut self, X: Matrix) -> List[Int]
+fn fit(mut self, X: Matrix)
+```
+
+Compute cluster centers and cluster index for each sample.
+
+**Args:**
+
+- **self** (`Self`)
+- **X** (`Matrix`)
+
+**Raises:**
+
+### `fit_predict`
+
+```mojo
+fn fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Compute cluster centers and predict cluster index for each sample.

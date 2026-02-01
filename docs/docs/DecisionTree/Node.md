@@ -23,7 +23,7 @@ struct Node
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 

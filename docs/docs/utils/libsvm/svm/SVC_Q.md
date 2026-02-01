@@ -13,21 +13,21 @@ struct SVC_Q
 
 ## Fields
 
-- **y** (`UnsafePointer[Int8, origin_of(MutOrigin.external)]`)
+- **y** (`UnsafePointer[Int8, MutExternalOrigin]`)
 - **cache** (`Cache`)
-- **QD** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **QD** (`UnsafePointer[Float64, MutExternalOrigin]`)
 - **kernel_function** (`fn(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
 
-`AnyType`, `QMatrix`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`, `QMatrix`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, origin_of(MutOrigin.external)])
+fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, MutExternalOrigin])
 ```
 
 **Args:**
@@ -44,7 +44,7 @@ fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer
 ### `__del__`
 
 ```mojo
-fn __del__(var self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -54,7 +54,7 @@ fn __del__(var self)
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOrigin.external)]
+fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutExternalOrigin]
 ```
 
 **Args:**
@@ -70,7 +70,7 @@ fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOri
 ### `get_QD`
 
 ```mojo
-fn get_QD(self) -> UnsafePointer[Float64, origin_of(MutOrigin.external)]
+fn get_QD(self) -> UnsafePointer[Float64, MutExternalOrigin]
 ```
 
 **Args:**

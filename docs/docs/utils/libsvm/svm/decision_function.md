@@ -15,10 +15,10 @@ struct decision_function
 
 ## Fields
 
-- **alpha** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **alpha** (`UnsafePointer[Float64, MutExternalOrigin]`)
 - **rho** (`Float64`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 

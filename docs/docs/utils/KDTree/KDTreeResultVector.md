@@ -15,7 +15,7 @@ struct KDTreeResultVector
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `Sized`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`, `Sized`
 
 ## Methods
 

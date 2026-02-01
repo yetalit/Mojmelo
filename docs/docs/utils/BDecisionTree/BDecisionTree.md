@@ -25,7 +25,7 @@ struct BDecisionTree
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
@@ -52,7 +52,7 @@ fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambd
 ### `__del__`
 
 ```mojo
-fn __del__(var self)
+fn __del__(deinit self)
 ```
 
 **Args:**

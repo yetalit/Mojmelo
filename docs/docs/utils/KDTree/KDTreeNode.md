@@ -28,7 +28,7 @@ struct KDTreeNode
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 

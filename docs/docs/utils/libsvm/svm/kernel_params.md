@@ -15,8 +15,8 @@ struct kernel_params
 
 ## Fields
 
-- **x** (`UnsafePointer[UnsafePointer[svm_node, origin_of(MutOrigin.external)], origin_of(MutOrigin.external)]`)
-- **x_square** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
+- **x** (`UnsafePointer[UnsafePointer[svm_node, MutExternalOrigin], MutExternalOrigin]`)
+- **x_square** (`UnsafePointer[Float64, MutExternalOrigin]`)
 - **kernel_type** (`Int`)
 - **degree** (`Int`)
 - **gamma** (`Float64`)
@@ -24,5 +24,5 @@ struct kernel_params
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 

@@ -28,7 +28,7 @@ Support Vector Classification.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `UnknownDestructibility`
+`AnyType`, `CV`, `ImplicitlyDestructible`
 
 ## Methods
 
@@ -75,7 +75,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-fn __del__(var self)
+fn __del__(deinit self)
 ```
 
 **Args:**

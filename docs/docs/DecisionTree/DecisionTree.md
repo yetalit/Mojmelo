@@ -28,7 +28,7 @@ A decision tree supporting both classification and regression.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
@@ -69,7 +69,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-fn __del__(var self)
+fn __del__(deinit self)
 ```
 
 **Args:**

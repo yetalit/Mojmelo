@@ -16,12 +16,12 @@ struct svm_problem
 ## Fields
 
 - **l** (`Int`)
-- **y** (`UnsafePointer[Float64, origin_of(MutOrigin.external)]`)
-- **x** (`UnsafePointer[UnsafePointer[svm_node, origin_of(MutOrigin.external)], origin_of(MutOrigin.external)]`)
+- **y** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **x** (`UnsafePointer[UnsafePointer[svm_node, MutExternalOrigin], MutExternalOrigin]`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 

@@ -27,7 +27,7 @@ A Gradient Descent based linear regression with mse as the loss function.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `UnknownDestructibility`
+`AnyType`, `CV`, `ImplicitlyDestructible`
 
 ## Methods
 

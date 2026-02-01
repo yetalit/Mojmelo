@@ -26,7 +26,7 @@ Native matrix data structure.
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `Movable`, `Sized`, `Stringable`, `UnknownDestructibility`, `Writable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `Sized`, `Stringable`, `Writable`
 
 ## Methods
 
@@ -103,7 +103,7 @@ fn __copyinit__(out self, other: Self)
 
 ```mojo
 @staticmethod
-fn __moveinit__(out self, var existing: Self)
+fn __moveinit__(out self, deinit existing: Self)
 ```
 
 **Args:**
@@ -118,7 +118,7 @@ fn __moveinit__(out self, var existing: Self)
 ### `__del__`
 
 ```mojo
-fn __del__(var self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -290,7 +290,7 @@ fn __getitem__(self, rows: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-fn __getitem__(self, rows: List[Scalar[DType.int]]) -> Self
+fn __getitem__(self, rows: List[Scalar[DType.index]]) -> Self
 ```
 
 **Args:**
@@ -321,7 +321,7 @@ fn __getitem__(self, row: String, columns: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-fn __getitem__(self, row: String, columns: List[Scalar[DType.int]]) -> Self
+fn __getitem__(self, row: String, columns: List[Scalar[DType.index]]) -> Self
 ```
 
 **Args:**
@@ -444,7 +444,7 @@ fn __neg__(self) -> Self
 ### `__lt__`
 
 ```mojo
-fn __lt__(self, rhs: Float32) -> List[Bool]
+fn __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -459,7 +459,7 @@ fn __lt__(self, rhs: Float32) -> List[Bool]
 ### `__le__`
 
 ```mojo
-fn __le__(self, rhs: Float32) -> List[Bool]
+fn __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -474,7 +474,7 @@ fn __le__(self, rhs: Float32) -> List[Bool]
 ### `__eq__`
 
 ```mojo
-fn __eq__(self, rhs: Float32) -> List[Bool]
+fn __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -502,7 +502,7 @@ fn __eq__(self, rhs: Self) -> Bool
 ### `__ne__`
 
 ```mojo
-fn __ne__(self, rhs: Float32) -> List[Bool]
+fn __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -530,7 +530,7 @@ fn __ne__(self, rhs: Self) -> Bool
 ### `__gt__`
 
 ```mojo
-fn __gt__(self, rhs: Float32) -> List[Bool]
+fn __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -545,7 +545,7 @@ fn __gt__(self, rhs: Float32) -> List[Bool]
 ### `__ge__`
 
 ```mojo
-fn __ge__(self, rhs: Float32) -> List[Bool]
+fn __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -967,6 +967,96 @@ fn __len__(self) -> Int
 
 `Int`
 
+### `ele_eq`
+
+```mojo
+fn ele_eq(self, rhs: Self) -> List[Scalar[DType.bool]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`List`
+
+### `ele_ne`
+
+```mojo
+fn ele_ne(self, rhs: Self) -> List[Scalar[DType.bool]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`List`
+
+### `ele_gt`
+
+```mojo
+fn ele_gt(self, rhs: Self) -> List[Scalar[DType.bool]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`List`
+
+### `ele_ge`
+
+```mojo
+fn ele_ge(self, rhs: Self) -> List[Scalar[DType.bool]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`List`
+
+### `ele_lt`
+
+```mojo
+fn ele_lt(self, rhs: Self) -> List[Scalar[DType.bool]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`List`
+
+### `ele_le`
+
+```mojo
+fn ele_le(self, rhs: Self) -> List[Scalar[DType.bool]]
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`List`
+
 ### `ele_mul`
 
 ```mojo
@@ -987,7 +1077,7 @@ fn ele_mul(self, rhs: Self) -> Self
 ### `where`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: Float32, _false: Float32) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Self
 ```
 
 **Args:**
@@ -1002,7 +1092,7 @@ fn where(self, cmp: List[Bool], _true: Float32, _false: Float32) -> Self
 `Self`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: Self, _false: Float32) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Float32) -> Self
 ```
 
 **Args:**
@@ -1017,7 +1107,7 @@ fn where(self, cmp: List[Bool], _true: Self, _false: Float32) -> Self
 `Self`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: Float32, _false: Self) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Self) -> Self
 ```
 
 **Args:**
@@ -1032,7 +1122,7 @@ fn where(self, cmp: List[Bool], _true: Float32, _false: Self) -> Self
 `Self`
 
 ```mojo
-fn where(self, cmp: List[Bool], _true: Self, _false: Self) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Self) -> Self
 ```
 
 **Args:**
@@ -1049,7 +1139,7 @@ fn where(self, cmp: List[Bool], _true: Self, _false: Self) -> Self
 ### `argwhere_l`
 
 ```mojo
-fn argwhere_l(self, cmp: List[Bool]) -> List[Int]
+fn argwhere_l(self, cmp: List[Scalar[DType.bool]]) -> List[Int]
 ```
 
 **Args:**
@@ -1471,7 +1561,7 @@ fn argmax_f(self, axis: Int) -> Self
 ### `argsort`
 
 ```mojo
-fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.int]]
+fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.index]]
 ```
 
 **Parameters:**
@@ -1491,7 +1581,7 @@ fn argsort[ascending: Bool = True](self) -> List[Scalar[DType.int]]
 ### `argsort_inplace`
 
 ```mojo
-fn argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.int]]
+fn argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.index]]
 ```
 
 **Parameters:**
@@ -1886,7 +1976,7 @@ fn random(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Scalar[DType.int]]
+fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Scalar[DType.index]]
 ```
 
 **Args:**
@@ -1963,7 +2053,7 @@ Converts the matrix to a numpy array.
 ### `cast_ptr`
 
 ```mojo
-fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], origin_of(MutOrigin.external)]
+fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutExternalOrigin]
 ```
 
 **Parameters:**

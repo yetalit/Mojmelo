@@ -24,12 +24,12 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 - **N** (`Int`)
 - **dim** (`Int`)
 - **root** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
-- **ind** (`List[Scalar[DType.int]]`)
+- **ind** (`List[Scalar[DType.index]]`)
 - **metric** (`fn(Float32) -> Float32`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Movable`, `UnknownDestructibility`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
@@ -56,7 +56,7 @@ fn __init__(out self, X: Matrix, metric: String = "euc", *, build: Bool = True)
 
 ```mojo
 @staticmethod
-fn __moveinit__(out self, var existing: Self)
+fn __moveinit__(out self, deinit existing: Self)
 ```
 
 **Args:**
@@ -71,7 +71,7 @@ fn __moveinit__(out self, var existing: Self)
 ### `__del__`
 
 ```mojo
-fn __del__(var self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -156,13 +156,13 @@ fn select_on_coordinate_value(mut self, c: Int, alpha: Float32, l: Int, u: Int) 
 ### `n_nearest`
 
 ```mojo
-fn n_nearest(mut self, qv: NDBuffer[DType.float32, 1, origin], nn: Int, mut result: KDTreeResultVector)
+fn n_nearest(mut self, qv: Span[Float32, MutAnyOrigin], nn: Int, mut result: KDTreeResultVector)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **qv** (`NDBuffer`)
+- **qv** (`Span`)
 - **nn** (`Int`)
 - **result** (`KDTreeResultVector`)
 
@@ -183,26 +183,26 @@ fn n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int, mut re
 ### `r_nearest`
 
 ```mojo
-fn r_nearest(mut self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32, mut result: KDTreeResultVector)
+fn r_nearest(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32, mut result: KDTreeResultVector)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **qv** (`NDBuffer`)
+- **qv** (`Span`)
 - **r2** (`Float32`)
 - **result** (`KDTreeResultVector`)
 
 ### `r_count`
 
 ```mojo
-fn r_count(mut self, qv: NDBuffer[DType.float32, 1, origin], r2: Float32) -> Int
+fn r_count(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **qv** (`NDBuffer`)
+- **qv** (`Span`)
 - **r2** (`Float32`)
 
 **Returns:**

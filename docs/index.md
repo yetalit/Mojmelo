@@ -26,6 +26,7 @@ Here is the list of the algorithms:
 * Logistic Regression
 * KNN
 * KMeans
+* HDBSCAN
 * DBSCAN
 * SVM
 * Naive Bayes
@@ -52,7 +53,7 @@ If you are not familiar with Mojo projects, you can get started here: https://do
 
 ### Prerequisites
 
-* mojo-compiler 0.25.7
+* mojo-compiler 0.26.1
 
 Additionally, you may want to install bellow Python packages for a better usability and to run tests:
 1. Numpy
@@ -138,7 +139,9 @@ You can contribute to the project in 3 ways:
 
 * <a href='https://www.csie.ntu.edu.tw/~cjlin/libsvm/'>Libsvm</a>, A Library for Support Vector Machines by Chih-Chung Chang and Chih-Jen Lin licensed under the BSD-3-Clause license.
 
-* `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license. 
+* `HDBSCAN` implementation is partially based on <a href='https://hdbscan.readthedocs.io/en/latest/'>hdbscan</a> by Leland McInnes, John Healy and Steve Astels licensed under the BSD-3-Clause license.
+
+* `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
 
 * `argmin`, `argmax` and `argsort` implementations are based on codes from <a href='https://github.com/modular/modular'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
 

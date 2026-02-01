@@ -3,7 +3,7 @@ Mojo function
 # `MinMaxScaler`
 
 ```mojo
-fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = Tuple[Int, Int](VariadicPack[True, True, origin_of(), Copyable & Movable, Int, Int](0, 1))) -> Tuple[Matrix, Matrix, Matrix]
+fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = Tuple[Int, Int](VariadicPack[True, MutExternalOrigin, True, Movable, Int, Int](0, 1))) -> Tuple[Matrix, Matrix, Matrix]
 ```
 
 Transform features by scaling each feature to a given range.
@@ -20,7 +20,7 @@ Transform features by scaling each feature to a given range.
 **Raises:**
 
 ```mojo
-fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = Tuple[Int, Int](VariadicPack[True, True, origin_of(), Copyable & Movable, Int, Int](0, 1))) -> Matrix
+fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = Tuple[Int, Int](VariadicPack[True, MutExternalOrigin, True, Movable, Int, Int](0, 1))) -> Matrix
 ```
 
 Transform features by scaling each feature to a given range, data_min and data_max.

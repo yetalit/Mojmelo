@@ -12,14 +12,14 @@ In practice, it means that the `__del__` can be considered as no-op.
 
 ## Implemented traits
 
-`AnyType`, `UnknownDestructibility`
+`AnyType`, `ImplicitlyDestructible`
 
 ## Methods
 
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32, origin_of(MutOrigin.external)]
+fn get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32, MutExternalOrigin]
 ```
 
 **Args:**
@@ -35,7 +35,7 @@ fn get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32, orig
 ### `get_QD`
 
 ```mojo
-fn get_QD(self: _Self) -> UnsafePointer[Float64, origin_of(MutOrigin.external)]
+fn get_QD(self: _Self) -> UnsafePointer[Float64, MutExternalOrigin]
 ```
 
 **Args:**

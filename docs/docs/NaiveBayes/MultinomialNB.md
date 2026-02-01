@@ -19,7 +19,7 @@ Naive Bayes classifier for multinomial models.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `UnknownDestructibility`
+`AnyType`, `CV`, `ImplicitlyDestructible`
 
 ## Methods
 
