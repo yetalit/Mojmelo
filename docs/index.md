@@ -90,7 +90,7 @@ First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following t
 [tasks]
 setup = """
 cd <path_to_mojmelo_location> &&
-mojo build ./setup.mojo -o setup &&
+mojo build setup.mojo -o setup &&
 ./setup &&
 ./setup 1 &&
 ./setup 2 &&
