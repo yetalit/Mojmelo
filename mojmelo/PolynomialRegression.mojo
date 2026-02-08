@@ -104,7 +104,7 @@ struct PolyRegression(CV):
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = y_error.sum() / len(y_batch)
+                    var db = y_error.mean()
                     self.weights['', 0] -= self.lr * dw['', 0]
                     self.bias -= self.lr * db
                     for i in range(1, self.degree):
@@ -135,7 +135,7 @@ struct PolyRegression(CV):
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
-                var db = y_error.sum() / X.height
+                var db = y_error.mean()
                 self.weights['', 0] -= self.lr * dw['', 0]
                 self.bias -= self.lr * db
                 for i in range(1, self.degree):

@@ -83,7 +83,7 @@ struct LinearRegression(CV):
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = y_error.sum() / len(y_batch)
+                    var db = y_error.mean()
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
                 if self.tol > 0.0:
@@ -107,7 +107,7 @@ struct LinearRegression(CV):
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
-                var db = y_error.sum() / X.height
+                var db = y_error.mean()
                 self.weights -= self.lr * dw
                 self.bias -= self.lr * db
 
