@@ -90,16 +90,18 @@ First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following t
 [tasks]
 setup = """
 cd <path_to_mojmelo_location> &&
-mojo ./setup.mojo &&
-mojo ./setup.mojo 1 &&
-mojo ./setup.mojo 2 &&
-mojo ./setup.mojo 3 &&
-mojo ./setup.mojo 4 &&
-mojo ./setup.mojo 5 &&
-mojo ./setup.mojo 6 &&
-mojo ./setup.mojo 7 &&
-mojo ./setup.mojo 8 &&
-mojo ./setup.mojo 9"""
+mojo build ./setup.mojo -o setup &&
+./setup &&
+./setup 1 &&
+./setup 2 &&
+./setup 3 &&
+./setup 4 &&
+./setup 5 &&
+./setup 6 &&
+./setup 7 &&
+./setup 8 &&
+./setup 9 &&
+rm -f ./setup"""
 ```
 
 Don't forget to change `<path_to_mojmelo_location>` according to where `mojmelo` folder and `setup.mojo` file are stored.
