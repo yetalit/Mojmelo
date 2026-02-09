@@ -41,10 +41,11 @@ struct KMeans:
 
     fn fit(mut self, X: Matrix) raises:
         """Compute cluster centers and cluster index for each sample."""
-        self.X = X
+        # Mean centering
+        self.X = X - X.mean(0)
 
         if self.init == 'random':
-            self.centroids = X[Matrix.rand_choice(X.height, self.k, replace=False, seed = False)]
+            self.centroids = self.X[Matrix.rand_choice(X.height, self.k, replace=False, seed = False)]
         else:
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus()
