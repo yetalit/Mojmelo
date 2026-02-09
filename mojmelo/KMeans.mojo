@@ -5,7 +5,7 @@ import math
 
 struct KMeans:
     """K-Means clustering."""
-    var K: Int
+    var k: Int
     """The number of clusters to form as well as the number of centroids to generate."""
     var init: String
     """Method for initialization -> 'kmeans++', 'random'."""
@@ -25,8 +25,8 @@ struct KMeans:
     """Sum of squared distances of samples to their closest cluster center."""
     var X: Matrix
 
-    fn __init__(out self, K: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 42):
-        self.K = K
+    fn __init__(out self, k: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 0):
+        self.k = k
         self.init = init.lower()
         self.max_iters = max_iters
         self.converge = converge.lower()
@@ -44,12 +44,12 @@ struct KMeans:
         self.X = X
 
         if self.init == 'random':
-            self.centroids = X[Matrix.rand_choice(X.height, self.K, replace=False, seed = False)]
+            self.centroids = X[Matrix.rand_choice(X.height, self.k, replace=False, seed = False)]
         else:
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus()
 
-        var dist_from_centroids = Matrix(self.X.height, self.K, order='f')
+        var dist_from_centroids = Matrix(self.X.height, self.k)
         self.labels = self._create_labels(dist_from_centroids)
         var centroids_old = self.centroids
         var labels_old = self.labels.copy()
@@ -80,12 +80,12 @@ struct KMeans:
 
     fn _kmeans_plus_plus(mut self) raises:
         # Randomly select the first centroid
-        self.centroids = Matrix(self.K, self.X.width)
+        self.centroids = Matrix(self.k, self.X.width)
         self.centroids[0] = self.X[Int(random.random_ui64(0, self.X.height - 1))]
 
-        var dist_from_centroids = Matrix.full(self.X.height, self.K-1, math.inf[DType.float32](), order='f')
+        var dist_from_centroids = Matrix.full(self.X.height, self.k-1, math.inf[DType.float32]())
 
-        for i in range(1, self.K):
+        for i in range(1, self.k):
             # Compute distances to the nearest centroid
             dist_from_centroids['', i-1] = squared_euclidean_distance(self.X, self.centroids[i-1], 1)
             var min_distances = dist_from_centroids.min(axis=1)
@@ -101,15 +101,15 @@ struct KMeans:
     @always_inline
     fn _create_labels(self, mut dist_from_centroids: Matrix) raises -> List[Int]:
         # Compute distances to the nearest centroid
-        for idc in range(self.K):
+        for idc in range(self.k):
             dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
         return dist_from_centroids.argmin(axis=1)
 
     @always_inline
     fn _get_centroids(mut self, dist_from_centroids: Matrix) raises -> Matrix:
         # assign mean value of clusters to centroids
-        var centroids = Matrix.zeros(self.K, self.X.width)
-        var cluster_sizes = Matrix.zeros(self.K, 1)
+        var centroids = Matrix.zeros(self.k, self.X.width)
+        var cluster_sizes = Matrix.zeros(self.k, 1)
         self.inertia = 0.0
         for idx in range(self.X.height):
             self.inertia += dist_from_centroids[idx, self.labels[idx]]
