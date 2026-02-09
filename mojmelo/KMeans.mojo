@@ -92,8 +92,9 @@ struct KMeans:
             # Select the next centroid with probability proportional to the squared distances
             var probabilities = (min_distances / min_distances.sum()).cumsum()
             # Select the next centroid based on cumulative probabilities
+            var rand_prob = random.random_float64().cast[DType.float32]()
             for idp in range(len(probabilities)):
-                if random.random_float64().cast[DType.float32]() < probabilities.data[idp]:
+                if rand_prob < probabilities.data[idp]:
                     self.centroids[i] = self.X[idp]
                     break
 
