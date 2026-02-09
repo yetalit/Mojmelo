@@ -23,7 +23,7 @@ struct KMeans:
     var centroids: Matrix
     var inertia: Float32
     """Sum of squared distances of samples to their closest cluster center."""
-    var X: Matrix
+    var X_mean: Matrix
 
     fn __init__(out self, k: Int = 5, init: String = 'kmeans++', max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 0):
         self.k = k
@@ -37,30 +37,31 @@ struct KMeans:
         self.labels = List[Int]()
         self.centroids = Matrix(0, 0)
         self.inertia = 0.0
-        self.X = Matrix(0, 0)
+        self.X_mean = Matrix(0, 0)
 
     fn fit(mut self, X: Matrix) raises:
         """Compute cluster centers and cluster index for each sample."""
         # Mean centering
-        self.X = X - X.mean(0)
+        self.X_mean = X.mean(0)
+        var X_ = X - self.X_mean
 
         if self.init == 'random':
-            self.centroids = self.X[Matrix.rand_choice(X.height, self.k, replace=False, seed = False)]
+            self.centroids = X_[Matrix.rand_choice(X.height, self.k, replace=False, seed = False)]
         else:
             # Initialize centroids using KMeans++
-            self._kmeans_plus_plus()
+            self._kmeans_plus_plus(X_)
 
-        var dist_from_centroids = Matrix(self.X.height, self.k)
-        self.labels = self._create_labels(dist_from_centroids)
+        var dist_from_centroids = Matrix(X_.height, self.k)
+        self.labels = self._create_labels(dist_from_centroids, X_)
         var centroids_old = self.centroids
         var labels_old = self.labels.copy()
         var inertia_old = self.inertia
         # Optimize clusters
         for i in range(self.max_iters):
             # Calculate new centroids from the clusters
-            self.centroids = self._get_centroids(dist_from_centroids)
+            self.centroids = self._get_centroids(dist_from_centroids, X_)
             # Assign samples to closest centroids (create labels)
-            self.labels = self._create_labels(dist_from_centroids)
+            self.labels = self._create_labels(dist_from_centroids, X_)
             # check if clusters have changed
             if self._is_converged(dist_from_centroids, centroids_old, labels_old, inertia_old):
                 break
@@ -69,6 +70,18 @@ struct KMeans:
             inertia_old = self.inertia
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
+
+    fn predict(self, X: Matrix) raises -> List[Int]:
+        """Predict cluster index for each sample.
+
+        Returns:
+            List of cluster indices.
+        """
+        var X_ = X - self.X_mean
+        var dist_from_centroids = Matrix(X_.height, self.k)
+        for idc in range(self.k):
+            dist_from_centroids['', idc] = squared_euclidean_distance(X_, self.centroids[idc], 1)
+        return dist_from_centroids.argmin(axis=1)
 
     fn fit_predict(mut self, X: Matrix) raises -> List[Int]:
         """Compute cluster centers and predict cluster index for each sample.
@@ -79,16 +92,16 @@ struct KMeans:
         self.fit(X)
         return self.labels.copy()
 
-    fn _kmeans_plus_plus(mut self) raises:
+    fn _kmeans_plus_plus(mut self, X: Matrix) raises:
         # Randomly select the first centroid
-        self.centroids = Matrix(self.k, self.X.width)
-        self.centroids[0] = self.X[Int(random.random_ui64(0, self.X.height - 1))]
+        self.centroids = Matrix(self.k, X.width)
+        self.centroids[0] = X[Int(random.random_ui64(0, X.height - 1))]
 
-        var dist_from_centroids = Matrix.full(self.X.height, self.k-1, math.inf[DType.float32]())
+        var dist_from_centroids = Matrix.full(X.height, self.k-1, math.inf[DType.float32]())
 
         for i in range(1, self.k):
             # Compute distances to the nearest centroid
-            dist_from_centroids['', i-1] = squared_euclidean_distance(self.X, self.centroids[i-1], 1)
+            dist_from_centroids['', i-1] = squared_euclidean_distance(X, self.centroids[i-1], 1)
             var min_distances = dist_from_centroids.min(axis=1)
             # Select the next centroid with probability proportional to the squared distances
             var probabilities = (min_distances / min_distances.sum()).cumsum()
@@ -96,25 +109,25 @@ struct KMeans:
             var rand_prob = random.random_float64().cast[DType.float32]()
             for idp in range(len(probabilities)):
                 if rand_prob < probabilities.data[idp]:
-                    self.centroids[i] = self.X[idp]
+                    self.centroids[i] = X[idp]
                     break
 
     @always_inline
-    fn _create_labels(self, mut dist_from_centroids: Matrix) raises -> List[Int]:
+    fn _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix) raises -> List[Int]:
         # Compute distances to the nearest centroid
         for idc in range(self.k):
-            dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
+            dist_from_centroids['', idc] = squared_euclidean_distance(X, self.centroids[idc], 1)
         return dist_from_centroids.argmin(axis=1)
 
     @always_inline
-    fn _get_centroids(mut self, dist_from_centroids: Matrix) raises -> Matrix:
+    fn _get_centroids(mut self, dist_from_centroids: Matrix, X: Matrix) raises -> Matrix:
         # assign mean value of clusters to centroids
-        var centroids = Matrix.zeros(self.k, self.X.width)
+        var centroids = Matrix.zeros(self.k, X.width)
         var cluster_sizes = Matrix.zeros(self.k, 1)
         self.inertia = 0.0
-        for idx in range(self.X.height):
+        for idx in range(X.height):
             self.inertia += dist_from_centroids[idx, self.labels[idx]]
-            centroids[self.labels[idx]] += self.X[idx]
+            centroids[self.labels[idx]] += X[idx]
             cluster_sizes.data[self.labels[idx]] += 1
         return centroids / cluster_sizes
 
