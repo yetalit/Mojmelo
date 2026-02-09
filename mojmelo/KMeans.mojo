@@ -83,12 +83,11 @@ struct KMeans:
         self.centroids = Matrix(self.K, self.X.width)
         self.centroids[0] = self.X[Int(random.random_ui64(0, self.X.height - 1))]
 
+        var dist_from_centroids = Matrix.full(self.X.height, self.K-1, math.inf[DType.float32](), order='f')
+
         for i in range(1, self.K):
-            # Only consider the centroids that have been initialized
-            var dist_from_centroids = Matrix(self.X.height, i, order='f')
             # Compute distances to the nearest centroid
-            for idc in range(i):
-                dist_from_centroids['', idc] = squared_euclidean_distance(self.X, self.centroids[idc], 1)
+            dist_from_centroids['', i-1] = squared_euclidean_distance(self.X, self.centroids[i-1], 1)
             var min_distances = dist_from_centroids.min(axis=1)
             # Select the next centroid with probability proportional to the squared distances
             var probabilities = (min_distances / min_distances.sum()).cumsum()
