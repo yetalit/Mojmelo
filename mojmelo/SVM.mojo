@@ -22,9 +22,9 @@ struct SVC(CV):
     """Degree of the polynomial kernel function ('poly')."""
     var gamma: Float64
     """Kernel coefficient for 'rbf', 'poly' and 'sigmoid':
-    if gamma = -1 (default) is passed then it uses 1 / (n_features * X.var());
-    if gamma = -0.1, it uses 1 / n_features;
-    if custom value, it must be non-negative.
+    if gamma='scale' (default) or -1 is passed then it uses 1 / (n_features * X.var());
+    if gamma='auto' or -0.1, it uses 1 / n_features;
+    if custom float value, it must be non-negative.
     """
     var coef0: Float64
     """Independent term in kernel function. It is only significant in 'poly' and 'sigmoid'."""
@@ -42,8 +42,32 @@ struct SVC(CV):
     var _x_list: List[List[svm_node]]
     var _x_ptr: List[UnsafePointer[svm_node, MutExternalOrigin]]
 
-    fn __init__(out self, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
-                degree: Int = 2, gamma: Float64 = -1.0, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
+    fn __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
+                degree: Int = 2, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
+        self.C = C
+        self.nu = nu
+        self.kernel = kernel.lower()
+        self.degree = degree
+        if gamma.lower() == 'scale':
+            self.gamma = -1.0
+        else:
+            self.gamma = -0.1
+        self.coef0 = coef0
+        self.cache_size = cache_size
+        self.tol = tol
+        self.shrinking = shrinking
+        self.probability = probability
+        if random_state != -1:
+            random.seed(random_state)
+        else:
+            random.seed()
+        self._model = UnsafePointer[svm_model, MutExternalOrigin]()
+        self._n_features = 0
+        self._x_list = List[List[svm_node]]()
+        self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]]()
+
+    fn __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
+                degree: Int = 2, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
         self.kernel = kernel.lower()
@@ -237,7 +261,12 @@ struct SVC(CV):
         else:
             self.degree = 2
         if 'gamma' in params:
-            self.gamma = atof(String(params['gamma']))
+            if params['gamma'].lower() == 'scale':
+                self.gamma = -1.0
+            elif params['gamma'].lower() == 'auto':
+                self.gamma = -0.1
+            else:
+                self.gamma = atof(String(params['gamma']))
         else:
             self.gamma = -1.0
         if 'coef0' in params:
