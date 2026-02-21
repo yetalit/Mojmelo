@@ -177,6 +177,7 @@ struct PolyRegression(CV, Copyable):
                 raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
             var w_height = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var degree = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model.degree = degree
             model.weights = Matrix(w_height, degree, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * w_height * degree).unsafe_ptr().bitcast[Float32]()), order='f')
             model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
         return model^
