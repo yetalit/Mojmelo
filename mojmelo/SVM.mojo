@@ -162,7 +162,7 @@ struct SVC(CV):
         var check = svm_check_parameter(prob, param)
         if check != "":
             prob.y.free()
-            raise Error('Error: ' + check)
+            raise Error(check)
 
         self._model = svm_train(prob, param)
 

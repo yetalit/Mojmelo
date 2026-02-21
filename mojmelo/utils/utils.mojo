@@ -15,6 +15,22 @@ trait CV:
     fn predict(mut self, X: Matrix) raises -> Matrix:
         ...
 
+
+comptime MODEL_IDS = InlineArray[String, 13]('',
+                                            'Linear Regression',
+                                            'Polynomial Regression',
+                                            'Logistic Regression',
+                                            'KNN',
+                                            'KMeans',
+                                            'SVM',
+                                            'GaussianNB',
+                                            'MultinomialNB',
+                                            'Decision Tree',
+                                            'Random Forest',
+                                            'GBDT',
+                                            'PCA'
+                                            )
+
 # ===-----------------------------------------------------------------------===#
 # argn
 # ===-----------------------------------------------------------------------===#

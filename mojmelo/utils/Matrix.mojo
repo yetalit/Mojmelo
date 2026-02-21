@@ -542,28 +542,28 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
                 return self.data[0] + rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[add](rhs)
-            raise Error("Error: Cannot add matrices with different shapes!")
+            raise Error("Cannot add matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self + rhs.data[0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[add](rhs)
-            raise Error("Error: Cannot add matrices with different shapes!")
+            raise Error("Cannot add matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self + rhs.data[0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[add](rhs._broadcast_row(self.height, self.width, self.order))
-            raise Error("Error: Cannot add matrices with different shapes!")
+            raise Error("Cannot add matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
                 return self._elemwise_matrix[add](rhs._broadcast_column(self.height, self.width, self.order))
-            raise Error("Error: Cannot add matrices with different shapes!")
+            raise Error("Cannot add matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
                 return self._elemwise_matrix[add](rhs)
             return self._elemwise_matrix[add](rhs.asorder(self.order))
-        raise Error("Error: Cannot add matrices with different shapes!")
+        raise Error("Cannot add matrices with different shapes!")
 
     @always_inline
     fn __iadd__(mut self, rhs: Self) raises:
@@ -590,28 +590,28 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
                 return self.data[0] - rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[sub](rhs)
-            raise Error("Error: Cannot subtract matrices with different shapes!")
+            raise Error("Cannot subtract matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self - rhs.data[0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[sub](rhs)
-            raise Error("Error: Cannot subtract matrices with different shapes!")
+            raise Error("Cannot subtract matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self - rhs.data[0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[sub](rhs._broadcast_row(self.height, self.width, self.order))
-            raise Error("Error: Cannot subtract matrices with different shapes!")
+            raise Error("Cannot subtract matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
                 return self._elemwise_matrix[sub](rhs._broadcast_column(self.height, self.width, self.order))
-            raise Error("Error: Cannot subtract matrices with different shapes!")
+            raise Error("Cannot subtract matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
                 return self._elemwise_matrix[sub](rhs)
             return self._elemwise_matrix[sub](rhs.asorder(self.order))
-        raise Error("Error: Cannot subtract matrices with different shapes!")
+        raise Error("Cannot subtract matrices with different shapes!")
 
     @always_inline
     fn __isub__(mut self, rhs: Self) raises:
@@ -638,28 +638,28 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
                 return self.data[0] / rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[div](rhs)
-            raise Error("Error: Cannot divide matrices with different shapes!")
+            raise Error("Cannot divide matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self / rhs.data[0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[div](rhs)
-            raise Error("Error: Cannot divide matrices with different shapes!")
+            raise Error("Cannot divide matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self / rhs.data[0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[div](rhs._broadcast_row(self.height, self.width, self.order))
-            raise Error("Error: Cannot divide matrices with different shapes!")
+            raise Error("Cannot divide matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
                 return self._elemwise_matrix[div](rhs._broadcast_column(self.height, self.width, self.order))
-            raise Error("Error: Cannot divide matrices with different shapes!")
+            raise Error("Cannot divide matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
                 return self._elemwise_matrix[div](rhs)
             return self._elemwise_matrix[div](rhs.asorder(self.order))
-        raise Error("Error: Cannot divide matrices with different shapes!")
+        raise Error("Cannot divide matrices with different shapes!")
 
     @always_inline
     fn __itruediv__(mut self, rhs: Self) raises:
@@ -680,7 +680,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     fn __mul__(self, rhs: Self) raises -> Self:
         if self.width != rhs.height:
-            raise Error('Error: Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
+            raise Error('Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
         
         if self.height == 1 and rhs.width == 1:
             # Dot product
@@ -760,28 +760,28 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
                 return self.data[0] * rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[mul](rhs)
-            raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self * rhs.data[0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[mul](rhs)
-            raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self * rhs.data[0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[mul](rhs._broadcast_row(self.height, self.width, self.order))
-            raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
                 return self._elemwise_matrix[mul](rhs._broadcast_column(self.height, self.width, self.order))
-            raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
                 return self._elemwise_matrix[mul](rhs)
             return self._elemwise_matrix[mul](rhs.asorder(self.order))
-        raise Error("Error: Cannot element-wise multiply matrices with different shapes!")
+        raise Error("Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
     fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Matrix:
@@ -1472,9 +1472,9 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     fn solve(var A: Matrix, b: Matrix) raises -> Matrix:
         if A.height != A.width:
-            raise Error("Error: \"A\" must be square!")
+            raise Error("\"A\" must be square!")
         if A.width != b.height:
-            raise Error("Error: \"B\" has an unrelated shape to \"A\"!")
+            raise Error("\"B\" has an unrelated shape to \"A\"!")
         var N = A.height
         var M = b.width
         var X = Matrix(N, M, order=A.order)
@@ -1498,7 +1498,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     fn inv(self) raises -> Matrix:
         if self.height != self.width:
-            raise Error("Error: Matrix must be square to inverse!")
+            raise Error("Matrix must be square to inverse!")
         return Matrix.solve(self, Matrix.eye(self.height, self.order))
 
     @staticmethod
