@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy
+from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS
 import math
 import time
 import random
 
-struct LogisticRegression(CV):
+struct LogisticRegression(CV, Copyable):
     """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""
     var lr: Float32
     """Learning rate used for gradient method."""
@@ -28,6 +28,7 @@ struct LogisticRegression(CV):
     """Weights per feature."""
     var bias: Float32
     """Bias term."""
+    comptime MODEL_ID = 3
 
     fn __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1e-4, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
@@ -148,6 +149,31 @@ struct LogisticRegression(CV):
         """
         var y_predicted = sigmoid(X * self.weights + self.bias)
         return y_predicted.where(y_predicted >= 0.5, 1.0, 0.0)
+
+    fn save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt64(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(self.weights.size).as_bytes())
+            f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(self.bias.as_bytes())
+
+    @staticmethod
+    fn load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[]
+            if id < 1 or id > MODEL_IDS.size-1:
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+            var w_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * w_size).unsafe_ptr().bitcast[Float32]()))
+            model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+        return model^
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
