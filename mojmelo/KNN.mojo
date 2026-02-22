@@ -75,7 +75,6 @@ struct KNN(CV, Copyable):
             for i in range(self.kdtree.N):
                 X[Int(self.kdtree.ind[i]), unsafe=True] = self.kdtree._data[i, unsafe=True]
             f.write_bytes(Span(ptr=X.data.bitcast[UInt8](), length=4*X.size))
-            f.write_bytes(UInt64(self.y_train.size).as_bytes())
             f.write_bytes(Span(ptr=self.y_train.data.bitcast[UInt8](), length=4*self.y_train.size))
 
     @staticmethod
@@ -94,8 +93,7 @@ struct KNN(CV, Copyable):
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_samples * n_features).unsafe_ptr().bitcast[Float32]()))
-            var y_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var y_train = Matrix(y_size, 1, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * y_size).unsafe_ptr().bitcast[Float32]()))
+            var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_samples).unsafe_ptr().bitcast[Float32]()))
             model.k = k
             model.metric = metric
             model.fit(X, y_train)
