@@ -33,7 +33,7 @@ struct DBSCAN:
         @parameter
         fn p(i: Int):
             var kd_results = KDTreeResultVector()
-            kdtree.r_nearest(Span[Float32](ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
+            kdtree.r_nearest(Span(ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
             for idp in range(len(kd_results)):
                 neighborhoods[i].append(kd_results[idp].idx)
         parallelize[p](X.height)

@@ -935,12 +935,12 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     fn cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        reduction.cumsum(Span[Float32](ptr=mat.data, length=self.size), Span[Float32](ptr=self.data, length=self.size))
+        reduction.cumsum(Span(ptr=mat.data, length=self.size), Span(ptr=self.data, length=self.size))
         return mat^
 
     @always_inline
     fn sum(self) raises -> Float32:
-        return reduction.sum(Span[Float32](ptr=self.data, length=self.size))
+        return reduction.sum(Span(ptr=self.data, length=self.size))
 
     @always_inline
     fn sum(self, axis: Int) raises -> Matrix:
@@ -1007,11 +1007,11 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     fn _var(self, correction: Bool = False) raises -> Float32:
-        return reduction.variance(Span[Float32](ptr=self.data, length=self.size), correction=Int(correction))
+        return reduction.variance(Span(ptr=self.data, length=self.size), correction=Int(correction))
 
     @always_inline
     fn _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
-        return reduction.variance(Span[Float32](ptr=self.data, length=self.size), mean_value=_mean, correction=Int(correction))
+        return reduction.variance(Span(ptr=self.data, length=self.size), mean_value=_mean, correction=Int(correction))
 
     @always_inline
     fn _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
@@ -1351,7 +1351,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     fn min(self) raises -> Float32:
-        return reduction.min(Span[Float32](ptr=self.data, length=self.size))
+        return reduction.min(Span(ptr=self.data, length=self.size))
 
     @always_inline
     fn min(self, axis: Int) raises -> Matrix:
@@ -1386,7 +1386,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     fn max(self) raises -> Float32:
-        return reduction.max(Span[Float32](ptr=self.data, length=self.size))
+        return reduction.max(Span(ptr=self.data, length=self.size))
 
     @always_inline
     fn max(self, axis: Int) raises -> Matrix:
@@ -1641,7 +1641,7 @@ struct Matrix(Stringable, Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     fn fill(self, val: Float32):
-        Span[Float32](ptr=self.data, length=self.size).fill(val)
+        Span(ptr=self.data, length=self.size).fill(val)
 
     @staticmethod
     fn random(height: Int, width: Int, order: String = 'c') -> Matrix:

@@ -48,7 +48,7 @@ struct KNN(CV, Copyable):
     @always_inline
     fn _predict(mut self, x: Matrix) raises -> Float32:
         var kd_results = KDTreeResultVector()
-        self.kdtree.n_nearest(Span[Float32](ptr=x.data, length=x.size), self.k, kd_results)
+        self.kdtree.n_nearest(Span(ptr=x.data, length=x.size), self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[Int, Int]()
         var most_common = Int(self.y_train.data[kd_results[0].idx])
