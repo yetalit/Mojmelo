@@ -1,9 +1,9 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import squared_euclidean_distance, euclidean_distance
+from mojmelo.utils.utils import squared_euclidean_distance, euclidean_distance, MODEL_IDS
 import random
 import math
 
-struct KMeans:
+struct KMeans(Copyable):
     """K-Means clustering."""
     var k: Int
     """The number of clusters to form as well as the number of centroids to generate."""
@@ -26,6 +26,7 @@ struct KMeans:
     var inertia: Float32
     """Sum of squared distances of samples to their closest cluster center."""
     var X_mean: Matrix
+    comptime MODEL_ID = 5
 
     fn __init__(out self, k: Int = 5, init: String = 'kmeans++', n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 0):
         self.k = k
@@ -105,6 +106,34 @@ struct KMeans:
         """
         self.fit(X)
         return self.labels.copy()
+
+    fn save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(self.k).as_bytes())
+            f.write_bytes(UInt64(self.centroids_.size).as_bytes())
+            f.write_bytes(Span(ptr=self.centroids_.data.bitcast[UInt8](), length=4*self.centroids_.size))
+            f.write_bytes(Span(ptr=self.X_mean.data.bitcast[UInt8](), length=4*self.X_mean.size))
+
+    @staticmethod
+    fn load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > MODEL_IDS.size-1:
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+            var k = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model.k = k
+            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_features).unsafe_ptr().bitcast[Float32]()))
+            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_features).unsafe_ptr().bitcast[Float32]()))
+        return model^
 
     fn centroids(self) raises -> Matrix:
         return self.centroids_ + self.X_mean
