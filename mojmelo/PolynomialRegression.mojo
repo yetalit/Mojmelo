@@ -158,9 +158,9 @@ struct PolyRegression(CV, Copyable):
         """Save model data necessary for prediction to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
-            f.write_bytes(UInt64(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.weights.height).as_bytes())
-            f.write_bytes(UInt64(self.degree).as_bytes())
+            f.write_bytes(UInt32(self.degree).as_bytes())
             f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
             f.write_bytes(self.bias.as_bytes())
 
@@ -170,13 +170,13 @@ struct PolyRegression(CV, Copyable):
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self()
         with open(_path, "r") as f:
-            var id = f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[]
+            var id = f.read_bytes(1)[0]
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
             var w_height = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var degree = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var degree = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
             model.degree = degree
             model.weights = Matrix(w_height, degree, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * w_height * degree).unsafe_ptr().bitcast[Float32]()), order='f')
             model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]

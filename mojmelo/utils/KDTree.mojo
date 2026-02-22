@@ -310,7 +310,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
     var N: Int   # number of data points
     var dim: Int
     var root: UnsafePointer[KDTreeNode, MutAnyOrigin] # the root pointer
-    var ind: List[Scalar[DType.int]] 
+    var ind: List[Scalar[DType.int]]
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
     var metric: fn(Float32) -> Float32
@@ -332,11 +332,10 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
             if Self.rearrange:
                 var rearranged_data = Matrix(self.N, self.dim)
-        
+
                 # permute the data for it.
                 for i in range(self.N):
-                    for j in range(self.dim):
-                        rearranged_data.store[1](i, j, self._data.load[1](Int(self.ind[i]), j))
+                        rearranged_data[i, unsafe=True] = self._data[Int(self.ind[i]), unsafe=True]
                 self._data = rearranged_data^
 
     fn __moveinit__(out self, deinit existing: Self):
