@@ -1,9 +1,11 @@
 import math
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, normal_distr
+from mojmelo.utils.utils import CV, normal_distr, MODEL_IDS
 from algorithm import parallelize
+from sys import size_of
+from memory import memcpy
 
-struct GaussianNB:
+struct GaussianNB(Copyable):
     """Gaussian Naive Bayes (GaussianNB)."""
     var var_smoothing: Float32
     """Portion of the largest variance of all features that is added to variances for calculation stability."""
@@ -11,6 +13,7 @@ struct GaussianNB:
     var _mean: Matrix
     var _var: Matrix
     var _priors: List[Float32]
+    comptime MODEL_ID = 7
 
     fn __init__(out self, var_smoothing: Float32 = 1e-8):
         self.var_smoothing = var_smoothing
@@ -62,13 +65,49 @@ struct GaussianNB:
     fn _pdf(self, class_idx: Int, X: Matrix) raises -> Matrix:
         return normal_distr(X, self._mean[class_idx], self._var[class_idx])
 
-struct MultinomialNB(CV):
+    fn save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(len(self._classes)).as_bytes())
+            f.write_bytes(Span(ptr=self._classes._data.bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(UInt64(self._mean.width).as_bytes())
+            f.write_bytes(Span(ptr=self._mean.data.bitcast[UInt8](), length=4*self._mean.size))
+            f.write_bytes(Span(ptr=self._var.data.bitcast[UInt8](), length=4*self._var.size))
+            f.write_bytes(Span(ptr=self._priors._data.bitcast[UInt8](), length=4*len(self._priors)))
+
+    @staticmethod
+    fn load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > MODEL_IDS.size-1:
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+            var n_classes = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model._classes = List[Int](capacity=n_classes)
+            model._classes.resize(n_classes, 0)
+            memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().bitcast[Int](), count=n_classes)
+            var X_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model._mean = Matrix(n_classes, X_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_classes*X_width).unsafe_ptr().bitcast[Float32]()))
+            model._var = Matrix(n_classes, X_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_classes*X_width).unsafe_ptr().bitcast[Float32]()))
+            model._priors = List[Float32](capacity=n_classes)
+            model._priors.resize(n_classes, 0)
+            memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().bitcast[Float32](), count=n_classes)
+        return model^
+
+struct MultinomialNB(CV, Copyable):
     """Naive Bayes classifier for multinomial models."""
     var alpha: Float32
     """Additive smoothing parameter."""
     var _classes: List[Int]
     var _class_probs: Matrix
     var _priors: List[Float32]
+    comptime MODEL_ID = 8
 
     fn __init__(out self, alpha: Float32 = 0.0):
         self.alpha = alpha
@@ -111,6 +150,39 @@ struct MultinomialNB(CV):
             y_pred.data[i] = self._classes[posteriors[i, unsafe=True].argmax()]
         parallelize[p](X.height)
         return y_pred^
+
+    fn save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(len(self._classes)).as_bytes())
+            f.write_bytes(Span(ptr=self._classes._data.bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(UInt64(self._class_probs.width).as_bytes())
+            f.write_bytes(Span(ptr=self._class_probs.data.bitcast[UInt8](), length=4*self._class_probs.size))
+            f.write_bytes(Span(ptr=self._priors._data.bitcast[UInt8](), length=4*len(self._priors)))
+
+    @staticmethod
+    fn load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > MODEL_IDS.size-1:
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+            var n_classes = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model._classes = List[Int](capacity=n_classes)
+            model._classes.resize(n_classes, 0)
+            memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().bitcast[Int](), count=n_classes)
+            var X_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model._class_probs = Matrix(n_classes, X_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_classes*X_width).unsafe_ptr().bitcast[Float32]()))
+            model._priors = List[Float32](capacity=n_classes)
+            model._priors.resize(n_classes, 0)
+            memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().bitcast[Float32](), count=n_classes)
+        return model^
 
     fn __init__(out self, params: Dict[String, String]) raises:
         if 'alpha' in params:
