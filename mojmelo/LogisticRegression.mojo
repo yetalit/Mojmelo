@@ -169,7 +169,7 @@ struct LogisticRegression(CV, Copyable):
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
-                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * w_size).unsafe_ptr().bitcast[Float32]()))
             model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]

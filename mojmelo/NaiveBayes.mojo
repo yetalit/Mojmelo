@@ -87,7 +87,7 @@ struct GaussianNB(Copyable):
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
-                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var n_classes = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)
@@ -172,7 +172,7 @@ struct MultinomialNB(CV, Copyable):
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
-                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var n_classes = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)

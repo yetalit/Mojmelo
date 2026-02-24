@@ -87,7 +87,7 @@ struct KNN(CV, Copyable):
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
-                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var k = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
             var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])

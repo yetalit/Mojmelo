@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute
+from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, MODEL_IDS
 from algorithm import parallelize
 import math
 import random
@@ -46,6 +46,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
     var n_feats: Int
     """The number of features to consider when looking for the best split."""
     var root: UnsafePointer[Node, MutAnyOrigin]
+    comptime MODEL_ID = 9
     
     fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
         self.criterion = criterion.lower()
@@ -183,6 +184,65 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         var right = self._grow_tree(X[right_idxs], y[right_idxs], depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
+
+    fn save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            var node_list = List[Node]()
+            var children_index_list = List[Tuple[Int, Int]]()
+            var stack = [self.root[].copy()]
+            while len(stack) > 0:
+                var node = stack.pop()
+                var children_index = (-1, -1)
+                if node.left:
+                    stack.insert(0, node.left[].copy())
+                    children_index[0] = len(stack) + len(node_list)
+                if node.right:
+                    stack.insert(0, node.right[].copy())
+                    children_index[1] = len(stack) + len(node_list)
+                node_list.append(node^)
+                children_index_list.append(children_index)
+            f.write_bytes(UInt64(len(node_list)).as_bytes())
+            for i, node in enumerate(node_list):
+                f.write_bytes(UInt64(node.feature).as_bytes())
+                f.write_bytes(node.threshold.as_bytes())
+                f.write_bytes(UInt64(children_index_list[i][0]).as_bytes())
+                f.write_bytes(UInt64(children_index_list[i][1]).as_bytes())
+                f.write_bytes(node.value.as_bytes())
+
+    @staticmethod
+    fn load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > MODEL_IDS.size-1:
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
+            var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var node_list = List[UnsafePointer[Node, MutAnyOrigin]]()
+            var children_index_list = List[Tuple[Int, Int]]()
+            for i in range(node_size):
+                var feature = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+                var threshold = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+                var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+                var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+                var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+                var node = alloc[Node](1)
+                node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
+                node_list.append(node)
+                children_index_list.append((left, right))
+            model.root = node_list[0]
+            for i in range(node_size):
+                if children_index_list[i][0] != -1:
+                    node_list[i][].left = node_list[children_index_list[i][0]]
+                if children_index_list[i][1] != -1:
+                    node_list[i][].right = node_list[children_index_list[i][1]]
+        return model^
 
 fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
     if criterion == 'mse':

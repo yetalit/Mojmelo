@@ -174,7 +174,7 @@ struct PolyRegression(CV, Copyable):
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
-                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_height = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var degree = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
             model.degree = degree

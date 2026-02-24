@@ -278,7 +278,7 @@ struct SVC(CV, Copyable):
             if id < 1 or id > MODEL_IDS.size-1:
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
-                raise Error('Based on the metadata,', _path, 'belongs to', materialize[MODEL_IDS]()[id], 'algorithm!')
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var _model = alloc[svm_model](1)
             var svm_type = Int(f.read_bytes(1)[0])
             var kernel_type = Int(f.read_bytes(1)[0])
