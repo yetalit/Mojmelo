@@ -1,9 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.svd import svd
+from mojmelo.utils.utils import MODEL_IDS
 from algorithm import parallelize
 from python import Python
 
-struct PCA:
+struct PCA(Copyable):
     """Principal component analysis (PCA).
     Linear dimensionality reduction using Singular Value Decomposition of the data to project it to a lower dimensional space.
     """
@@ -21,6 +22,7 @@ struct PCA:
     var whiten_: Matrix
     var lapack: Bool
     """Use LAPACK to calculate svd."""
+    comptime MODEL_ID = 12
 
     fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False):
         self.n_components = n_components
@@ -75,3 +77,37 @@ struct PCA:
         if self.whiten:
             return (X_transformed.ele_mul(self.whiten_) * self.components) + self.mean
         return (X_transformed * self.components) + self.mean
+
+    fn save(self, path: String) raises:
+        """Save model data necessary for transformation to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(self.n_components).as_bytes())
+            f.write_bytes(UInt64(self.components.width).as_bytes())
+            f.write_bytes(Span(ptr=self.components.data.bitcast[UInt8](), length=4*self.components.size))
+            f.write_bytes(Span(ptr=self.mean.data.bitcast[UInt8](), length=4*self.mean.size))
+            f.write_bytes(UInt8(self.whiten).as_bytes())
+            if self.whiten:
+                f.write_bytes(Span(ptr=self.whiten_.data.bitcast[UInt8](), length=4*self.whiten_.size))
+
+    @staticmethod
+    fn load(path: String) raises -> Self:
+        """Load a saved model from the specified path for transformation."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self(0)
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > MODEL_IDS.size-1:
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
+            var n_components = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var components_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_components*components_width).unsafe_ptr().bitcast[Float32]()))
+            model.components_T = model.components.T()
+            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*components_width).unsafe_ptr().bitcast[Float32]()))
+            model.whiten = Bool(f.read_bytes(1)[0])
+            if model.whiten:
+                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_components).unsafe_ptr().bitcast[Float32]()))
+        return model^
