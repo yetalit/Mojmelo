@@ -1,8 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, MODEL_IDS
-from algorithm import parallelize
-import math
-import random
+from std.algorithm import parallelize
+import std.math as math
+import std.random as random
 
 struct Node(Copyable):
     var feature: Int
@@ -11,7 +11,7 @@ struct Node(Copyable):
     var right: UnsafePointer[Node, MutAnyOrigin]
     var value: Float32
 
-    fn __init__(
+    def __init__(
         out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
@@ -21,10 +21,10 @@ struct Node(Copyable):
         self.value = value
 
     @always_inline
-    fn is_leaf_node(self) -> Bool:
+    def is_leaf_node(self) -> Bool:
         return self.feature == -1
 
-    fn __str__(self) -> String:
+    def __str__(self) -> String:
         if self.is_leaf_node():
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
@@ -48,7 +48,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
     var root: UnsafePointer[Node, MutAnyOrigin]
     comptime MODEL_ID = 9
     
-    fn __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
+    def __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
@@ -69,7 +69,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             random.seed(random_state)
         self.root = UnsafePointer[Node, MutAnyOrigin]()
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'criterion' in params:
             self.criterion = params['criterion'].lower()
         else:
@@ -106,7 +106,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             random.seed(42)
         self.root = UnsafePointer[Node, MutAnyOrigin]()
 
-    fn _moveinit_(mut self, mut existing: Self):
+    def _moveinit_(mut self, mut existing: Self):
         self.criterion = existing.criterion
         self.loss_func = existing.loss_func
         self.min_samples_split = existing.min_samples_split
@@ -117,11 +117,11 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         existing.min_samples_split = existing.max_depth = existing.n_feats = 0
         existing.root = UnsafePointer[Node, MutAnyOrigin]()
 
-    fn __del__(deinit self):
+    def __del__(deinit self):
         if self.root:
             delTree(self.root)
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Build a decision tree from the training set."""
         self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
         if y.width != 1:
@@ -129,12 +129,12 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         else:
             self.root = self._grow_tree(X.asorder('f'), y)
 
-    fn fit_weighted(mut self, X: Matrix, y_with_weights: Matrix) raises:
+    def fit_weighted(mut self, X: Matrix, y_with_weights: Matrix) raises:
         """Build a decision tree from a weighted training set."""
         self.n_feats = X.width if self.n_feats < 1 else min(self.n_feats, X.width)
         self.root = self._grow_tree(X.asorder('f'), y_with_weights)
 
-    fn predict(self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Predict class or regression value for X.
         
         Returns:
@@ -142,12 +142,12 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         """
         var y_predicted = Matrix(X.height, 1)
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root)
         parallelize[p](X.height)
         return y_predicted^
 
-    fn _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
+    def _grow_tree(self, X: Matrix, y: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
         var _y = y['', 0]
         var weights = Matrix(0, 0)
         if y.width == 2:
@@ -185,7 +185,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
-    fn save(self, path: String) raises:
+    def save(self, path: String) raises:
         """Save model data necessary for prediction to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
@@ -213,13 +213,13 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
                 f.write_bytes(node.value.as_bytes())
 
     @staticmethod
-    fn load(path: String) raises -> Self:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > MODEL_IDS.size-1:
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
@@ -244,7 +244,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
                     node_list[i][].right = node_list[children_index_list[i][1]]
         return model^
 
-fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
+def set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) raises -> Float32:
     if criterion == 'mse':
         if weights.size == 0:
             return y.mean()
@@ -257,8 +257,8 @@ fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Strin
             most_common = i
     return Float32(most_common)
 
-fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Float32, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
-    var total_samples = len(_y) if y.width == 1 else weights.sum()
+def _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Float32, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+    var total_samples = Float32(len(_y)) if y.width == 1 else weights.sum()
     var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
@@ -266,7 +266,7 @@ fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: 
     if criterion != 'mse':
         var num_classes = Int(_y.max() + 1)  # assuming y is 0-indexed
         @parameter
-        fn p_c(idx: Int):
+        def p_c(idx: Int):
             try:
                 var column = X['', Int(feat_idxs[idx]), unsafe=True]
                 var left_histogram = List[Int](capacity=num_classes)
@@ -283,7 +283,7 @@ fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: 
                         right_histogram[c] -= 1
                     else:
                         var weight = Int(y_sorted[step - 1, 1])
-                        n_left += weight
+                        n_left += Float32(weight)
                         left_histogram[c] += weight
                         right_histogram[c] -= weight
 
@@ -304,7 +304,7 @@ fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: 
         var sum_total = _y.sum() if y.width == 1 else _y.ele_mul(weights).sum()
         var sum_sq_total = _y.ele_mul(_y).sum() if y.width == 1 else (_y.ele_mul(_y).ele_mul(weights)).sum()
         @parameter
-        fn p_r(idx: Int):
+        def p_r(idx: Int):
             try:
                 var column = X['', Int(feat_idxs[idx]), unsafe=True]
                 var sorted_indices = column.argsort_inplace()
@@ -343,10 +343,10 @@ fn _best_criteria(X: Matrix, y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: 
     return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx]
 
 @always_inline
-fn _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
+def _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 
-fn _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
+def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -354,7 +354,7 @@ fn _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32
         return _traverse_tree(x, node[].left)
     return _traverse_tree(x, node[].right)
 
-fn delTree(node: UnsafePointer[Node, MutAnyOrigin]):
+def delTree(node: UnsafePointer[Node, MutAnyOrigin]):
     if node[].left:
         delTree(node[].left)
     if node[].right:

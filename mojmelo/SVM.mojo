@@ -5,10 +5,11 @@ from mojmelo.utils.libsvm.svm_problem import svm_problem
 from mojmelo.utils.libsvm.svm_node import svm_node
 from mojmelo.utils.libsvm.svm_model import svm_model
 from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
-from algorithm import parallelize
-import random
-from memory import memcpy
-from sys import size_of
+from std.algorithm import parallelize
+import std.random as random
+from std.memory import memcpy
+from std.memory._nonnull import NonNullUnsafePointer
+from std.sys import size_of
 
 struct SVC(CV, Copyable):
     """Support Vector Classification."""
@@ -45,7 +46,7 @@ struct SVC(CV, Copyable):
     var _x_ptr: List[UnsafePointer[svm_node, MutExternalOrigin]]
     comptime MODEL_ID = 6
 
-    fn __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
+    def __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
                 degree: Int = 2, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
@@ -69,7 +70,7 @@ struct SVC(CV, Copyable):
         self._x_list = List[List[svm_node]]()
         self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]]()
 
-    fn __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
+    def __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
                 degree: Int = 2, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
@@ -90,7 +91,7 @@ struct SVC(CV, Copyable):
         self._x_list = List[List[svm_node]]()
         self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]]()
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the SVM model according to the given training data."""
         self._n_features = X.width
 
@@ -101,9 +102,9 @@ struct SVC(CV, Copyable):
             svm_type = svm_parameter.NU_SVC
 
         if self.gamma == -1.0:
-            self.gamma = (1.0 / (X.width * X._var())).cast[DType.float64]()
+            self.gamma = (1.0 / (Float32(X.width) * X._var())).cast[DType.float64]()
         elif self.gamma == -0.1:
-            self.gamma = 1.0 / X.width
+            self.gamma = 1.0 / Float64(X.width)
 
         var svm_kernel = 5
         if self.kernel == 'linear':
@@ -142,7 +143,7 @@ struct SVC(CV, Copyable):
         self._x_ptr.resize(X.height, UnsafePointer[svm_node, MutExternalOrigin]())
 
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
@@ -171,7 +172,7 @@ struct SVC(CV, Copyable):
 
         prob.y.free()
     
-    fn predict(self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Perform classification on samples in X.
 
         Returns:
@@ -181,7 +182,7 @@ struct SVC(CV, Copyable):
         var y_ptr = alloc[Float64](X.height)
 
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             var x_list = List[svm_node]()
             for c in range(X.width):
                 var val: Float64
@@ -200,7 +201,7 @@ struct SVC(CV, Copyable):
 
         return Matrix(data=y_ptr, height=X.height, width=1)
 
-    fn decision_function(self, X: Matrix) -> List[List[Float64]]:
+    def decision_function(self, X: Matrix) -> List[List[Float64]]:
         """Evaluate the decision function for the samples in X.
         
         Returns:
@@ -211,7 +212,7 @@ struct SVC(CV, Copyable):
         dec_values.resize(X.height, List[Float64]())
 
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             var x_list = List[svm_node]()
             for c in range(X.width):
                 var val: Float64
@@ -224,7 +225,7 @@ struct SVC(CV, Copyable):
             x_list.append(svm_node(-1, 0))
             var result = svm_decision_function(self._model[], x_list._data)
             dec_values[i] = List[Float64](unsafe_uninit_length=result[1])
-            dec_values[i]._data = result[0]
+            dec_values[i]._data = NonNullUnsafePointer(unsafe_from_nullable=result[0])
             _ = x_list
         parallelize[p](X.height)
 
@@ -232,7 +233,7 @@ struct SVC(CV, Copyable):
 
         return dec_values^
 
-    fn save(self, path: String) raises:
+    def save(self, path: String) raises:
         """Save model data necessary for prediction to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
@@ -269,13 +270,13 @@ struct SVC(CV, Copyable):
             f.write_bytes(Span(ptr=_model[].nSV.bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
 
     @staticmethod
-    fn load(path: String) raises -> Self:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > MODEL_IDS.size-1:
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
@@ -316,7 +317,7 @@ struct SVC(CV, Copyable):
             var nr_class = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var l = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var _n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var X = Matrix(l, _n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*l*_n_features).unsafe_ptr().bitcast[Float32]()))
+            var X = Matrix(l, _n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*l*_n_features).unsafe_ptr())))
             
             var X_float64 = X.cast_ptr[DType.float64]()
             model._x_list = List[List[svm_node]](capacity=X.height)
@@ -324,7 +325,7 @@ struct SVC(CV, Copyable):
             model._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]](capacity=X.height)
             model._x_ptr.resize(X.height, UnsafePointer[svm_node, MutExternalOrigin]())
             @parameter
-            fn p(i: Int):
+            def p(i: Int):
                 for c in range(X.width):
                     var val: Float64
                     if X.order == 'c':
@@ -371,11 +372,11 @@ struct SVC(CV, Copyable):
             model._model = _model
         return model^
 
-    fn __del__(deinit self):
+    def __del__(deinit self):
         if self._model:
             svm_free_and_destroy_model(self._model)
 
-    fn support_vectors(self) raises -> Matrix:
+    def support_vectors(self) raises -> Matrix:
         """Get support vectors."""
         var support_vectors_ = Matrix.zeros(self._model[].l, self._n_features)
         for row in range(support_vectors_.height):
@@ -385,7 +386,7 @@ struct SVC(CV, Copyable):
                 pointer += 1
         return support_vectors_^
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'C' in params:
             self.C = atof(String(params['C']))
         else:

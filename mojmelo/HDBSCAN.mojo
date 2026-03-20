@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-import math
+import std.math as math
 from mojmelo.utils.hdbscan.KDTreeBoruvka import KDTreeBoruvka
 from mojmelo.utils.hdbscan.hdbscan_boruvka import HDBSCANBoruvka
 from mojmelo.utils.hdbscan.hdbscan_linkage import label
@@ -58,7 +58,7 @@ struct HDBSCAN:
     var single_linkage_tree: Matrix
     """The single linkage tree produced by HDBSCAN."""
 
-    fn __init__(out self,
+    def __init__(out self,
         min_samples: Int = 5,
         min_cluster_size: Int = 5,
         cluster_selection_method: String = 'eom',
@@ -90,7 +90,7 @@ struct HDBSCAN:
         self.condensed_tree_lambda = List[Float32]()
         self.single_linkage_tree = Matrix(0, 0)
 
-    fn fit(mut self, X: Matrix) raises:
+    def fit(mut self, X: Matrix) raises:
         """Find clusters based on hierarchical density-based clustering."""
 
         if self.min_samples < 1:
@@ -120,7 +120,7 @@ struct HDBSCAN:
         allow_single_cluster=self.allow_single_cluster,
         match_reference_implementation=self.match_reference_implementation,
         cluster_selection_epsilon=self.cluster_selection_epsilon,
-        max_cluster_size=self.max_cluster_size,
+        max_cluster_size=Scalar[DType.int](self.max_cluster_size),
         cluster_selection_epsilon_max=self.cluster_selection_epsilon_max
         )
 
@@ -131,7 +131,7 @@ struct HDBSCAN:
         self.condensed_tree_lambda = lambda_vals^
         self.single_linkage_tree = hierarchy^
     
-    fn fit_predict(mut self, X: Matrix) raises -> List[Scalar[DType.int]]:
+    def fit_predict(mut self, X: Matrix) raises -> List[Scalar[DType.int]]:
         """Cluster X and return the associated cluster labels.
         
         Returns:

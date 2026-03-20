@@ -1,8 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS
-import math
-import time
-import random
+import std.math as math
+import std.time as time
+import std.random as random
 
 struct LogisticRegression(CV, Copyable):
     """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""
@@ -30,7 +30,7 @@ struct LogisticRegression(CV, Copyable):
     """Bias term."""
     comptime MODEL_ID = 3
 
-    fn __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1e-4, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
+    def __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1e-4, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.damping = damping
@@ -46,7 +46,7 @@ struct LogisticRegression(CV, Copyable):
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the model."""
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
@@ -80,10 +80,10 @@ struct LogisticRegression(CV, Copyable):
 
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
                     if self.tol > 0.0:
-                        cost += cross_entropy(y_batch, y_batch_predicted) / num_b_iters
+                        cost += cross_entropy(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     var y_error = y_batch_predicted - y_batch
                     var X_batch_T = X_batch.T()
-                    var dw = (X_batch_T * y_error) / len(y_batch)
+                    var dw = (X_batch_T * y_error) / Float32(len(y_batch))
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
@@ -92,7 +92,7 @@ struct LogisticRegression(CV, Copyable):
                         # curvature weights
                         var r = y_batch_predicted.ele_mul(1.0 - y_batch_predicted)
 
-                        var H = (X_batch_T * X_batch.ele_mul(r)) / len(y_batch)
+                        var H = (X_batch_T * X_batch.ele_mul(r)) / Float32(len(y_batch))
                         # Update weights using Newton's method
                         self.weights -= Matrix.solve(H + _reg, dw)
                         var Hb = r.mean()
@@ -119,7 +119,7 @@ struct LogisticRegression(CV, Copyable):
                     prev_cost = cost
 
                 var y_error = y_predicted - y
-                var dw = (X_T * y_error) / X.height
+                var dw = (X_T * y_error) / Float32(X.height)
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
@@ -128,7 +128,7 @@ struct LogisticRegression(CV, Copyable):
                     # curvature weights
                     var r = y_predicted.ele_mul(1.0 - y_predicted)
 
-                    var H = (X_T * X.ele_mul(r)) / X.height
+                    var H = (X_T * X.ele_mul(r)) / Float32(X.height)
                     # Update weights using Newton's method
                     self.weights -= Matrix.solve(H + _reg, dw)
                     var Hb = r.mean()
@@ -141,7 +141,7 @@ struct LogisticRegression(CV, Copyable):
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
 
-    fn predict(self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Predict class for X.
         
         Returns:
@@ -150,7 +150,7 @@ struct LogisticRegression(CV, Copyable):
         var y_predicted = sigmoid(X * self.weights + self.bias)
         return y_predicted.where(y_predicted >= 0.5, 1.0, 0.0)
 
-    fn save(self, path: String) raises:
+    def save(self, path: String) raises:
         """Save model data necessary for prediction to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
@@ -160,22 +160,22 @@ struct LogisticRegression(CV, Copyable):
             f.write_bytes(self.bias.as_bytes())
 
     @staticmethod
-    fn load(path: String) raises -> Self:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > MODEL_IDS.size-1:
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * w_size).unsafe_ptr().bitcast[Float32]()))
+            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_size).unsafe_ptr())))
             model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
         return model^
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:

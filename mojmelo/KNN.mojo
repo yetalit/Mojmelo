@@ -1,8 +1,8 @@
-from collections import Dict
+from std.collections import Dict
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from mojmelo.utils.utils import CV, MODEL_IDS
-from algorithm import parallelize
+from std.algorithm import parallelize
 
 struct KNN(CV, Copyable):
     """Classifier implementing the k-nearest neighbors vote."""
@@ -18,18 +18,18 @@ struct KNN(CV, Copyable):
     comptime MODEL_ID = 4
     comptime metric_ids: List[String] = ['euc', 'man']
 
-    fn __init__(out self, k: Int = 3, metric: String = 'euc') raises:
+    def __init__(out self, k: Int = 3, metric: String = 'euc') raises:
         self.k = k
         self.metric = metric.lower()
         self.kdtree = KDTree(Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the k-nearest neighbors classifier from the training dataset."""
         self.kdtree = KDTree(X, self.metric)
         self.y_train = y
 
-    fn predict(mut self, X: Matrix) raises -> Matrix:
+    def predict(mut self, X: Matrix) raises -> Matrix:
         """Predict the class indices for the provided data.
 
         Returns:
@@ -37,7 +37,7 @@ struct KNN(CV, Copyable):
         """
         var y_pred = Matrix(X.height, 1)
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             try:
                 y_pred.data[i] = self._predict(X[i])
             except e:
@@ -46,7 +46,7 @@ struct KNN(CV, Copyable):
         return y_pred^
 
     @always_inline
-    fn _predict(mut self, x: Matrix) raises -> Float32:
+    def _predict(mut self, x: Matrix) raises -> Float32:
         var kd_results = KDTreeResultVector()
         self.kdtree.n_nearest(Span(ptr=x.data, length=x.size), self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label
@@ -60,9 +60,9 @@ struct KNN(CV, Copyable):
                 k_neighbor_votes[label] = 1
             if k_neighbor_votes[label] > k_neighbor_votes[most_common]:
                 most_common = label
-        return most_common
+        return Float32(most_common)
 
-    fn save(self, path: String) raises:
+    def save(self, path: String) raises:
         """Save model data necessary for prediction to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
@@ -78,13 +78,13 @@ struct KNN(CV, Copyable):
             f.write_bytes(Span(ptr=self.y_train.data.bitcast[UInt8](), length=4*self.y_train.size))
 
     @staticmethod
-    fn load(path: String) raises -> Self:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > MODEL_IDS.size-1:
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
@@ -92,14 +92,14 @@ struct KNN(CV, Copyable):
             var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_samples * n_features).unsafe_ptr().bitcast[Float32]()))
-            var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_samples).unsafe_ptr().bitcast[Float32]()))
+            var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples * n_features).unsafe_ptr())))
+            var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples).unsafe_ptr())))
             model.k = k
             model.metric = metric
             model.fit(X, y_train)
         return model^
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'k' in params:
             self.k = atol(String(params['k']))
         else:

@@ -1,7 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
-from collections import Set
-from algorithm import parallelize
+from std.collections import Set
+from std.algorithm import parallelize
 
 struct DBSCAN:
     """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""
@@ -16,13 +16,13 @@ struct DBSCAN:
     """
     var labels: List[Int]
 
-    fn __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc') raises:
+    def __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc') raises:
         self.metric = metric.lower()
         self.eps = eps ** 2 if self.metric == 'euc' else eps
         self.min_samples = min_samples
         self.labels = List[Int]()
 
-    fn fit(mut self, X: Matrix) raises:
+    def fit(mut self, X: Matrix) raises:
         """Perform clustering."""
         self.labels = List[Int](capacity=X.height)
         self.labels.resize(X.height, -2)
@@ -31,7 +31,7 @@ struct DBSCAN:
         var neighborhoods = List[List[Int]](capacity=X.height)
         neighborhoods.resize(X.height, List[Int]())
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             var kd_results = KDTreeResultVector()
             kdtree.r_nearest(Span(ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
             for idp in range(len(kd_results)):
@@ -76,7 +76,7 @@ struct DBSCAN:
 
             current_cluster += 1
 
-    fn fit_predict(mut self, X: Matrix) raises -> List[Int]:
+    def fit_predict(mut self, X: Matrix) raises -> List[Int]:
         """Perform clustering and predict cluster indices.
 
         Returns:

@@ -8,7 +8,7 @@ from std.sys import simd_width_of
 from std.utils import IndexList
 
 # Cross Validation trait
-trait CV:
+trait CV(ImplicitlyDestructible):
     def __init__(out self, params: Dict[String, String]) raises:
         ...
     def fit(mut self, X: Matrix, y: Matrix) raises:

@@ -1,8 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.svd import svd
 from mojmelo.utils.utils import MODEL_IDS
-from algorithm import parallelize
-from python import Python
+from std.algorithm import parallelize
+from std.python import Python
 
 struct PCA(Copyable):
     """Principal component analysis (PCA).
@@ -24,7 +24,7 @@ struct PCA(Copyable):
     """Use LAPACK to calculate svd."""
     comptime MODEL_ID = 12
 
-    fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False):
+    def __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False):
         self.n_components = n_components
         self.components = Matrix(0, 0)
         self.components_T = Matrix(0, 0)
@@ -35,7 +35,7 @@ struct PCA(Copyable):
         self.whiten_ = Matrix(0, 0)
         self.lapack = lapack
 
-    fn fit(mut self, X: Matrix) raises:
+    def fit(mut self, X: Matrix) raises:
         """Fit the model."""
         # Mean centering
         self.mean = X.mean(0)
@@ -51,12 +51,12 @@ struct PCA(Copyable):
 
         self.components_T = self.components.T()
 
-        self.explained_variance = (S ** 2) / (X.height - 1)
+        self.explained_variance = (S ** 2) / Float32(X.height - 1)
         self.explained_variance_ratio = self.explained_variance / self.explained_variance.sum()
         if self.whiten:
             self.whiten_ = (self.explained_variance + 1e-8).sqrt() # Avoid division by zero
 
-    fn transform(self, X: Matrix) raises -> Matrix:
+    def transform(self, X: Matrix) raises -> Matrix:
         """Apply dimensionality reduction to X.
         X is projected on the first principal components previously extracted from a training set.
 
@@ -68,7 +68,7 @@ struct PCA(Copyable):
             return ((X - self.mean) * self.components_T) / self.whiten_
         return (X - self.mean) * self.components_T
 
-    fn inverse_transform(self, X_transformed: Matrix) raises -> Matrix:
+    def inverse_transform(self, X_transformed: Matrix) raises -> Matrix:
         """Transform data back to its original space.
         
         Returns:
@@ -78,7 +78,7 @@ struct PCA(Copyable):
             return (X_transformed.ele_mul(self.whiten_) * self.components) + self.mean
         return (X_transformed * self.components) + self.mean
 
-    fn save(self, path: String) raises:
+    def save(self, path: String) raises:
         """Save model data necessary for transformation to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
@@ -92,22 +92,22 @@ struct PCA(Copyable):
                 f.write_bytes(Span(ptr=self.whiten_.data.bitcast[UInt8](), length=4*self.whiten_.size))
 
     @staticmethod
-    fn load(path: String) raises -> Self:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for transformation."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self(0)
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > MODEL_IDS.size-1:
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var n_components = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var components_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_components*components_width).unsafe_ptr().bitcast[Float32]()))
+            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components*components_width).unsafe_ptr())))
             model.components_T = model.components.T()
-            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*components_width).unsafe_ptr().bitcast[Float32]()))
+            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*components_width).unsafe_ptr())))
             model.whiten = Bool(f.read_bytes(1)[0])
             if model.whiten:
-                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4*n_components).unsafe_ptr().bitcast[Float32]()))
+                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components).unsafe_ptr())))
         return model^

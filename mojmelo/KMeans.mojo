@@ -1,7 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import squared_euclidean_distance, euclidean_distance, MODEL_IDS
-import random
-import math
+import std.random as random
+import std.math as math
 
 struct KMeans(Copyable):
     """K-Means clustering."""
@@ -28,7 +28,7 @@ struct KMeans(Copyable):
     var X_mean: Matrix
     comptime MODEL_ID = 5
 
-    fn __init__(out self, k: Int = 5, init: String = 'kmeans++', n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 0):
+    def __init__(out self, k: Int = 5, init: String = 'kmeans++', n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = 'centroid', tol: Float32 = 1e-4, random_state: Int = 0):
         self.k = k
         self.init = init.lower()
         self.n_centroid_init = n_centroid_init
@@ -43,7 +43,7 @@ struct KMeans(Copyable):
         self.inertia = 0.0
         self.X_mean = Matrix(0, 0)
 
-    fn fit(mut self, X: Matrix) raises:
+    def fit(mut self, X: Matrix) raises:
         """Compute cluster centers and cluster index for each sample."""
         # Mean centering
         self.X_mean = X.mean(0)
@@ -70,7 +70,7 @@ struct KMeans(Copyable):
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
 
-    fn _initial_centroids(self, X: Matrix) raises -> Matrix:
+    def _initial_centroids(self, X: Matrix) raises -> Matrix:
         var candidate_centroids = List[Matrix]()
         var inertia_values = Matrix(1, self.n_centroid_init)
         if self.init == 'random':
@@ -86,7 +86,7 @@ struct KMeans(Copyable):
             self._kmeans_plus_plus(X, candidate_centroids, inertia_values)
         return candidate_centroids[inertia_values.argmin()]
 
-    fn predict(self, X: Matrix) raises -> List[Int]:
+    def predict(self, X: Matrix) raises -> List[Int]:
         """Predict cluster index for each sample.
 
         Returns:
@@ -98,7 +98,7 @@ struct KMeans(Copyable):
             dist_from_centroids['', idc] = squared_euclidean_distance(X_, self.centroids_[idc], 1)
         return dist_from_centroids.argmin(axis=1)
 
-    fn fit_predict(mut self, X: Matrix) raises -> List[Int]:
+    def fit_predict(mut self, X: Matrix) raises -> List[Int]:
         """Compute cluster centers and predict cluster index for each sample.
 
         Returns:
@@ -107,7 +107,7 @@ struct KMeans(Copyable):
         self.fit(X)
         return self.labels.copy()
 
-    fn save(self, path: String) raises:
+    def save(self, path: String) raises:
         """Save model data necessary for prediction to the specified path."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         with open(_path, "w") as f:
@@ -118,31 +118,31 @@ struct KMeans(Copyable):
             f.write_bytes(Span(ptr=self.X_mean.data.bitcast[UInt8](), length=4*self.X_mean.size))
 
     @staticmethod
-    fn load(path: String) raises -> Self:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > MODEL_IDS.size-1:
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var k = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             model.k = k
-            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_features).unsafe_ptr().bitcast[Float32]()))
-            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](f.read_bytes(4 * n_features).unsafe_ptr().bitcast[Float32]()))
+            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
+            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
         return model^
 
-    fn centroids(self) raises -> Matrix:
+    def centroids(self) raises -> Matrix:
         return self.centroids_ + self.X_mean
 
-    fn _kmeans_plus_plus(self, X: Matrix, mut candidate_centroids: List[Matrix], mut inertia_values: Matrix) raises:
+    def _kmeans_plus_plus(self, X: Matrix, mut candidate_centroids: List[Matrix], mut inertia_values: Matrix) raises:
         for idc in range(self.n_centroid_init):
             # Randomly select the first centroid
             candidate_centroids.append(Matrix(self.k, X.width))
-            candidate_centroids[idc][0] = X[Int(random.random_ui64(0, X.height - 1))]
+            candidate_centroids[idc][0] = X[Int(random.random_ui64(0, UInt64(X.height - 1)))]
 
             var dist_from_centroids = Matrix.full(X.height, self.k, math.inf[DType.float32]())
 
@@ -162,14 +162,14 @@ struct KMeans(Copyable):
             inertia_values.data[idc] = dist_from_centroids.min(axis=1).sum()
 
     @always_inline
-    fn _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix) raises -> List[Int]:
+    def _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix) raises -> List[Int]:
         # Compute distances to the nearest centroid
         for idc in range(self.k):
             dist_from_centroids['', idc] = squared_euclidean_distance(X, self.centroids_[idc], 1)
         return dist_from_centroids.argmin(axis=1)
 
     @always_inline
-    fn _get_centroids(mut self, dist_from_centroids: Matrix, X: Matrix) raises -> Matrix:
+    def _get_centroids(mut self, dist_from_centroids: Matrix, X: Matrix) raises -> Matrix:
         # assign mean value of clusters to centroids
         var centroids = Matrix.zeros(self.k, X.width)
         var cluster_sizes = Matrix.zeros(self.k, 1)
@@ -181,7 +181,7 @@ struct KMeans(Copyable):
         return centroids / cluster_sizes
 
     @always_inline
-    fn _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, labels_old: List[Int], inertia_old: Float32) raises -> Bool:
+    def _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, labels_old: List[Int], inertia_old: Float32) raises -> Bool:
         if self.converge == 'centroid':
             if euclidean_distance(centroids_old, self.centroids_, 1).sum() <= self.tol:
                 self.inertia = dist_from_centroids.min(axis=1).sum()  
