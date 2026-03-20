@@ -7,16 +7,12 @@ Mojo struct
 struct SVC_Q
 ```
 
-## Aliases
-
-- `__del__is_trivial = False`
-
 ## Fields
 
 - **y** (`UnsafePointer[Int8, MutExternalOrigin]`)
 - **cache** (`Cache`)
 - **QD** (`UnsafePointer[Float64, MutExternalOrigin]`)
-- **kernel_function** (`fn(kernel_params, Int, Int) -> Float64`)
+- **kernel_function** (`def(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
 
@@ -27,7 +23,7 @@ struct SVC_Q
 ### `__init__`
 
 ```mojo
-fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, MutExternalOrigin])
+def __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, MutExternalOrigin])
 ```
 
 **Args:**
@@ -44,7 +40,7 @@ fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -54,7 +50,7 @@ fn __del__(deinit self)
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutExternalOrigin]
+def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutExternalOrigin]
 ```
 
 **Args:**
@@ -70,7 +66,7 @@ fn get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutExternalOrigi
 ### `get_QD`
 
 ```mojo
-fn get_QD(self) -> UnsafePointer[Float64, MutExternalOrigin]
+def get_QD(self) -> UnsafePointer[Float64, MutExternalOrigin]
 ```
 
 **Args:**
@@ -84,7 +80,7 @@ fn get_QD(self) -> UnsafePointer[Float64, MutExternalOrigin]
 ### `swap_index`
 
 ```mojo
-fn swap_index(mut self, i: Int, j: Int)
+def swap_index(mut self, i: Int, j: Int)
 ```
 
 **Args:**

@@ -3,7 +3,7 @@ Mojo function
 # `get_cluster_tree_leaves`
 
 ```mojo
-fn get_cluster_tree_leaves(cluster_tree: Dict[String, List[Scalar[DType.index]]]) -> List[Scalar[DType.index]]
+def get_cluster_tree_leaves(cluster_tree: Dict[String, List[Scalar[DType.int]]]) -> List[Scalar[DType.int]]
 ```
 
 **Args:**

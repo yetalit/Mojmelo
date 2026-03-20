@@ -3,15 +3,15 @@ Mojo function
 # `key`
 
 ```mojo
-fn key(idx: Scalar[DType.index], data: UnsafePointer[Float32, MutAnyOrigin], dim: Int, split_dim: Int) -> Float32
+def key(idx: Scalar[DType.int], data: UnsafePointer[Float32, MutAnyOrigin], dim: Scalar[DType.int], split_dim: Scalar[DType.int]) -> Float32
 ```
 
 **Args:**
 
 - **idx** (`Scalar`)
 - **data** (`UnsafePointer`)
-- **dim** (`Int`)
-- **split_dim** (`Int`)
+- **dim** (`Scalar`)
+- **split_dim** (`Scalar`)
 
 **Returns:**
 

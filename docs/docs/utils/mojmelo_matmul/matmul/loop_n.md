@@ -3,7 +3,7 @@ Mojo function
 # `loop_n`
 
 ```mojo
-fn loop_n[Type: DType, //, kc: Int, mr: Int, nr: Int](nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type])
+def loop_n[Type: DType, //, kc: Int, mr: Int, nr: Int](nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type])
 ```
 
 **Parameters:**

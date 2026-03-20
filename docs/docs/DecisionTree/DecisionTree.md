@@ -11,16 +11,14 @@ A decision tree supporting both classification and regression.
 
 ## Aliases
 
-- `__del__is_trivial = False`
-- `__moveinit__is_trivial = False`
-- `__copyinit__is_trivial = False`
+- `MODEL_ID = 9`
 
 ## Fields
 
 - **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **loss_func** (`fn(Matrix, Matrix, Float32) raises -> Float32`)
-- **c_func** (`fn(Float32, List[Int]) raises -> Float32`)
-- **r_func** (`fn(Float32, Float32, Float32) raises -> Float32`)
+- **loss_func** (`def(Matrix, Matrix, Float32) raises -> Float32`)
+- **c_func** (`def(Float32, List[Int]) raises -> Float32`)
+- **r_func** (`def(Float32, Float32, Float32) raises -> Float32`)
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
@@ -35,7 +33,7 @@ A decision tree supporting both classification and regression.
 ### `__init__`
 
 ```mojo
-fn __init__(out self, criterion: String = "gini", min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42)
+def __init__(out self, criterion: String = "gini", min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42)
 ```
 
 **Args:**
@@ -52,7 +50,7 @@ fn __init__(out self, criterion: String = "gini", min_samples_split: Int = 2, ma
 `Self`
 
 ```mojo
-fn __init__(out self, params: Dict[String, String])
+def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -69,7 +67,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -79,7 +77,7 @@ fn __del__(deinit self)
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: Matrix)
+def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Build a decision tree from the training set.
@@ -95,7 +93,7 @@ Build a decision tree from the training set.
 ### `fit_weighted`
 
 ```mojo
-fn fit_weighted(mut self, X: Matrix, y_with_weights: Matrix)
+def fit_weighted(mut self, X: Matrix, y_with_weights: Matrix)
 ```
 
 Build a decision tree from a weighted training set.
@@ -111,7 +109,7 @@ Build a decision tree from a weighted training set.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+def predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class or regression value for X.
@@ -124,6 +122,40 @@ Predict class or regression value for X.
 **Returns:**
 
 `Matrix`: The predicted values.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

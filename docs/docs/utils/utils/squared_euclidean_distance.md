@@ -3,7 +3,7 @@ Mojo function
 # `squared_euclidean_distance`
 
 ```mojo
-fn squared_euclidean_distance(x1: Matrix, x2: Matrix) -> Float32
+def squared_euclidean_distance(x1: Matrix, x2: Matrix) -> Float32
 ```
 
 **Args:**
@@ -18,7 +18,7 @@ fn squared_euclidean_distance(x1: Matrix, x2: Matrix) -> Float32
 **Raises:**
 
 ```mojo
-fn squared_euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) -> Matrix
+def squared_euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) -> Matrix
 ```
 
 **Args:**

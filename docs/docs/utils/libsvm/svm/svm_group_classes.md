@@ -3,7 +3,7 @@ Mojo function
 # `svm_group_classes`
 
 ```mojo
-fn svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: UnsafePointer[Int, MutExternalOrigin], mut start_ret: UnsafePointer[Int, MutExternalOrigin], mut count_ret: UnsafePointer[Int, MutExternalOrigin], perm: UnsafePointer[Scalar[DType.index], MutExternalOrigin])
+def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: UnsafePointer[Int, MutExternalOrigin], mut start_ret: UnsafePointer[Int, MutExternalOrigin], mut count_ret: UnsafePointer[Int, MutExternalOrigin], perm: UnsafePointer[Scalar[DType.int], MutExternalOrigin])
 ```
 
 **Args:**

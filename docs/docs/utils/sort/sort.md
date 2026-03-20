@@ -3,14 +3,14 @@ Mojo function
 # `sort`
 
 ```mojo
-fn sort[T: Copyable & Movable, origin: MutOrigin, //, cmp_fn: fn(T, T) capturing -> Bool, *, __disambiguate: NoneType = None](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index], MutAnyOrigin])
+def sort[T: Copyable & Movable, origin: MutOrigin, //, cmp_fn: def(T, T) capturing -> Bool, *, __disambiguate: NoneType = None](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin])
 ```
 
 **Parameters:**
 
 - **T** (`Copyable & Movable`)
 - **origin** (`MutOrigin`)
-- **cmp_fn** (`fn(T, T) capturing -> Bool`)
+- **cmp_fn** (`def(T, T) capturing -> Bool`)
 - **__disambiguate** (`NoneType`)
 
 **Args:**
@@ -19,14 +19,14 @@ fn sort[T: Copyable & Movable, origin: MutOrigin, //, cmp_fn: fn(T, T) capturing
 - **indices** (`UnsafePointer`)
 
 ```mojo
-fn sort[dtype: DType, origin: MutOrigin, //, cmp_fn: fn(Scalar[dtype], Scalar[dtype]) capturing -> Bool](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Scalar[DType.index], MutAnyOrigin])
+def sort[dtype: DType, origin: MutOrigin, //, cmp_fn: def(Scalar[dtype], Scalar[dtype]) capturing -> Bool](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin])
 ```
 
 **Parameters:**
 
 - **dtype** (`DType`)
 - **origin** (`MutOrigin`)
-- **cmp_fn** (`fn(Scalar[dtype], Scalar[dtype]) capturing -> Bool`)
+- **cmp_fn** (`def(Scalar[dtype], Scalar[dtype]) capturing -> Bool`)
 
 **Args:**
 
@@ -34,13 +34,13 @@ fn sort[dtype: DType, origin: MutOrigin, //, cmp_fn: fn(Scalar[dtype], Scalar[dt
 - **indices** (`UnsafePointer`)
 
 ```mojo
-fn sort[origin: MutOrigin, //, cmp_fn: fn(Int, Int) capturing -> Bool](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.index], MutAnyOrigin])
+def sort[origin: MutOrigin, //, cmp_fn: def(Int, Int) capturing -> Bool](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin])
 ```
 
 **Parameters:**
 
 - **origin** (`MutOrigin`)
-- **cmp_fn** (`fn(Int, Int) capturing -> Bool`)
+- **cmp_fn** (`def(Int, Int) capturing -> Bool`)
 
 **Args:**
 
@@ -48,7 +48,7 @@ fn sort[origin: MutOrigin, //, cmp_fn: fn(Int, Int) capturing -> Bool](span: Spa
 - **indices** (`UnsafePointer`)
 
 ```mojo
-fn sort[origin: MutOrigin, //](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.index], MutAnyOrigin])
+def sort[origin: MutOrigin, //](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin])
 ```
 
 **Parameters:**
@@ -61,7 +61,7 @@ fn sort[origin: MutOrigin, //](span: Span[Int, origin], indices: UnsafePointer[S
 - **indices** (`UnsafePointer`)
 
 ```mojo
-fn sort[T: Copyable & Movable & Comparable, origin: MutOrigin, //](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.index], MutAnyOrigin])
+def sort[T: Copyable & Movable & Comparable, origin: MutOrigin, //](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin])
 ```
 
 **Parameters:**

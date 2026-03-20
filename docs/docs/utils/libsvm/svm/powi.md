@@ -3,7 +3,7 @@ Mojo function
 # `powi`
 
 ```mojo
-fn powi(base: Float64, times: Int) -> Float64
+def powi(base: Float64, times: Int) -> Float64
 ```
 
 **Args:**

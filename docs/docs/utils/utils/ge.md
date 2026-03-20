@@ -3,7 +3,7 @@ Mojo function
 # `ge`
 
 ```mojo
-fn ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]
+def ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]
 ```
 
 **Parameters:**

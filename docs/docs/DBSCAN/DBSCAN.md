@@ -9,10 +9,6 @@ struct DBSCAN
 
 A density based clustering method that expands clusters from samples that have more neighbors within a radius.
 
-## Aliases
-
-- `__del__is_trivial = False`
-
 ## Fields
 
 - **eps** (`Float32`): The maximum distance between two samples for one to be considered as in the neighborhood of the other.
@@ -29,7 +25,7 @@ A density based clustering method that expands clusters from samples that have m
 ### `__init__`
 
 ```mojo
-fn __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = "euc")
+def __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = "euc")
 ```
 
 **Args:**
@@ -48,7 +44,7 @@ fn __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = "
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix)
+def fit(mut self, X: Matrix)
 ```
 
 Perform clustering.
@@ -63,7 +59,7 @@ Perform clustering.
 ### `fit_predict`
 
 ```mojo
-fn fit_predict(mut self, X: Matrix) -> List[Int]
+def fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Perform clustering and predict cluster indices.

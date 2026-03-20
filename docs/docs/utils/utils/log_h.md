@@ -3,7 +3,7 @@ Mojo function
 # `log_h`
 
 ```mojo
-fn log_h(score: Matrix) -> Matrix
+def log_h(score: Matrix) -> Matrix
 ```
 
 **Args:**

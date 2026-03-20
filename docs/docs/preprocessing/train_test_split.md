@@ -3,7 +3,7 @@ Mojo function
 # `train_test_split`
 
 ```mojo
-fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float64 = 0.5, train_size: Float64 = 0) -> Tuple[Matrix, Matrix, Matrix, Matrix]
+def train_test_split(X: Matrix, y: Matrix, *, test_size: Float32 = 0.5, train_size: Float32 = 0) -> Tuple[Matrix, Matrix, Matrix, Matrix]
 ```
 
 Split matrices into random train and test subsets.
@@ -12,8 +12,8 @@ Split matrices into random train and test subsets.
 
 - **X** (`Matrix`)
 - **y** (`Matrix`)
-- **test_size** (`Float64`)
-- **train_size** (`Float64`)
+- **test_size** (`Float32`)
+- **train_size** (`Float32`)
 
 **Returns:**
 
@@ -22,7 +22,7 @@ Split matrices into random train and test subsets.
 **Raises:**
 
 ```mojo
-fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float64 = 0.5, train_size: Float64 = 0) -> Tuple[Matrix, Matrix, Matrix, Matrix]
+def train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float32 = 0.5, train_size: Float32 = 0) -> Tuple[Matrix, Matrix, Matrix, Matrix]
 ```
 
 Split matrices into random train and test subsets.
@@ -32,8 +32,8 @@ Split matrices into random train and test subsets.
 - **X** (`Matrix`)
 - **y** (`Matrix`)
 - **random_state** (`Int`)
-- **test_size** (`Float64`)
-- **train_size** (`Float64`)
+- **test_size** (`Float32`)
+- **train_size** (`Float32`)
 
 **Returns:**
 

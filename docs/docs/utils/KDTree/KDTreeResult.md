@@ -7,12 +7,6 @@ Mojo struct
 struct KDTreeResult
 ```
 
-## Aliases
-
-- `__del__is_trivial = True`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
-
 ## Fields
 
 - **dis** (`Float32`)
@@ -20,14 +14,14 @@ struct KDTreeResult
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
 ### `__lt__`
 
 ```mojo
-fn __lt__(self, rhs: Self) -> Bool
+def __lt__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -42,7 +36,7 @@ fn __lt__(self, rhs: Self) -> Bool
 ### `__le__`
 
 ```mojo
-fn __le__(self, rhs: Self) -> Bool
+def __le__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -57,7 +51,7 @@ fn __le__(self, rhs: Self) -> Bool
 ### `__gt__`
 
 ```mojo
-fn __gt__(self, rhs: Self) -> Bool
+def __gt__(self, rhs: Self) -> Bool
 ```
 
 **Args:**

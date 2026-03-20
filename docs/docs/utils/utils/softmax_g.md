@@ -3,7 +3,7 @@ Mojo function
 # `softmax_g`
 
 ```mojo
-fn softmax_g(true: Matrix, score: Matrix) -> Matrix
+def softmax_g(true: Matrix, score: Matrix) -> Matrix
 ```
 
 **Args:**

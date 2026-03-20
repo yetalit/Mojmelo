@@ -11,7 +11,8 @@ A random forest supporting both classification and regression.
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 10`
+- `criterion_ids = List(VariadicList("entropy", "gini", "mse"), Tuple())`
 
 ## Fields
 
@@ -24,14 +25,14 @@ A random forest supporting both classification and regression.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `ImplicitlyDestructible`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = "gini", random_state: Int = 42)
+def __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = "gini", random_state: Int = 42)
 ```
 
 **Args:**
@@ -49,7 +50,7 @@ fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: 
 `Self`
 
 ```mojo
-fn __init__(out self, params: Dict[String, String])
+def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -66,7 +67,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -76,7 +77,7 @@ fn __del__(deinit self)
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: Matrix)
+def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Build a forest of trees from the training set.
@@ -92,7 +93,7 @@ Build a forest of trees from the training set.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+def predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class or regression value for X.
@@ -105,6 +106,40 @@ Predict class or regression value for X.
 **Returns:**
 
 `Matrix`: The predicted values.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

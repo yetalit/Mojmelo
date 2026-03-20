@@ -3,7 +3,7 @@ Mojo function
 # `epsilon_search`
 
 ```mojo
-fn epsilon_search(leaves: Set[Scalar[DType.index]], cluster_tree: Dict[String, List[Scalar[DType.index]]], lambda_array: List[Float32], cluster_selection_epsilon: Float32, allow_single_cluster: Int) -> Set[Scalar[DType.index]]
+def epsilon_search(leaves: Set[Scalar[DType.int]], cluster_tree: Dict[String, List[Scalar[DType.int]]], lambda_array: List[Float32], cluster_selection_epsilon: Float32, allow_single_cluster: Int) -> Set[Scalar[DType.int]]
 ```
 
 **Args:**

@@ -2,6 +2,10 @@ Mojo module
 
 # `utils`
 
+## Aliases
+
+- `MODEL_IDS = InlineArray(VariadicList("", "Linear Regression", "Polynomial Regression", "Logistic Regression", "KNN", "KMeans", "SVM", "GaussianNB", "MultinomialNB", "Decision Tree", "Random Forest", "GBDT", "PCA"), Tuple())`
+
 ## Traits
 
 - [`CV`](CV.md)

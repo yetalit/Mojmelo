@@ -3,7 +3,7 @@ Mojo function
 # `div`
 
 ```mojo
-fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
+def div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
 ```
 
 **Parameters:**

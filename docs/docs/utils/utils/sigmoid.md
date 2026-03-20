@@ -3,7 +3,7 @@ Mojo function
 # `sigmoid`
 
 ```mojo
-fn sigmoid(z: Matrix) -> Matrix
+def sigmoid(z: Matrix) -> Matrix
 ```
 
 **Args:**

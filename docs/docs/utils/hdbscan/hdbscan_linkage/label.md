@@ -3,7 +3,7 @@ Mojo function
 # `label`
 
 ```mojo
-fn label(L: Matrix) -> Matrix
+def label(L: Matrix) -> Matrix
 ```
 
 **Args:**

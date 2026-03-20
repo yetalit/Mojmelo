@@ -10,9 +10,6 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 ## Aliases
 
 - `bucketsize = 12`
-- `__del__is_trivial = False`
-- `__moveinit__is_trivial = False`
-- `__copyinit__is_trivial = False`
 
 ## Parameters
 
@@ -24,8 +21,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 - **N** (`Int`)
 - **dim** (`Int`)
 - **root** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
-- **ind** (`List[Scalar[DType.index]]`)
-- **metric** (`fn(Float32) -> Float32`)
+- **ind** (`List[Scalar[DType.int]]`)
+- **metric** (`def(Float32) -> Float32`)
 
 ## Implemented traits
 
@@ -36,7 +33,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 ### `__init__`
 
 ```mojo
-fn __init__(out self, X: Matrix, metric: String = "euc", *, build: Bool = True)
+def __init__(out self, X: Matrix, metric: String = "euc", *, build: Bool = True)
 ```
 
 **Args:**
@@ -52,16 +49,13 @@ fn __init__(out self, X: Matrix, metric: String = "euc", *, build: Bool = True)
 
 **Raises:**
 
-### `__moveinit__`
-
 ```mojo
-@staticmethod
-fn __moveinit__(out self, deinit existing: Self)
+def __init__(out self, *, deinit take: Self)
 ```
 
 **Args:**
 
-- **existing** (`Self`)
+- **take** (`Self`)
 - **self** (`Self`)
 
 **Returns:**
@@ -71,7 +65,7 @@ fn __moveinit__(out self, deinit existing: Self)
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -81,7 +75,7 @@ fn __del__(deinit self)
 ### `build_tree`
 
 ```mojo
-fn build_tree(mut self)
+def build_tree(mut self)
 ```
 
 **Args:**
@@ -93,7 +87,7 @@ fn build_tree(mut self)
 ### `build_tree_for_range`
 
 ```mojo
-fn build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode, MutAnyOrigin]) -> UnsafePointer[KDTreeNode, MutAnyOrigin]
+def build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode, MutAnyOrigin]) -> UnsafePointer[KDTreeNode, MutAnyOrigin]
 ```
 
 **Args:**
@@ -110,7 +104,7 @@ fn build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNo
 ### `spread_in_coordinate`
 
 ```mojo
-fn spread_in_coordinate(self, c: Int, l: Int, u: Int, mut interv: interval)
+def spread_in_coordinate(self, c: Int, l: Int, u: Int, mut interv: interval)
 ```
 
 **Args:**
@@ -124,7 +118,7 @@ fn spread_in_coordinate(self, c: Int, l: Int, u: Int, mut interv: interval)
 ### `select_on_coordinate`
 
 ```mojo
-fn select_on_coordinate(mut self, c: Int, k: Int, var l: Int, var u: Int)
+def select_on_coordinate(mut self, c: Int, k: Int, var l: Int, var u: Int)
 ```
 
 **Args:**
@@ -138,7 +132,7 @@ fn select_on_coordinate(mut self, c: Int, k: Int, var l: Int, var u: Int)
 ### `select_on_coordinate_value`
 
 ```mojo
-fn select_on_coordinate_value(mut self, c: Int, alpha: Float32, l: Int, u: Int) -> Int
+def select_on_coordinate_value(mut self, c: Int, alpha: Float32, l: Int, u: Int) -> Int
 ```
 
 **Args:**
@@ -156,7 +150,7 @@ fn select_on_coordinate_value(mut self, c: Int, alpha: Float32, l: Int, u: Int) 
 ### `n_nearest`
 
 ```mojo
-fn n_nearest(mut self, qv: Span[Float32, MutAnyOrigin], nn: Int, mut result: KDTreeResultVector)
+def n_nearest(mut self, qv: Span[Float32, MutAnyOrigin], nn: Int, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -169,7 +163,7 @@ fn n_nearest(mut self, qv: Span[Float32, MutAnyOrigin], nn: Int, mut result: KDT
 ### `n_nearest_around_point`
 
 ```mojo
-fn n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int, mut result: KDTreeResultVector)
+def n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -183,7 +177,7 @@ fn n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int, mut re
 ### `r_nearest`
 
 ```mojo
-fn r_nearest(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32, mut result: KDTreeResultVector)
+def r_nearest(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -196,7 +190,7 @@ fn r_nearest(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32, mut result:
 ### `r_count`
 
 ```mojo
-fn r_count(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32) -> Int
+def r_count(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32) -> Int
 ```
 
 **Args:**
@@ -212,7 +206,7 @@ fn r_count(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32) -> Int
 ### `r_nearest_around_point`
 
 ```mojo
-fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32, mut result: KDTreeResultVector)
+def r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32, mut result: KDTreeResultVector)
 ```
 
 **Args:**
@@ -226,7 +220,7 @@ fn r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32, mu
 ### `r_count_around_point`
 
 ```mojo
-fn r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) -> Int
+def r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) -> Int
 ```
 
 **Args:**

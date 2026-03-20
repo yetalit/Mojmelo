@@ -11,11 +11,12 @@ A Gradient Descent based logistic regression with binary cross entropy as the lo
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 3`
 
 ## Fields
 
-- **lr** (`Float32`): Learning rate.
+- **lr** (`Float32`): Learning rate used for gradient method.
+- **damping** (`Float32`): Damping value used for newton method.
 - **n_iters** (`Int`): The maximum number of iterations.
 - **method** (`String`): Weight update method -> 'gradient' uses first derivative, 'newton' uses second derivative.
 - **reg_alpha** (`Float32`): Constant that multiplies the regularization term.
@@ -28,19 +29,20 @@ A Gradient Descent based logistic regression with binary cross entropy as the lo
 
 ## Implemented traits
 
-`AnyType`, `CV`, `ImplicitlyDestructible`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, method: String = "gradient", reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
+def __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1.0E-4, n_iters: Int = 1000, method: String = "gradient", reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
 ```
 
 **Args:**
 
 - **learning_rate** (`Float32`)
+- **damping** (`Float32`)
 - **n_iters** (`Int`)
 - **method** (`String`)
 - **reg_alpha** (`Float32`)
@@ -55,7 +57,7 @@ fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, metho
 `Self`
 
 ```mojo
-fn __init__(out self, params: Dict[String, String])
+def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -72,7 +74,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: Matrix)
+def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the model.
@@ -88,7 +90,7 @@ Fit the model.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+def predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class for X.
@@ -101,6 +103,40 @@ Predict class for X.
 **Returns:**
 
 `Matrix`: The predicted classes.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

@@ -7,12 +7,6 @@ Mojo struct
 struct BDecisionTree
 ```
 
-## Aliases
-
-- `__del__is_trivial = False`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
-
 ## Fields
 
 - **min_samples_split** (`Int`)
@@ -32,7 +26,7 @@ struct BDecisionTree
 ### `__init__`
 
 ```mojo
-fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
+def __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
 ```
 
 **Args:**
@@ -52,7 +46,7 @@ fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambd
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -62,7 +56,7 @@ fn __del__(deinit self)
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, g: Matrix, h: Matrix)
+def fit(mut self, X: Matrix, g: Matrix, h: Matrix)
 ```
 
 **Args:**
@@ -77,7 +71,7 @@ fn fit(mut self, X: Matrix, g: Matrix, h: Matrix)
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+def predict(self, X: Matrix) -> Matrix
 ```
 
 **Args:**

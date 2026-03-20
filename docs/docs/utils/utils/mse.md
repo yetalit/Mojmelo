@@ -3,7 +3,7 @@ Mojo function
 # `mse`
 
 ```mojo
-fn mse(y: Matrix, y_pred: Matrix) -> Float32
+def mse(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Mean Squared Error.

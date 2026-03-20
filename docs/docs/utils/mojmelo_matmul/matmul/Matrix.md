@@ -7,10 +7,6 @@ Mojo struct
 struct Matrix[Type: DType]
 ```
 
-## Aliases
-
-- `__del__is_trivial = True`
-
 ## Parameters
 
 - **Type** (`DType`)
@@ -29,7 +25,7 @@ struct Matrix[Type: DType]
 ### `__init__`
 
 ```mojo
-fn __init__(out self, shape: Tuple[Int, Int])
+def __init__(out self, shape: Tuple[Int, Int])
 ```
 
 **Args:**
@@ -42,7 +38,7 @@ fn __init__(out self, shape: Tuple[Int, Int])
 `Self`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout)
+def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout)
 ```
 
 **Args:**
@@ -56,7 +52,7 @@ fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layou
 `Self`
 
 ```mojo
-fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int])
+def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int])
 ```
 
 **Args:**
@@ -72,7 +68,7 @@ fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tu
 ### `__getitem__`
 
 ```mojo
-fn __getitem__(ref self, i: Int, j: Int) -> ref [self] Scalar[Type]
+def __getitem__(ref self, i: Int, j: Int) -> ref[self_is_mut] Scalar[Type]
 ```
 
 **Args:**
@@ -88,7 +84,7 @@ fn __getitem__(ref self, i: Int, j: Int) -> ref [self] Scalar[Type]
 ### `slice`
 
 ```mojo
-fn slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self
+def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self
 ```
 
 **Args:**
@@ -106,7 +102,7 @@ fn slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self
 ### `shape`
 
 ```mojo
-fn shape[dim: Int](self) -> Int
+def shape[dim: Int](self) -> Int
 ```
 
 **Parameters:**
@@ -124,7 +120,7 @@ fn shape[dim: Int](self) -> Int
 ### `stride`
 
 ```mojo
-fn stride[dim: Int](self) -> Int
+def stride[dim: Int](self) -> Int
 ```
 
 **Parameters:**
@@ -142,7 +138,7 @@ fn stride[dim: Int](self) -> Int
 ### `rand`
 
 ```mojo
-fn rand(mut self)
+def rand(mut self)
 ```
 
 **Args:**
@@ -152,7 +148,7 @@ fn rand(mut self)
 ### `load`
 
 ```mojo
-fn load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]
+def load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]
 ```
 
 **Parameters:**
@@ -173,7 +169,7 @@ fn load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]
 ### `store`
 
 ```mojo
-fn store[width: Int, *, dim: Int](self, value: SIMD[Type, width], i: Int, j: Int)
+def store[width: Int, *, dim: Int](self, value: SIMD[Type, width], i: Int, j: Int)
 ```
 
 **Parameters:**
@@ -191,7 +187,7 @@ fn store[width: Int, *, dim: Int](self, value: SIMD[Type, width], i: Int, j: Int
 ### `write_to`
 
 ```mojo
-fn write_to[W: Writer](self, mut writer: W)
+def write_to[W: Writer](self, mut writer: W)
 ```
 
 **Parameters:**

@@ -3,7 +3,7 @@ Mojo function
 # `normalize`
 
 ```mojo
-fn normalize(data: Matrix, norm: String = "l2") -> Tuple[Matrix, Matrix]
+def normalize(data: Matrix, norm: String = "l2") -> Tuple[Matrix, Matrix]
 ```
 
 Scale input vectors individually to unit norm (vector length).

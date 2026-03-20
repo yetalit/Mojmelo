@@ -3,7 +3,7 @@ Mojo function
 # `macro_kernel`
 
 ```mojo
-fn macro_kernel[Type: DType, //, mr: Int, nr: Int](mut Cc: Matrix[Type], Ac: Matrix[Type], Bc: Matrix[Type])
+def macro_kernel[Type: DType, //, mr: Int, nr: Int](mut Cc: Matrix[Type], Ac: Matrix[Type], Bc: Matrix[Type])
 ```
 
 **Parameters:**

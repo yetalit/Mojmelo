@@ -3,7 +3,7 @@ Mojo function
 # `get_probabilities`
 
 ```mojo
-fn get_probabilities(tree: Dict[String, List[Scalar[DType.index]]], lambda_array: List[Float32], cluster_map: Dict[Int, Scalar[DType.index]], labels: List[Scalar[DType.index]], deaths: List[Float32]) -> List[Float32]
+def get_probabilities(tree: Dict[String, List[Scalar[DType.int]]], lambda_array: List[Float32], cluster_map: Dict[Scalar[DType.int], Scalar[DType.int]], labels: List[Scalar[DType.int]], deaths: List[Float32]) -> List[Float32]
 ```
 
 **Args:**

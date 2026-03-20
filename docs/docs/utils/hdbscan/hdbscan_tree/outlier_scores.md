@@ -3,7 +3,7 @@ Mojo function
 # `outlier_scores`
 
 ```mojo
-fn outlier_scores(tree: Dict[String, List[Scalar[DType.index]]], lambda_array: List[Float32]) -> List[Float32]
+def outlier_scores(tree: Dict[String, List[Scalar[DType.int]]], lambda_array: List[Float32]) -> List[Float32]
 ```
 
 **Args:**

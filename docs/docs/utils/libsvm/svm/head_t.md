@@ -7,12 +7,6 @@ Mojo struct
 struct head_t
 ```
 
-## Aliases
-
-- `__del__is_trivial = True`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
-
 ## Fields
 
 - **prev** (`UnsafePointer[head_t, MutAnyOrigin]`)
@@ -21,14 +15,14 @@ struct head_t
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__() -> Self
+def __init__() -> Self
 ```
 
 **Returns:**

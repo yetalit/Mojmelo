@@ -3,7 +3,7 @@ Mojo function
 # `sigmoid_predict`
 
 ```mojo
-fn sigmoid_predict(decision_value: Float64, A: Float64, B: Float64) -> Float64
+def sigmoid_predict(decision_value: Float64, A: Float64, B: Float64) -> Float64
 ```
 
 **Args:**

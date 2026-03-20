@@ -11,7 +11,8 @@ Classifier implementing the k-nearest neighbors vote.
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 4`
+- `metric_ids = List(VariadicList("euc", "man"), Tuple())`
 
 ## Fields
 
@@ -22,14 +23,14 @@ Classifier implementing the k-nearest neighbors vote.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `ImplicitlyDestructible`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, k: Int = 3, metric: String = "euc")
+def __init__(out self, k: Int = 3, metric: String = "euc")
 ```
 
 **Args:**
@@ -45,7 +46,7 @@ fn __init__(out self, k: Int = 3, metric: String = "euc")
 **Raises:**
 
 ```mojo
-fn __init__(out self, params: Dict[String, String])
+def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -62,7 +63,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: Matrix)
+def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the k-nearest neighbors classifier from the training dataset.
@@ -78,7 +79,7 @@ Fit the k-nearest neighbors classifier from the training dataset.
 ### `predict`
 
 ```mojo
-fn predict(mut self, X: Matrix) -> Matrix
+def predict(mut self, X: Matrix) -> Matrix
 ```
 
 Predict the class indices for the provided data.
@@ -91,6 +92,40 @@ Predict the class indices for the provided data.
 **Returns:**
 
 `Matrix`: Class indices for each data sample.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

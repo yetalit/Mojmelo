@@ -11,7 +11,7 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 12`
 
 ## Fields
 
@@ -27,14 +27,14 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False)
+def __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False)
 ```
 
 **Args:**
@@ -51,7 +51,7 @@ fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = Fa
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix)
+def fit(mut self, X: Matrix)
 ```
 
 Fit the model.
@@ -66,7 +66,7 @@ Fit the model.
 ### `transform`
 
 ```mojo
-fn transform(self, X: Matrix) -> Matrix
+def transform(self, X: Matrix) -> Matrix
 ```
 
 Apply dimensionality reduction to X. X is projected on the first principal components previously extracted from a training set.
@@ -85,7 +85,7 @@ Apply dimensionality reduction to X. X is projected on the first principal compo
 ### `inverse_transform`
 
 ```mojo
-fn inverse_transform(self, X_transformed: Matrix) -> Matrix
+def inverse_transform(self, X_transformed: Matrix) -> Matrix
 ```
 
 Transform data back to its original space.
@@ -98,6 +98,40 @@ Transform data back to its original space.
 **Returns:**
 
 `Matrix`: Original data.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for transformation to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for transformation.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

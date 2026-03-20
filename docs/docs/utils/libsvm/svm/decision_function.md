@@ -7,12 +7,6 @@ Mojo struct
 struct decision_function
 ```
 
-## Aliases
-
-- `__del__is_trivial = True`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
-
 ## Fields
 
 - **alpha** (`UnsafePointer[Float64, MutExternalOrigin]`)
@@ -20,5 +14,5 @@ struct decision_function
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 

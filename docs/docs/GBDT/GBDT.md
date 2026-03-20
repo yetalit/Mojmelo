@@ -11,13 +11,14 @@ Gradient Boosting with support for both classification and regression.
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 11`
+- `criterion_ids = List(VariadicList("log", "softmax", "mse"), Tuple())`
 
 ## Fields
 
 - **criterion** (`String`): The method to measure the quality of a split:    For binary classification -> 'log'; For multi-class classification -> 'softmax';    For regression -> 'mse'.
-- **loss_g** (`fn(Matrix, Matrix) raises -> Matrix`)
-- **loss_h** (`fn(Matrix) raises -> Matrix`)
+- **loss_g** (`def(Matrix, Matrix) raises -> Matrix`)
+- **loss_h** (`def(Matrix) raises -> Matrix`)
 - **n_trees** (`Int`): The number of boosting stages to perform.
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
@@ -32,14 +33,14 @@ Gradient Boosting with support for both classification and regression.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `ImplicitlyDestructible`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, criterion: String = "log", n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3, learning_rate: Float32 = 0.10000000000000001, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
+def __init__(out self, criterion: String = "log", n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3, learning_rate: Float32 = 0.10000000000000001, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
 ```
 
 **Args:**
@@ -60,7 +61,7 @@ fn __init__(out self, criterion: String = "log", n_trees: Int = 10, min_samples_
 `Self`
 
 ```mojo
-fn __init__(out self, params: Dict[String, String])
+def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -77,7 +78,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -87,7 +88,7 @@ fn __del__(deinit self)
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: Matrix)
+def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the gradient boosting model.
@@ -103,7 +104,7 @@ Fit the gradient boosting model.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+def predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class or regression value for X.
@@ -116,6 +117,40 @@ Predict class or regression value for X.
 **Returns:**
 
 `Matrix`: The predicted values.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

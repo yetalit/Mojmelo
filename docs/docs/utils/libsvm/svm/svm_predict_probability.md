@@ -3,7 +3,7 @@ Mojo function
 # `svm_predict_probability`
 
 ```mojo
-fn svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node, MutExternalOrigin], prob_estimates: UnsafePointer[Float64, MutExternalOrigin]) -> Float64
+def svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node, MutExternalOrigin], prob_estimates: UnsafePointer[Float64, MutExternalOrigin]) -> Float64
 ```
 
 **Args:**

@@ -19,9 +19,6 @@ struct svm_parameter
 - `RBF = 2`
 - `SIGMOID = 3`
 - `PRECOMPUTED = 4`
-- `__del__is_trivial = True`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
 
 ## Fields
 

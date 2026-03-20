@@ -3,7 +3,7 @@ Mojo function
 # `mse_loss`
 
 ```mojo
-fn mse_loss(y: Matrix, weights: Matrix, size: Float32) -> Float32
+def mse_loss(y: Matrix, weights: Matrix, size: Float32) -> Float32
 ```
 
 **Args:**

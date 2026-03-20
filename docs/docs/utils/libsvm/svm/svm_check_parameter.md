@@ -3,7 +3,7 @@ Mojo function
 # `svm_check_parameter`
 
 ```mojo
-fn svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String
+def svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String
 ```
 
 **Args:**

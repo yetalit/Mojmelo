@@ -3,7 +3,7 @@ Mojo function
 # `lt`
 
 ```mojo
-fn lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]
+def lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]
 ```
 
 **Parameters:**

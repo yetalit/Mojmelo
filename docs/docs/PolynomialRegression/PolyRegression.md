@@ -11,7 +11,7 @@ A Gradient Descent based polynomial regression with mse as the loss function.
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 2`
 
 ## Fields
 
@@ -28,14 +28,14 @@ A Gradient Descent based polynomial regression with mse as the loss function.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `ImplicitlyDestructible`
+`AnyType`, `CV`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
+def __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
 ```
 
 **Args:**
@@ -55,7 +55,7 @@ fn __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: I
 `Self`
 
 ```mojo
-fn __init__(out self, params: Dict[String, String])
+def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -72,7 +72,7 @@ fn __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix, y: Matrix)
+def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the model.
@@ -88,7 +88,7 @@ Fit the model.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> Matrix
+def predict(self, X: Matrix) -> Matrix
 ```
 
 Predict regression values for X.
@@ -101,6 +101,40 @@ Predict regression values for X.
 **Returns:**
 
 `Matrix`: The predicted values.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
 
 **Raises:**
 

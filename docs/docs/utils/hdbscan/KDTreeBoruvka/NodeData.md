@@ -7,12 +7,6 @@ Mojo struct
 struct NodeData
 ```
 
-## Aliases
-
-- `__del__is_trivial = False`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = False`
-
 ## Fields
 
 - **is_leaf** (`Bool`)

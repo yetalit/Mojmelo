@@ -3,7 +3,7 @@ Mojo function
 # `svm_check_probability_model`
 
 ```mojo
-fn svm_check_probability_model(model: svm_model) -> Bool
+def svm_check_probability_model(model: svm_model) -> Bool
 ```
 
 **Args:**

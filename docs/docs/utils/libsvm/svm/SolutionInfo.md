@@ -7,12 +7,6 @@ Mojo struct
 struct SolutionInfo
 ```
 
-## Aliases
-
-- `__del__is_trivial = True`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
-
 ## Fields
 
 - **obj** (`Float64`)
@@ -23,14 +17,14 @@ struct SolutionInfo
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__() -> Self
+def __init__() -> Self
 ```
 
 **Returns:**

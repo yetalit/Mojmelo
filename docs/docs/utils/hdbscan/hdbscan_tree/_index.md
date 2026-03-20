@@ -4,7 +4,7 @@ Mojo module
 
 ## Aliases
 
-- `simd_width = (4 * simd_width_of[DType.index]()) if CompilationTarget.is_apple_silicon[_current_target()]() else (2 * simd_width_of[DType.index]())`
+- `simd_width = (4 * simd_width_of[DType.int]()) if CompilationTarget.is_apple_silicon() else (2 * simd_width_of[DType.int]())`
 
 ## Structs
 

@@ -3,7 +3,7 @@ Mojo function
 # `svd`
 
 ```mojo
-fn svd(A: Matrix, k: Int) -> Tuple[Matrix, Matrix]
+def svd(A: Matrix, k: Int) -> Tuple[Matrix, Matrix]
 ```
 
 **Args:**

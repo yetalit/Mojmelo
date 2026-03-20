@@ -10,7 +10,6 @@ struct TreeUnionFind
 ## Aliases
 
 - `width = 2`
-- `__del__is_trivial = False`
 
 ## Fields
 
@@ -26,7 +25,7 @@ struct TreeUnionFind
 ### `__init__`
 
 ```mojo
-fn __init__(out self, size: Int)
+def __init__(out self, size: Int)
 ```
 
 **Args:**
@@ -41,7 +40,7 @@ fn __init__(out self, size: Int)
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -51,19 +50,19 @@ fn __del__(deinit self)
 ### `union_`
 
 ```mojo
-fn union_(mut self, x: Int, y: Int)
+def union_(mut self, x: Scalar[DType.int], y: Scalar[DType.int])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **x** (`Int`)
-- **y** (`Int`)
+- **x** (`Scalar`)
+- **y** (`Scalar`)
 
 ### `find`
 
 ```mojo
-fn find(mut self, x: Scalar[DType.index]) -> Scalar[DType.index]
+def find(mut self, x: Scalar[DType.int]) -> Scalar[DType.int]
 ```
 
 **Args:**
@@ -78,7 +77,7 @@ fn find(mut self, x: Scalar[DType.index]) -> Scalar[DType.index]
 ### `components`
 
 ```mojo
-fn components(self) -> List[Int]
+def components(self) -> List[Int]
 ```
 
 **Args:**

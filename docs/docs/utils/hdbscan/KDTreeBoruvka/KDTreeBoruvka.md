@@ -7,10 +7,6 @@ Mojo struct
 struct KDTreeBoruvka
 ```
 
-## Aliases
-
-- `__del__is_trivial = False`
-
 ## Fields
 
 - **data** (`UnsafePointer[Float32, MutAnyOrigin]`)
@@ -20,7 +16,7 @@ struct KDTreeBoruvka
 - **leaf_size** (`Int`)
 - **nodes** (`List[NodeData]`)
 - **core_dist** (`UnsafePointer[Float32, MutAnyOrigin]`)
-- **build_idx** (`List[Scalar[DType.index]]`)
+- **build_idx** (`List[Scalar[DType.int]]`)
 - **proj_buf** (`List[Float32]`)
 
 ## Implemented traits
@@ -32,7 +28,7 @@ struct KDTreeBoruvka
 ### `__init__`
 
 ```mojo
-fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_deepness_coef: Int)
+def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int)
 ```
 
 **Args:**
@@ -40,7 +36,7 @@ fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_dee
 - **data** (`Matrix`)
 - **min_samples** (`Int`)
 - **leaf_size** (`Int`)
-- **search_deepness_coef** (`Int`)
+- **search_depth** (`Int`)
 - **self** (`Self`)
 
 **Returns:**
@@ -52,7 +48,7 @@ fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_dee
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+def __del__(deinit self)
 ```
 
 **Args:**
@@ -62,7 +58,7 @@ fn __del__(deinit self)
 ### `left`
 
 ```mojo
-fn left(self, i: Int) -> Int
+def left(self, i: Int) -> Int
 ```
 
 **Args:**
@@ -77,7 +73,7 @@ fn left(self, i: Int) -> Int
 ### `right`
 
 ```mojo
-fn right(self, i: Int) -> Int
+def right(self, i: Int) -> Int
 ```
 
 **Args:**
@@ -92,7 +88,7 @@ fn right(self, i: Int) -> Int
 ### `ensure_node`
 
 ```mojo
-fn ensure_node(mut self, i: Int)
+def ensure_node(mut self, i: Int)
 ```
 
 **Args:**
@@ -103,7 +99,7 @@ fn ensure_node(mut self, i: Int)
 ### `choose_split_dim`
 
 ```mojo
-fn choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.index]]) -> Int
+def choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.int]]) -> Scalar[DType.int]
 ```
 
 **Args:**
@@ -115,12 +111,12 @@ fn choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.index]]) 
 
 **Returns:**
 
-`Int`
+`Scalar`
 
 ### `build_node`
 
 ```mojo
-fn build_node(mut self, node: Int, start: Int, end: Int)
+def build_node(mut self, node: Int, start: Int, end: Int)
 ```
 
 **Args:**

@@ -3,7 +3,7 @@ Mojo function
 # `gini`
 
 ```mojo
-fn gini(y: Matrix, weights: Matrix, size: Float32) -> Float32
+def gini(y: Matrix, weights: Matrix, size: Float32) -> Float32
 ```
 
 **Args:**

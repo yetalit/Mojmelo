@@ -3,7 +3,7 @@ Mojo function
 # `arange`
 
 ```mojo
-fn arange(start: Scalar[DType.index], stop: Scalar[DType.index]) -> List[Int]
+def arange(start: Scalar[DType.int], stop: Scalar[DType.int]) -> List[Int]
 ```
 
 **Args:**
@@ -16,7 +16,7 @@ fn arange(start: Scalar[DType.index], stop: Scalar[DType.index]) -> List[Int]
 `List`
 
 ```mojo
-fn arange(start: Int, stop: Int) -> List[Scalar[DType.index]]
+def arange(start: Int, stop: Int) -> List[Scalar[DType.int]]
 ```
 
 **Args:**

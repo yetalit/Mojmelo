@@ -3,7 +3,7 @@ Mojo function
 # `nth_element`
 
 ```mojo
-fn nth_element(var first: UnsafePointer[Scalar[DType.index], MutAnyOrigin], nth: UnsafePointer[Scalar[DType.index], MutAnyOrigin], var last: UnsafePointer[Scalar[DType.index], MutAnyOrigin], var proj: UnsafePointer[Float32, MutAnyOrigin], data: UnsafePointer[Float32, MutAnyOrigin], dim: Int, split_dim: Int)
+def nth_element(var first: UnsafePointer[Scalar[DType.int], MutAnyOrigin], nth: UnsafePointer[Scalar[DType.int], MutAnyOrigin], var last: UnsafePointer[Scalar[DType.int], MutAnyOrigin], var proj: UnsafePointer[Float32, MutAnyOrigin], data: UnsafePointer[Float32, MutAnyOrigin], dim: Scalar[DType.int], split_dim: Scalar[DType.int])
 ```
 
 **Args:**
@@ -13,6 +13,6 @@ fn nth_element(var first: UnsafePointer[Scalar[DType.index], MutAnyOrigin], nth:
 - **last** (`UnsafePointer`)
 - **proj** (`UnsafePointer`)
 - **data** (`UnsafePointer`)
-- **dim** (`Int`)
-- **split_dim** (`Int`)
+- **dim** (`Scalar`)
+- **split_dim** (`Scalar`)
 

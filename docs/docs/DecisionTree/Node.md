@@ -7,12 +7,6 @@ Mojo struct
 struct Node
 ```
 
-## Aliases
-
-- `__del__is_trivial = True`
-- `__moveinit__is_trivial = True`
-- `__copyinit__is_trivial = True`
-
 ## Fields
 
 - **feature** (`Int`)
@@ -30,7 +24,7 @@ struct Node
 ### `__init__`
 
 ```mojo
-fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[True, Node, MutAnyOrigin, AddressSpace.GENERIC](), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[True, Node, MutAnyOrigin, AddressSpace.GENERIC](), value: Float32 = inf[DType.float32]())
+def __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer(), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer(), value: Float32 = inf[DType.float32]())
 ```
 
 **Args:**
@@ -49,7 +43,7 @@ fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePoi
 ### `is_leaf_node`
 
 ```mojo
-fn is_leaf_node(self) -> Bool
+def is_leaf_node(self) -> Bool
 ```
 
 **Args:**
@@ -63,7 +57,7 @@ fn is_leaf_node(self) -> Bool
 ### `__str__`
 
 ```mojo
-fn __str__(self) -> String
+def __str__(self) -> String
 ```
 
 **Args:**

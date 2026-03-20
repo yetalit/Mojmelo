@@ -3,7 +3,7 @@ Mojo function
 # `gini_precompute`
 
 ```mojo
-fn gini_precompute(size: Float32, histogram: List[Int]) -> Float32
+def gini_precompute(size: Float32, histogram: List[Int]) -> Float32
 ```
 
 **Args:**

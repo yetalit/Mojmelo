@@ -11,36 +11,38 @@ K-Means clustering.
 
 ## Aliases
 
-- `__del__is_trivial = False`
+- `MODEL_ID = 5`
 
 ## Fields
 
-- **K** (`Int`): The number of clusters to form as well as the number of centroids to generate.
+- **k** (`Int`): The number of clusters to form as well as the number of centroids to generate.
 - **init** (`String`): Method for initialization -> 'kmeans++', 'random'.
+- **n_centroid_init** (`Int`): The number of candidate centroids to be initialized.
 - **max_iters** (`Int`): Maximum number of iterations of the k-means algorithm for a single run.
 - **converge** (`String`): The converge method: Change in centroids <= tol -> 'centroid'; Change in inertia <= tol -> 'inertia'; Exact change in labels -> 'label'.
 - **tol** (`Float32`): Relative tolerance value.
 - **labels** (`List[Int]`)
-- **centroids** (`Matrix`)
+- **centroids_** (`Matrix`)
 - **inertia** (`Float32`): Sum of squared distances of samples to their closest cluster center.
-- **X** (`Matrix`)
+- **X_mean** (`Matrix`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, K: Int = 5, init: String = "kmeans++", max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 42)
+def __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 0)
 ```
 
 **Args:**
 
-- **K** (`Int`)
+- **k** (`Int`)
 - **init** (`String`)
+- **n_centroid_init** (`Int`)
 - **max_iters** (`Int`)
 - **converge** (`String`)
 - **tol** (`Float32`)
@@ -54,7 +56,7 @@ fn __init__(out self, K: Int = 5, init: String = "kmeans++", max_iters: Int = 10
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix)
+def fit(mut self, X: Matrix)
 ```
 
 Compute cluster centers and cluster index for each sample.
@@ -66,10 +68,29 @@ Compute cluster centers and cluster index for each sample.
 
 **Raises:**
 
+### `predict`
+
+```mojo
+def predict(self, X: Matrix) -> List[Int]
+```
+
+Predict cluster index for each sample.
+
+**Args:**
+
+- **self** (`Self`)
+- **X** (`Matrix`)
+
+**Returns:**
+
+`List`: List of cluster indices.
+
+**Raises:**
+
 ### `fit_predict`
 
 ```mojo
-fn fit_predict(mut self, X: Matrix) -> List[Int]
+def fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Compute cluster centers and predict cluster index for each sample.
@@ -82,6 +103,56 @@ Compute cluster centers and predict cluster index for each sample.
 **Returns:**
 
 `List`: List of cluster indices.
+
+**Raises:**
+
+### `save`
+
+```mojo
+def save(self, path: String)
+```
+
+Save model data necessary for prediction to the specified path.
+
+**Args:**
+
+- **self** (`Self`)
+- **path** (`String`)
+
+**Raises:**
+
+### `load`
+
+```mojo
+@staticmethod
+def load(path: String) -> Self
+```
+
+Load a saved model from the specified path for prediction.
+
+**Args:**
+
+- **path** (`String`)
+
+**Returns:**
+
+`Self`
+
+**Raises:**
+
+### `centroids`
+
+```mojo
+def centroids(self) -> Matrix
+```
+
+**Args:**
+
+- **self** (`Self`)
+
+**Returns:**
+
+`Matrix`
 
 **Raises:**
 

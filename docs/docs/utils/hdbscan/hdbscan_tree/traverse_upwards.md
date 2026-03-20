@@ -3,7 +3,7 @@ Mojo function
 # `traverse_upwards`
 
 ```mojo
-fn traverse_upwards(cluster_tree: Dict[String, List[Scalar[DType.index]]], lambda_array: List[Float32], cluster_selection_epsilon: Float32, leaf: Scalar[DType.index], allow_single_cluster: Int) -> Scalar[DType.index]
+def traverse_upwards(cluster_tree: Dict[String, List[Scalar[DType.int]]], lambda_array: List[Float32], cluster_selection_epsilon: Float32, leaf: Scalar[DType.int], allow_single_cluster: Int) -> Scalar[DType.int]
 ```
 
 **Args:**

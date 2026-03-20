@@ -7,10 +7,6 @@ Mojo struct
 struct HDBSCANBoruvka
 ```
 
-## Aliases
-
-- `__del__is_trivial = False`
-
 ## Fields
 
 - **tree** (`UnsafePointer[KDTreeBoruvka, MutAnyOrigin]`)
@@ -19,11 +15,11 @@ struct HDBSCANBoruvka
 - **min_samples** (`Int`)
 - **alpha** (`Float32`)
 - **num_components** (`Int`)
-- **component_of_point** (`List[Scalar[DType.index]]`)
-- **component_of_node** (`List[Scalar[DType.index]]`)
-- **component_remap** (`List[Scalar[DType.index]]`)
-- **candidate_point** (`List[Scalar[DType.index]]`)
-- **candidate_neighbor** (`List[Scalar[DType.index]]`)
+- **component_of_point** (`List[Scalar[DType.int]]`)
+- **component_of_node** (`List[Scalar[DType.int]]`)
+- **component_remap** (`List[Scalar[DType.int]]`)
+- **candidate_point** (`List[Scalar[DType.int]]`)
+- **candidate_neighbor** (`List[Scalar[DType.int]]`)
 - **candidate_dist** (`List[Float32]`)
 - **u_f** (`UnionFind`)
 - **u_f_finds** (`List[Int]`)
@@ -39,7 +35,7 @@ struct HDBSCANBoruvka
 ### `__init__`
 
 ```mojo
-fn __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples: Int = 5, alpha: Float32 = 1)
+def __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples: Int = 5, alpha: Float32 = 1)
 ```
 
 **Args:**
@@ -58,7 +54,7 @@ fn __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples
 ### `mr_rdist`
 
 ```mojo
-fn mr_rdist(self, var d2: Float32, p: Scalar[DType.index], q: Scalar[DType.index]) -> Float32
+def mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32
 ```
 
 **Args:**
@@ -75,23 +71,19 @@ fn mr_rdist(self, var d2: Float32, p: Scalar[DType.index], q: Scalar[DType.index
 ### `update_components_and_nodes`
 
 ```mojo
-fn update_components_and_nodes(mut self) -> Int
+def update_components_and_nodes(mut self)
 ```
 
 **Args:**
 
 - **self** (`Self`)
 
-**Returns:**
-
-`Int`
-
 **Raises:**
 
 ### `dual_tree_traversal`
 
 ```mojo
-fn dual_tree_traversal(mut self, node1: Int, node2: Int)
+def dual_tree_traversal(mut self, node1: Int, node2: Int)
 ```
 
 **Args:**
@@ -105,7 +97,7 @@ fn dual_tree_traversal(mut self, node1: Int, node2: Int)
 ### `spanning_tree`
 
 ```mojo
-fn spanning_tree(mut self) -> Matrix
+def spanning_tree(mut self) -> Matrix
 ```
 
 **Args:**

@@ -3,7 +3,7 @@ Mojo function
 # `max_lambdas`
 
 ```mojo
-fn max_lambdas(tree: Dict[String, List[Scalar[DType.index]]], lambda_vals: List[Float32]) -> List[Float32]
+def max_lambdas(tree: Dict[String, List[Scalar[DType.int]]], lambda_vals: List[Float32]) -> List[Float32]
 ```
 
 **Args:**
