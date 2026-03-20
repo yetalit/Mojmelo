@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign, mse
-import math
-import time
-import random
+from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS
+import std.math as math
+import std.time as time
+import std.random as random
 
-struct PolyRegression(CV):
+struct PolyRegression(CV, Copyable):
     """A Gradient Descent based polynomial regression with mse as the loss function."""
     var degree: Int
     """The maximal degree of the polynomial features."""
@@ -26,8 +26,9 @@ struct PolyRegression(CV):
     """Weights per feature."""
     var bias: Float32
     """Bias term."""
+    comptime MODEL_ID = 2
 
-    fn __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
+    def __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.degree = degree
         self.lr = learning_rate
@@ -42,13 +43,13 @@ struct PolyRegression(CV):
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn _polynomial_features(self, X: Matrix) -> List[Matrix]:
+    def _polynomial_features(self, X: Matrix) -> List[Matrix]:
         var X_poly = List[Matrix]()
         for d in range(2, self.degree + 1):
             X_poly.append(X ** d)
         return X_poly^
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the model."""
         var X_poly = self._polynomial_features(X)
         # init parameters
@@ -92,19 +93,19 @@ struct PolyRegression(CV):
                     for i in range(1, self.degree):
                         y_batch_predicted += X_poly[i - 1][batch_indices] * self.weights['', i]
                     if self.tol > 0.0:
-                        cost += mse(y_batch, y_batch_predicted) / num_b_iters
+                        cost += mse(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     # compute gradients and update parameters
                     var y_error = y_batch_predicted - y_batch
-                    dw['', 0] = (X_batch.T() * y_error) / len(y_batch)
+                    dw['', 0] = (X_batch.T() * y_error) / Float32(len(y_batch))
                     for i in range(1, self.degree):
-                        dw['', i] = (X_poly_batch[i - 1].T() * y_error) / len(y_batch)
+                        dw['', i] = (X_poly_batch[i - 1].T() * y_error) / Float32(len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = y_error.sum() / len(y_batch)
+                    var db = y_error.mean()
                     self.weights['', 0] -= self.lr * dw['', 0]
                     self.bias -= self.lr * db
                     for i in range(1, self.degree):
@@ -126,22 +127,22 @@ struct PolyRegression(CV):
                 # compute gradients and update parameters
                 var y_error = y_predicted - y
                 var dw = Matrix(X.width, self.degree, order='f')
-                dw['', 0] = (X_T * y_error) / X.height
+                dw['', 0] = (X_T * y_error) / Float32(X.height)
                 for i in range(1, self.degree):
-                    dw['', i] = (X_poly_T[i - 1] * y_error) / X.height
+                    dw['', i] = (X_poly_T[i - 1] * y_error) / Float32(X.height)
                 if l1_lambda > 0.0:
                     # L1 regularization
                     dw += l1_lambda * sign(self.weights)
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
-                var db = y_error.sum() / X.height
+                var db = y_error.mean()
                 self.weights['', 0] -= self.lr * dw['', 0]
                 self.bias -= self.lr * db
                 for i in range(1, self.degree):
                     self.weights['', i] -= self.lr * dw['', i]
 
-    fn predict(self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Predict regression values for X.
         
         Returns:
@@ -153,7 +154,35 @@ struct PolyRegression(CV):
             y_predicted += X_poly[i - 1] * self.weights['', i]
         return y_predicted^
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(self.weights.height).as_bytes())
+            f.write_bytes(UInt32(self.degree).as_bytes())
+            f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(self.bias.as_bytes())
+
+    @staticmethod
+    def load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
+            var w_height = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var degree = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
+            model.degree = degree
+            model.weights = Matrix(w_height, degree, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_height * degree).unsafe_ptr())), order='f')
+            model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+        return model^
+
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'degree' in params:
             self.degree = atol(String(params['degree']))
         else:

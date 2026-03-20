@@ -1,13 +1,15 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy
-import math
-import time
-import random
+from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS
+import std.math as math
+import std.time as time
+import std.random as random
 
-struct LogisticRegression(CV):
+struct LogisticRegression(CV, Copyable):
     """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""
     var lr: Float32
-    """Learning rate."""
+    """Learning rate used for gradient method."""
+    var damping: Float32
+    """Damping value used for newton method."""
     var n_iters: Int
     """The maximum number of iterations."""
     var method: String
@@ -26,10 +28,12 @@ struct LogisticRegression(CV):
     """Weights per feature."""
     var bias: Float32
     """Bias term."""
+    comptime MODEL_ID = 3
 
-    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
+    def __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1e-4, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
+        self.damping = damping
         self.n_iters = n_iters
         self.method = method.lower()
         self.reg_alpha = reg_alpha
@@ -42,7 +46,7 @@ struct LogisticRegression(CV):
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the model."""
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
@@ -58,7 +62,7 @@ struct LogisticRegression(CV):
 
         var prev_cost = math.inf[DType.float32]()
         var num_b_iters = X.height // self.batch_size if self.batch_size > 0 else 0
-        var _reg = (1e-5 + l2_lambda) * Matrix.eye(X.width)
+        var _reg = (self.damping + l2_lambda) * Matrix.eye(X.width)
         for _ in range(self.n_iters):
             if self.batch_size > 0:
                 var ids: List[Scalar[DType.int]]
@@ -76,28 +80,30 @@ struct LogisticRegression(CV):
 
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
                     if self.tol > 0.0:
-                        cost += cross_entropy(y_batch, y_batch_predicted) / num_b_iters
+                        cost += cross_entropy(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     var y_error = y_batch_predicted - y_batch
                     var X_batch_T = X_batch.T()
-                    var dw = (X_batch_T * y_error) / len(y_batch)
+                    var dw = (X_batch_T * y_error) / Float32(len(y_batch))
+                    if l2_lambda > 0.0:
+                        # L2 regularization
+                        dw += l2_lambda * self.weights
+                    var db = y_error.mean()
                     if self.method == 'newton':
-                        var H = (X_batch_T * X_batch.ele_mul(y_batch_predicted.ele_mul(1.0 - y_batch_predicted))) / len(y_batch)
-                        # Add regularization to Hessian for L2 only
+                        # curvature weights
+                        var r = y_batch_predicted.ele_mul(1.0 - y_batch_predicted)
+
+                        var H = (X_batch_T * X_batch.ele_mul(r)) / Float32(len(y_batch))
                         # Update weights using Newton's method
-                        self.weights -= Matrix.solve((H + _reg), dw)
+                        self.weights -= Matrix.solve(H + _reg, dw)
+                        var Hb = r.mean()
+                        self.bias -= db / (Hb + self.damping)
                     else:
                         # gradient descent
                         if l1_lambda > 0.0:
                             # L1 regularization
                             dw += l1_lambda * sign(self.weights)
-                        if l2_lambda > 0.0:
-                            # L2 regularization
-                            dw += l2_lambda * self.weights
-                        
                         self.weights -= self.lr * dw
-                    
-                    var db = y_error.sum() / len(y_batch)
-                    self.bias -= self.lr * db
+                        self.bias -= self.lr * db
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break
@@ -113,27 +119,29 @@ struct LogisticRegression(CV):
                     prev_cost = cost
 
                 var y_error = y_predicted - y
-                var dw = (X_T * y_error) / X.height
+                var dw = (X_T * y_error) / Float32(X.height)
+                if l2_lambda > 0.0:
+                    # L2 regularization
+                    dw += l2_lambda * self.weights
+                var db = y_error.mean()
                 if self.method == 'newton':
-                    var H = (X_T * X.ele_mul(y_predicted.ele_mul(1.0 - y_predicted))) / X.height
-                    # Add regularization to Hessian for L2 only
+                    # curvature weights
+                    var r = y_predicted.ele_mul(1.0 - y_predicted)
+
+                    var H = (X_T * X.ele_mul(r)) / Float32(X.height)
                     # Update weights using Newton's method
-                    self.weights -= Matrix.solve((H + _reg), dw)
+                    self.weights -= Matrix.solve(H + _reg, dw)
+                    var Hb = r.mean()
+                    self.bias -= db / (Hb + self.damping)
                 else:
                     # gradient descent
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
-                    if l2_lambda > 0.0:
-                        # L2 regularization
-                        dw += l2_lambda * self.weights
-                    
                     self.weights -= self.lr * dw
-                
-                var db = y_error.sum() / X.height
-                self.bias -= self.lr * db
+                    self.bias -= self.lr * db
 
-    fn predict(self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Predict class for X.
         
         Returns:
@@ -142,11 +150,40 @@ struct LogisticRegression(CV):
         var y_predicted = sigmoid(X * self.weights + self.bias)
         return y_predicted.where(y_predicted >= 0.5, 1.0, 0.0)
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(self.weights.size).as_bytes())
+            f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(self.bias.as_bytes())
+
+    @staticmethod
+    def load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
+            var w_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_size).unsafe_ptr())))
+            model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+        return model^
+
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:
             self.lr = 0.01
+        if 'damping' in params:
+            self.damping = atof(String(params['damping'])).cast[DType.float32]()
+        else:
+            self.damping = 1e-4
         if 'n_iters' in params:
             self.n_iters = atol(String(params['n_iters']))
         else:

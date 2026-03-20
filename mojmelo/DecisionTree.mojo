@@ -106,16 +106,16 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             random.seed(42)
         self.root = UnsafePointer[Node, MutAnyOrigin]()
 
-    def _moveinit_(mut self, mut existing: Self):
-        self.criterion = existing.criterion
-        self.loss_func = existing.loss_func
-        self.min_samples_split = existing.min_samples_split
-        self.max_depth = existing.max_depth
-        self.n_feats = existing.n_feats
-        self.root = existing.root
-        existing.criterion = ''
-        existing.min_samples_split = existing.max_depth = existing.n_feats = 0
-        existing.root = UnsafePointer[Node, MutAnyOrigin]()
+    def _moveinit_(mut self, mut take: Self):
+        self.criterion = take.criterion
+        self.loss_func = take.loss_func
+        self.min_samples_split = take.min_samples_split
+        self.max_depth = take.max_depth
+        self.n_feats = take.n_feats
+        self.root = take.root
+        take.criterion = ''
+        take.min_samples_split = take.max_depth = take.n_feats = 0
+        take.root = UnsafePointer[Node, MutAnyOrigin]()
 
     def __del__(deinit self):
         if self.root:

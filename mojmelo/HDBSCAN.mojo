@@ -38,9 +38,9 @@ struct HDBSCAN:
         in clustering results. Setting this flag to True will, at a some
         performance cost, ensure that the clustering results match the
         reference implementation."""
-    var search_deepness_coef: Int
+    var search_depth: Int
     """Current KDTree implementation applies some approximation to its search results.
-        Increasing search_deepness_coef can lead to more accurate results at the cost of performance.
+        Increasing search_depth can lead to more accurate results at the cost of performance.
         This can be useful for small datasets."""
 
     var labels: List[Scalar[DType.int]]
@@ -69,7 +69,7 @@ struct HDBSCAN:
         max_cluster_size: Int = 0,
         allow_single_cluster: Bool = False,
         match_reference_implementation: Bool = False,
-        search_deepness_coef: Int = 1
+        search_depth: Int = 1
     ):
         self.min_samples = min_samples
         self.min_cluster_size = min_cluster_size
@@ -81,7 +81,7 @@ struct HDBSCAN:
         self.max_cluster_size = max_cluster_size
         self.allow_single_cluster = allow_single_cluster
         self.match_reference_implementation = match_reference_implementation
-        self.search_deepness_coef = search_deepness_coef
+        self.search_depth = search_depth
         
         self.labels = List[Scalar[DType.int]]()
         self.probabilities = List[Float32]()
@@ -100,7 +100,7 @@ struct HDBSCAN:
         if self.cluster_selection_method != 'eom' and self.cluster_selection_method != 'leaf':
             raise Error('Invalid cluster_selection_method value!')
 
-        var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=max(32, 2 * self.min_samples), search_deepness_coef=self.search_deepness_coef)
+        var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=max(32, 2 * self.min_samples), search_depth=self.search_depth)
         var boruvka_alg = HDBSCANBoruvka(UnsafePointer(to=tree), min_samples=self.min_samples, alpha=self.alpha)
         var mst_edges = boruvka_alg.spanning_tree()
         _ = tree

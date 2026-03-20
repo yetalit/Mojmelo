@@ -1,12 +1,12 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, cartesian_product
-from algorithm import parallelize
-from sys import num_performance_cores
-from python import Python, PythonObject
-import time
-import random
+from std.algorithm import parallelize
+from std.sys import num_performance_cores
+from std.python import Python, PythonObject
+import std.time as time
+import std.random as random
 
-fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
+def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
     """Scale input vectors individually to unit norm (vector length).
 
     Args:
@@ -32,7 +32,7 @@ fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
                     norms.data[i] = data[i].norm()
             else:
                 @parameter
-                fn p1(i: Int):
+                def p1(i: Int):
                     try:
                         norms.data[i] = data[i].norm()
                     except e:
@@ -40,7 +40,7 @@ fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
                 parallelize[p1](norms.height)
 
     @parameter
-    fn p2(i: Int):
+    def p2(i: Int):
         try:
             if norms.data[i] != 0.0:
                 z[i] = data[i] / norms.data[i]
@@ -52,7 +52,7 @@ fn normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
 
     return z^, norms^
 
-fn inv_normalize(z: Matrix, norms: Matrix) raises -> Matrix:
+def inv_normalize(z: Matrix, norms: Matrix) raises -> Matrix:
     """Reproduce normalized data given its norms.
 
     Args:
@@ -64,7 +64,7 @@ fn inv_normalize(z: Matrix, norms: Matrix) raises -> Matrix:
     """
     return z.ele_mul(norms)
 
-fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Tuple[Matrix, Matrix, Matrix]:
+def MinMaxScaler(data: Matrix, feature_range: Tuple[Float32, Float32] = (0, 1)) raises -> Tuple[Matrix, Matrix, Matrix]:
     """Transform features by scaling each feature to a given range.
     
     Args:
@@ -80,7 +80,7 @@ fn MinMaxScaler(data: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises ->
     var div = x_max - x_min
     return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0], x_min^, x_max^
 
-fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+def MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Float32, Float32] = (0, 1)) raises -> Matrix:
     """Transform features by scaling each feature to a given range, data_min and data_max.
     
     Args:
@@ -96,7 +96,7 @@ fn MinMaxScaler(data: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple
     var div = x_max - x_min
     return ((data - x_min) / div.where(div == 0.0, 1.0, div)) * (feature_range[1] - feature_range[0]) + feature_range[0]
 
-fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Int, Int] = (0, 1)) raises -> Matrix:
+def inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Float32, Float32] = (0, 1)) raises -> Matrix:
     """Reproduce scaled data given its range, data_min and data_max.
 
     Args:
@@ -111,7 +111,7 @@ fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tupl
     var div = x_max - x_min
     return ((z - feature_range[0]) / (feature_range[1] - feature_range[0])).ele_mul(div.where(div == 0.0, 1.0, div)) + x_min
 
-fn StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
+def StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
     """Standardize features by removing the mean and scaling to unit variance.
     
     Args:
@@ -125,7 +125,7 @@ fn StandardScaler(data: Matrix) raises -> Tuple[Matrix, Matrix, Matrix]:
     # standardize data
     return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma), mu^, sigma^
 
-fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
+def StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     """Standardize features by removing the mean and scaling to unit variance given mean and standard deviation.
     
     Args:
@@ -139,7 +139,7 @@ fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     # standardize data
     return (data - mu) / sigma.where(sigma == 0.0, 1.0, sigma)
 
-fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
+def inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     """Reproduce scaled data given its mean and standard deviation.
 
     Args:
@@ -152,21 +152,21 @@ fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
     """
     return z.ele_mul(sigma.where(sigma == 0.0, 1.0, sigma)) + mu
 
-fn train_test_split(X: Matrix, y: Matrix, *, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+def train_test_split(X: Matrix, y: Matrix, *, test_size: Float32 = 0.5, train_size: Float32 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var split_i = Int(X.height - (test_ratio * X.height))
+    var split_i = Int(Float32(X.height) - (test_ratio * Float32(X.height)))
     var split_train = List[Scalar[DType.int]](ids[:split_i])
     var split_test = List[Scalar[DType.int]](ids[split_i:])
     return X[split_train], X[split_test], y[split_train], y[split_test]
 
-fn train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float64 = 0.5, train_size: Float64 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
+def train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float32 = 0.5, train_size: Float32 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
     """Split matrices into random train and test subsets."""
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
-    var split_i = Int(X.height - (test_ratio * X.height))
+    var split_i = Int(Float32(X.height) - (test_ratio * Float32(X.height)))
     var split_train = List[Scalar[DType.int]](ids[:split_i])
     var split_test = List[Scalar[DType.int]](ids[split_i:])
     return X[split_train], X[split_test], y[split_train], y[split_test]
@@ -178,11 +178,11 @@ struct LabelEncoder:
     var str_to_index: Dict[String, Int]
     var index_to_str: Dict[Int, String]
 
-    fn __init__(out self):
+    def __init__(out self):
         self.str_to_index = Dict[String, Int]()
         self.index_to_str = Dict[Int, String]()
 
-    fn fit_transform(mut self, y: PythonObject) raises -> Matrix:
+    def fit_transform(mut self, y: PythonObject) raises -> Matrix:
         """Fit label encoder and return encoded labels.
             
         Args:
@@ -201,10 +201,10 @@ struct LabelEncoder:
                 self.str_to_index[str_] = latest_index
                 self.index_to_str[latest_index] = str_
                 latest_index += 1
-            y_encoded.data[i] = self.str_to_index[str_]
+            y_encoded.data[i] = Float32(self.str_to_index[str_])
         return y_encoded^
 
-    fn transform(self, y: PythonObject) raises -> Matrix:
+    def transform(self, y: PythonObject) raises -> Matrix:
         """Return encoded labels based on fitted encoder.
 
         Args:
@@ -215,10 +215,10 @@ struct LabelEncoder:
         """
         var y_encoded = Matrix(len(y), 1)
         for i in range(len(y)):
-            y_encoded.data[i] = self.str_to_index[String(y[i])]
+            y_encoded.data[i] = Float32(self.str_to_index[String(y[i])])
         return y_encoded^
 
-    fn inverse_transform(self, y: Matrix) raises -> PythonObject:
+    def inverse_transform(self, y: Matrix) raises -> PythonObject:
         """Transform labels back to original encoding.
             
         Args:
@@ -233,7 +233,7 @@ struct LabelEncoder:
             np_arr[i] = self.index_to_str[Int(y.data[i])]
         return np_arr^
 
-fn KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     """K-Fold cross-validator.
 
     Parameters:
@@ -259,11 +259,11 @@ fn KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix
         model.fit(X[train_ids], y[train_ids])
         var test_ids = List[Scalar[DType.int]](ids[start_of_test:end_of_test])
         y_pred = model.predict(X[test_ids])
-        mean_score += scoring(y[test_ids], y_pred) / n_splits
+        mean_score += scoring(y[test_ids], y_pred) / Float32(n_splits)
         start_of_test += test_count
     return mean_score
 
-fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
+def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
                             scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
     """Exhaustive search over specified parameter values for an estimator.
 
@@ -282,11 +282,10 @@ fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[
     Returns:
         Best parameters.
     """
-    var dic_values = List[List[String]]()
-    for i in range(len(param_grid)):
-        dic_values.append(List[String]())
-        dic_values[i] = param_grid._entries[i].value().value.copy()
-    var combinations = cartesian_product(dic_values)
+    var dict_values = List[List[String]]()
+    for key in param_grid.keys():
+        dict_values.append(param_grid[key].copy())
+    var combinations = cartesian_product(dict_values)
     var scores = Matrix(1, len(combinations))
     var params = List[Dict[String, String]](capacity=len(combinations))
     params.resize(len(combinations), Dict[String, String]())
@@ -306,7 +305,7 @@ fn GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[
         if n_workers == -1:
             n_workers = num_performance_cores()
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             params[i] = Dict[String, String]()
             var j = 0
             for key in param_grid.keys():

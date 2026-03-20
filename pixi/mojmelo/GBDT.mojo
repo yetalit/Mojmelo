@@ -1,9 +1,10 @@
 from mojmelo.utils.BDecisionTree import BDecisionTree
+from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link
-from algorithm import parallelize
+from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link, MODEL_IDS
+from std.algorithm import parallelize
 
-struct GBDT(CV):
+struct GBDT(CV, Copyable):
 	"""Gradient Boosting with support for both classification and regression."""
 	var criterion: String
 	"""The method to measure the quality of a split:
@@ -31,8 +32,10 @@ struct GBDT(CV):
 	var trees: UnsafePointer[BDecisionTree, MutAnyOrigin]
 	var score_start: Float32
 	var num_class: Int
+	comptime MODEL_ID = 11
+	comptime criterion_ids: List[String] = ['log', 'softmax', 'mse']
 
-	fn __init__(out self,
+	def __init__(out self,
 		criterion: String = 'log',
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,
 		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0
@@ -59,13 +62,13 @@ struct GBDT(CV):
 		self.score_start = 0.0
 		self.num_class = 0
 
-	fn __del__(deinit self):
+	def __del__(deinit self):
 		if self.trees:
 			for i in range(self.n_trees):
 				(self.trees + i).destroy_pointee()
 			self.trees.free()
 
-	fn fit(mut self, X: Matrix, y: Matrix) raises:
+	def fit(mut self, X: Matrix, y: Matrix) raises:
 		"""Fit the gradient boosting model."""
 		var X_F = X.asorder('f')
 		var score: Matrix
@@ -81,21 +84,22 @@ struct GBDT(CV):
 			score = Matrix.full(X.height, 1, self.score_start)
 
 		for i in range(self.n_trees):
+			var t_i = i
 			@parameter
-			fn p(k: Int):
+			def p(k: Int):
 				try:
 					var g = self.loss_g(y, score)
 					var h = self.loss_h(score)
 					var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, reg_alpha = self.reg_alpha, gamma = self.gamma, n_bins=self.n_bins)
 					tree.fit(X_F, g=g['', k], h=h['', k])
-					(self.trees + i * self.num_class + k).init_pointee_move(tree)
-					self.trees[i * self.num_class + k]._moveinit_(tree)
-					score['', k] += self.learning_rate * self.trees[i * self.num_class + k].predict(X)
+					(self.trees + t_i * self.num_class + k).init_pointee_move(tree)
+					self.trees[t_i * self.num_class + k]._moveinit_(tree)
+					score['', k] += self.learning_rate * self.trees[t_i * self.num_class + k].predict(X)
 				except e:
 					print('Error:', e)
 			parallelize[p](self.num_class)
 
-	fn predict(self, X: Matrix) raises -> Matrix:
+	def predict(self, X: Matrix) raises -> Matrix:
 		"""Predict class or regression value for X.
 
         Returns:
@@ -103,10 +107,10 @@ struct GBDT(CV):
         """
 		var scores = Matrix(X.height, self.num_class)
 		@parameter
-		fn per_class(k: Int):
+		def per_class(k: Int):
 			var score = Matrix(X.height, self.n_trees)
 			@parameter
-			fn per_tree(i: Int):
+			def per_tree(i: Int):
 				try:
 					score['', i] = self.learning_rate * self.trees[i * self.num_class + k].predict(X)
 				except e:
@@ -124,7 +128,82 @@ struct GBDT(CV):
 		scores = sigmoid(scores)
 		return scores.where(scores >= 0.5, 1.0, 0.0)
 
-	fn __init__(out self, params: Dict[String, String]) raises:
+	def save(self, path: String) raises:
+		"""Save model data necessary for prediction to the specified path."""
+		var _path = path if path.endswith('.mjml') else path + '.mjml'
+		with open(_path, "w") as f:
+			f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+			f.write_bytes(UInt8(materialize[self.criterion_ids]().index(self.criterion)).as_bytes())
+			f.write_bytes(self.learning_rate.as_bytes())
+			f.write_bytes(self.score_start.as_bytes())
+			f.write_bytes(UInt64(self.n_trees).as_bytes())
+			f.write_bytes(UInt64(self.num_class).as_bytes())
+			for t_i in range(self.n_trees * self.num_class):
+				var node_list = List[Node]()
+				var children_index_list = List[Tuple[Int, Int]]()
+				var stack = [self.trees[t_i].root[].copy()]
+				while len(stack) > 0:
+					var node = stack.pop()
+					var children_index = (-1, -1)
+					if node.left:
+						stack.insert(0, node.left[].copy())
+						children_index[0] = len(stack) + len(node_list)
+					if node.right:
+						stack.insert(0, node.right[].copy())
+						children_index[1] = len(stack) + len(node_list)
+					node_list.append(node^)
+					children_index_list.append(children_index)
+				f.write_bytes(UInt64(len(node_list)).as_bytes())
+				for i, node in enumerate(node_list):
+					f.write_bytes(UInt64(node.feature).as_bytes())
+					f.write_bytes(node.threshold.as_bytes())
+					f.write_bytes(UInt64(children_index_list[i][0]).as_bytes())
+					f.write_bytes(UInt64(children_index_list[i][1]).as_bytes())
+					f.write_bytes(node.value.as_bytes())
+
+	@staticmethod
+	def load(path: String) raises -> Self:
+		"""Load a saved model from the specified path for prediction."""
+		var _path = path if path.endswith('.mjml') else path + '.mjml'
+		var model = Self()
+		with open(_path, "r") as f:
+			var id = f.read_bytes(1)[0]
+			if id < 1 or id > UInt8(MODEL_IDS.size-1):
+				raise Error('Input file with invalid metadata!')
+			elif id != Self.MODEL_ID:
+				raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
+			model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
+			model.learning_rate = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+			model.score_start = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+			model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+			model.num_class = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+			model.trees = alloc[BDecisionTree](model.n_trees * model.num_class)
+			for t_i in range(model.n_trees * model.num_class):
+				var tree = BDecisionTree()
+				var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+				var node_list = List[UnsafePointer[Node, MutAnyOrigin]]()
+				var children_index_list = List[Tuple[Int, Int]]()
+				for i in range(node_size):
+					var feature = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+					var threshold = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+					var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+					var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+					var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+					var node = alloc[Node](1)
+					node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
+					node_list.append(node)
+					children_index_list.append((left, right))
+				tree.root = node_list[0]
+				for i in range(node_size):
+					if children_index_list[i][0] != -1:
+						node_list[i][].left = node_list[children_index_list[i][0]]
+					if children_index_list[i][1] != -1:
+						node_list[i][].right = node_list[children_index_list[i][1]]
+				(model.trees + t_i).init_pointee_move(tree)
+				model.trees[t_i]._moveinit_(tree)
+		return model^
+
+	def __init__(out self, params: Dict[String, String]) raises:
 		if 'criterion' in params:
 			self.criterion = params['criterion'].lower()
 		else:

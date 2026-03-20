@@ -1,22 +1,22 @@
 from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.Matrix import Matrix
 from .KDTreeBoruvka import KDTreeBoruvka, node_pair_lower_bound
-import math
-from algorithm import vectorize, parallelize
-from memory import memset
+import std.math as math
+from std.algorithm import vectorize, parallelize
+from std.memory import memset
 
 struct UnionFind:
     var parent: List[Scalar[DType.int]]
     var rank: List[Scalar[DType.int]]
     
     @always_inline
-    fn __init__(out self, size: Int) raises:
+    def __init__(out self, size: Int) raises:
         self.parent = fill_indices_list(size)
         self.rank = List[Scalar[DType.int]](capacity=size)
         self.rank.resize(size, 0)
 
     @always_inline
-    fn find(mut self, x: Scalar[DType.int]) -> Scalar[DType.int]:
+    def find(mut self, x: Scalar[DType.int]) -> Scalar[DType.int]:
         var v = x
         while self.parent[v] != v:
             var index = self.parent[v]
@@ -25,7 +25,7 @@ struct UnionFind:
         return v
 
     @always_inline
-    fn unite(mut self, x: Scalar[DType.int], y: Scalar[DType.int]):
+    def unite(mut self, x: Scalar[DType.int], y: Scalar[DType.int]):
         var xr = self.find(x)
         var yr = self.find(y)
 
@@ -60,7 +60,7 @@ struct HDBSCANBoruvka:
     var num_edges: Int
 
     @always_inline
-    fn __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin],
+    def __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin],
                        min_samples: Int=5,
                        alpha: Float32=1.0) raises:
         self.tree = t
@@ -90,20 +90,20 @@ struct HDBSCANBoruvka:
         self.component_remap.resize(self.n, -1)
 
     @always_inline
-    fn mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32:
+    def mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32:
         if self.alpha != 1.0:
             d2 /= (self.alpha * self.alpha)
 
         return max(max(d2, self.tree[].core_dist[p]), self.tree[].core_dist[q])
 
-    fn update_components_and_nodes(mut self) raises -> Int:
+    def update_components_and_nodes(mut self) raises:
         @parameter
-        fn update_point(i: Int):
-            self.component_of_point[i] = self.u_f.find(i)
+        def update_point(i: Int):
+            self.component_of_point[i] = self.u_f.find(Scalar[DType.int](i))
             self.u_f_finds[i] = Int(self.component_of_point[i])
         parallelize[update_point](self.n)
 
-        var next_id = 0
+        var next_id: Scalar[DType.int] = 0
         for i in range(self.n):
             var c = self.component_of_point[i]
             if self.component_remap[c] == -1:
@@ -140,10 +140,9 @@ struct HDBSCANBoruvka:
 
                 self.component_of_node[ni] = cl if cl == cr else -1
 
-        self.num_components = num_components
-        return num_components
+        self.num_components = Int(num_components)
 
-    fn dual_tree_traversal(mut self, node1: Int, node2: Int) raises:
+    def dual_tree_traversal(mut self, node1: Int, node2: Int) raises:
         var nd1 = UnsafePointer(to=self.tree[].nodes[node1])
         var nd2 = UnsafePointer(to=self.tree[].nodes[node2])
 
@@ -151,22 +150,22 @@ struct HDBSCANBoruvka:
         if node1 == node2:
             if nd1[].is_leaf:
                 for i in range(nd1[].idx_start, nd1[].idx_end):
-                    var p = i
+                    var p = Scalar[DType.int](i)
                     var cp = self.u_f_finds[p]
 
                     for j in range(i + 1, nd1[].idx_end):
-                        var q = j
+                        var q = Scalar[DType.int](j)
                         var cq = self.u_f_finds[q]
 
                         if cp == cq:
                             continue
 
-                        var xp = self.tree[].data + p * self.dim
-                        var xq = self.tree[].data + q * self.dim
+                        var xp = self.tree[].data + p * Scalar[DType.int](self.dim)
+                        var xq = self.tree[].data + q * Scalar[DType.int](self.dim)
 
                         var d2: Float32 = 0.0
                         @parameter
-                        fn v1[simd_width: Int](k: Int) unified {mut}:
+                        def v1[simd_width: Int](k: Int) unified {mut}:
                             var t = xp.load[width=simd_width](k) - xq.load[width=simd_width](k)
                             d2 += (t * t).reduce_add()
                         vectorize[Matrix.simd_width](self.dim, v1)
@@ -201,11 +200,11 @@ struct HDBSCANBoruvka:
                 self.dim
             )
             for i in range(nd1[].idx_start, nd1[].idx_end):
-                var p = i
+                var p = Scalar[DType.int](i)
                 var cp = self.u_f_finds[p]
 
                 for j in range(nd2[].idx_start, nd2[].idx_end):
-                    var q = j
+                    var q = Scalar[DType.int](j)
                     if p == q:
                         continue
 
@@ -217,12 +216,12 @@ struct HDBSCANBoruvka:
                     if lb2 >= self.candidate_dist[min(cp, cq)]:
                         return
 
-                    var xp = self.tree[].data + p * self.dim
-                    var xq = self.tree[].data + q * self.dim
+                    var xp = self.tree[].data + p * Scalar[DType.int](self.dim)
+                    var xq = self.tree[].data + q * Scalar[DType.int](self.dim)
 
                     var d2: Float32 = 0.0
                     @parameter
-                    fn v2[simd_width: Int](k: Int) unified {mut}:
+                    def v2[simd_width: Int](k: Int) unified {mut}:
                         var t = xp.load[width=simd_width](k) - xq.load[width=simd_width](k)
                         d2 += (t * t).reduce_add()
                     vectorize[Matrix.simd_width](self.dim, v2)
@@ -249,12 +248,12 @@ struct HDBSCANBoruvka:
             self.dual_tree_traversal(node1, self.tree[].right(node2))
 
 
-    fn spanning_tree(mut self) raises -> Matrix:
+    def spanning_tree(mut self) raises -> Matrix:
         self.num_edges = 0
 
         while True:
 
-            _ = self.update_components_and_nodes()
+            self.update_components_and_nodes()
             if self.num_components <= 1:
                 break
 
@@ -266,7 +265,7 @@ struct HDBSCANBoruvka:
 
             var edges_added = 0
 
-            for i in range(self.n):
+            for i in range(Scalar[DType.int](self.n)):
 
                 if self.u_f.find(i) != i:
                     continue

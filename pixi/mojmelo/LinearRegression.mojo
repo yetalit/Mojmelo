@@ -1,10 +1,10 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign, mse
-import math
-import time
-import random
+from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS
+import std.math as math
+import std.time as time
+import std.random as random
 
-struct LinearRegression(CV):
+struct LinearRegression(CV, Copyable):
     """A Gradient Descent based linear regression with mse as the loss function."""
     var lr: Float32
     """Learning rate."""
@@ -24,8 +24,9 @@ struct LinearRegression(CV):
     """Weights per feature."""
     var bias: Float32
     """Bias term."""
+    comptime MODEL_ID = 1
 
-    fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
+    def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
                 tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.n_iters = n_iters
@@ -39,7 +40,7 @@ struct LinearRegression(CV):
         self.weights = Matrix(0, 0)
         self.bias = 0.0
 
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the model."""
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
@@ -73,17 +74,17 @@ struct LinearRegression(CV):
 
                     var y_batch_predicted = X_batch * self.weights + self.bias
                     if self.tol > 0.0:
-                        cost += mse(y_batch, y_batch_predicted) / num_b_iters
+                        cost += mse(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     # compute gradients and update parameters
                     var y_error = y_batch_predicted - y_batch
-                    var dw = (X_batch.T() * y_error) / len(y_batch)
+                    var dw = (X_batch.T() * y_error) / Float32(len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw += l1_lambda * sign(self.weights)
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw += l2_lambda * self.weights
-                    var db = y_error.sum() / len(y_batch)
+                    var db = y_error.mean()
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
                 if self.tol > 0.0:
@@ -100,18 +101,18 @@ struct LinearRegression(CV):
                     prev_cost = cost
                 # compute gradients and update parameters
                 var y_error = y_predicted - y
-                var dw = (X_T * y_error) / X.height
+                var dw = (X_T * y_error) / Float32(X.height)
                 if l1_lambda > 0.0:
                     # L1 regularization
                     dw += l1_lambda * sign(self.weights)
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw += l2_lambda * self.weights
-                var db = y_error.sum() / X.height
+                var db = y_error.mean()
                 self.weights -= self.lr * dw
                 self.bias -= self.lr * db
 
-    fn predict(self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Predict regression values for X.
         
         Returns:
@@ -119,7 +120,32 @@ struct LinearRegression(CV):
         """
         return X * self.weights + self.bias
 
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def save(self, path: String) raises:
+        """Save model data necessary for prediction to the specified path."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        with open(_path, "w") as f:
+            f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
+            f.write_bytes(UInt64(self.weights.size).as_bytes())
+            f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(self.bias.as_bytes())
+
+    @staticmethod
+    def load(path: String) raises -> Self:
+        """Load a saved model from the specified path for prediction."""
+        var _path = path if path.endswith('.mjml') else path + '.mjml'
+        var model = Self()
+        with open(_path, "r") as f:
+            var id = f.read_bytes(1)[0]
+            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+                raise Error('Input file with invalid metadata!')
+            elif id != Self.MODEL_ID:
+                raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
+            var w_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_size).unsafe_ptr())))
+            model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+        return model^
+
+    def __init__(out self, params: Dict[String, String]) raises:
         if 'learning_rate' in params:
             self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:

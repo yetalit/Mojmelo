@@ -22,17 +22,17 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         self.n_bins = n_bins if n_bins >= 2 else 0
         self.root = UnsafePointer[Node, MutAnyOrigin]()
 
-    def _moveinit_(mut self, mut existing: Self):
-        self.min_samples_split = existing.min_samples_split
-        self.max_depth = existing.max_depth
-        self.reg_lambda = existing.reg_lambda
-        self.reg_alpha = existing.reg_alpha
-        self.gamma = existing.gamma
-        self.n_bins = existing.n_bins
-        self.root = existing.root
-        existing.min_samples_split = existing.max_depth = 0
-        existing.reg_lambda = existing.reg_alpha = existing.gamma = 0.0
-        existing.root = UnsafePointer[Node, MutAnyOrigin]()
+    def _moveinit_(mut self, mut take: Self):
+        self.min_samples_split = take.min_samples_split
+        self.max_depth = take.max_depth
+        self.reg_lambda = take.reg_lambda
+        self.reg_alpha = take.reg_alpha
+        self.gamma = take.gamma
+        self.n_bins = take.n_bins
+        self.root = take.root
+        take.min_samples_split = take.max_depth = 0
+        take.reg_lambda = take.reg_alpha = take.gamma = 0.0
+        take.root = UnsafePointer[Node, MutAnyOrigin]()
 
     def __del__(deinit self):
         if self.root:
