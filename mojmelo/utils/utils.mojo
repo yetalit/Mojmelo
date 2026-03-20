@@ -1,22 +1,23 @@
-from memory import memcpy
-import math
+from std.memory import memcpy
+from std.memory._nonnull import NonNullUnsafePointer
+import std.math as math
 from mojmelo.utils.Matrix import Matrix
-from python import Python, PythonObject
-from algorithm import parallelize, elementwise, vectorize
-from sys import simd_width_of
-from utils import IndexList
+from std.python import Python, PythonObject
+from std.algorithm import parallelize, elementwise, vectorize
+from std.sys import simd_width_of
+from std.utils import IndexList
 
 # Cross Validation trait
 trait CV:
-    fn __init__(out self, params: Dict[String, String]) raises:
+    def __init__(out self, params: Dict[String, String]) raises:
         ...
-    fn fit(mut self, X: Matrix, y: Matrix) raises:
+    def fit(mut self, X: Matrix, y: Matrix) raises:
         ...
-    fn predict(mut self, X: Matrix) raises -> Matrix:
+    def predict(mut self, X: Matrix) raises -> Matrix:
         ...
 
 
-comptime MODEL_IDS = InlineArray[String, 13]('',
+comptime MODEL_IDS: InlineArray[String, 13] = ['',
                                             'Linear Regression',
                                             'Polynomial Regression',
                                             'Logistic Regression',
@@ -29,13 +30,13 @@ comptime MODEL_IDS = InlineArray[String, 13]('',
                                             'Random Forest',
                                             'GBDT',
                                             'PCA'
-                                            )
+                                            ]
 
 # ===-----------------------------------------------------------------------===#
 # argn
 # ===-----------------------------------------------------------------------===#
 
-fn argn[is_max: Bool](input: Matrix, output: Matrix):
+def argn[is_max: Bool](input: Matrix, output: Matrix):
     comptime simd_width = simd_width_of[DType.float32]()
     var axis_size = input.size
     var input_stride = input.size
@@ -49,26 +50,24 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
 
     @parameter
     @always_inline
-    fn cmpeq[
+    def cmpeq[
         type: DType, simd_width: Int
     ](a: SIMD[type, simd_width], b: SIMD[type, simd_width]) -> SIMD[
         DType.bool, simd_width
     ]:
-        @parameter
-        if is_max:
+        comptime if is_max:
             return a.le(b)
         else:
             return a.ge(b)
 
     @parameter
     @always_inline
-    fn cmp[
+    def cmp[
         type: DType, simd_width: Int
     ](a: SIMD[type, simd_width], b: SIMD[type, simd_width]) -> SIMD[
         DType.bool, simd_width
     ]:
-        @parameter
-        if is_max:
+        comptime if is_max:
             return a.lt(b)
         else:
             return a.gt(b)
@@ -84,8 +83,7 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
         var global_val: Float32
 
         # initialize limits
-        @parameter
-        if is_max:
+        comptime if is_max:
             global_val = Float32.MIN
         else:
             global_val = Float32.MAX
@@ -103,14 +101,13 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
         var last_simd_index = math.align_down(axis_size, simd_width)
         for j in range(simd_width, last_simd_index, simd_width):
             var curr_values = input_dim_ptr.load[width=simd_width](j)
-            indices += simd_width
+            indices += Float32(simd_width)
 
             var mask = cmpeq(curr_values, global_values)
             global_indices = mask.select(global_indices, indices)
             global_values = mask.select(global_values, curr_values)
 
-        @parameter
-        if is_max:
+        comptime if is_max:
             global_val = global_values.reduce_max()
         else:
             global_val = global_values.reduce_min()
@@ -122,7 +119,7 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
             var elem = input_dim_ptr.load(j)
             if cmp(global_val, elem):
                 global_val = elem
-                idx = j
+                idx = Float32(j)
                 found_min = True
 
         # handle the case where min wasn't in trailing values
@@ -137,71 +134,71 @@ fn argn[is_max: Bool](input: Matrix, output: Matrix):
 # ===----------------------------------------------------------------------===#
 
 @always_inline
-fn euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
+def euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return math.sqrt(((x1 - x2) ** 2).sum())
 
 @always_inline
-fn euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
+def euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
     return (((x1 - x2) ** 2).sum(axis)).sqrt()
 
 @always_inline
-fn squared_euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
+def squared_euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return ((x1 - x2) ** 2).sum()
 
 @always_inline
-fn squared_euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
+def squared_euclidean_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
     return ((x1 - x2) ** 2).sum(axis)
 
 @always_inline
-fn manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
+def manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
     return (x1 - x2).abs().sum()
 
 @always_inline
-fn manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
+def manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
     return (x1 - x2).abs().sum(axis)
 
 @always_inline
-fn add[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+def add[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a + b
 
 @always_inline
-fn sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+def sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a - b
 
 @always_inline
-fn mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+def mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a * b
 
 @always_inline
-fn div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
+def div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a / b
 
 @always_inline
-fn eq[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+def eq[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.eq(b)
 
 @always_inline
-fn ne[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+def ne[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.ne(b)
 
 @always_inline
-fn gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+def gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.gt(b)
 
 @always_inline
-fn ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+def ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.ge(b)
 
 @always_inline
-fn lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+def lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.lt(b)
 
 @always_inline
-fn le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
+def le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.le(b)
 
 @always_inline
-fn partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]:
+def partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]:
     var nelts = size - offset
     if nelts >= width:
         return data.load[width=width](offset)
@@ -212,22 +209,22 @@ fn partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], off
     return simd
 
 @always_inline
-fn sigmoid(z: Matrix) raises -> Matrix:
+def sigmoid(z: Matrix) raises -> Matrix:
     var z_exp = z.exp()
     return z.where(z >= 0,
                     1 / (1 + (-z).exp()),
                     z_exp / (1 + z_exp))
 
 @always_inline
-fn normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
+def normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
     return (-((x - mean) ** 2) / (2 * _var)).exp() / (2 * math.pi * _var).sqrt()
 
 @always_inline
-fn unit_step(z: Matrix) -> Matrix:
+def unit_step(z: Matrix) -> Matrix:
     return z.where(z >= 0.0, 1.0, 0.0)
 
 @always_inline
-fn sign(z: Matrix) -> Matrix:
+def sign(z: Matrix) -> Matrix:
     var mat = Matrix(z.height, z.width, order= z.order)
     if mat.size < 147456:
         for i in range(mat.size):
@@ -239,7 +236,7 @@ fn sign(z: Matrix) -> Matrix:
                 mat.data[i] = 0.0
     else:
         @parameter
-        fn p(i: Int):
+        def p(i: Int):
             if z.data[i] > 0.0:
                 mat.data[i] = 1.0
             elif z.data[i] < 0.0:
@@ -250,7 +247,7 @@ fn sign(z: Matrix) -> Matrix:
     return mat^
 
 @always_inline
-fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
+def mse(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Mean Squared Error.
 
     Returns:
@@ -259,7 +256,7 @@ fn mse(y: Matrix, y_pred: Matrix) raises -> Float32:
     return ((y - y_pred) ** 2).mean()
 
 @always_inline
-fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
+def cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Binary Cross Entropy.
 
     Returns:
@@ -267,7 +264,7 @@ fn cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
     """
     return -(y.ele_mul((y_pred + 1e-15).log()) + (1.0 - y).ele_mul((1.0 - y_pred + 1e-15).log())).mean()
 
-fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+def r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Coefficient of determination.
 
     Returns:
@@ -275,7 +272,7 @@ fn r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     """
     return 1.0 - (((y_pred - y) ** 2).sum() / ((y - y.mean()) ** 2).sum())
 
-fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
+def accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Accuracy classification score.
 
     Returns:
@@ -285,47 +282,47 @@ fn accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     var y_data = y.data
     var y_pred_data = y_pred.data
     @parameter
-    fn compare[simd_width: Int](idx: Int) unified {mut}:
+    def compare[simd_width: Int](idx: Int) unified {mut}:
         correct_count += y_data.load[width=simd_width](idx).eq(y_pred_data.load[width=simd_width](idx)).reduce_bit_count()
     vectorize[y_pred.simd_width](len(y), compare)
-    return correct_count / Float32(len(y))
+    return Float32(correct_count) / Float32(len(y))
 
 @always_inline
-fn entropy(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
+def entropy(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     var histogram = y.bincount() if weights.size == 0 else y.bincount(weights)
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
-        var p: Float32 = histogram[i] / size
+        var p = Float32(histogram[i]) / size
         if p > 0 and p != 1.0:
             _sum += p * math.log2(p)
     return -_sum
 
 @always_inline
-fn entropy_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
+def entropy_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
-        var p: Float32 = histogram[i] / size
+        var p = Float32(histogram[i]) / size
         if p > 0 and p != 1.0:
             _sum += p * math.log2(p)
     return -_sum
 
 @always_inline
-fn gini(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
+def gini(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     var histogram = y.bincount() if weights.size == 0 else y.bincount(weights)
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
-        _sum += (histogram[i] / size) ** 2
+        _sum += (Float32(histogram[i]) / size) ** 2
     return 1 - _sum
 
 @always_inline
-fn gini_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
+def gini_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
     var _sum: Float32 = 0.0
     for i in range(len(histogram)):
-        _sum += (histogram[i] / size) ** 2
+        _sum += (Float32(histogram[i]) / size) ** 2
     return 1 - _sum
 
 @always_inline
-fn mse_loss(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
+def mse_loss(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     if len(y) == 0:
         return 0.0
     if weights.size == 0:
@@ -333,44 +330,44 @@ fn mse_loss(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     return ((y - y.mean_weighted(weights, size)) ** 2).mean_weighted(weights, size)
 
 @always_inline
-fn mse_loss_precompute(size: Float32, sum: Float32, sum_sq: Float32) raises -> Float32:
+def mse_loss_precompute(size: Float32, sum: Float32, sum_sq: Float32) raises -> Float32:
     if size == 0:
         return 0.0
     return sum_sq / size - (sum / size) ** 2
 
 
 @always_inline
-fn mse_g(true: Matrix, score: Matrix) raises -> Matrix:
+def mse_g(true: Matrix, score: Matrix) raises -> Matrix:
     return score - true
 @always_inline
-fn mse_h(score: Matrix) raises -> Matrix:
+def mse_h(score: Matrix) raises -> Matrix:
     return Matrix.ones(score.height, 1, order=score.order)
 
 @always_inline
-fn log_g(true: Matrix, score: Matrix) raises -> Matrix:
+def log_g(true: Matrix, score: Matrix) raises -> Matrix:
     return sigmoid(score) - true
 @always_inline
-fn log_h(score: Matrix) raises -> Matrix:
+def log_h(score: Matrix) raises -> Matrix:
     var pred = sigmoid(score)
     return pred.ele_mul(1 - pred)
 
 @always_inline
-fn softmax_link(score: Matrix) raises -> Matrix:
+def softmax_link(score: Matrix) raises -> Matrix:
     var exp_score = (score - score.max(axis=1)).exp()  # for stability
     return exp_score / exp_score.sum(axis=1)
 @always_inline
-fn softmax_g(true: Matrix, score: Matrix) raises -> Matrix:
+def softmax_g(true: Matrix, score: Matrix) raises -> Matrix:
     var g = softmax_link(score)
     g.set_per_row(true, g.get_per_row(true) - 1)  # derivative of softmax + CE
     return g^
 @always_inline
-fn softmax_h(score: Matrix) raises -> Matrix:
+def softmax_h(score: Matrix) raises -> Matrix:
     var prob = softmax_link(score)
     return prob.ele_mul(1 - prob)
 
 
 @always_inline
-fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
+def findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     var left = 0
     var right = len(intervals) - 1
 
@@ -387,7 +384,7 @@ fn findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     return -1  # not found
 
 @always_inline
-fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalOrigin]:
+def fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalOrigin]:
     """Generates indices from 0 to N.
 
     Returns:
@@ -395,8 +392,8 @@ fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalOr
     """
     var indices = alloc[Scalar[DType.int]](N)
     @parameter
-    fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
-        indices.store(offset[0], math.iota[DType.int, width](offset[0]))
+    def fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
+        indices.store(offset[0], math.iota[DType.int, width](Scalar[DType.int](offset[0])))
 
     elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
         N
@@ -404,7 +401,7 @@ fn fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalOr
     return indices
 
 @always_inline
-fn fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
+def fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     """Generates indices from 0 to N.
 
     Returns:
@@ -412,34 +409,34 @@ fn fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     """
     var indices = alloc[Scalar[DType.int]](N)
     @parameter
-    fn fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
-        indices.store(offset[0], math.iota[DType.int, width](offset[0]))
+    def fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
+        indices.store(offset[0], math.iota[DType.int, width](Scalar[DType.int](offset[0])))
 
     elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
         N
     )
     var list = List[Scalar[DType.int]](unsafe_uninit_length=N)
-    list._data = indices
+    list._data = NonNullUnsafePointer(unsafe_from_nullable=indices)
     return list^
 
 @always_inline
-fn cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
+def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
     var ptr = alloc[Scalar[des]](size)
     if size < 262144:
         @parameter
-        fn matrix_vectorize[simd_width: Int](idx: Int) unified {mut}:
+        def matrix_vectorize[simd_width: Int](idx: Int) unified {mut}:
             ptr.store(idx, data.load[width=simd_width](idx).cast[des]())
         vectorize[width](size, matrix_vectorize)
     else:
         var n_vects = Int(math.ceil(size / width))
         @parameter
-        fn matrix_vectorize_parallelize(i: Int):
+        def matrix_vectorize_parallelize(i: Int):
             var idx = i * width
             ptr.store(idx, data.load[width=width](idx).cast[des]())
         parallelize[matrix_vectorize_parallelize](n_vects)
     return ptr
 
-fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
+def ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """Converts list of indices to numpy array.
 
     Returns:
@@ -450,7 +447,7 @@ fn ids_to_numpy(list: List[Int]) raises -> PythonObject:
     memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
     return np_arr^
 
-fn ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
+def ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
     """Converts list of indices to numpy array.
 
     Returns:
@@ -461,7 +458,7 @@ fn ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
     memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
     return np_arr^
 
-fn cartesian_product(lists: List[List[String]]) -> List[List[String]]:
+def cartesian_product(lists: List[List[String]]) -> List[List[String]]:
     var result = List[List[String]]()
     if not lists:
         result.append(List[String]())

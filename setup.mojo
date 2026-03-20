@@ -1,7 +1,11 @@
-from sys import external_call, CompilationTarget, argv
-from sys.ffi import *
+from std.sys import CompilationTarget, argv
+from std.ffi import *
+import std.os as os
+from mojmelo.utils.Matrix import Matrix
+import std.time as time
+from std.collections import Counter
 
-fn cachel1() -> Int32:
+def cachel1() -> Int32:
     var l1_cache_size: c_int = 0
     comptime length: c_size_t = 4
     # Get L1 Cache Size
@@ -23,7 +27,7 @@ fn cachel1() -> Int32:
             return 65536
 
 
-fn cachel2() -> Int32:
+def cachel2() -> Int32:
     var l2_cache_size: c_int = 0
     comptime length: c_size_t = 4
     # Get L2 Cache Size
@@ -45,7 +49,7 @@ fn cachel2() -> Int32:
             return 4194304
 
 
-fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: Int, cache_l2_associativity: Int) raises:
+def initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: Int, cache_l2_associativity: Int) raises:
     if cache_l1_associativity <= 1 or cache_l2_associativity <= 1:
         possible_l1_associativities = InlineArray[Int, 3](fill=0)
         if cache_l1_associativity > 1:
@@ -86,7 +90,7 @@ fn initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: In
             f.write("done")
     print('Setup initialization done!')
 
-fn main() raises:
+def main() raises:
     if len(argv()) == 1:
         cache_l1_size = 0
         cache_l2_size = 0
@@ -122,8 +126,6 @@ fn main() raises:
     else:
         command = String(argv()[1])
 
-        import os
-
         if os.path.isfile('./done'):
             if command != '9':
                 print('Setup', command + '/8', 'skipped!')
@@ -131,9 +133,6 @@ fn main() raises:
                 os.remove("./done")
                 print('Setup done!')
             return
-
-        from mojmelo.utils.Matrix import Matrix
-        import time
 
         comptime NUM_ITER = 16
         results = InlineArray[Int, 3](fill=0)
@@ -184,8 +183,6 @@ fn main() raises:
                     results_list[i - 1][1] = atol(res[1])
                     results_list[i - 1][2] = atol(res[2])
             results_list.append(results.copy())
-
-            from collections import Counter
 
             votes = List[Int]()
             for i in range(3):
