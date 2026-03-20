@@ -1,9 +1,9 @@
 from mojmelo.KMeans import KMeans
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import ids_to_numpy
-from python import Python
+from std.python import Python
 
-def main():
+def main() raises:
     km_test = Python.import_module("KMeans_test")
     data = km_test.get_data() # X, n_clusters
     k = KMeans(k=Int(py=data[1]), max_iters=150)

@@ -1675,8 +1675,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def linspace(start: Float32, stop: Float32, num: Int, order: String = 'c') raises -> Matrix:
         var result = Matrix(1, num, order= order.lower())
         var jump = (stop - start) / Float32(num - 1)
-        for i in range(Float32(num)):
-            result.data[i] = start + i * jump
+        for i in range(num):
+            result.data[i] = start + Float32(i) * jump
         return result^
 
     @staticmethod

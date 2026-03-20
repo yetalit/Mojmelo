@@ -2,9 +2,10 @@ from mojmelo.LogisticRegression import LogisticRegression
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split, GridSearchCV
 from mojmelo.utils.utils import accuracy_score
-from python import Python
+from std.python import Python
+import std.os as os
 
-def main():
+def main() raises:
     lr_test = Python.import_module("load_breast_cancer")
     data = lr_test.get_data() # X, y
     X = Matrix.from_numpy(data[0])
@@ -20,5 +21,8 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
     lr = LogisticRegression(best_params)
     lr.fit(X_train, y_train)
+    lr.save('lgr')
+    lr = LogisticRegression.load('lgr')
     y_pred = lr.predict(X_test)
     print("LR classification accuracy:", accuracy_score(y_test, y_pred))
+    os.remove('lgr.mjml')

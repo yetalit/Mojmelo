@@ -1,9 +1,9 @@
 from mojmelo.DBSCAN import DBSCAN
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import ids_to_numpy
-from python import Python
+from std.python import Python
 
-def main():
+def main() raises:
     db_test = Python.import_module("DBSCAN_test")
     data = db_test.get_data() # X
     db = DBSCAN(eps=0.5, min_samples=10)

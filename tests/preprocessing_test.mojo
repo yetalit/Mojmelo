@@ -2,7 +2,7 @@ from mojmelo.preprocessing import normalize, StandardScaler, MinMaxScaler
 from mojmelo.utils.Matrix import Matrix
 
 # Testing preprocessing algorithms with the samples from scikit-learn docs.
-def main():
+def main() raises:
     print('--Normalize--')
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.normalize.html
     X = Matrix([[-2, 1, 2], [-1, 0, 1]])
