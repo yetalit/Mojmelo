@@ -125,6 +125,15 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import *
 ```
 
+## Benchmarks
+
+[`SVM`](./benchmarks/svm_bench.mojo)
+
+| Model        | Fit Time (s)       | Predict Time (s)   | Accuracy |
+|--------------|--------------------|--------------------|----------|
+| sklearn SVM  | 1.8318 ± 0.0051    | 0.5775 ± 0.0006    | 0.9317   |
+| mojmelo SVM  | 1.1861 ± 0.0096    | 0.0956 ± 0.0031    | 0.9317   |
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
