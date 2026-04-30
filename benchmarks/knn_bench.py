@@ -2,11 +2,11 @@ import numpy as np
 import time
 from sklearn.datasets import make_classification
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 
 
-def prepare_data(seed, n_samples=20000, n_features=50, test_ratio=0.2):
+def prepare_data(seed, n_samples=100000, n_features=12, test_ratio=0.2):
     X, y = make_classification(
         n_samples=n_samples,
         n_features=n_features,
@@ -89,7 +89,7 @@ def benchmark_model(X_train, y_train, X_test, y_test, warmup=2, runs=5):
 
 
 def sklearn_model():
-    return SVC(kernel="rbf")
+    return KNeighborsClassifier(n_neighbors=7, algorithm='kd_tree', metric='euclidean', n_jobs=-1)
 
 
 # -----------------------
@@ -106,13 +106,13 @@ def run_benchmark(seed, fit_mean, fit_std, pred_mean, pred_std, accuracy):
     print("|-------------|-----------------|------------------|----------|")
 
     print(
-        f"| sklearn SVM | {sk['fit_mean']:.4f} ± {sk['fit_std']:.4f} "
+        f"| sklearn KNN | {sk['fit_mean']:.4f} ± {sk['fit_std']:.4f} "
         f"| {sk['pred_mean']:.4f} ± {sk['pred_std']:.4f}  "
         f"| {sk['accuracy']:.4f}   |"
     )
 
     print(
-        f"| mojmelo SVM | {fit_mean:.4f} ± {fit_std:.4f} "
+        f"| mojmelo KNN | {fit_mean:.4f} ± {fit_std:.4f} "
         f"| {pred_mean:.4f} ± {pred_std:.4f}  "
         f"| {accuracy:.4f}   |"
     )
