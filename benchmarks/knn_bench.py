@@ -6,7 +6,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 
 
-def prepare_data(seed, n_samples=100000, n_features=12, test_ratio=0.2):
+def prepare_data(seed, n_samples=50000, n_features=15, test_ratio=0.2):
     X, y = make_classification(
         n_samples=n_samples,
         n_features=n_features,
@@ -89,7 +89,7 @@ def benchmark_model(X_train, y_train, X_test, y_test, warmup=2, runs=5):
 
 
 def sklearn_model():
-    return KNeighborsClassifier(n_neighbors=7, algorithm='kd_tree', metric='euclidean', n_jobs=-1)
+    return KNeighborsClassifier(n_neighbors=11, algorithm='kd_tree', metric='euclidean', n_jobs=-1)
 
 
 # -----------------------

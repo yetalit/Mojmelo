@@ -127,12 +127,12 @@ from mojmelo.utils.utils import *
 
 ## Benchmarks (AMD Zen 4)
 
-[`KNN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/knn_bench.mojo) | tested on tall datasets due to the lack of Ball Tree implementation
+[`KNN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/knn_bench.mojo) (algorithm='kd_tree')
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn KNN | 0.0622 ± 0.0010 | 1.4755 ± 0.0045  | 0.8974   |
-| mojmelo KNN | 0.0250 ± 0.0007 | 0.1538 ± 0.0027  | 0.8796   |
+| sklearn KNN | 0.0357 ± 0.0011 | 1.6829 ± 0.0076  | 0.9227   |
+| mojmelo KNN | 0.0117 ± 0.0004 | 0.2609 ± 0.0028  | 0.9104   |
 
 [`SVM`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/svm_bench.mojo)
 

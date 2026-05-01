@@ -19,7 +19,7 @@ def main() raises:
     accuracy = 0.0
     # warm-up
     for _ in range(WARMUP):
-        knn = KNN(k=7)
+        knn = KNN(k=11, search_depth=25)
         knn.fit(X_train, y_train)
         y_pred = knn.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred).cast[DType.float64]()
@@ -29,7 +29,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        knn = KNN(k=7)
+        knn = KNN(k=11, search_depth=25)
 
         t0 = time.perf_counter()
         knn.fit(X_train, y_train)
