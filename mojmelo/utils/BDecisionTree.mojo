@@ -1,6 +1,6 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import findInterval
+from mojmelo.utils.utils import findInterval, fill_indices_list
 from std.algorithm import parallelize
 import std.math as math
 
@@ -39,7 +39,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
             delTree(self.root)
 
     def fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
-        self.root = self._grow_tree(X, g, h)
+        self.root = self._grow_tree(X, g, h, fill_indices_list(X.height))
 
     def predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
@@ -49,12 +49,12 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    def _grow_tree(self, X: Matrix, g: Matrix, h: Matrix, depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
+    def _grow_tree(self, X: Matrix, g: Matrix, h: Matrix, indices: List[Scalar[DType.int]], depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
         var new_node = alloc[Node](1)
         # stopping criteria
         if (
             depth >= self.max_depth
-            or X.height < self.min_samples_split
+            or len(indices) < self.min_samples_split
         ):
             new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
             return new_node
@@ -62,21 +62,28 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var feat_idxs = Matrix.rand_choice(X.width, X.width, False)
 
         # greedily select the best split according to information gain
+        var x = X[indices]
         var best_feat: Int
         var best_thresh: Float32
         var best_gain: Float32
-        best_feat, best_thresh, best_gain = _best_criteria(self.reg_lambda, self.reg_alpha, X, g, h, feat_idxs, self.n_bins)
+        best_feat, best_thresh, best_gain = _best_criteria(self.reg_lambda, self.reg_alpha, x, g, h, feat_idxs, self.n_bins)
         if best_gain <= self.gamma:
             # The best gain is less than gamma
             new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
             return new_node
         
         # grow the children that result from the split
-        var left_right_idxs = _split(X['', best_feat], best_thresh)
+        var left_right_idxs = _split(x['', best_feat], best_thresh)
         var left_idxs = left_right_idxs[0].copy()
         var right_idxs = left_right_idxs[1].copy()
-        var left = self._grow_tree(X[left_idxs], g[left_idxs], h[left_idxs], depth + 1)
-        var right = self._grow_tree(X[right_idxs], g[right_idxs], h[right_idxs], depth + 1)
+        var left_indices = List[Scalar[DType.int]]()
+        var right_indices = List[Scalar[DType.int]]()
+        for idx in left_idxs:
+            left_indices.append(indices[idx])
+        for idx in right_idxs:
+            right_indices.append(indices[idx])
+        var left = self._grow_tree(X, g[left_idxs], h[left_idxs], left_indices, depth + 1)
+        var right = self._grow_tree(X, g[right_idxs], h[right_idxs], right_indices, depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
         return new_node
 
@@ -174,7 +181,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, g: Matrix
     return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
 @always_inline
-def _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Int], List[Int]]:
+def _split(X_column: Matrix, split_thresh: Float32) -> Tuple[List[Scalar[DType.int]], List[Scalar[DType.int]]]:
     return X_column.argwhere_l(X_column <= split_thresh), X_column.argwhere_l(X_column > split_thresh)
 
 def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
