@@ -169,6 +169,13 @@ from mojmelo.utils.utils import *
 | sklearn RFR | 2.0257 ± 0.0050 | 0.0134 ± 0.0004  | 8454.5517 |
 | mojmelo RFR | 1.2247 ± 0.0094 | 0.0067 ± 0.0002  | 9155.6895 |
 
+[`PCA`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/pca_bench.mojo) (svd_solver='full')
+
+| Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
+|-------------|-----------------|--------------------|---------------|
+| sklearn PCA | 0.2082 ± 0.0022 | 0.0062 ± 0.0000    | 0.5475        |
+| mojmelo PCA | 0.0915 ± 0.0006 | 0.0261 ± 0.0009    | 0.5475        |
+
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.

@@ -44,15 +44,15 @@ struct PCA(Copyable):
         if self.lapack:
             numpy_linalg = Python.import_module('numpy.linalg')
             USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
-            S = Matrix.from_numpy(USVt[1]).load_columns(self.n_components)
+            S = Matrix.from_numpy(USVt[1])
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
             S, self.components = svd((X - self.mean), self.n_components)
 
         self.components_T = self.components.T()
-
-        self.explained_variance = (S ** 2) / Float32(X.height - 1)
-        self.explained_variance_ratio = self.explained_variance / self.explained_variance.sum()
+        var explained_variance = (S ** 2) / Float32(X.height - 1)
+        self.explained_variance = explained_variance.load_columns(self.n_components)
+        self.explained_variance_ratio = self.explained_variance / explained_variance.sum()
         if self.whiten:
             self.whiten_ = (self.explained_variance + 1e-8).sqrt() # Avoid division by zero
 

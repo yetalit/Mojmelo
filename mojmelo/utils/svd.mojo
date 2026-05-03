@@ -132,7 +132,6 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
     e.free()
 
 def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin]) raises:
-    # Jacobi eigensolver on ATA to get eigenvalues (lambda) and eigenvectors (V_full)
     var eig = alloc[Float64](n)
     memset_zero(eig, n)
     var V_full = alloc[Float64](n*n)
@@ -158,8 +157,8 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
     Vout = V_f.load_columns(k)
     Vout.order = 'c'
     Vout = Vout.reshape(k, n)
-    # Build singular values S (k) and Vout (k x n) as the top-k eigenvectors
-    for r in range(k):
+
+    for r in range(n):
         var lambda_ = eig[r]
         if lambda_ < 0 and abs(lambda_) < 1e-14:
             lambda_ = 0.0 # clamp tiny negative
@@ -172,7 +171,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var A64 = A.cast_ptr[DType.float64]()
     var A64T = C_transpose(A, A64)
 
-    var S = alloc[Float64](k)
+    var S = alloc[Float64](A.width)
     var V = Matrix(0, 0)
 
     var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
@@ -184,7 +183,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     A64T.free()
     
     svd_thin(A.height, A.width, k, S, V, ATA.data)
-    return Matrix(S, 1, k), V^
+    return Matrix(S, 1, A.width), V^
 
 @always_inline
 def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafePointer[Float64, MutAnyOrigin]:
