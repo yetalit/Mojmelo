@@ -859,19 +859,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def argwhere_l(self, cmp: List[Scalar[DType.bool]]) -> List[Scalar[DType.int]]:
-        var args = List[Scalar[DType.int]]()
-        var data = cmp.unsafe_ptr()
-        @parameter
-        def convert[simd_width: Int](idx: Int) unified {mut}:
-            var vector = data.load[width=simd_width](idx)
-            for i in range(simd_width):
-                if vector[i]:
-                    args.append(Scalar[DType.int](idx + i))
-        vectorize[self.simd_width](self.size, convert)
-        return args^
-
-    @always_inline
     def C_transpose(self) -> Matrix:
         var mat = Matrix(self.width, self.height)
         if self.size < 98304:
@@ -1661,9 +1648,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             random.randint(result, size, 0, arang - 1)
         else:
             var indices = fill_indices(arang)
-            for i in range(arang - 1, 0, -1):
-                # Fisher-Yates shuffle
-                var j = Int(random.random_ui64(0, UInt64(i)))
+            for i in range(size):
+                var j = Int(random.random_ui64(UInt64(i), UInt64(arang - 1)))
                 indices[i], indices[j] = indices[j], indices[i]
             memcpy(dest=result, src=indices, count=size)
         var list = List[Scalar[DType.int]](unsafe_uninit_length=size)

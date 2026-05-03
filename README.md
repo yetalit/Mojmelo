@@ -145,15 +145,29 @@ from mojmelo.utils.utils import *
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn DTC | 0.9259 ± 0.0004 | 0.0003 ± 0.0000  | 0.9800   |
-| mojmelo DTC | 0.3569 ± 0.0028 | 0.0002 ± 0.0000  | 0.9813   |
+| sklearn DTC | 0.9051 ± 0.0008 | 0.0004 ± 0.0000  | 0.9300   |
+| mojmelo DTC | 0.0749 ± 0.0028 | 0.0002 ± 0.0000  | 0.9328   |
 
 [`DecisionTreeRegressor`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dtr_bench.mojo)
 
 | Model       | Fit Time (s)    | Predict Time (s) | MSE       |
 |-------------|-----------------|------------------|-----------|
-| sklearn DTR | 0.6524 ± 0.0011 | 0.0006 ± 0.0000  | 6548.2857 |
-| mojmelo DTR | 0.3690 ± 0.0056 | 0.0002 ± 0.0000  | 6529.9712 |
+| sklearn DTR | 0.6518 ± 0.0003 | 0.0006 ± 0.0000  | 1185.1717 |
+| mojmelo DTR | 0.0664 ± 0.0023 | 0.0002 ± 0.0000  | 1175.6884 |
+
+[`RandomForestClassifier`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/rfc_bench.mojo)
+
+| Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
+|-------------|-----------------|------------------|----------|
+| sklearn RFC | 0.4550 ± 0.0076 | 0.0138 ± 0.0006  | 0.9348   |
+| mojmelo RFC | 0.4041 ± 0.0114 | 0.0064 ± 0.0001  | 0.9326   |
+
+[`RandomForestRegressor`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/rfr_bench.mojo)
+
+| Model       | Fit Time (s)    | Predict Time (s) | MSE       |
+|-------------|-----------------|------------------|-----------|
+| sklearn RFR | 2.0257 ± 0.0050 | 0.0134 ± 0.0004  | 8454.5517 |
+| mojmelo RFR | 1.2247 ± 0.0094 | 0.0067 ± 0.0002  | 9155.6895 |
 
 ## Contributing
 
