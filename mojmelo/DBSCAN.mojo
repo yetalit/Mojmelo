@@ -37,42 +37,34 @@ struct DBSCAN:
             for idp in range(len(kd_results)):
                 neighborhoods[i].append(kd_results[idp].idx)
         parallelize[p](X.height)
-        
-        var current_cluster = 0
 
+        var current_cluster = 0
+        
         for idx in range(X.height):
-            # Label is not undefined.
             if self.labels[idx] != -2:
                 continue
-
-            # Check density.
             if len(neighborhoods[idx]) < self.min_samples:
                 self.labels[idx] = -1
                 continue
 
-            var nbs_next = Set(neighborhoods[idx])
-            var nbs_visited = Set[Int](idx)
-
+            var stack = List[Int]()
+            stack.append(idx)
             self.labels[idx] = current_cluster
 
-            while len(nbs_next) > 0:
-                var nb = nbs_next.pop()
-                nbs_visited.add(nb)
+            while len(stack) > 0:
+                var nb = stack.pop()
 
-                # Noise label.
                 if self.labels[nb] == -1:
                     self.labels[nb] = current_cluster
 
-                # Not undefined label.
-                if self.labels[nb] != -2:
+                if self.labels[nb] != current_cluster:
                     continue
-
-                self.labels[nb] = current_cluster
 
                 if len(neighborhoods[nb]) >= self.min_samples:
                     for qnb in neighborhoods[nb]:
-                        if qnb not in nbs_visited:
-                            nbs_next.add(qnb)
+                        if self.labels[qnb] == -2:
+                            self.labels[qnb] = current_cluster
+                            stack.append(qnb)
 
             current_cluster += 1
 
