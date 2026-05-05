@@ -127,6 +127,13 @@ from mojmelo.utils.utils import *
 
 ## Benchmarks (AMD Zen 4)
 
+[`KMeans`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/kmeans_bench.mojo)
+
+| Model          | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
+|----------------|-----------------|----------------|--------------|
+| sklearn KMeans | 0.2762 ± 0.0011 |       -        | 0.9390       |
+| mojmelo KMeans | 0.2293 ± 0.0053 | 1.0000         | 0.9390       |
+
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
 | Model       | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
