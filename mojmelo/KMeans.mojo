@@ -126,7 +126,18 @@ struct KMeans(Copyable):
                 var dist_from_centroids = Matrix(X.height, self.k)
                 for i in range(self.k):
                     # Compute distances to the nearest centroid
-                    dist_from_centroids['', i] = squared_euclidean_distance(X, candidate_centroids[idc][i], 1)
+                    var c_ptr = candidate_centroids[idc].data + i * X.width
+                    @parameter
+                    def p(row: Int):
+                        var x_ptr = X.data + row * X.width
+                        var acc: Float32 = 0.0
+                        @parameter
+                        def sq[simd_width: Int](col: Int) unified {mut}:
+                            var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
+                            acc += (d * d).reduce_add()
+                        vectorize[Matrix.simd_width](X.width, sq)
+                        dist_from_centroids.store[1](i, row, acc)
+                    parallelize[p](X.height)
                 inertia_values.data[idc] = dist_from_centroids.min(axis=1).sum()
         else:
             # Initialize centroids using KMeans++
@@ -193,18 +204,20 @@ struct KMeans(Copyable):
             var min_distances = Matrix.full(X.height, 1, math.inf[DType.float32]())
 
             for i in range(1, self.k):
-                # fused squared euclidean
+                # squared euclidean
                 var dists = Matrix(X.height, 1)
                 var c_ptr = candidate_centroids[idc].data + (i - 1) * X.width
-                for row in range(X.height):
+                @parameter
+                def p(row: Int):
                     var x_ptr = X.data + row * X.width
                     var acc: Float32 = 0.0
                     @parameter
                     def sq[simd_width: Int](col: Int) unified {mut}:
                         var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
                         acc += (d * d).reduce_add()
-                    vectorize[X.simd_width](X.width, sq)
+                    vectorize[Matrix.simd_width](X.width, sq)
                     dists.data[row] = acc
+                parallelize[p](X.height)
 
                 for row in range(X.height):
                     if dists.data[row] < min_distances.data[row]:
