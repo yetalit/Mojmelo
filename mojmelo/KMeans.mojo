@@ -64,6 +64,7 @@ struct KMeans(Copyable):
             self.X_mean.data.store(col, self.X_mean.data.load[width=simd_width](col) * inv_n_rows)
         vectorize[X.simd_width](n_cols, div)
         var X_ = X - self.X_mean
+
         self.centroids_ = self._initial_centroids(X_)
         var X_norms = X_.ele_mul(X_).sum(axis=1)
         var C_norms = self.centroids_.ele_mul(self.centroids_).sum(axis=1).T()

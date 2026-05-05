@@ -1,7 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.svd import svd
 from mojmelo.utils.utils import MODEL_IDS
-from std.algorithm import parallelize
+from std.algorithm import parallelize, vectorize
 from std.python import Python
 
 struct PCA(Copyable):
@@ -38,8 +38,23 @@ struct PCA(Copyable):
     def fit(mut self, X: Matrix) raises:
         """Fit the model."""
         # Mean centering
-        self.mean = X.mean(0)
-        
+        self.mean = Matrix.zeros(1, X.width)
+        var n_rows = X.height
+        var n_cols = X.width
+        @parameter
+        def p(row: Int):
+            var x_ptr = X.data + row * n_cols
+            @parameter
+            def add_row[simd_width: Int](col: Int) unified {mut}:
+                self.mean.data.store(col, self.mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
+            vectorize[X.simd_width](n_cols, add_row)
+        parallelize[p](n_rows)
+        var inv_n_rows = 1.0 / Float32(n_rows)
+        @parameter
+        def div[simd_width: Int](col: Int) unified {mut}:
+            self.mean.data.store(col, self.mean.data.load[width=simd_width](col) * inv_n_rows)
+        vectorize[X.simd_width](n_cols, div)
+
         var S: Matrix
         if self.lapack:
             numpy_linalg = Python.import_module('numpy.linalg')

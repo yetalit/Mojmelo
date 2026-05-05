@@ -286,8 +286,8 @@ struct HDBSCANBoruvka:
                     self.tree[].core_dist[i],
                     comp_bnd
                 )
-            except:
-                print()
+            except e:
+                print('Error:', e)
         parallelize[query_point](self.n)
 
     # ------------------------------------------------------------------ #

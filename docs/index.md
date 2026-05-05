@@ -194,8 +194,8 @@ from mojmelo.utils.utils import *
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 0.2082 ± 0.0022 | 0.0062 ± 0.0000    | 0.5475        |
-| mojmelo PCA | 0.0915 ± 0.0006 | 0.0261 ± 0.0009    | 0.5475        |
+| sklearn PCA | 0.2070 ± 0.0025 | 0.0061 ± 0.0000    | 0.5363        |
+| mojmelo PCA | 0.0737 ± 0.0003 | 0.0270 ± 0.0015    | 0.5363        |
 
 ## Contributing
 
