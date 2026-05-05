@@ -134,6 +134,13 @@ from mojmelo.utils.utils import *
 | sklearn KMeans | 0.2782 ± 0.0010 |       -        | 0.9389       |
 | mojmelo KMeans | 0.2276 ± 0.0005 | 1.0000         | 0.9389       |
 
+[`HDBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/hdbs_bench.mojo) (algorithm='boruvka_kdtree')
+
+| Model            | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
+|------------------|-----------------|----------------|--------------|
+| skl-contrib HDBS | 1.2791 ± 0.0042 |       -        | 0.9977       |
+| mojmelo HDBS     | 0.3536 ± 0.0013 | 0.9828         | 0.9844       |
+
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
 | Model       | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
@@ -206,7 +213,7 @@ You can contribute to the project in 3 ways:
 
 * <a href='https://www.csie.ntu.edu.tw/~cjlin/libsvm/'>Libsvm</a>, A Library for Support Vector Machines by Chih-Chung Chang and Chih-Jen Lin licensed under the BSD-3-Clause license.
 
-* `HDBSCAN` implementation is partially based on <a href='https://hdbscan.readthedocs.io/en/latest/'>hdbscan</a> by Leland McInnes, John Healy and Steve Astels licensed under the BSD-3-Clause license.
+* `HDBSCAN` implementation is partially based on <a href='https://hdbscan.readthedocs.io/en/latest/'>hdbscan</a> by Leland McInnes, John Healy and Steve Astels licensed under the BSD-3-Clause license and <a href='https://fast-hdbscan.readthedocs.io/en/latest/'>Fast Multicore HDBSCAN</a> by Tutte Institute for Mathematics and Computing licensed under the BSD-2-Clause license.
 
 * `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
 
