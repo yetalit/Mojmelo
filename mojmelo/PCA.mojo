@@ -49,11 +49,7 @@ struct PCA(Copyable):
                 self.mean.data.store(col, self.mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
             vectorize[X.simd_width](n_cols, add_row)
         parallelize[p](n_rows)
-        var inv_n_rows = 1.0 / Float32(n_rows)
-        @parameter
-        def div[simd_width: Int](col: Int) unified {mut}:
-            self.mean.data.store(col, self.mean.data.load[width=simd_width](col) * inv_n_rows)
-        vectorize[X.simd_width](n_cols, div)
+        self.mean /= Float32(n_rows)
 
         var S: Matrix
         if self.lapack:

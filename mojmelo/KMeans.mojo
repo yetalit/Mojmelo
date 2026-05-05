@@ -58,11 +58,7 @@ struct KMeans(Copyable):
                 self.X_mean.data.store(col, self.X_mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
             vectorize[X.simd_width](n_cols, add_row)
         parallelize[p](n_rows)
-        var inv_n_rows = 1.0 / Float32(n_rows)
-        @parameter
-        def div[simd_width: Int](col: Int) unified {mut}:
-            self.X_mean.data.store(col, self.X_mean.data.load[width=simd_width](col) * inv_n_rows)
-        vectorize[X.simd_width](n_cols, div)
+        self.X_mean /= Float32(n_rows)
         var X_ = X - self.X_mean
 
         self.centroids_ = self._initial_centroids(X_)
