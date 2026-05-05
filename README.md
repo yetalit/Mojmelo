@@ -131,8 +131,8 @@ from mojmelo.utils.utils import *
 
 | Model          | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |----------------|-----------------|----------------|--------------|
-| sklearn KMeans | 0.2762 ± 0.0011 |       -        | 0.9390       |
-| mojmelo KMeans | 0.2293 ± 0.0053 | 1.0000         | 0.9390       |
+| sklearn KMeans | 0.2782 ± 0.0010 |       -        | 0.9389       |
+| mojmelo KMeans | 0.2276 ± 0.0005 | 1.0000         | 0.9389       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 

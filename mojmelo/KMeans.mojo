@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import squared_euclidean_distance, MODEL_IDS
+from mojmelo.utils.utils import euclidean_distance, squared_euclidean_distance, MODEL_IDS
 import std.random as random
 import std.math as math
 from std.algorithm import vectorize, parallelize
@@ -102,18 +102,13 @@ struct KMeans(Copyable):
             def accumulate[simd_width: Int](j: Int) unified {mut}:
                 c_ptr.store(j, c_ptr.load[width=simd_width](j) + x_ptr.load[width=simd_width](j))
             vectorize[centroids.simd_width](X.width, accumulate)
-        return centroids / cluster_sizes
+        return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
 
     @always_inline
     def _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, 
                     labels_old: List[Int], inertia_old: Float32) raises -> Bool:
         if self.converge == 'centroid':
-            var diff: Float32 = 0.0
-            for i in range(self.centroids_.height):
-                for j in range(self.centroids_.width):
-                    var d = centroids_old[i, j] - self.centroids_[i, j]
-                    diff += d * d
-            if math.sqrt(diff) <= self.tol:
+            if euclidean_distance(centroids_old, self.centroids_) <= self.tol:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
                 return True
             return False
