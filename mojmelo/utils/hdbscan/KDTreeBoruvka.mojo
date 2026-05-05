@@ -4,12 +4,13 @@ from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
 import std.math as math
 from std.algorithm import vectorize, parallelize
 from std.sys import size_of
+from std.memory import memset_zero
 
 @always_inline
 def key(idx: Scalar[DType.int],
-                data: UnsafePointer[Float32, MutAnyOrigin],
-                dim: Scalar[DType.int],
-                split_dim: Scalar[DType.int]) -> Float32:
+        data: UnsafePointer[Float32, MutAnyOrigin],
+        dim: Scalar[DType.int],
+        split_dim: Scalar[DType.int]) -> Float32:
     return data[idx * dim + split_dim]
 
 @always_inline
@@ -84,13 +85,21 @@ def node_pair_lower_bound(
 
     return lb2 if lb2 > 0.0 else 0.0
 
+
+# Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
+@fieldwise_init
+struct CenterPtr(TrivialRegisterPassable):
+    var _data: UnsafePointer[Float32, MutAnyOrigin]
+
+
 @fieldwise_init
 struct NodeData(Copyable):
     var is_leaf: Bool
     var idx_start: Int
     var idx_end: Int
     var radius: Float32
-    var center: List[Float32]
+    var center: CenterPtr   # points into flat _center_arena
+
 
 struct KDTreeBoruvka:
     var data: UnsafePointer[Float32, MutAnyOrigin]
@@ -100,8 +109,10 @@ struct KDTreeBoruvka:
     var leaf_size: Int
     var nodes: List[NodeData]
     var core_dist: UnsafePointer[Float32, MutAnyOrigin]
-    var build_idx: List[Scalar[DType.int]]       # permuted indices for building
+    var build_idx: List[Scalar[DType.int]]
     var proj_buf: List[Float32]
+    # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
+    var _center_arena: UnsafePointer[Float32, MutAnyOrigin]
 
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
@@ -111,25 +122,27 @@ struct KDTreeBoruvka:
         self.dim = data.width
         self.leaf_size = leaf_size
         self.nodes = List[NodeData]()
+
+        # One allocation for all node centers; upper bound on node count is 2n+1.
+        var max_nodes = 2 * self.n + 1
+        self._center_arena = alloc[Float32](max_nodes * self.dim)
+        memset_zero(self._center_arena, max_nodes * self.dim)
+
         self.core_dist = alloc[Float32](self.n)
-
-        # build index array (will be permuted)
         self.build_idx = fill_indices_list(self.n)
-
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
         var k = search_depth * min_samples + 1
+
         @parameter
         def compute_core_dist(p: Int):
-            # core_dist must use stable indices
             var kd_results = KDTreeResultVector()
             self.kdtree.n_nearest(
                 Span(ptr=self.data + p * self.dim, length=self.dim),
                 k,
                 kd_results
             )
-
             self.core_dist[p] = kd_results[min_samples].dis
 
         parallelize[compute_core_dist](self.n)
@@ -140,38 +153,43 @@ struct KDTreeBoruvka:
     def __del__(deinit self):
         if self.core_dist:
             self.core_dist.free()
+        if self._center_arena:
+            self._center_arena.free()
 
     @always_inline
     def left(self, i: Int) -> Int:
         return 2 * i + 1
-    
+
     @always_inline
     def right(self, i: Int) -> Int:
         return 2 * i + 2
 
     def ensure_node(mut self, i: Int):
         if len(self.nodes) <= i:
-            self.nodes.resize(i + 1, NodeData(False, 0, 0, 0, List[Float32]()))
+            # Placeholder center; overwritten immediately in build_node
+            self.nodes.resize(i + 1, NodeData(False, 0, 0, 0.0, CenterPtr(self._center_arena)))
 
-    def choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.int]]) -> Scalar[DType.int]:
+    # Fused single O(n) pass: finds min/max across ALL dims simultaneously.
+    def choose_split_dim(self, start: Int, end: Int) -> Scalar[DType.int]:
+        var mn = List[Float32](capacity=self.dim)
+        var mx = List[Float32](capacity=self.dim)
+        mn.resize(self.dim,  math.inf[DType.float32]())
+        mx.resize(self.dim, -math.inf[DType.float32]())
+
+        for i in range(start, end):
+            var p = self.data + Int(self.build_idx[i]) * self.dim
+            for d in range(self.dim):
+                var v = p[d]
+                if v < mn[d]: mn[d] = v
+                if v > mx[d]: mx[d] = v
+
         var best: Scalar[DType.int] = 0
-        var best_spread: Float32 = 0.0
-
+        var best_spread: Float32 = -1.0
         for d in range(self.dim):
-            var mn = math.inf[DType.float32]()
-            var mx = -mn
-
-            for i in range(start, end):
-                var v = self.data[Int(idx[i])*self.dim + d]
-                if v < mn:
-                    mn = v
-                if v > mx:
-                    mx = v
-
-            if mx - mn > best_spread:
-                best_spread = mx - mn
+            var s = mx[d] - mn[d]
+            if s > best_spread:
+                best_spread = s
                 best = Scalar[DType.int](d)
-
         return best
 
     def build_node(mut self, node: Int, start: Int, end: Int):
@@ -182,30 +200,29 @@ struct KDTreeBoruvka:
 
         var count = Float32(end - start)
 
-        nd[].center = List[Float32](capacity=self.dim)
-        nd[].center.resize(self.dim, 0.0)
+        # Point this node's center at its pre-allocated slot in the arena
+        var cptr = self._center_arena + node * self.dim
+        nd[].center = CenterPtr(cptr)
 
         for i in range(start, end):
-            var p = self.data + self.build_idx[i] * Scalar[DType.int](self.dim)
+            var p = self.data + Int(self.build_idx[i]) * self.dim
             @parameter
             def v1[simd_width: Int](k: Int) unified {mut}:
-                nd[].center.unsafe_ptr().store(k, nd[].center.unsafe_ptr().load[width=simd_width](k) + p.load[width=simd_width](k))
+                cptr.store(k, cptr.load[width=simd_width](k) + p.load[width=simd_width](k))
             vectorize[Matrix.simd_width](self.dim, v1)
 
         for d in range(self.dim):
-            nd[].center[d] /= count
+            cptr[d] /= count
 
         var maxd: Float32 = 0.0
         for i in range(start, end):
-            var p = self.data + self.build_idx[i] * Scalar[DType.int](self.dim)
+            var p = self.data + Int(self.build_idx[i]) * self.dim
             var d2: Float32 = 0.0
-
             @parameter
             def v2[simd_width: Int](k: Int) unified {mut}:
-                var t = p.load[width=simd_width](k) - nd[].center.unsafe_ptr().load[width=simd_width](k)
+                var t = p.load[width=simd_width](k) - cptr.load[width=simd_width](k)
                 d2 += (t * t).reduce_add()
             vectorize[Matrix.simd_width](self.dim, v2)
-
             if d2 > maxd:
                 maxd = d2
 
@@ -217,7 +234,7 @@ struct KDTreeBoruvka:
 
         nd[].is_leaf = False
 
-        var split_dim = self.choose_split_dim(start, end, self.build_idx)
+        var split_dim = self.choose_split_dim(start, end)
         var mid = (start + end) // 2
 
         nth_element(
