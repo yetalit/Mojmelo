@@ -53,8 +53,8 @@ struct KMeans(Copyable):
         @parameter
         def p(row: Int):
             var x_ptr = X.data + row * n_cols
-            @parameter
-            def add_row[simd_width: Int](col: Int) unified {mut}:
+
+            def add_row[simd_width: Int](col: Int) {read}:
                 self.X_mean.data.store(col, self.X_mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
             vectorize[X.simd_width](n_cols, add_row)
         parallelize[p](n_rows)
@@ -95,8 +95,8 @@ struct KMeans(Copyable):
             # write directly into centroid row pointer
             var c_ptr = centroids.data + label * X.width
             var x_ptr = X.data + idx * X.width
-            @parameter
-            def accumulate[simd_width: Int](j: Int) unified {mut}:
+
+            def accumulate[simd_width: Int](j: Int) {read}:
                 c_ptr.store(j, c_ptr.load[width=simd_width](j) + x_ptr.load[width=simd_width](j))
             vectorize[centroids.simd_width](X.width, accumulate)
         return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
@@ -131,8 +131,8 @@ struct KMeans(Copyable):
                     def p(row: Int):
                         var x_ptr = X.data + row * X.width
                         var acc: Float32 = 0.0
-                        @parameter
-                        def sq[simd_width: Int](col: Int) unified {mut}:
+
+                        def sq[simd_width: Int](col: Int) {mut}:
                             var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
                             acc += (d * d).reduce_add()
                         vectorize[Matrix.simd_width](X.width, sq)
@@ -211,8 +211,8 @@ struct KMeans(Copyable):
                 def p(row: Int):
                     var x_ptr = X.data + row * X.width
                     var acc: Float32 = 0.0
-                    @parameter
-                    def sq[simd_width: Int](col: Int) unified {mut}:
+
+                    def sq[simd_width: Int](col: Int) {mut}:
                         var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
                         acc += (d * d).reduce_add()
                     vectorize[Matrix.simd_width](X.width, sq)
@@ -236,8 +236,8 @@ struct KMeans(Copyable):
             for row in range(X.height):
                 var x_ptr = X.data + row * X.width
                 var acc: Float32 = 0.0
-                @parameter
-                def sq_last[simd_width: Int](col: Int) unified {mut}:
+
+                def sq_last[simd_width: Int](col: Int) {mut}:
                     var d = x_ptr.load[width=simd_width](col) - c_ptr_last.load[width=simd_width](col)
                     acc += (d * d).reduce_add()
                 vectorize[X.simd_width](X.width, sq_last)
@@ -264,8 +264,8 @@ struct KMeans(Copyable):
                 var c_ptr = self.centroids_.data + k * X.width
 
                 var dot: Float32 = 0.0
-                @parameter
-                def mul[simd_width: Int](j: Int) unified {mut}:
+
+                def mul[simd_width: Int](j: Int) {mut}:
                     dot += (x_ptr.load[width=simd_width](j) *
                             c_ptr.load[width=simd_width](j)).reduce_add()
                 vectorize[X.simd_width](X.width, mul)

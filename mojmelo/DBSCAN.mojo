@@ -3,21 +3,22 @@ from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from std.collections import Set
 from std.algorithm import parallelize
 
-struct DBSCAN:
-    """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""
+struct DBSCAN[metric: String = 'euc']:
+    """A density based clustering method that expands clusters from samples that have more neighbors within a radius.
+
+    Parameters:
+        metric: Metric to use for distance computation:
+            Euclidean -> 'euc';
+            Manhattan -> 'man'.
+
+    """
     var eps: Float32
     """The maximum distance between two samples for one to be considered as in the neighborhood of the other."""
     var min_samples: Int
     """The number of samples in a neighborhood for a point to be considered as a core point."""
-    var metric: String
-    """Metric to use for distance computation:
-    Euclidean -> 'euc';
-    Manhattan -> 'man'.
-    """
     var labels: List[Int]
 
-    def __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc') raises:
-        self.metric = metric.lower()
+    def __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5) raises:
         self.eps = eps ** 2 if self.metric == 'euc' else eps
         self.min_samples = min_samples
         self.labels = List[Int]()
@@ -26,16 +27,19 @@ struct DBSCAN:
         """Perform clustering."""
         self.labels = List[Int](capacity=X.height)
         self.labels.resize(X.height, -2)
-        var kdtree = KDTree(X, self.metric)
+        var kdtree = KDTree[metric=Self.metric](X)
 
         var neighborhoods = List[List[Int]](capacity=X.height)
         neighborhoods.resize(X.height, List[Int]())
         @parameter
         def p(i: Int):
-            var kd_results = KDTreeResultVector()
-            kdtree.r_nearest(Span(ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
-            for idp in range(len(kd_results)):
-                neighborhoods[i].append(kd_results[idp].idx)
+            try:
+                var kd_results = KDTreeResultVector()
+                kdtree.r_nearest(Span(ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
+                for idp in range(len(kd_results)):
+                    neighborhoods[i].append(kd_results[idp].idx)
+            except e:
+                print('Error:', e)
         parallelize[p](X.height)
 
         var current_cluster = 0

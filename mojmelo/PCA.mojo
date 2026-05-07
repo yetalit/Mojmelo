@@ -44,8 +44,8 @@ struct PCA(Copyable):
         @parameter
         def p(row: Int):
             var x_ptr = X.data + row * n_cols
-            @parameter
-            def add_row[simd_width: Int](col: Int) unified {mut}:
+
+            def add_row[simd_width: Int](col: Int) {read}:
                 self.mean.data.store(col, self.mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
             vectorize[X.simd_width](n_cols, add_row)
         parallelize[p](n_rows)

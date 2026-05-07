@@ -4,33 +4,34 @@ from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from mojmelo.utils.utils import CV, MODEL_IDS
 from std.algorithm import parallelize
 
-struct KNN(CV, Copyable):
-    """Classifier implementing the k-nearest neighbors vote."""
+struct KNN[metric: String = 'euc'](CV, Copyable):
+    """Classifier implementing the k-nearest neighbors vote.
+    
+    Parameters:
+        metric: Metric to use for distance computation:
+            Euclidean -> 'euc';
+            Manhattan -> 'man'.
+    
+    """
     var k: Int
     """Number of neighbors to use."""
-    var metric: String
-    """Metric to use for distance computation:
-    Euclidean -> 'euc';
-    Manhattan -> 'man'.
-    """
     var search_depth: Int
     """Current KDTree implementation applies some approximation to its search results.
         Increasing search_depth can lead to more accurate results at the cost of performance."""
-    var kdtree: KDTree[sort_results=True]
+    var kdtree: KDTree[sort_results=True, metric=Self.metric]
     var y_train: Matrix
     comptime MODEL_ID = 4
     comptime metric_ids: List[String] = ['euc', 'man']
 
-    def __init__(out self, k: Int = 3, metric: String = 'euc', search_depth: Int = 1) raises:
+    def __init__(out self, k: Int = 3, search_depth: Int = 1) raises:
         self.k = k
-        self.metric = metric.lower()
         self.search_depth = search_depth
-        self.kdtree = KDTree[sort_results=True](Matrix(0, 0), build=False)
+        self.kdtree = KDTree[sort_results=True, metric=Self.metric](Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the k-nearest neighbors classifier from the training dataset."""
-        self.kdtree = KDTree[sort_results=True](X, self.metric)
+        self.kdtree = KDTree[sort_results=True, metric=Self.metric](X)
         self.y_train = y
 
     def predict(mut self, X: Matrix) raises -> Matrix:
@@ -83,10 +84,10 @@ struct KNN(CV, Copyable):
             f.write_bytes(Span(ptr=self.y_train.data.bitcast[UInt8](), length=4*self.y_train.size))
 
     @staticmethod
-    def load(path: String) raises -> Self:
+    def load[type: UInt8](path: String) raises -> KNN[Self.metric_ids[type]]:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
-        var model = Self()
+        var model = KNN[Self.metric_ids[type]]()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
             if id < 1 or id > UInt8(MODEL_IDS.size-1):
@@ -94,14 +95,15 @@ struct KNN(CV, Copyable):
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var k = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
-            var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
+            var metric = f.read_bytes(1)[0]
+            if type != metric:
+                raise Error('Based on the metadata, ', _path, ' is using ', materialize[Self.metric_ids]()[metric], ' ! Use [type=', metric, ']')
             var search_depth = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
             var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples * n_features).unsafe_ptr())))
             var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples).unsafe_ptr())))
             model.k = k
-            model.metric = metric
             model.search_depth = search_depth
             model.fit(X, y_train)
         return model^
@@ -111,13 +113,9 @@ struct KNN(CV, Copyable):
             self.k = atol(String(params['k']))
         else:
             self.k = 3
-        if 'metric' in params:
-            self.metric = params['metric'].lower()
-        else:
-            self.metric = 'euc'
         if 'search_depth' in params:
             self.search_depth = atol(String(params['search_depth']))
         else:
             self.search_depth = 1
-        self.kdtree = KDTree[sort_results=True](Matrix(0, 0), build=False)
+        self.kdtree = KDTree[sort_results=True, metric=Self.metric](Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)
