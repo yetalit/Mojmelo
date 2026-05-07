@@ -471,8 +471,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def __del__(deinit self):
-        if self.data:
-            self.data.free()
+        self.data.free()
 
     @always_inline
     def __len__(self) -> Int:
@@ -480,51 +479,51 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        return self._elemwise_scalar_cmp[eq](rhs)
+        return self._elemwise_scalar_cmp['eq'](rhs)
 
     @always_inline
     def ele_eq(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
-        return self._elemwise_matrix_cmp[eq](rhs)
+        return self._elemwise_matrix_cmp['eq'](rhs)
 
     @always_inline
     def __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        return self._elemwise_scalar_cmp[ne](rhs)
+        return self._elemwise_scalar_cmp['ne'](rhs)
 
     @always_inline
     def ele_ne(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
-        return self._elemwise_matrix_cmp[ne](rhs)
+        return self._elemwise_matrix_cmp['ne'](rhs)
 
     @always_inline
     def __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        return self._elemwise_scalar_cmp[gt](rhs)
+        return self._elemwise_scalar_cmp['gt'](rhs)
 
     @always_inline
     def ele_gt(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
-        return self._elemwise_matrix_cmp[gt](rhs)
+        return self._elemwise_matrix_cmp['gt'](rhs)
 
     @always_inline
     def __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        return self._elemwise_scalar_cmp[ge](rhs)
+        return self._elemwise_scalar_cmp['ge'](rhs)
 
     @always_inline
     def ele_ge(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
-        return self._elemwise_matrix_cmp[ge](rhs)
+        return self._elemwise_matrix_cmp['ge'](rhs)
 
     @always_inline
     def __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        return self._elemwise_scalar_cmp[lt](rhs)
+        return self._elemwise_scalar_cmp['lt'](rhs)
 
     @always_inline
     def ele_lt(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
-        return self._elemwise_matrix_cmp[lt](rhs)
+        return self._elemwise_matrix_cmp['lt'](rhs)
 
     @always_inline
     def __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        return self._elemwise_scalar_cmp[le](rhs)
+        return self._elemwise_scalar_cmp['le'](rhs)
 
     @always_inline
     def ele_le(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
-        return self._elemwise_matrix_cmp[le](rhs)
+        return self._elemwise_matrix_cmp['le'](rhs)
 
     @always_inline
     def __eq__(self, rhs: Self) -> Bool:
@@ -542,28 +541,28 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             if self.width == 1:
                 return self.data[0] + rhs
             if self.width == rhs.width:
-                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[add](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix['add'](rhs)
             raise Error("Cannot add matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self + rhs.data[0]
             if self.height == rhs.height:
-                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[add](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix['add'](rhs)
             raise Error("Cannot add matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self + rhs.data[0]
             elif rhs.width == self.width:
-                return self._elemwise_matrix[add](rhs._broadcast_row(self.height, self.width, self.order))
+                return self._elemwise_matrix['add'](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot add matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                return self._elemwise_matrix[add](rhs._broadcast_column(self.height, self.width, self.order))
+                return self._elemwise_matrix['add'](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Cannot add matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
-                return self._elemwise_matrix[add](rhs)
-            return self._elemwise_matrix[add](rhs.asorder(self.order))
+                return self._elemwise_matrix['add'](rhs)
+            return self._elemwise_matrix['add'](rhs.asorder(self.order))
         raise Error("Cannot add matrices with different shapes!")
 
     @always_inline
@@ -572,7 +571,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def __add__(self, rhs: Float32) -> Self:
-        return self._elemwise_scalar[add](rhs)
+        return self._elemwise_scalar['add'](rhs)
 
     @always_inline
     def __radd__(self, lhs: Float32) -> Self:
@@ -590,28 +589,28 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             if self.width == 1:
                 return self.data[0] - rhs
             if self.width == rhs.width:
-                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[sub](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix['sub'](rhs)
             raise Error("Cannot subtract matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self - rhs.data[0]
             if self.height == rhs.height:
-                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[sub](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix['sub'](rhs)
             raise Error("Cannot subtract matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self - rhs.data[0]
             elif rhs.width == self.width:
-                return self._elemwise_matrix[sub](rhs._broadcast_row(self.height, self.width, self.order))
+                return self._elemwise_matrix['sub'](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot subtract matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                return self._elemwise_matrix[sub](rhs._broadcast_column(self.height, self.width, self.order))
+                return self._elemwise_matrix['sub'](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Cannot subtract matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
-                return self._elemwise_matrix[sub](rhs)
-            return self._elemwise_matrix[sub](rhs.asorder(self.order))
+                return self._elemwise_matrix['sub'](rhs)
+            return self._elemwise_matrix['sub'](rhs.asorder(self.order))
         raise Error("Cannot subtract matrices with different shapes!")
 
     @always_inline
@@ -620,7 +619,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def __sub__(self, rhs: Float32) -> Self:
-        return self._elemwise_scalar[sub](rhs)
+        return self._elemwise_scalar['sub'](rhs)
 
     @always_inline
     def __rsub__(self, lhs: Float32) -> Self:
@@ -638,28 +637,28 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             if self.width == 1:
                 return self.data[0] / rhs
             if self.width == rhs.width:
-                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[div](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix['div'](rhs)
             raise Error("Cannot divide matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self / rhs.data[0]
             if self.height == rhs.height:
-                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[div](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix['div'](rhs)
             raise Error("Cannot divide matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self / rhs.data[0]
             elif rhs.width == self.width:
-                return self._elemwise_matrix[div](rhs._broadcast_row(self.height, self.width, self.order))
+                return self._elemwise_matrix['div'](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot divide matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                return self._elemwise_matrix[div](rhs._broadcast_column(self.height, self.width, self.order))
+                return self._elemwise_matrix['div'](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Cannot divide matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
-                return self._elemwise_matrix[div](rhs)
-            return self._elemwise_matrix[div](rhs.asorder(self.order))
+                return self._elemwise_matrix['div'](rhs)
+            return self._elemwise_matrix['div'](rhs.asorder(self.order))
         raise Error("Cannot divide matrices with different shapes!")
 
     @always_inline
@@ -668,7 +667,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def __truediv__(self, rhs: Float32) -> Self:
-        return self._elemwise_scalar[div](rhs)
+        return self._elemwise_scalar['div'](rhs)
 
     @always_inline
     def __rtruediv__(self, lhs: Float32) -> Self:
@@ -713,7 +712,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def __mul__(self, rhs: Float32) -> Self:
-        return self._elemwise_scalar[mul](rhs)
+        return self._elemwise_scalar['mul'](rhs)
 
     @always_inline
     def __rmul__(self, lhs: Float32) -> Self:
@@ -735,7 +734,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.size < 262144:
             var data = self.data
     
-            def math_vectorize[simd_width: Int](idx: Int) {mut}:
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, pow(data.load[width=simd_width](idx), p))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
@@ -760,28 +759,28 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             if self.width == 1:
                 return self.data[0] * rhs
             if self.width == rhs.width:
-                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[mul](rhs)
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix['mul'](rhs)
             raise Error("Cannot element-wise multiply matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
                 return self * rhs.data[0]
             if self.height == rhs.height:
-                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[mul](rhs)
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix['mul'](rhs)
             raise Error("Cannot element-wise multiply matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
                 return self * rhs.data[0]
             elif rhs.width == self.width:
-                return self._elemwise_matrix[mul](rhs._broadcast_row(self.height, self.width, self.order))
+                return self._elemwise_matrix['mul'](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot element-wise multiply matrices with different shapes!")
         if rhs.width == 1:
             if rhs.height == self.height:
-                return self._elemwise_matrix[mul](rhs._broadcast_column(self.height, self.width, self.order))
+                return self._elemwise_matrix['mul'](rhs._broadcast_column(self.height, self.width, self.order))
             raise Error("Cannot element-wise multiply matrices with different shapes!")
         if self.height == rhs.height and self.width == rhs.width:
             if self.order == rhs.order:
-                return self._elemwise_matrix[mul](rhs)
-            return self._elemwise_matrix[mul](rhs.asorder(self.order))
+                return self._elemwise_matrix['mul'](rhs)
+            return self._elemwise_matrix['mul'](rhs.asorder(self.order))
         raise Error("Cannot element-wise multiply matrices with different shapes!")
 
     @always_inline
@@ -790,7 +789,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.size < 262144:
             var data = cmp.unsafe_ptr()
     
-            def convert[simd_width: Int](idx: Int) {mut}:
+            def convert[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, data.load[width=simd_width](idx).select(_true, _false))
             vectorize[self.simd_width](self.size, convert)
         else:
@@ -808,7 +807,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             var data = cmp.unsafe_ptr()
             var _true_data = _true.data
     
-            def convert[simd_width: Int](idx: Int) {mut}:
+            def convert[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, data.load[width=simd_width](idx).select(_true_data.load[width=simd_width](idx), _false))
             vectorize[self.simd_width](self.size, convert)
         else:
@@ -826,7 +825,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             var data = cmp.unsafe_ptr()
             var _false_data = _false.data
     
-            def convert[simd_width: Int](idx: Int) {mut}:
+            def convert[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, data.load[width=simd_width](idx).select(_true, _false_data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
@@ -846,7 +845,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             var _true_data = _true.data
             var _false_data = _false.data
     
-            def convert[simd_width: Int](idx: Int) {mut}:
+            def convert[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, data.load[width=simd_width](idx).select(_true_data.load[width=simd_width](idx), _false_data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
@@ -872,7 +871,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 vectorize[self.simd_width](self.height, convert)
         else:
             @parameter
-            def p(idx_col: Int):
+            def p(i: Int):
+                var idx_col = i
                 var tmpPtr = self.data + idx_col
         
                 def pconvert[simd_width: Int](idx: Int) {mut}:
@@ -896,7 +896,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 vectorize[self.simd_width](self.width, convert)
         else:
             @parameter
-            def p(idx_row: Int):
+            def p(i: Int):
+                var idx_row = i
                 var tmpPtr = self.data + idx_row
         
                 def pconvert[simd_width: Int](idx: Int) {mut}:
@@ -1174,7 +1175,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.size < 262144:
             var data = self.data
     
-            def math_vectorize[simd_width: Int](idx: Int) {mut}:
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, abs(data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
@@ -1188,15 +1189,57 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def log(self) -> Matrix:
-        return self._elemwise_math[math.log]()
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            var data = self.data
+
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, math.log(data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, math_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, math.log(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects)
+        return mat^
 
     @always_inline
     def sqrt(self) -> Matrix:
-        return self._elemwise_math[math.sqrt]()
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            var data = self.data
+
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, math.sqrt(data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, math_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, math.sqrt(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects)
+        return mat^
 
     @always_inline
     def exp(self) -> Matrix:
-        return self._elemwise_math[math.exp]()
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            var data = self.data
+
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, math.exp(data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, math_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, math.exp(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects)
+        return mat^
 
     @always_inline
     def argmin(self) -> Int:
@@ -1209,7 +1252,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def argmin(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int, MutExternalOrigin]()
+        var vect = UnsafePointer[Int, MutExternalOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
             vect = alloc[Int](self.width)
@@ -1248,7 +1291,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def argmax(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int, MutExternalOrigin]()
+        var vect = UnsafePointer[Int, MutExternalOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
             vect = alloc[Int](self.width)
@@ -1307,9 +1350,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         @parameter
         def cmp_fn(a: Scalar[DType.int], b: Scalar[DType.int]) -> Bool:
             comptime if ascending:
-                return self.data[Int(a)] < self.data[Int(b)]
+                return self.data[a] < self.data[b]
             else:
-                return self.data[Int(a)] > self.data[Int(b)]
+                return self.data[a] > self.data[b]
 
         sort[cmp_fn](
             Span[
@@ -1491,7 +1534,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @staticmethod
     @always_inline
-    def eye(n: Int, order: String = 'c') -> Matrix:
+    def eye(var n: Int, order: String = 'c') -> Matrix:
         var result = Matrix.zeros(n, n, order)
         var tmpPtr = result.data
 
@@ -1727,13 +1770,19 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
 
     @always_inline
-    def _elemwise_scalar_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[DType.bool, width]](self, rhs: Float32) -> List[Scalar[DType.bool]]:
+    def _elemwise_scalar_cmp[cmp: String](self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        comptime func = (
+            eq if cmp == 'eq' else
+            ne if cmp == 'ne' else
+            gt if cmp == 'gt' else
+            ge if cmp == 'ge' else
+            lt if cmp == 'lt' else
+            le
+        )
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
-            var data = self.data
-    
-            def convert[simd_width: Int](idx: Int) {mut}:
-                result_ptr.store(idx, func(data.load[width=simd_width](idx), rhs))
+            def convert[simd_width: Int](idx: Int) {read}:
+                result_ptr.store(idx, func(self.data.load[width=simd_width](idx), rhs))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -1747,13 +1796,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return result^
 
     @always_inline
-    def _elemwise_matrix_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[DType.bool, width]](self, rhs: Self) -> List[Scalar[DType.bool]]:
+    def _elemwise_matrix_cmp[cmp: String](self, rhs: Self) -> List[Scalar[DType.bool]]:
+        comptime func = (
+            eq if cmp == 'eq' else
+            ne if cmp == 'ne' else
+            gt if cmp == 'gt' else
+            ge if cmp == 'ge' else
+            lt if cmp == 'lt' else
+            le
+        )
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
             var self_data = self.data
             var rhs_data = rhs.data
     
-            def convert[simd_width: Int](idx: Int) {mut}:
+            def convert[simd_width: Int](idx: Int) {read}:
                 result_ptr.store(idx, func(self_data.load[width=simd_width](idx), rhs_data.load(idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
@@ -1768,12 +1825,19 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return result^
 
     @always_inline
-    def _elemwise_scalar[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:
+    def _elemwise_scalar[op: String](self, rhs: Float32) -> Self:
+        comptime func = (
+            add if op == 'add' else
+            sub if op == 'sub' else
+            mul if op == 'mul' else
+            div
+        )
+
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             var data = self.data
     
-            def scalar_vectorize[simd_width: Int](idx: Int) {mut}:
+            def scalar_vectorize[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, func[DType.float32, simd_width](data.load[width=simd_width](idx), rhs))
             vectorize[self.simd_width](self.size, scalar_vectorize)
         else:
@@ -1786,13 +1850,20 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def _elemwise_matrix[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Self) -> Self:
+    def _elemwise_matrix[op: String](self, rhs: Self) -> Self:
+        comptime func = (
+            add if op == 'add' else
+            sub if op == 'sub' else
+            mul if op == 'mul' else
+            div
+        )
+
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             var self_data = self.data
             var rhs_data = rhs.data
     
-            def matrix_vectorize[simd_width: Int](idx: Int) {mut}:
+            def matrix_vectorize[simd_width: Int](idx: Int) {read}:
                 mat.data.store(idx, func[DType.float32, simd_width](self_data.load[width=simd_width](idx), rhs_data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, matrix_vectorize)
         else:
@@ -1802,24 +1873,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 var idx = i * self.simd_width
                 mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
             parallelize[matrix_vectorize_parallelize](n_vects)
-        return mat^
-
-    @always_inline
-    def _elemwise_math[func: def[dtype: DType, width: Int](SIMD[dtype, width])->SIMD[dtype, width]](self) -> Self:
-        var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 262144:
-            var data = self.data
-
-            def math_vectorize[simd_width: Int](idx: Int) {mut}:
-                mat.data.store(idx, func(data.load[width=simd_width](idx)))
-            vectorize[self.simd_width](self.size, math_vectorize)
-        else:
-            var n_vects = Int(math.ceil(self.size / self.simd_width))
-            @parameter
-            def math_vectorize_parallelize(i: Int):
-                var idx = i * self.simd_width
-                mat.data.store(idx, func(self.data.load[width=self.simd_width](idx)))
-            parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
     def write_to[W: Writer](self, mut writer: W):

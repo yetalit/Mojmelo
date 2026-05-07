@@ -1,3 +1,4 @@
+import mojmelo
 from .mojmelo_matmul import matmul
 from std.memory import memcpy, memset_zero
 from std.algorithm import vectorize, parallelize
@@ -117,8 +118,7 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
                 g = c * t - b
 
                 # update eigenvectors
-                @parameter
-                def column[simd_width: Int](idx: Int) unified {mut}:
+                def column[simd_width: Int](idx: Int) {read}:
                     var tau = (V+(i + 1)*n).load[width=simd_width](idx)
                     var Vki = (V+i*n).load[width=simd_width](idx)
                     (V+(i + 1)*n).store(idx, s * Vki + c * tau)
@@ -194,17 +194,16 @@ def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafeP
         for i in range(A.width):
             var idx_col = i
             var tmpPtr = A64 + idx_col
-            @parameter
-            def convert[simd_width: Int](idx: Int) unified {mut}:
+            def convert[simd_width: Int](idx: Int) {mut}:
                 AT.store(idx + idx_col * height, tmpPtr.strided_load[width=simd_width](width))
                 tmpPtr += simd_width * width
             vectorize[simd_width](A.height, convert)
     else:
         @parameter
-        def p(idx_col: Int):
+        def p(i: Int):
+            var idx_col = i
             var tmpPtr = A64 + idx_col
-            @parameter
-            def pconvert[simd_width: Int](idx: Int) unified {mut}:
+            def pconvert[simd_width: Int](idx: Int) {mut}:
                 AT.store(idx + idx_col * height, tmpPtr.strided_load[width=simd_width](width))
                 tmpPtr += simd_width * width
             vectorize[simd_width](A.height, pconvert)
