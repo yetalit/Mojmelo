@@ -8,10 +8,15 @@ from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict
 from std.algorithm import parallelize
 import std.random as random
 from std.memory import memcpy
-from std.memory._nonnull import NonNullUnsafePointer
 from std.sys import size_of
 
-struct SVC(CV, Copyable):
+comptime LINEAR: Int = 0
+comptime POLY: Int = 1
+comptime RBF: Int = 2
+comptime SIGMOID: Int = 3
+comptime PRECOMPUTED: Int = 4
+
+struct SVC[kernel: Int = 2](CV, Copyable):
     """Support Vector Classification."""
     var C: Float64
     """Regularization parameter. When C != 0, C-Support Vector Classification model will be used."""
@@ -19,8 +24,6 @@ struct SVC(CV, Copyable):
     """An upper bound on the fraction of margin errors and a lower bound of the fraction of support vectors.
     When nu != 0, Nu-Support Vector Classification model will be used.
     """
-    var kernel: String
-    """Specifies the kernel type to be used in the algorithm: {'linear', 'poly', 'rbf', 'sigmoid', 'precomputed'}."""
     var degree: Int
     """Degree of the polynomial kernel function ('poly')."""
     var gamma: Float64
@@ -40,17 +43,16 @@ struct SVC(CV, Copyable):
     """Whether to use the shrinking heuristic."""
     var probability: Bool
     """Whether to enable probability estimates."""
-    var _model: UnsafePointer[svm_model, MutExternalOrigin]
+    var _model: OptionalUnsafePointer[svm_model, MutExternalOrigin]
     var _n_features: Int
     var _x_list: List[List[svm_node]]
-    var _x_ptr: List[UnsafePointer[svm_node, MutExternalOrigin]]
+    var _x_ptr: List[OptionalUnsafePointer[svm_node, MutExternalOrigin]]
     comptime MODEL_ID = 6
 
-    def __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
-                degree: Int = 2, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
+    def __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, degree: Int = 2,
+                coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
-        self.kernel = kernel.lower()
         self.degree = degree
         if gamma.lower() == 'scale':
             self.gamma = -1.0
@@ -65,16 +67,15 @@ struct SVC(CV, Copyable):
             random.seed(random_state)
         else:
             random.seed()
-        self._model = UnsafePointer[svm_model, MutExternalOrigin]()
+        self._model = None
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]]()
+        self._x_ptr = List[OptionalUnsafePointer[svm_node, MutExternalOrigin]]()
 
-    def __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf',
-                degree: Int = 2, coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
+    def __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, degree: Int = 2,
+                coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
-        self.kernel = kernel.lower()
         self.degree = degree
         self.gamma = gamma
         self.coef0 = coef0
@@ -86,10 +87,10 @@ struct SVC(CV, Copyable):
             random.seed(random_state)
         else:
             random.seed()
-        self._model = UnsafePointer[svm_model, MutExternalOrigin]()
+        self._model = None
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]]()
+        self._x_ptr = List[OptionalUnsafePointer[svm_node, MutExternalOrigin]]()
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the SVM model according to the given training data."""
@@ -106,21 +107,9 @@ struct SVC(CV, Copyable):
         elif self.gamma == -0.1:
             self.gamma = 1.0 / Float64(X.width)
 
-        var svm_kernel = 5
-        if self.kernel == 'linear':
-            svm_kernel = svm_parameter.LINEAR
-        elif self.kernel == 'poly':
-            svm_kernel = svm_parameter.POLY
-        elif self.kernel == 'rbf':
-            svm_kernel = svm_parameter.RBF
-        elif self.kernel == 'sigmoid':
-            svm_kernel = svm_parameter.SIGMOID
-        elif self.kernel == 'precomputed':
-            svm_kernel = svm_parameter.PRECOMPUTED
-
         var param = svm_parameter(
             svm_type = svm_type,
-            kernel_type = svm_kernel,
+            kernel_type = Self.kernel,
             degree = self.degree,
             gamma = self.gamma,
             coef0 = self.coef0,
@@ -128,8 +117,8 @@ struct SVC(CV, Copyable):
             eps = self.tol,
             C = self.C,
             nr_weight = 0,
-            weight_label = UnsafePointer[Int, MutExternalOrigin](),
-            weight = UnsafePointer[Float64, MutExternalOrigin](),
+            weight_label = None,
+            weight = None,
             nu = self.nu,
             p = 0.0,
             shrinking = Int(self.shrinking),
@@ -139,8 +128,8 @@ struct SVC(CV, Copyable):
 
         self._x_list = List[List[svm_node]](capacity=X.height)
         self._x_list.resize(X.height, List[svm_node]())
-        self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]](capacity=X.height)
-        self._x_ptr.resize(X.height, UnsafePointer[svm_node, MutExternalOrigin]())
+        self._x_ptr = List[OptionalUnsafePointer[svm_node, MutExternalOrigin]](capacity=X.height)
+        self._x_ptr.resize(X.height, UnsafePointer[svm_node, MutExternalOrigin].unsafe_dangling())
 
         @parameter
         def p(i: Int):
@@ -165,12 +154,12 @@ struct SVC(CV, Copyable):
 
         var check = svm_check_parameter(prob, param)
         if check != "":
-            prob.y.free()
+            prob.y.value().free()
             raise Error(check)
 
-        self._model = svm_train(prob, param)
+        self._model = svm_train[Self.kernel](prob, param)
 
-        prob.y.free()
+        prob.y.value().free()
     
     def predict(self, X: Matrix) raises -> Matrix:
         """Perform classification on samples in X.
@@ -193,7 +182,7 @@ struct SVC(CV, Copyable):
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
-            y_ptr[i] = svm_predict(self._model[], x_list._data)
+            y_ptr[i] = svm_predict(self._model.value()[], x_list._data)
             _ = x_list
         parallelize[p](X.height)
 
@@ -223,9 +212,9 @@ struct SVC(CV, Copyable):
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
-            var result = svm_decision_function(self._model[], x_list._data)
+            var result = svm_decision_function(self._model.value()[], x_list._data)
             dec_values[i] = List[Float64](unsafe_uninit_length=result[1])
-            dec_values[i]._data = NonNullUnsafePointer(unsafe_from_nullable=result[0])
+            dec_values[i]._data = result[0].value()
             _ = x_list
         parallelize[p](X.height)
 
@@ -240,34 +229,34 @@ struct SVC(CV, Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             var _model = self._model
             # svm_parameter
-            f.write_bytes(UInt8(_model[].param.svm_type).as_bytes())
-            f.write_bytes(UInt8(_model[].param.kernel_type).as_bytes())
-            f.write_bytes(UInt64(_model[].param.degree).as_bytes())
-            f.write_bytes(_model[].param.gamma.as_bytes())
-            f.write_bytes(_model[].param.coef0.as_bytes())
-            f.write_bytes(_model[].param.cache_size.as_bytes())
-            f.write_bytes(_model[].param.eps.as_bytes())
-            f.write_bytes(_model[].param.C.as_bytes())
-            f.write_bytes(UInt64(_model[].param.nr_weight).as_bytes())
-            f.write_bytes(Span(ptr=_model[].param.weight_label.bitcast[UInt8](), length=size_of[DType.int]()*_model[].param.nr_weight))
-            f.write_bytes(Span(ptr=_model[].param.weight.bitcast[UInt8](), length=8*_model[].param.nr_weight))
-            f.write_bytes(_model[].param.nu.as_bytes())
-            f.write_bytes(UInt8(_model[].param.shrinking).as_bytes())
-            f.write_bytes(UInt8(_model[].param.probability).as_bytes())
+            f.write_bytes(UInt8(_model.value()[].param.svm_type).as_bytes())
+            f.write_bytes(UInt8(_model.value()[].param.kernel_type).as_bytes())
+            f.write_bytes(UInt64(_model.value()[].param.degree).as_bytes())
+            f.write_bytes(_model.value()[].param.gamma.as_bytes())
+            f.write_bytes(_model.value()[].param.coef0.as_bytes())
+            f.write_bytes(_model.value()[].param.cache_size.as_bytes())
+            f.write_bytes(_model.value()[].param.eps.as_bytes())
+            f.write_bytes(_model.value()[].param.C.as_bytes())
+            f.write_bytes(UInt64(_model.value()[].param.nr_weight).as_bytes())
+            f.write_bytes(Span(ptr=_model.value()[].param.weight_label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model.value()[].param.nr_weight))
+            f.write_bytes(Span(ptr=_model.value()[].param.weight.value().bitcast[UInt8](), length=8*_model.value()[].param.nr_weight))
+            f.write_bytes(_model.value()[].param.nu.as_bytes())
+            f.write_bytes(UInt8(_model.value()[].param.shrinking).as_bytes())
+            f.write_bytes(UInt8(_model.value()[].param.probability).as_bytes())
             ###
-            f.write_bytes(UInt64(_model[].nr_class).as_bytes())
-            f.write_bytes(UInt64(_model[].l).as_bytes())
+            f.write_bytes(UInt64(_model.value()[].nr_class).as_bytes())
+            f.write_bytes(UInt64(_model.value()[].l).as_bytes())
             f.write_bytes(UInt64(self._n_features).as_bytes())
-            f.write_bytes(Span(ptr=self.support_vectors().data.bitcast[UInt8](), length=4*_model[].l*self._n_features))
-            for i in range(_model[].nr_class-1):
-                f.write_bytes(Span(ptr=_model[].sv_coef[i].bitcast[UInt8](), length=8*_model[].l))
-            f.write_bytes(Span(ptr=_model[].rho.bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+            f.write_bytes(Span(ptr=self.support_vectors().data.bitcast[UInt8](), length=4*_model.value()[].l*self._n_features))
+            for i in range(_model.value()[].nr_class-1):
+                f.write_bytes(Span(ptr=_model.value()[].sv_coef.value()[i].value().bitcast[UInt8](), length=8*_model.value()[].l))
+            f.write_bytes(Span(ptr=_model.value()[].rho.value().bitcast[UInt8](), length=8*(_model.value()[].nr_class*(_model.value()[].nr_class-1))//2))
             if self.probability:
-                f.write_bytes(Span(ptr=_model[].probA.bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
-                f.write_bytes(Span(ptr=_model[].probB.bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
-            f.write_bytes(Span(ptr=_model[].sv_indices.bitcast[UInt8](), length=size_of[DType.int]()*_model[].l))
-            f.write_bytes(Span(ptr=_model[].label.bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
-            f.write_bytes(Span(ptr=_model[].nSV.bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
+                f.write_bytes(Span(ptr=_model.value()[].probA.value().bitcast[UInt8](), length=8*(_model.value()[].nr_class*(_model.value()[].nr_class-1))//2))
+                f.write_bytes(Span(ptr=_model.value()[].probB.value().bitcast[UInt8](), length=8*(_model.value()[].nr_class*(_model.value()[].nr_class-1))//2))
+            f.write_bytes(Span(ptr=_model.value()[].sv_indices.value().bitcast[UInt8](), length=size_of[DType.int]()*_model.value()[].l))
+            f.write_bytes(Span(ptr=_model.value()[].label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model.value()[].nr_class))
+            f.write_bytes(Span(ptr=_model.value()[].nSV.value().bitcast[UInt8](), length=size_of[DType.int]()*_model.value()[].nr_class))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -322,8 +311,8 @@ struct SVC(CV, Copyable):
             var X_float64 = X.cast_ptr[DType.float64]()
             model._x_list = List[List[svm_node]](capacity=X.height)
             model._x_list.resize(X.height, List[svm_node]())
-            model._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]](capacity=X.height)
-            model._x_ptr.resize(X.height, UnsafePointer[svm_node, MutExternalOrigin]())
+            model._x_ptr = List[OptionalUnsafePointer[svm_node, MutExternalOrigin]](capacity=X.height)
+            model._x_ptr.resize(X.height, None)
             @parameter
             def p(i: Int):
                 for c in range(X.width):
@@ -339,14 +328,14 @@ struct SVC(CV, Copyable):
             parallelize[p](X.height)
             X_float64.free()
 
-            var sv_coef = alloc[UnsafePointer[Float64, MutExternalOrigin]](nr_class-1)
+            var sv_coef = alloc[OptionalUnsafePointer[Float64, MutExternalOrigin]](nr_class-1)
             for i in range(nr_class-1):
                 sv_coef[i] = alloc[Float64](l)
                 memcpy(dest=sv_coef[i], src=f.read_bytes(8*l).unsafe_ptr().bitcast[Float64](), count=l)
             var rho = alloc[Float64]((nr_class*(nr_class-1))//2)
             memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-            var probA = UnsafePointer[Float64, MutExternalOrigin]()
-            var probB = UnsafePointer[Float64, MutExternalOrigin]()
+            var probA = OptionalUnsafePointer[Float64, MutExternalOrigin]()
+            var probB = OptionalUnsafePointer[Float64, MutExternalOrigin]()
             if probability:
                 probA = alloc[Float64]((nr_class*(nr_class-1))//2)
                 memcpy(dest=probA, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
@@ -378,11 +367,11 @@ struct SVC(CV, Copyable):
 
     def support_vectors(self) raises -> Matrix:
         """Get support vectors."""
-        var support_vectors_ = Matrix.zeros(self._model[].l, self._n_features)
+        var support_vectors_ = Matrix.zeros(self._model.value()[].l, self._n_features)
         for row in range(support_vectors_.height):
             var pointer = 0
-            while self._model[].SV[row][pointer].index != -1:
-                support_vectors_[row, self._model[].SV[row][pointer].index-1] = self._model[].SV[row][pointer].value.cast[DType.float32]()
+            while self._model.value()[].SV.value()[row].value()[pointer].index != -1:
+                support_vectors_[row, self._model.value()[].SV.value()[row].value()[pointer].index-1] = self._model.value()[].SV.value()[row].value()[pointer].value.cast[DType.float32]()
                 pointer += 1
         return support_vectors_^
 
@@ -395,10 +384,6 @@ struct SVC(CV, Copyable):
             self.nu = atof(String(params['nu']))
         else:
             self.nu = 0.0
-        if 'kernel' in params:
-            self.kernel = params['kernel']
-        else:
-            self.kernel = 'rbf'
         if 'degree' in params:
             self.degree = atol(String(params['degree']))
         else:
@@ -442,7 +427,7 @@ struct SVC(CV, Copyable):
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed()
-        self._model = UnsafePointer[svm_model, MutExternalOrigin]()
+        self._model = None
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node, MutExternalOrigin]]()
+        self._x_ptr = List[OptionalUnsafePointer[svm_node, MutExternalOrigin]]()

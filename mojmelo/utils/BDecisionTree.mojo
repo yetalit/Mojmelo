@@ -11,7 +11,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
     var reg_alpha: Float32
     var gamma: Float32
     var n_bins: Int
-    var root: UnsafePointer[Node, MutAnyOrigin]
+    var root: OptionalUnsafePointer[Node, MutAnyOrigin]
 
     def __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0):
         self.min_samples_split = min_samples_split
@@ -20,7 +20,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         self.reg_alpha = reg_alpha
         self.gamma = gamma
         self.n_bins = n_bins if n_bins >= 2 else 0
-        self.root = UnsafePointer[Node, MutAnyOrigin]()
+        self.root = None
 
     def _moveinit_(mut self, mut take: Self):
         self.min_samples_split = take.min_samples_split
@@ -32,11 +32,11 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         self.root = take.root
         take.min_samples_split = take.max_depth = 0
         take.reg_lambda = take.reg_alpha = take.gamma = 0.0
-        take.root = UnsafePointer[Node, MutAnyOrigin]()
+        take.root = None
 
     def __del__(deinit self):
         if self.root:
-            delTree(self.root)
+            delTree(self.root.value())
 
     def fit(mut self, X: Matrix, g: Matrix, h: Matrix) raises:
         self.root = self._grow_tree(X, g, h, fill_indices_list(X.height))
@@ -45,7 +45,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var y_predicted = Matrix(X.height, 1)
         @parameter
         def p(i: Int):
-            y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root)
+            y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root.value())
         parallelize[p](X.height)
         return y_predicted^
 
@@ -190,12 +190,12 @@ def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float3
         return node[].value
 
     if x.data[node[].feature] <= node[].threshold:
-        return _traverse_tree(x, node[].left)
-    return _traverse_tree(x, node[].right)
+        return _traverse_tree(x, node[].left.value())
+    return _traverse_tree(x, node[].right.value())
 
 def delTree(node: UnsafePointer[Node, MutAnyOrigin]):
     if node[].left:
-        delTree(node[].left)
+        delTree(node[].left.value())
     if node[].right:
-        delTree(node[].right)
+        delTree(node[].right.value())
     node.free()

@@ -214,8 +214,8 @@ struct HDBSCANBoruvka:
 
                 var xq = self.tree[].data + q * Scalar[DType.int](self.dim)
                 var d2: Float32 = 0.0
-                @parameter
-                def v[simd_width: Int](k: Int) unified {mut}:
+
+                def v[simd_width: Int](k: Int) {mut}:
                     var t = xp.load[width=simd_width](k) - xq.load[width=simd_width](k)
                     d2 += (t * t).reduce_add()
                 vectorize[Matrix.simd_width](self.dim, v)

@@ -7,12 +7,12 @@ import std.random as random
 struct Node(Copyable):
     var feature: Int
     var threshold: Float32
-    var left: UnsafePointer[Node, MutAnyOrigin]
-    var right: UnsafePointer[Node, MutAnyOrigin]
+    var left: OptionalUnsafePointer[Node, MutAnyOrigin]
+    var right: OptionalUnsafePointer[Node, MutAnyOrigin]
     var value: Float32
 
     def __init__(
-        out self, feature: Int = -1, threshold: Float32 = 0.0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer[Node, MutAnyOrigin](), value: Float32 = math.inf[DType.float32]()
+        out self, feature: Int = -1, threshold: Float32 = 0.0, left: OptionalUnsafePointer[Node, MutAnyOrigin] = None, right: OptionalUnsafePointer[Node, MutAnyOrigin] = None, value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
         self.threshold = threshold

@@ -65,16 +65,15 @@ def nth_element(
 
 @always_inline
 def node_pair_lower_bound(
-    center1: UnsafePointer[Float32, MutAnyOrigin],
-    center2: UnsafePointer[Float32, MutAnyOrigin],
+    var center1: UnsafePointer[Float32, MutAnyOrigin],
+    var center2: UnsafePointer[Float32, MutAnyOrigin],
     r1: Float32,
     r2: Float32,
     dim: Int
 ) -> Float32:
     var dist2: Float32 = 0.0
 
-    @parameter
-    def v[simd_width: Int](k: Int) unified {mut}:
+    def v[simd_width: Int](k: Int) {mut}:
         var t = center1.load[width=simd_width](k) - center2.load[width=simd_width](k)
         dist2 += (t * t).reduce_add()
 
@@ -117,7 +116,7 @@ struct KDTreeBoruvka:
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
         self.data = data.data
-        self.kdtree = KDTree[sort_results=True](data, metric='euc')
+        self.kdtree = KDTree[sort_results=True, metric='euc'](data)
         self.n = data.height
         self.dim = data.width
         self.leaf_size = leaf_size
@@ -137,13 +136,16 @@ struct KDTreeBoruvka:
 
         @parameter
         def compute_core_dist(p: Int):
-            var kd_results = KDTreeResultVector()
-            self.kdtree.n_nearest(
-                Span(ptr=self.data + p * self.dim, length=self.dim),
-                k,
-                kd_results
-            )
-            self.core_dist[p] = kd_results[min_samples].dis
+            try:
+                var kd_results = KDTreeResultVector()
+                self.kdtree.n_nearest(
+                    Span(ptr=self.data + p * self.dim, length=self.dim),
+                    k,
+                    kd_results
+                )
+                self.core_dist[p] = kd_results[min_samples].dis
+            except e:
+                print('Error:', e)
 
         parallelize[compute_core_dist](self.n)
 
@@ -151,10 +153,8 @@ struct KDTreeBoruvka:
 
     @always_inline
     def __del__(deinit self):
-        if self.core_dist:
-            self.core_dist.free()
-        if self._center_arena:
-            self._center_arena.free()
+        self.core_dist.free()
+        self._center_arena.free()
 
     @always_inline
     def left(self, i: Int) -> Int:
@@ -206,8 +206,8 @@ struct KDTreeBoruvka:
 
         for i in range(start, end):
             var p = self.data + Int(self.build_idx[i]) * self.dim
-            @parameter
-            def v1[simd_width: Int](k: Int) unified {mut}:
+
+            def v1[simd_width: Int](k: Int) {read}:
                 cptr.store(k, cptr.load[width=simd_width](k) + p.load[width=simd_width](k))
             vectorize[Matrix.simd_width](self.dim, v1)
 
@@ -218,8 +218,8 @@ struct KDTreeBoruvka:
         for i in range(start, end):
             var p = self.data + Int(self.build_idx[i]) * self.dim
             var d2: Float32 = 0.0
-            @parameter
-            def v2[simd_width: Int](k: Int) unified {mut}:
+
+            def v2[simd_width: Int](k: Int) {mut}:
                 var t = p.load[width=simd_width](k) - cptr.load[width=simd_width](k)
                 d2 += (t * t).reduce_add()
             vectorize[Matrix.simd_width](self.dim, v2)

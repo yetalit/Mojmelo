@@ -1,7 +1,8 @@
 # Modified version of YichengDWu's matmul.mojo (https://github.com/YichengDWu/matmul.mojo)
 
 from std.algorithm import vectorize, parallelize
-from std.memory.memory import _malloc, stack_allocation
+from std.memory import stack_allocation
+from std.memory.memory import _malloc
 from std.sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
 from std.utils import IndexList
 import std.random as random
@@ -145,17 +146,15 @@ def pack_A[
     def pack_panel(idx: Int):
         var i = idx * mr
         # for i in range(0, Ac.shape[0](), mr):
-        var Ac_stride = Ac.stride[0]()
         var dst_ptr = Ac_buffer + i * Ac.shape[1]()
-        var src_ptr = Ac.data + i * Ac_stride
+        var src_ptr = Ac.data + i * Ac.stride[0]()
         for _ in range(Ac.shape[1]()):
 
-            @parameter
-            def pack_col[width: Int](l: Int) unified {mut}:
+            def pack_col[width: Int](l: Int) {read}:
                 (dst_ptr + l).store(
-                    (src_ptr + l * Ac_stride).strided_load[
+                    (src_ptr + l * Ac.stride[0]()).strided_load[
                         width=width
-                    ](Ac_stride),
+                    ](Ac.stride[0]()),
                 )
 
             vectorize[simd_width_of[Type]()](min(Ac.shape[0]() - i, mr), pack_col)
@@ -185,8 +184,7 @@ def pack_B[
         var src_ptr = Bc.data + i
         for _ in range(Bc.shape[0]()):
 
-            @parameter
-            def pack_row[width: Int](l: Int) unified {mut}:
+            def pack_row[width: Int](l: Int) {read}:
                 (dst_ptr + l).store[
                     alignment = size_of[Type]() * simd_width_of[Type]()
                 ](
@@ -229,13 +227,13 @@ def matmul_impl[
         var Cb = C.slice(i, 0, min(M - i, mc), N)
         for p in range(0, A.shape[1](), kc):
             var Ac = pack_A[mr](
-                mc, Ac_buffer, A.slice(i, p, min(M - i, mc), min(K - p, kc))
+                mc, Ac_buffer.value(), A.slice(i, p, min(M - i, mc), min(K - p, kc))
             )
 
             var Bb = B.slice(p, 0, min(K - p, kc), N)
             loop_n[kc, mr, nr](nc, Cb, Ac, Bb)
 
-    Ac_buffer.free()
+    Ac_buffer.value().free()
 
 
 @always_inline
@@ -264,7 +262,7 @@ def loop_n[
         var Bc_buffer = UnsafePointer[Scalar[Type], MutAnyOrigin](
             _malloc[Scalar[Type]](
                 kc * nc_per_thread * size_of[Type](), alignment=64
-            )
+            ).value()
         )
 
         var j = idx * nc_per_thread
@@ -287,7 +285,7 @@ def loop_n[
         var Bc_buffer = UnsafePointer[Scalar[Type], MutAnyOrigin](
             _malloc[Scalar[Type]](
                 kc * remainder_per_thread * size_of[Type](), alignment=64
-            )
+            ).value()
         )
         var j = balanced_part + idx * remainder_per_thread
         var Bc = pack_B[kc, nr](
@@ -360,8 +358,7 @@ def micro_kernel[
         comptime for i in range(mr):
             if i < Cr.shape[0]():
 
-                @parameter
-                def load_col[width: Int](j: Int) unified {mut}:
+                def load_col[width: Int](j: Int) {read}:
                     (cr_ptr + (i * nr + j)).store(
                         (Cr_ptr + (i * Cr.stride[0]() + j)).load[width=width](),
                     )
@@ -404,8 +401,7 @@ def micro_kernel[
         comptime for i in range(mr):
             if i < Cr.shape[0]():
 
-                @parameter
-                def store_row[width: Int](j: Int) unified {mut}:
+                def store_row[width: Int](j: Int) {read}:
                     (Cr_ptr + (i * Cr.stride[0]() + j)).store(
                         (cr_ptr + (i * nr + j)).load[width=width](),
                     )

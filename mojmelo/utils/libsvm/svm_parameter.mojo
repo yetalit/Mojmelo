@@ -7,13 +7,6 @@ struct svm_parameter(Copyable):
 	comptime EPSILON_SVR: Int = 3
 	comptime NU_SVR: Int = 4
 
-	# kernel_type
-	comptime LINEAR: Int = 0
-	comptime POLY: Int = 1
-	comptime RBF: Int = 2
-	comptime SIGMOID: Int = 3
-	comptime PRECOMPUTED: Int = 4
-
 	var svm_type: Int
 	var kernel_type: Int
 	var degree: Int	# for poly
@@ -25,8 +18,8 @@ struct svm_parameter(Copyable):
 	var eps: Float64	# stopping criteria
 	var C: Float64	# for C_SVC, EPSILON_SVR and NU_SVR
 	var nr_weight: Int		# for C_SVC
-	var weight_label: UnsafePointer[Int, MutExternalOrigin]	# for C_SVC
-	var weight: UnsafePointer[Float64, MutExternalOrigin]		# for C_SVC
+	var weight_label: OptionalUnsafePointer[Int, MutExternalOrigin]	# for C_SVC
+	var weight: OptionalUnsafePointer[Float64, MutExternalOrigin]		# for C_SVC
 	var nu: Float64	# for NU_SVC, ONE_CLASS, and NU_SVR
 	var p: Float64	# for EPSILON_SVR
 	var shrinking: Int	# use the shrinking heuristics
