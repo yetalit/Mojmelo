@@ -225,16 +225,6 @@ def _sort[
 
     _quicksort[cmp_fn](span, indices)
 
-def sort[
-    T: Copyable & Movable,
-    origin: MutOrigin, //,
-    cmp_fn: def (T, T) capturing [_] -> Bool,
-    *,
-    __disambiguate: NoneType = None,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
-
-    _sort[cmp_fn](span, indices)
-
 
 def sort[
     dtype: DType,
@@ -244,40 +234,6 @@ def sort[
 ](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
 
     _sort[cmp_fn, do_smallsort=True](span, indices)
-
-
-def sort[
-    origin: MutOrigin, //,
-    cmp_fn: def (Int, Int) capturing [_] -> Bool,
-    *,
-](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
-
-    _sort[cmp_fn, do_smallsort=True](span, indices)
-
-
-def sort[
-    origin: MutOrigin, //,
-    *,
-](span: Span[Int, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
-
-    @parameter
-    def _cmp_fn(lhs: Int, rhs: Int) -> Bool:
-        return lhs < rhs
-
-    sort[_cmp_fn](span, indices)
-
-
-def sort[
-    T: Copyable & Movable & Comparable,
-    origin: MutOrigin, //,
-    *,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutAnyOrigin]):
-
-    @parameter
-    def _cmp_fn(a: T, b: T) -> Bool:
-        return a < b
-
-    sort[_cmp_fn](span, indices)
 
 # ===-----------------------------------------------------------------------===#
 # sort networks
