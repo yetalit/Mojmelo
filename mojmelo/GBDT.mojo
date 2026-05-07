@@ -11,8 +11,8 @@ struct GBDT(CV, Copyable):
     For binary classification -> 'log';
 	For multi-class classification -> 'softmax';
     For regression -> 'mse'."""
-	var loss_g: fn(Matrix, Matrix) raises -> Matrix
-	var loss_h: fn(Matrix) raises -> Matrix
+	var loss_g: def(Matrix, Matrix) raises -> Matrix
+	var loss_h: def(Matrix) raises -> Matrix
 	var n_trees: Int
 	"""The number of boosting stages to perform."""
 	var min_samples_split: Int

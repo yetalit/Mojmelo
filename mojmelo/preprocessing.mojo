@@ -233,7 +233,7 @@ struct LabelEncoder:
             np_arr[i] = self.index_to_str[Int(y.data[i])]
         return np_arr^
 
-def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
     """K-Fold cross-validator.
 
     Parameters:
@@ -259,12 +259,12 @@ def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matri
         model.fit(X[train_ids], y[train_ids])
         var test_ids = List[Scalar[DType.int]](ids[start_of_test:end_of_test])
         y_pred = model.predict(X[test_ids])
-        mean_score += scoring(y[test_ids], y_pred) / Float32(n_splits)
+        mean_score += scoring(y[test_ids].copy(), y_pred) / Float32(n_splits)
         start_of_test += test_count
     return mean_score
 
 def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
-                            scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+                            scoring: def(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
     """Exhaustive search over specified parameter values for an estimator.
 
     Parameters:

@@ -238,7 +238,7 @@ trait QMatrix:
 #struct Kernel:
 #    var _self: kernel_params
 #
-#    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+#    var kernel_function: def(kernel_params, Int, Int) -> Float64
 #
 #    @always_inline
 #    def __init__(out self, l: Int, x_: UnsafePointer[UnsafePointer[svm_node, MutExternalOrigin], MutExternalOrigin], param: svm_parameter):
@@ -1287,7 +1287,7 @@ struct SVC_Q(QMatrix):
 
     var _self: kernel_params
 
-    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+    var kernel_function: def(kernel_params, Int, Int) -> Float64
 
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter, y_: UnsafePointer[Int8, MutExternalOrigin]):
@@ -1367,7 +1367,7 @@ struct ONE_CLASS_Q(QMatrix):
 
     var _self: kernel_params
 
-    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+    var kernel_function: def(kernel_params, Int, Int) -> Float64
 
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter):
@@ -1444,7 +1444,7 @@ struct SVR_Q(QMatrix):
 
     var _self: kernel_params
 
-    var kernel_function: fn(kernel_params, Int, Int) -> Float64
+    var kernel_function: def(kernel_params, Int, Int) -> Float64
 
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter):

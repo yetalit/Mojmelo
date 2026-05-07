@@ -36,9 +36,9 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var loss_func: fn(Matrix, Matrix, Float32) raises -> Float32
-    var c_func: fn(Float32, List[Int]) raises -> Float32
-    var r_func: fn(Float32, Float32, Float32) raises -> Float32
+    var loss_func: def(Matrix, Matrix, Float32) raises -> Float32
+    var c_func: def(Float32, List[Int]) raises -> Float32
+    var r_func: def(Float32, Float32, Float32) raises -> Float32
     var min_samples_split: Int
     """The minimum number of samples required to split an internal node."""
     var max_depth: Int
@@ -269,7 +269,7 @@ def set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Stri
             most_common = i
     return Float32(most_common)
 
-def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: fn(Matrix, Matrix, Float32) raises -> Float32, c_precompute: fn(Float32, List[Int]) raises -> Float32, r_precompute: fn(Float32, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: def(Matrix, Matrix, Float32) raises -> Float32, c_precompute: def(Float32, List[Int]) raises -> Float32, r_precompute: def(Float32, Float32, Float32) raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
     var total_samples = Float32(len(_y)) if y.width == 1 else weights.sum()
     var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))

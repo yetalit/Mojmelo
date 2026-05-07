@@ -1,7 +1,6 @@
 from .mojmelo_matmul import matmul
 from std.sys import simd_width_of, CompilationTarget
 from std.memory import memcpy, memcmp, memset_zero
-from std.memory._nonnull import NonNullUnsafePointer
 from std.algorithm import vectorize, parallelize, reduction
 import std.math as math
 import std.random as random
@@ -1234,7 +1233,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                     vect[i] = self[i, unsafe=True].argmin()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
-        list._data = NonNullUnsafePointer(unsafe_from_nullable=vect)
+        list._data = vect
         return list^
 
     @always_inline
@@ -1273,7 +1272,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                     vect[i] = self[i, unsafe=True].argmax()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
-        list._data = NonNullUnsafePointer(unsafe_from_nullable=vect)
+        list._data = vect
         return list^
 
     @always_inline
@@ -1560,7 +1559,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         for i in range(self.size):
             vect[Int(self.data[i])] += 1
         var list = List[Int](unsafe_uninit_length=max_val + 1)
-        list._data = NonNullUnsafePointer(unsafe_from_nullable=vect)
+        list._data = vect
         return list^
 
     @always_inline
@@ -1572,7 +1571,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         for i in range(self.size):
             vect[Int(self.data[i])] += Int(weights.data[i])
         var list = List[Int](unsafe_uninit_length=max_val + 1)
-        list._data = NonNullUnsafePointer(unsafe_from_nullable=vect)
+        list._data = vect
         return list^
 
     @always_inline
@@ -1653,7 +1652,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 indices[i], indices[j] = indices[j], indices[i]
             memcpy(dest=result, src=indices, count=size)
         var list = List[Scalar[DType.int]](unsafe_uninit_length=size)
-        list._data = NonNullUnsafePointer(unsafe_from_nullable=result)
+        list._data = result
         return list^
 
     @staticmethod
@@ -1727,7 +1726,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
 
     @always_inline
-    def _elemwise_scalar_cmp[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[DType.bool, width]](self, rhs: Float32) -> List[Scalar[DType.bool]]:
+    def _elemwise_scalar_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[DType.bool, width]](self, rhs: Float32) -> List[Scalar[DType.bool]]:
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
             var data = self.data
@@ -1743,11 +1742,11 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 result_ptr.store(idx, func(self.data.load[width=self.simd_width](idx), rhs))
             parallelize[vectorize_parallelize](n_vects)
         var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
-        result._data = NonNullUnsafePointer(unsafe_from_nullable=result_ptr)
+        result._data = result_ptr
         return result^
 
     @always_inline
-    def _elemwise_matrix_cmp[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[DType.bool, width]](self, rhs: Self) -> List[Scalar[DType.bool]]:
+    def _elemwise_matrix_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[DType.bool, width]](self, rhs: Self) -> List[Scalar[DType.bool]]:
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
             var self_data = self.data
@@ -1764,11 +1763,11 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 result_ptr.store(idx, func(self.data.load[width=self.simd_width](idx), rhs.data.load(idx)))
             parallelize[vectorize_parallelize](n_vects)
         var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
-        result._data = NonNullUnsafePointer(unsafe_from_nullable=result_ptr)
+        result._data = result_ptr
         return result^
 
     @always_inline
-    def _elemwise_scalar[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:
+    def _elemwise_scalar[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Float32) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             var data = self.data
@@ -1786,7 +1785,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def _elemwise_matrix[func: fn[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Self) -> Self:
+    def _elemwise_matrix[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width])->SIMD[dtype, width]](self, rhs: Self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             var self_data = self.data
@@ -1805,7 +1804,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def _elemwise_math[func: fn[dtype: DType, width: Int](SIMD[dtype, width])->SIMD[dtype, width]](self) -> Self:
+    def _elemwise_math[func: def[dtype: DType, width: Int](SIMD[dtype, width])->SIMD[dtype, width]](self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             var data = self.data

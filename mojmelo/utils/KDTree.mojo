@@ -140,9 +140,9 @@ struct KDTreeNode(Copyable):
     var box: List[interval] # [min,max] of the box enclosing all points
     var left: UnsafePointer[KDTreeNode, MutAnyOrigin]
     var right: UnsafePointer[KDTreeNode, MutAnyOrigin]
-    var metric: fn(Float32) -> Float32
+    var metric: def(Float32) -> Float32
 
-    def __init__(out self, dim: Int, metric: fn(Float32) -> Float32):
+    def __init__(out self, dim: Int, metric: def(Float32) -> Float32):
         self.cut_dim = self.l = self.u = 0
         self.cut_val = self.cut_val_left = self.cut_val_right = 0.0
         self.box = List[interval](capacity=dim)
@@ -311,7 +311,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
     var ind: List[Scalar[DType.int]]
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
-    var metric: fn(Float32) -> Float32
+    var metric: def(Float32) -> Float32
     comptime bucketsize = 12
 
     def __init__(out self, X: Matrix, metric: String = 'euc', *, build: Bool = True) raises:
