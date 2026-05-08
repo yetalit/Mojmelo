@@ -259,7 +259,7 @@ def KFold[m_type: CV, scoring: String](mut model: m_type, X: Matrix, y: Matrix, 
     )
 
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = Int((1 / n_splits) * X.height)
+    var test_count = Int(1 / Float64(n_splits) * Float64(X.height))
     var start_of_test = 0
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):

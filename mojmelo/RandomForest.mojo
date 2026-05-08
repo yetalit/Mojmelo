@@ -34,12 +34,12 @@ def _predict(y: Matrix, criterion: String) raises -> Float32:
 
 struct RandomForest[criterion: String = 'gini'](CV, Copyable):
     """A random forest supporting both classification and regression.
-    
+
     Parameters:
         criterion: The function to measure the quality of a split:
             For classification -> 'entropy', 'gini';
             For regression -> 'mse'.
-    
+
     """
     var n_trees: Int
     """The number of trees in the forest."""
@@ -51,7 +51,7 @@ struct RandomForest[criterion: String = 'gini'](CV, Copyable):
     """The number of features to consider when looking for the best split."""
     var trees: UnsafePointer[DecisionTree[Self.criterion], MutAnyOrigin]
     comptime MODEL_ID = 10
-    comptime criterion_ids: List[String] = ['entropy', 'gini', 'mse']
+    comptime criterion_ids: List[String] = ['mse', 'entropy', 'gini']
 
     def __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
         self.n_trees = n_trees

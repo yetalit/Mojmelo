@@ -6,12 +6,12 @@ from std.algorithm import parallelize
 
 struct KNN[metric: String = 'euc'](CV, Copyable):
     """Classifier implementing the k-nearest neighbors vote.
-    
+
     Parameters:
         metric: Metric to use for distance computation:
             Euclidean -> 'euc';
             Manhattan -> 'man'.
-    
+
     """
     var k: Int
     """Number of neighbors to use."""

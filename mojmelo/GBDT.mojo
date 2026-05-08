@@ -6,13 +6,13 @@ from std.algorithm import parallelize
 
 struct GBDT[criterion: String = 'log'](CV, Copyable):
 	"""Gradient Boosting with support for both classification and regression.
-	
+
 	Parameters:
 		criterion: The method to measure the quality of a split:
 			For binary classification -> 'log';
 			For multi-class classification -> 'softmax';
 			For regression -> 'mse'.
-	
+
 	"""
 	comptime loss_g = log_g if Self.criterion == 'log' else softmax_g if Self.criterion == 'softmax' else mse_g
 	comptime loss_h = log_h if Self.criterion == 'log' else softmax_h if Self.criterion == 'softmax' else mse_h
@@ -36,7 +36,7 @@ struct GBDT[criterion: String = 'log'](CV, Copyable):
 	var score_start: Float32
 	var num_class: Int
 	comptime MODEL_ID = 11
-	comptime criterion_ids: List[String] = ['log', 'softmax', 'mse']
+	comptime criterion_ids: List[String] = ['mse', 'log', 'softmax']
 
 	def __init__(out self,
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,

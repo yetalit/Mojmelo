@@ -53,7 +53,7 @@ If you are not familiar with Mojo projects, you can get started here: https://do
 
 ### Prerequisites
 
-* mojo-compiler 0.26.2
+* mojo-compiler 1.0.0b1
 
 Additionally, you may want to install bellow Python packages for a better usability and to run tests:
 1. Numpy
