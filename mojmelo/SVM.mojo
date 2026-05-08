@@ -238,8 +238,9 @@ struct SVC[kernel: Int = 2](CV, Copyable):
             f.write_bytes(_model.value()[].param.eps.as_bytes())
             f.write_bytes(_model.value()[].param.C.as_bytes())
             f.write_bytes(UInt64(_model.value()[].param.nr_weight).as_bytes())
-            f.write_bytes(Span(ptr=_model.value()[].param.weight_label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model.value()[].param.nr_weight))
-            f.write_bytes(Span(ptr=_model.value()[].param.weight.value().bitcast[UInt8](), length=8*_model.value()[].param.nr_weight))
+            if _model.value()[].param.nr_weight:
+                f.write_bytes(Span(ptr=_model.value()[].param.weight_label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model.value()[].param.nr_weight))
+                f.write_bytes(Span(ptr=_model.value()[].param.weight.value().bitcast[UInt8](), length=8*_model.value()[].param.nr_weight))
             f.write_bytes(_model.value()[].param.nu.as_bytes())
             f.write_bytes(UInt8(_model.value()[].param.shrinking).as_bytes())
             f.write_bytes(UInt8(_model.value()[].param.probability).as_bytes())
@@ -279,10 +280,13 @@ struct SVC[kernel: Int = 2](CV, Copyable):
             var eps = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
             var C = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
             var nr_weight = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var weight_label = alloc[Int](nr_weight)
-            memcpy(dest=weight_label, src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().bitcast[Int](), count=nr_weight)
-            var weight = alloc[Float64](nr_weight)
-            memcpy(dest=weight, src=f.read_bytes(8*nr_weight).unsafe_ptr().bitcast[Float64](), count=nr_weight)
+            var weight_label = OptionalUnsafePointer[Int, MutExternalOrigin]()
+            var weight = OptionalUnsafePointer[Float64, MutExternalOrigin]()
+            if nr_weight:
+                weight_label = alloc[Int](nr_weight)
+                memcpy(dest=weight_label, src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().bitcast[Int](), count=nr_weight)
+                weight = alloc[Float64](nr_weight)
+                memcpy(dest=weight, src=f.read_bytes(8*nr_weight).unsafe_ptr().bitcast[Float64](), count=nr_weight)
             var nu = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
             var shrinking = Int(f.read_bytes(1)[0])
             var probability = Int(f.read_bytes(1)[0])

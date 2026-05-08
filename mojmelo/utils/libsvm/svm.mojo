@@ -180,7 +180,8 @@ struct Cache:
             # allocate new space
             var new = alloc[Float32](_len)
             memcpy(dest=new, src=h[].data, count=h[]._len)
-            h[].data.value().free()
+            if h[].data:
+                h[].data.value().free()
             h[].data = new
             self.size -= UInt(more)  # previous while loop guarantees size >= more and subtraction of size_t variable will not underflow
             swap(h[]._len, _len)
@@ -2335,8 +2336,10 @@ def svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> OptionalUnsa
                 p += 1
 
         label.value().free()
-        probA.value().free()
-        probB.value().free()
+        if probA:
+            probA.value().free()
+        if probB:
+            probB.value().free()
         count.value().free()
         perm.free()
         start.value().free()
@@ -2640,13 +2643,16 @@ def svm_free_model_content(mut model_ptr: svm_model):
     model_ptr.label.value().free()
     model_ptr.label = None
 
-    model_ptr.probA.value().free()
+    if model_ptr.probA:
+        model_ptr.probA.value().free()
     model_ptr.probA = None
 
-    model_ptr.probB.value().free()
+    if model_ptr.probB:
+        model_ptr.probB.value().free()
     model_ptr.probB = None
 
-    model_ptr.prob_density_marks.value().free()
+    if model_ptr.prob_density_marks:
+        model_ptr.prob_density_marks.value().free()
     model_ptr.prob_density_marks = None
 
     model_ptr.sv_indices.value().free()
