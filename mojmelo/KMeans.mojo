@@ -233,7 +233,8 @@ struct KMeans(Copyable):
 
             var dists_last = Matrix(X.height, 1)
             var c_ptr_last = candidate_centroids[idc].data + (self.k - 1) * X.width
-            for row in range(X.height):
+            @parameter
+            def p_last(row: Int):
                 var x_ptr = X.data + row * X.width
                 var acc: Float32 = 0.0
 
@@ -242,14 +243,14 @@ struct KMeans(Copyable):
                     acc += (d * d).reduce_add()
                 vectorize[X.simd_width](X.width, sq_last)
                 dists_last.data[row] = acc
-
+            parallelize[p_last](X.height)
             for row in range(X.height):
                 if dists_last.data[row] < min_distances.data[row]:
                     min_distances.data[row] = dists_last.data[row]
             inertia_values.data[idc] = min_distances.sum()
 
     @always_inline
-    def _create_labels(mut self, dist_from_centroids: Matrix, X: Matrix, X_norms: Matrix) raises -> List[Int]:
+    def _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix, X_norms: Matrix) raises -> List[Int]:
         var labels = List[Int](capacity=X.height)
         labels.resize(X.height, 0)
         var C_norms = self.centroids_.ele_mul(self.centroids_).sum(axis=1)
@@ -259,6 +260,8 @@ struct KMeans(Copyable):
             var best_dist: Float32 = math.inf[DType.float32]()
 
             var x_ptr = X.data + i * X.width
+            var d_ptr =
+                dist_from_centroids.data + i * self.k
 
             for k in range(self.k):
                 var c_ptr = self.centroids_.data + k * X.width
@@ -271,6 +274,7 @@ struct KMeans(Copyable):
                 vectorize[X.simd_width](X.width, mul)
 
                 var dist = X_norms.data[i] - 2.0 * dot + C_norms.data[k]
+                d_ptr[k] = dist
 
                 if dist < best_dist:
                     best_dist = dist
