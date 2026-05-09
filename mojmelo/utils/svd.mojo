@@ -118,12 +118,27 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
                 g = c * t - b
 
                 # update eigenvectors
-                def column[simd_width: Int](idx: Int) {read}:
-                    var tau = (V+(i + 1)*n).load[width=simd_width](idx)
-                    var Vki = (V+i*n).load[width=simd_width](idx)
-                    (V+(i + 1)*n).store(idx, s * Vki + c * tau)
-                    (V+i*n).store(idx, c * Vki - s * tau)
-                vectorize[simd_width](n, column)
+                var n_full = n // simd_width
+                var tail = n % simd_width
+                for v_i in range(n_full):
+                    var idx = v_i * simd_width
+
+                    var tau = (V + (i + 1) * n).load[width=simd_width](idx)
+                    var Vki = (V + i * n).load[width=simd_width](idx)
+
+                    (V + (i + 1) * n).store(idx, s * Vki + c * tau)
+                    (V + i * n).store(idx, c * Vki - s * tau)
+
+                # Tail
+                var tail_start = n_full * simd_width
+                for t_i in range(tail):
+                    var idx = tail_start + t_i
+
+                    var tau = (V + (i + 1) * n)[idx]
+                    var Vki = (V + i * n)[idx]
+
+                    (V + (i + 1) * n)[idx] = s * Vki + c * tau
+                    (V + i * n)[idx] = c * Vki - s * tau
 
             eig[l] -= p
             e[l] = g

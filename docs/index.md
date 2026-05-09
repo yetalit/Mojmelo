@@ -49,7 +49,7 @@ Preprocessing:
 
 ## Getting Started
 
-If you are not familiar with Mojo projects, you can get started here: https://docs.modular.com/mojo/manual/get-started/
+If you are not familiar with Mojo projects, you can get started here: https://mojolang.org/docs/manual/get-started/
 
 ### Prerequisites
 
