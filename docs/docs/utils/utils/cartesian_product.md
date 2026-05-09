@@ -3,14 +3,14 @@ Mojo function
 # `cartesian_product`
 
 ```mojo
-def cartesian_product(lists: List[List[String]]) -> List[List[String]]
+fn cartesian_product(lists: List[List[String]]) -> List[List[String]]
 ```
 
 **Args:**
 
-- **lists** (`List`)
+- **lists** (`List[List[String]]`)
 
 **Returns:**
 
-`List`
+`List[List[String]]`
 

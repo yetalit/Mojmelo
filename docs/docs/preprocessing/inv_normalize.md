@@ -3,7 +3,7 @@ Mojo function
 # `inv_normalize`
 
 ```mojo
-def inv_normalize(z: Matrix, norms: Matrix) -> Matrix
+fn inv_normalize(z: Matrix, norms: Matrix) -> Matrix
 ```
 
 Reproduce normalized data given its norms.

@@ -3,7 +3,7 @@ Mojo function
 # `sub`
 
 ```mojo
-def sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
+fn sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
 ```
 
 **Parameters:**
@@ -13,10 +13,10 @@ def sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) 
 
 **Args:**
 
-- **a** (`SIMD`)
-- **b** (`SIMD`)
+- **a** (`SIMD[dtype, width]`)
+- **b** (`SIMD[dtype, width]`)
 
 **Returns:**
 
-`SIMD`
+`SIMD[dtype, width]`
 

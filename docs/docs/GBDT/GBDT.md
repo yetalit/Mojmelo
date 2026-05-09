@@ -4,21 +4,27 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct GBDT
+struct GBDT[criterion: String = "log"]
 ```
 
 Gradient Boosting with support for both classification and regression.
 
 ## Aliases
 
+- `loss_g = log_g if (criterion == String("log")) else softmax_g if (criterion == String("softmax")) else mse_g`
+- `loss_h = log_h if (criterion == String("log")) else softmax_h if (criterion == String("softmax")) else mse_h`
 - `MODEL_ID = 11`
-- `criterion_ids = List(VariadicList("log", "softmax", "mse"), Tuple())`
+- `criterion_ids = List(String("mse"), String("log"), String("softmax"), __list_literal__=NoneType(None))`
+
+## Parameters
+
+- **criterion** (`String`): The method to measure the quality of a split:
+	For binary classification -> 'log';
+	For multi-class classification -> 'softmax';
+	For regression -> 'mse'.
 
 ## Fields
 
-- **criterion** (`String`): The method to measure the quality of a split:    For binary classification -> 'log'; For multi-class classification -> 'softmax';    For regression -> 'mse'.
-- **loss_g** (`def(Matrix, Matrix) raises -> Matrix`)
-- **loss_h** (`def(Matrix) raises -> Matrix`)
 - **n_trees** (`Int`): The number of boosting stages to perform.
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
@@ -40,12 +46,11 @@ Gradient Boosting with support for both classification and regression.
 ### `__init__`
 
 ```mojo
-def __init__(out self, criterion: String = "log", n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3, learning_rate: Float32 = 0.10000000000000001, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
+fn __init__(out self, n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3, learning_rate: Float32 = 0.10000000000000001, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
 ```
 
 **Args:**
 
-- **criterion** (`String`)
 - **n_trees** (`Int`)
 - **min_samples_split** (`Int`)
 - **max_depth** (`Int`)
@@ -61,12 +66,12 @@ def __init__(out self, criterion: String = "log", n_trees: Int = 10, min_samples
 `Self`
 
 ```mojo
-def __init__(out self, params: Dict[String, String])
+fn __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -78,7 +83,7 @@ def __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -88,7 +93,7 @@ def __del__(deinit self)
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the gradient boosting model.
@@ -104,7 +109,7 @@ Fit the gradient boosting model.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class or regression value for X.
@@ -123,7 +128,7 @@ Predict class or regression value for X.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -139,10 +144,14 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load[type: UInt8](path: String) -> GBDT[(load_from_mem GBDT[criterion].criterion_ids[type])]
 ```
 
 Load a saved model from the specified path for prediction.
+
+**Parameters:**
+
+- **type** (`UInt8`)
 
 **Args:**
 
@@ -150,7 +159,7 @@ Load a saved model from the specified path for prediction.
 
 **Returns:**
 
-`Self`
+`GBDT[(load_from_mem GBDT[criterion].criterion_ids[type])]`
 
 **Raises:**
 

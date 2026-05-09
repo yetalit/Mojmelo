@@ -3,7 +3,7 @@ Mojo function
 # `kernel_rbf`
 
 ```mojo
-def kernel_rbf(k: kernel_params, i: Int, j: Int) -> Float64
+fn kernel_rbf(k: kernel_params, i: Int, j: Int) -> Float64
 ```
 
 **Args:**

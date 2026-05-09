@@ -3,7 +3,7 @@ Mojo function
 # `leaf_loss_precompute`
 
 ```mojo
-def leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) -> Float32
+fn leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) -> Float32
 ```
 
 **Args:**

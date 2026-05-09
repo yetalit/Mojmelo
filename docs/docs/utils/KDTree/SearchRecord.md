@@ -18,7 +18,7 @@ struct SearchRecord
 - **correltime** (`Int`)
 - **result** (`UnsafePointer[KDTreeResultVector, MutAnyOrigin]`)
 - **data** (`UnsafePointer[Matrix, MutAnyOrigin]`)
-- **ind** (`UnsafePointer[List[Scalar[DType.int]], MutAnyOrigin]`)
+- **ind** (`UnsafePointer[List[Int], MutAnyOrigin]`)
 
 ## Implemented traits
 
@@ -29,12 +29,12 @@ struct SearchRecord
 ### `__init__`
 
 ```mojo
-def __init__(out self, qv_in: Span[Float32, MutAnyOrigin], mut tree_in: KDTree[tree_in.sort_results, tree_in.rearrange], mut result_in: KDTreeResultVector)
+fn __init__(out self, qv_in: Span[Float32, MutAnyOrigin], mut tree_in: KDTree, mut result_in: KDTreeResultVector)
 ```
 
 **Args:**
 
-- **qv_in** (`Span`)
+- **qv_in** (`Span[Float32, MutAnyOrigin]`)
 - **tree_in** (`KDTree`)
 - **result_in** (`KDTreeResultVector`)
 - **self** (`Self`)

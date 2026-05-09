@@ -4,25 +4,30 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct DecisionTree
+struct DecisionTree[criterion: String = "gini"]
 ```
 
 A decision tree supporting both classification and regression.
 
 ## Aliases
 
+- `loss_func = gini if (criterion == String("gini")) else mse_loss if (criterion == String("mse")) else entropy`
+- `c_precompute = gini_precompute if (criterion == String("gini")) else entropy_precompute`
+- `r_precompute: __mlir_type.`!kgen.func.literal<:!lit.fn<[2]("size": !lit.struct<_std::_builtin::_simd::_SIMD<:!lit.struct<_std::_builtin::_dtype::_DType> {:dtype f32}, :!lit.struct<_std::_builtin::_int::_Int> {1}>>, "sum": !lit.struct<_std::_builtin::_simd::_SIMD<:!lit.struct<_std::_builtin::_dtype::_DType> {:dtype f32}, :!lit.struct<_std::_builtin::_int::_Int> {1}>>, "sum_sq": !lit.struct<_std::_builtin::_simd::_SIMD<:!lit.struct<_std::_builtin::_dtype::_DType> {:dtype f32}, :!lit.struct<_std::_builtin::_int::_Int> {1}>>, ?, "__error__": !lit.ref<!lit.struct<_std::_builtin::_error::_Error>, mut *[0,0]> byref_error, "__result__": !lit.ref<:meta<!lit.struct<_std::_builtin::_simd::_SIMD<:!lit.struct<_std::_builtin::_dtype::_DType> {:dtype f32}, :!lit.struct<_std::_builtin::_int::_Int> {1}>>> sugar_alias(*"Float32`0x21", _std::_builtin::_simd::_SIMD<:!lit.struct<_std::_builtin::_dtype::_DType> {:dtype f32}, :!lit.struct<_std::_builtin::_int::_Int> {1}>), mut *[0,1]> byref_result) throws -> i1> #kgen.func.symbol<_mojmelo::_utils::_utils::_"mse_loss_precompute(::SIMD[::DType(float32), ::Int(1)],::SIMD[::DType(float32), ::Int(1)],::SIMD[::DType(float32), ::Int(1)])">>` = fn_literal`
 - `MODEL_ID = 9`
+
+## Parameters
+
+- **criterion** (`String`): The function to measure the quality of a split:
+    For classification -> 'entropy', 'gini';
+    For regression -> 'mse'.
 
 ## Fields
 
-- **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **loss_func** (`def(Matrix, Matrix, Float32) raises -> Float32`)
-- **c_func** (`def(Float32, List[Int]) raises -> Float32`)
-- **r_func** (`def(Float32, Float32, Float32) raises -> Float32`)
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
-- **root** (`UnsafePointer[Node, MutAnyOrigin]`)
+- **root** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
 
 ## Implemented traits
 
@@ -33,12 +38,11 @@ A decision tree supporting both classification and regression.
 ### `__init__`
 
 ```mojo
-def __init__(out self, criterion: String = "gini", min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42)
+fn __init__(out self, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42)
 ```
 
 **Args:**
 
-- **criterion** (`String`)
 - **min_samples_split** (`Int`)
 - **max_depth** (`Int`)
 - **n_feats** (`Int`)
@@ -50,12 +54,12 @@ def __init__(out self, criterion: String = "gini", min_samples_split: Int = 2, m
 `Self`
 
 ```mojo
-def __init__(out self, params: Dict[String, String])
+fn __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -67,7 +71,7 @@ def __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -77,7 +81,7 @@ def __del__(deinit self)
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Build a decision tree from the training set.
@@ -93,7 +97,7 @@ Build a decision tree from the training set.
 ### `fit_weighted`
 
 ```mojo
-def fit_weighted(mut self, X: Matrix, y_with_weights: Matrix)
+fn fit_weighted(mut self, X: Matrix, y_with_weights: Matrix)
 ```
 
 Build a decision tree from a weighted training set.
@@ -109,7 +113,7 @@ Build a decision tree from a weighted training set.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class or regression value for X.
@@ -128,7 +132,7 @@ Predict class or regression value for X.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -144,7 +148,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.

@@ -14,11 +14,6 @@ struct svm_parameter
 - `ONE_CLASS = 2`
 - `EPSILON_SVR = 3`
 - `NU_SVR = 4`
-- `LINEAR = 0`
-- `POLY = 1`
-- `RBF = 2`
-- `SIGMOID = 3`
-- `PRECOMPUTED = 4`
 
 ## Fields
 
@@ -31,8 +26,8 @@ struct svm_parameter
 - **eps** (`Float64`)
 - **C** (`Float64`)
 - **nr_weight** (`Int`)
-- **weight_label** (`UnsafePointer[Int, MutExternalOrigin]`)
-- **weight** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **weight_label** (`Optional[UnsafePointer[Int, MutExternalOrigin]]`)
+- **weight** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
 - **nu** (`Float64`)
 - **p** (`Float64`)
 - **shrinking** (`Int`)

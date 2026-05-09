@@ -3,7 +3,7 @@ Mojo function
 # `StandardScaler`
 
 ```mojo
-def StandardScaler(data: Matrix) -> Tuple[Matrix, Matrix, Matrix]
+fn StandardScaler(data: Matrix) -> Tuple[Matrix, Matrix, Matrix]
 ```
 
 Standardize features by removing the mean and scaling to unit variance.
@@ -14,12 +14,12 @@ Standardize features by removing the mean and scaling to unit variance.
 
 **Returns:**
 
-`Tuple`: Scaled data, mean, standard deviation.
+`Tuple[Matrix, Matrix, Matrix]`: Scaled data, mean, standard deviation.
 
 **Raises:**
 
 ```mojo
-def StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) -> Matrix
+fn StandardScaler(data: Matrix, mu: Matrix, sigma: Matrix) -> Matrix
 ```
 
 Standardize features by removing the mean and scaling to unit variance given mean and standard deviation.

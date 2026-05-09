@@ -3,7 +3,7 @@ Mojo function
 # `svm_get_nr_class`
 
 ```mojo
-def svm_get_nr_class(model: svm_model) -> Int
+fn svm_get_nr_class(model: svm_model) -> Int
 ```
 
 **Args:**

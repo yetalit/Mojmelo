@@ -3,7 +3,7 @@ Mojo function
 # `entropy`
 
 ```mojo
-def entropy(y: Matrix, weights: Matrix, size: Float32) -> Float32
+fn entropy(y: Matrix, weights: Matrix, size: Float32) -> Float32
 ```
 
 **Args:**

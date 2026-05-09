@@ -3,13 +3,13 @@ Mojo function
 # `dot`
 
 ```mojo
-def dot(var px: UnsafePointer[svm_node, MutExternalOrigin], var py: UnsafePointer[svm_node, MutExternalOrigin]) -> Float64
+fn dot(var px: Optional[UnsafePointer[svm_node, MutExternalOrigin]], var py: Optional[UnsafePointer[svm_node, MutExternalOrigin]]) -> Float64
 ```
 
 **Args:**
 
-- **px** (`UnsafePointer`)
-- **py** (`UnsafePointer`)
+- **px** (`Optional[UnsafePointer[svm_node, MutExternalOrigin]]`)
+- **py** (`Optional[UnsafePointer[svm_node, MutExternalOrigin]]`)
 
 **Returns:**
 

@@ -3,7 +3,7 @@ Mojo function
 # `bfs_from_hierarchy`
 
 ```mojo
-def bfs_from_hierarchy(hierarchy: Matrix, bfs_root: Int) -> List[Int]
+fn bfs_from_hierarchy(hierarchy: Matrix, bfs_root: Int) -> List[Int]
 ```
 
 **Args:**
@@ -13,7 +13,7 @@ def bfs_from_hierarchy(hierarchy: Matrix, bfs_root: Int) -> List[Int]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 

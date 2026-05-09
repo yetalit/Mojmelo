@@ -3,7 +3,7 @@ Mojo function
 # `micro_kernel`
 
 ```mojo
-def micro_kernel[Type: DType, //, mr: Int, nr: Int, padding: Bool](mut Cr: Matrix[Type], Ar: Matrix[Type], Br: Matrix[Type])
+fn micro_kernel[Type: DType, //, mr: Int, nr: Int, padding: Bool](mut Cr: Matrix[Type], Ar: Matrix[Type], Br: Matrix[Type])
 ```
 
 **Parameters:**
@@ -15,7 +15,7 @@ def micro_kernel[Type: DType, //, mr: Int, nr: Int, padding: Bool](mut Cr: Matri
 
 **Args:**
 
-- **Cr** (`Matrix`)
-- **Ar** (`Matrix`)
-- **Br** (`Matrix`)
+- **Cr** (`Matrix[Type]`)
+- **Ar** (`Matrix[Type]`)
+- **Br** (`Matrix[Type]`)
 

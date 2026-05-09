@@ -3,7 +3,7 @@ Mojo function
 # `dis_from_bnd`
 
 ```mojo
-def dis_from_bnd(x: Float32, amin: Float32, amax: Float32) -> Float32
+fn dis_from_bnd(x: Float32, amin: Float32, amax: Float32) -> Float32
 ```
 
 **Args:**

@@ -23,7 +23,7 @@ Encode target labels with value between 0 and n_classes-1. This transformer can 
 ### `__init__`
 
 ```mojo
-def __init__(out self)
+fn __init__(out self)
 ```
 
 **Args:**
@@ -37,7 +37,7 @@ def __init__(out self)
 ### `fit_transform`
 
 ```mojo
-def fit_transform(mut self, y: PythonObject) -> Matrix
+fn fit_transform(mut self, y: PythonObject) -> Matrix
 ```
 
 Fit label encoder and return encoded labels.      Args:     y: Targets Python object.
@@ -56,7 +56,7 @@ Fit label encoder and return encoded labels.      Args:     y: Targets Python ob
 ### `transform`
 
 ```mojo
-def transform(self, y: PythonObject) -> Matrix
+fn transform(self, y: PythonObject) -> Matrix
 ```
 
 Return encoded labels based on fitted encoder.
@@ -75,7 +75,7 @@ Return encoded labels based on fitted encoder.
 ### `inverse_transform`
 
 ```mojo
-def inverse_transform(self, y: Matrix) -> PythonObject
+fn inverse_transform(self, y: Matrix) -> PythonObject
 ```
 
 Transform labels back to original encoding.      Args:     y: Encoded targets.

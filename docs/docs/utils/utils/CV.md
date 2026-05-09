@@ -11,12 +11,12 @@ Mojo trait
 ### `__init__`
 
 ```mojo
-def __init__(out self: _Self, params: Dict[String, String])
+fn __init__(out self: _Self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`_Self`)
 
 **Returns:**
@@ -28,7 +28,7 @@ def __init__(out self: _Self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-def fit(mut self: _Self, X: Matrix, y: Matrix)
+fn fit(mut self: _Self, X: Matrix, y: Matrix)
 ```
 
 **Args:**
@@ -42,7 +42,7 @@ def fit(mut self: _Self, X: Matrix, y: Matrix)
 ### `predict`
 
 ```mojo
-def predict(mut self: _Self, X: Matrix) -> Matrix
+fn predict(mut self: _Self, X: Matrix) -> Matrix
 ```
 
 **Args:**

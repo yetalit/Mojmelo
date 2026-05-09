@@ -3,7 +3,7 @@ Mojo function
 # `kernel_poly`
 
 ```mojo
-def kernel_poly(k: kernel_params, i: Int, j: Int) -> Float64
+fn kernel_poly(k: kernel_params, i: Int, j: Int) -> Float64
 ```
 
 **Args:**

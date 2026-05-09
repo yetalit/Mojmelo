@@ -3,7 +3,7 @@ Mojo function
 # `svd_thin`
 
 ```mojo
-def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin])
+fn svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin])
 ```
 
 **Args:**
@@ -11,9 +11,9 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
 - **m** (`Int`)
 - **n** (`Int`)
 - **k** (`Int`)
-- **S** (`UnsafePointer`)
+- **S** (`UnsafePointer[Float64, MutAnyOrigin]`)
 - **Vout** (`Matrix`)
-- **ATA** (`UnsafePointer`)
+- **ATA** (`UnsafePointer[Float64, MutAnyOrigin]`)
 
 **Raises:**
 

@@ -3,7 +3,7 @@ Mojo function
 # `fill_indices_list`
 
 ```mojo
-def fill_indices_list(N: Int) -> List[Scalar[DType.int]]
+fn fill_indices_list(N: Int) -> List[Int]
 ```
 
 Generates indices from 0 to N.
@@ -14,7 +14,7 @@ Generates indices from 0 to N.
 
 **Returns:**
 
-`List`: The list of indices.
+`List[Int]`: The list of indices.
 
 **Raises:**
 

@@ -3,7 +3,7 @@ Mojo function
 # `Squared`
 
 ```mojo
-def Squared(val: Float32) -> Float32
+fn Squared(val: Float32) -> Float32
 ```
 
 **Args:**

@@ -3,7 +3,7 @@ Mojo function
 # `unit_step`
 
 ```mojo
-def unit_step(z: Matrix) -> Matrix
+fn unit_step(z: Matrix) -> Matrix
 ```
 
 **Args:**

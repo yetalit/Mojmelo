@@ -3,7 +3,7 @@ Mojo function
 # `labelling_at_cut`
 
 ```mojo
-def labelling_at_cut(linkage: Matrix, cut: Float32, min_cluster_size: Int) -> List[Int]
+fn labelling_at_cut(linkage: Matrix, cut: Float32, min_cluster_size: Int) -> List[Int]
 ```
 
 **Args:**
@@ -14,7 +14,7 @@ def labelling_at_cut(linkage: Matrix, cut: Float32, min_cluster_size: Int) -> Li
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 

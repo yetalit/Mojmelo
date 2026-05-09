@@ -16,7 +16,7 @@ struct KDTreeBoruvka
 - **leaf_size** (`Int`)
 - **nodes** (`List[NodeData]`)
 - **core_dist** (`UnsafePointer[Float32, MutAnyOrigin]`)
-- **build_idx** (`List[Scalar[DType.int]]`)
+- **build_idx** (`List[Int]`)
 - **proj_buf** (`List[Float32]`)
 
 ## Implemented traits
@@ -28,7 +28,7 @@ struct KDTreeBoruvka
 ### `__init__`
 
 ```mojo
-def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int)
+fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int)
 ```
 
 **Args:**
@@ -48,7 +48,7 @@ def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_de
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -58,7 +58,7 @@ def __del__(deinit self)
 ### `left`
 
 ```mojo
-def left(self, i: Int) -> Int
+fn left(self, i: Int) -> Int
 ```
 
 **Args:**
@@ -73,7 +73,7 @@ def left(self, i: Int) -> Int
 ### `right`
 
 ```mojo
-def right(self, i: Int) -> Int
+fn right(self, i: Int) -> Int
 ```
 
 **Args:**
@@ -88,7 +88,7 @@ def right(self, i: Int) -> Int
 ### `ensure_node`
 
 ```mojo
-def ensure_node(mut self, i: Int)
+fn ensure_node(mut self, i: Int)
 ```
 
 **Args:**
@@ -99,7 +99,7 @@ def ensure_node(mut self, i: Int)
 ### `choose_split_dim`
 
 ```mojo
-def choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.int]]) -> Scalar[DType.int]
+fn choose_split_dim(self, start: Int, end: Int) -> Int
 ```
 
 **Args:**
@@ -107,16 +107,15 @@ def choose_split_dim(self, start: Int, end: Int, idx: List[Scalar[DType.int]]) -
 - **self** (`Self`)
 - **start** (`Int`)
 - **end** (`Int`)
-- **idx** (`List`)
 
 **Returns:**
 
-`Scalar`
+`Int`
 
 ### `build_node`
 
 ```mojo
-def build_node(mut self, node: Int, start: Int, end: Int)
+fn build_node(mut self, node: Int, start: Int, end: Int)
 ```
 
 **Args:**

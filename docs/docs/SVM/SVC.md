@@ -4,7 +4,7 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct SVC
+struct SVC[kernel: Int = 2]
 ```
 
 Support Vector Classification.
@@ -13,11 +13,14 @@ Support Vector Classification.
 
 - `MODEL_ID = 6`
 
+## Parameters
+
+- **kernel** (`Int`)
+
 ## Fields
 
 - **C** (`Float64`): Regularization parameter. When C != 0, C-Support Vector Classification model will be used.
 - **nu** (`Float64`): An upper bound on the fraction of margin errors and a lower bound of the fraction of support vectors. When nu != 0, Nu-Support Vector Classification model will be used.
-- **kernel** (`String`): Specifies the kernel type to be used in the algorithm: {'linear', 'poly', 'rbf', 'sigmoid', 'precomputed'}.
 - **degree** (`Int`): Degree of the polynomial kernel function ('poly').
 - **gamma** (`Float64`): Kernel coefficient for 'rbf', 'poly' and 'sigmoid': if gamma='scale' (default) or -1 is passed then it uses 1 / (n_features * X.var()); if gamma='auto' or -0.1, it uses 1 / n_features; if custom float value, it must be non-negative.
 - **coef0** (`Float64`): Independent term in kernel function. It is only significant in 'poly' and 'sigmoid'.
@@ -35,7 +38,7 @@ Support Vector Classification.
 ### `__init__`
 
 ```mojo
-def __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 = 0, kernel: String = "rbf", degree: Int = 2, coef0: Float64 = 0, cache_size: Float64 = 200, tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1)
+fn __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 = 0, degree: Int = 2, coef0: Float64 = 0, cache_size: Float64 = Float64("200"), tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1)
 ```
 
 **Args:**
@@ -43,7 +46,6 @@ def __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 = 0,
 - **gamma** (`String`)
 - **C** (`Float64`)
 - **nu** (`Float64`)
-- **kernel** (`String`)
 - **degree** (`Int`)
 - **coef0** (`Float64`)
 - **cache_size** (`Float64`)
@@ -58,7 +60,7 @@ def __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 = 0,
 `Self`
 
 ```mojo
-def __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, kernel: String = "rbf", degree: Int = 2, coef0: Float64 = 0, cache_size: Float64 = 200, tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1)
+fn __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, degree: Int = 2, coef0: Float64 = 0, cache_size: Float64 = Float64("200"), tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1)
 ```
 
 **Args:**
@@ -66,7 +68,6 @@ def __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, kernel: 
 - **gamma** (`Float64`)
 - **C** (`Float64`)
 - **nu** (`Float64`)
-- **kernel** (`String`)
 - **degree** (`Int`)
 - **coef0** (`Float64`)
 - **cache_size** (`Float64`)
@@ -81,12 +82,12 @@ def __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, kernel: 
 `Self`
 
 ```mojo
-def __init__(out self, params: Dict[String, String])
+fn __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -98,7 +99,7 @@ def __init__(out self, params: Dict[String, String])
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -108,7 +109,7 @@ def __del__(deinit self)
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the SVM model according to the given training data.
@@ -124,7 +125,7 @@ Fit the SVM model according to the given training data.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Perform classification on samples in X.
@@ -143,7 +144,7 @@ Perform classification on samples in X.
 ### `decision_function`
 
 ```mojo
-def decision_function(self, X: Matrix) -> List[List[Float64]]
+fn decision_function(self, X: Matrix) -> List[List[Float64]]
 ```
 
 Evaluate the decision function for the samples in X.
@@ -155,12 +156,12 @@ Evaluate the decision function for the samples in X.
 
 **Returns:**
 
-`List`: The decision values in a 2D List format.
+`List[List[Float64]]`: The decision values in a 2D List format.
 
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -176,7 +177,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.
@@ -194,7 +195,7 @@ Load a saved model from the specified path for prediction.
 ### `support_vectors`
 
 ```mojo
-def support_vectors(self) -> Matrix
+fn support_vectors(self) -> Matrix
 ```
 
 Get support vectors.

@@ -3,7 +3,7 @@ Mojo function
 # `matmul_impl`
 
 ```mojo
-def matmul_impl[Type: DType, //, kc: Int, mr: Int, nr: Int](mc: Int, nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type])
+fn matmul_impl[Type: DType, //, kc: Int, mr: Int, nr: Int](mc: Int, nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type])
 ```
 
 **Parameters:**
@@ -17,7 +17,7 @@ def matmul_impl[Type: DType, //, kc: Int, mr: Int, nr: Int](mc: Int, nc: Int, mu
 
 - **mc** (`Int`)
 - **nc** (`Int`)
-- **C** (`Matrix`)
-- **A** (`Matrix`)
-- **B** (`Matrix`)
+- **C** (`Matrix[Type]`)
+- **A** (`Matrix[Type]`)
+- **B** (`Matrix[Type]`)
 

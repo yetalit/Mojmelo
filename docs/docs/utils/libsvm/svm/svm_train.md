@@ -3,8 +3,12 @@ Mojo function
 # `svm_train`
 
 ```mojo
-def svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_model, MutExternalOrigin]
+fn svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> Optional[UnsafePointer[svm_model, MutExternalOrigin]]
 ```
+
+**Parameters:**
+
+- **k_t** (`Int`)
 
 **Args:**
 
@@ -13,5 +17,5 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> UnsafePointer[svm_mode
 
 **Returns:**
 
-`UnsafePointer`
+`Optional[UnsafePointer[svm_model, MutExternalOrigin]]`
 

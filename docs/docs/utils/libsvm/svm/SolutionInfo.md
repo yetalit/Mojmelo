@@ -24,7 +24,7 @@ struct SolutionInfo
 ### `__init__`
 
 ```mojo
-def __init__() -> Self
+fn __init__() -> Self
 ```
 
 **Returns:**

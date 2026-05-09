@@ -15,7 +15,7 @@ struct BDecisionTree
 - **reg_alpha** (`Float32`)
 - **gamma** (`Float32`)
 - **n_bins** (`Int`)
-- **root** (`UnsafePointer[Node, MutAnyOrigin]`)
+- **root** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
 
 ## Implemented traits
 
@@ -26,7 +26,7 @@ struct BDecisionTree
 ### `__init__`
 
 ```mojo
-def __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
+fn __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1, reg_alpha: Float32 = 0, gamma: Float32 = 0, n_bins: Int = 0)
 ```
 
 **Args:**
@@ -46,7 +46,7 @@ def __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lamb
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -56,7 +56,7 @@ def __del__(deinit self)
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, g: Matrix, h: Matrix)
+fn fit(mut self, X: Matrix, g: Matrix, h: Matrix)
 ```
 
 **Args:**
@@ -71,7 +71,7 @@ def fit(mut self, X: Matrix, g: Matrix, h: Matrix)
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 **Args:**

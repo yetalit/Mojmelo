@@ -3,7 +3,7 @@ Mojo function
 # `condense_tree`
 
 ```mojo
-def condense_tree(hierarchy: Matrix, min_cluster_size: Int = 10) -> Tuple[Dict[String, List[Scalar[DType.int]]], List[Float32]]
+fn condense_tree(hierarchy: Matrix, min_cluster_size: Int = 10) -> Tuple[Dict[String, List[Int]], List[Float32]]
 ```
 
 **Args:**
@@ -13,7 +13,7 @@ def condense_tree(hierarchy: Matrix, min_cluster_size: Int = 10) -> Tuple[Dict[S
 
 **Returns:**
 
-`Tuple`
+`Tuple[Dict[String, List[Int]], List[Float32]]`
 
 **Raises:**
 

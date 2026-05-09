@@ -16,7 +16,7 @@ struct KDTreeResultVector
 ### `__init__`
 
 ```mojo
-def __init__(out self)
+fn __init__(out self)
 ```
 
 **Args:**
@@ -30,7 +30,7 @@ def __init__(out self)
 ### `__getitem__`
 
 ```mojo
-def __getitem__(self, index: Int) -> KDTreeResult
+fn __getitem__(self, index: Int) -> KDTreeResult
 ```
 
 **Args:**
@@ -45,7 +45,7 @@ def __getitem__(self, index: Int) -> KDTreeResult
 ### `__setitem__`
 
 ```mojo
-def __setitem__(mut self, index: Int, val: KDTreeResult)
+fn __setitem__(mut self, index: Int, val: KDTreeResult)
 ```
 
 **Args:**
@@ -57,7 +57,7 @@ def __setitem__(mut self, index: Int, val: KDTreeResult)
 ### `__len__`
 
 ```mojo
-def __len__(self) -> Int
+fn __len__(self) -> Int
 ```
 
 **Args:**
@@ -71,7 +71,7 @@ def __len__(self) -> Int
 ### `append_heap`
 
 ```mojo
-def append_heap(mut self)
+fn append_heap(mut self)
 ```
 
 **Args:**
@@ -81,7 +81,7 @@ def append_heap(mut self)
 ### `append_element_and_heapify`
 
 ```mojo
-def append_element_and_heapify(mut self, e: KDTreeResult)
+fn append_element_and_heapify(mut self, e: KDTreeResult)
 ```
 
 **Args:**
@@ -92,7 +92,7 @@ def append_element_and_heapify(mut self, e: KDTreeResult)
 ### `pop_heap`
 
 ```mojo
-def pop_heap(mut self)
+fn pop_heap(mut self)
 ```
 
 **Args:**
@@ -102,7 +102,7 @@ def pop_heap(mut self)
 ### `max_value`
 
 ```mojo
-def max_value(self) -> Float32
+fn max_value(self) -> Float32
 ```
 
 **Args:**
@@ -116,7 +116,7 @@ def max_value(self) -> Float32
 ### `replace_maxpri_elt_return_new_maxpri`
 
 ```mojo
-def replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> Float32
+fn replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> Float32
 ```
 
 **Args:**

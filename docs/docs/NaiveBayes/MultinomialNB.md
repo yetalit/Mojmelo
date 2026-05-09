@@ -26,7 +26,7 @@ Naive Bayes classifier for multinomial models.
 ### `__init__`
 
 ```mojo
-def __init__(out self, alpha: Float32 = 0)
+fn __init__(out self, alpha: Float32 = 0)
 ```
 
 **Args:**
@@ -39,12 +39,12 @@ def __init__(out self, alpha: Float32 = 0)
 `Self`
 
 ```mojo
-def __init__(out self, params: Dict[String, String])
+fn __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -56,7 +56,7 @@ def __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit Naive Bayes classifier.
@@ -72,7 +72,7 @@ Fit Naive Bayes classifier.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class for X.
@@ -91,7 +91,7 @@ Predict class for X.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -107,7 +107,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.

@@ -4,8 +4,16 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct KDTreeNode
+struct KDTreeNode[metric: String = "euc"]
 ```
+
+## Aliases
+
+- `metric_func = Squared if (metric == String("euc")) else Abs`
+
+## Parameters
+
+- **metric** (`String`)
 
 ## Fields
 
@@ -16,9 +24,8 @@ struct KDTreeNode
 - **l** (`Int`)
 - **u** (`Int`)
 - **box** (`List[interval]`)
-- **left** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
-- **right** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
-- **metric** (`def(Float32) -> Float32`)
+- **left** (`Optional[UnsafePointer[KDTreeNode[metric], MutAnyOrigin]]`)
+- **right** (`Optional[UnsafePointer[KDTreeNode[metric], MutAnyOrigin]]`)
 
 ## Implemented traits
 
@@ -29,13 +36,12 @@ struct KDTreeNode
 ### `__init__`
 
 ```mojo
-def __init__(out self, dim: Int, metric: def(Float32) -> Float32)
+fn __init__(out self, dim: Int)
 ```
 
 **Args:**
 
 - **dim** (`Int`)
-- **metric** (`def(Float32) -> Float32`)
 - **self** (`Self`)
 
 **Returns:**
@@ -45,7 +51,7 @@ def __init__(out self, dim: Int, metric: def(Float32) -> Float32)
 ### `search`
 
 ```mojo
-def search(self, mut sr: SearchRecord)
+fn search(self, mut sr: SearchRecord)
 ```
 
 **Args:**
@@ -53,10 +59,12 @@ def search(self, mut sr: SearchRecord)
 - **self** (`Self`)
 - **sr** (`SearchRecord`)
 
+**Raises:**
+
 ### `box_in_search_range`
 
 ```mojo
-def box_in_search_range(self, sr: SearchRecord) -> Bool
+fn box_in_search_range(self, sr: SearchRecord) -> Bool
 ```
 
 **Args:**
@@ -71,7 +79,7 @@ def box_in_search_range(self, sr: SearchRecord) -> Bool
 ### `process_terminal_node`
 
 ```mojo
-def process_terminal_node(self, mut sr: SearchRecord)
+fn process_terminal_node(self, mut sr: SearchRecord)
 ```
 
 **Args:**
@@ -82,7 +90,7 @@ def process_terminal_node(self, mut sr: SearchRecord)
 ### `process_terminal_node_fixedball`
 
 ```mojo
-def process_terminal_node_fixedball(self, sr: SearchRecord)
+fn process_terminal_node_fixedball(self, sr: SearchRecord)
 ```
 
 **Args:**

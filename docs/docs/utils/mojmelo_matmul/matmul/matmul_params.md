@@ -3,7 +3,7 @@ Mojo function
 # `matmul_params`
 
 ```mojo
-def matmul_params[Type: DType]() -> IndexList[5]
+fn matmul_params[Type: DType]() -> IndexList[5]
 ```
 
 **Parameters:**
@@ -12,5 +12,5 @@ def matmul_params[Type: DType]() -> IndexList[5]
 
 **Returns:**
 
-`IndexList`
+`IndexList[5]`
 

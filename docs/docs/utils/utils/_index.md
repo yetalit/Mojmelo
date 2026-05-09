@@ -4,7 +4,7 @@ Mojo module
 
 ## Aliases
 
-- `MODEL_IDS = InlineArray(VariadicList("", "Linear Regression", "Polynomial Regression", "Logistic Regression", "KNN", "KMeans", "SVM", "GaussianNB", "MultinomialNB", "Decision Tree", "Random Forest", "GBDT", "PCA"), Tuple())`
+- `MODEL_IDS = InlineArray(String(""), String("Linear Regression"), String("Polynomial Regression"), String("Logistic Regression"), String("KNN"), String("KMeans"), String("SVM"), String("GaussianNB"), String("MultinomialNB"), String("Decision Tree"), String("Random Forest"), String("GBDT"), String("PCA"), __list_literal__=NoneType(None))`
 
 ## Traits
 
@@ -26,7 +26,6 @@ Mojo module
 - [`ge`](ge.md)
 - [`lt`](lt.md)
 - [`le`](le.md)
-- [`partial_simd_load`](partial_simd_load.md)
 - [`sigmoid`](sigmoid.md)
 - [`normal_distr`](normal_distr.md)
 - [`unit_step`](unit_step.md)

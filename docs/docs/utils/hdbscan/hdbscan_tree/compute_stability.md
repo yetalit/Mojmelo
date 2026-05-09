@@ -3,17 +3,17 @@ Mojo function
 # `compute_stability`
 
 ```mojo
-def compute_stability(condensed_tree: Dict[String, List[Scalar[DType.int]]], lambda_vals: List[Float32]) -> Dict[Scalar[DType.int], Float32]
+fn compute_stability(condensed_tree: Dict[String, List[Int]], lambda_vals: List[Float32]) -> Dict[Int, Float32]
 ```
 
 **Args:**
 
-- **condensed_tree** (`Dict`)
-- **lambda_vals** (`List`)
+- **condensed_tree** (`Dict[String, List[Int]]`)
+- **lambda_vals** (`List[Float32]`)
 
 **Returns:**
 
-`Dict`
+`Dict[Int, Float32]`
 
 **Raises:**
 

@@ -15,16 +15,17 @@ struct HDBSCANBoruvka
 - **min_samples** (`Int`)
 - **alpha** (`Float32`)
 - **num_components** (`Int`)
-- **component_of_point** (`List[Scalar[DType.int]]`)
-- **component_of_node** (`List[Scalar[DType.int]]`)
-- **component_remap** (`List[Scalar[DType.int]]`)
-- **candidate_point** (`List[Scalar[DType.int]]`)
-- **candidate_neighbor** (`List[Scalar[DType.int]]`)
+- **candidate_point** (`List[Int]`)
+- **candidate_neighbor** (`List[Int]`)
 - **candidate_dist** (`List[Float32]`)
+- **component_bound** (`List[Float32]`)
 - **u_f** (`UnionFind`)
 - **u_f_finds** (`List[Int]`)
 - **edges** (`Matrix`)
 - **num_edges** (`Int`)
+- **component_of_point** (`List[Int]`)
+- **component_of_node** (`List[Int]`)
+- **component_remap** (`List[Int]`)
 
 ## Implemented traits
 
@@ -35,12 +36,12 @@ struct HDBSCANBoruvka
 ### `__init__`
 
 ```mojo
-def __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples: Int = 5, alpha: Float32 = 1)
+fn __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples: Int = 5, alpha: Float32 = 1)
 ```
 
 **Args:**
 
-- **t** (`UnsafePointer`)
+- **t** (`UnsafePointer[KDTreeBoruvka, MutAnyOrigin]`)
 - **min_samples** (`Int`)
 - **alpha** (`Float32`)
 - **self** (`Self`)
@@ -54,15 +55,15 @@ def __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_sample
 ### `mr_rdist`
 
 ```mojo
-def mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) -> Float32
+fn mr_rdist(self, var d2: Float32, p: Int, q: Int) -> Float32
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **d2** (`Float32`)
-- **p** (`Scalar`)
-- **q** (`Scalar`)
+- **p** (`Int`)
+- **q** (`Int`)
 
 **Returns:**
 
@@ -71,7 +72,7 @@ def mr_rdist(self, var d2: Float32, p: Scalar[DType.int], q: Scalar[DType.int]) 
 ### `update_components_and_nodes`
 
 ```mojo
-def update_components_and_nodes(mut self)
+fn update_components_and_nodes(mut self)
 ```
 
 **Args:**
@@ -80,24 +81,38 @@ def update_components_and_nodes(mut self)
 
 **Raises:**
 
-### `dual_tree_traversal`
+### `boruvka_query`
 
 ```mojo
-def dual_tree_traversal(mut self, node1: Int, node2: Int)
+fn boruvka_query(mut self)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **node1** (`Int`)
-- **node2** (`Int`)
+
+**Raises:**
+
+### `merge_components`
+
+```mojo
+fn merge_components(mut self) -> Int
+```
+
+**Args:**
+
+- **self** (`Self`)
+
+**Returns:**
+
+`Int`
 
 **Raises:**
 
 ### `spanning_tree`
 
 ```mojo
-def spanning_tree(mut self) -> Matrix
+fn spanning_tree(mut self) -> Matrix
 ```
 
 **Args:**

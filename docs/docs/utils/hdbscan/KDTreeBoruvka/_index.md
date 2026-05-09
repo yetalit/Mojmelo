@@ -4,6 +4,7 @@ Mojo module
 
 ## Structs
 
+- [`CenterPtr`](CenterPtr.md)
 - [`NodeData`](NodeData.md)
 - [`KDTreeBoruvka`](KDTreeBoruvka.md)
 

@@ -25,7 +25,7 @@ struct TreeUnionFind
 ### `__init__`
 
 ```mojo
-def __init__(out self, size: Int)
+fn __init__(out self, size: Int)
 ```
 
 **Args:**
@@ -40,7 +40,7 @@ def __init__(out self, size: Int)
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -50,34 +50,34 @@ def __del__(deinit self)
 ### `union_`
 
 ```mojo
-def union_(mut self, x: Scalar[DType.int], y: Scalar[DType.int])
+fn union_(mut self, x: Int, y: Int)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **x** (`Scalar`)
-- **y** (`Scalar`)
+- **x** (`Int`)
+- **y** (`Int`)
 
 ### `find`
 
 ```mojo
-def find(mut self, x: Scalar[DType.int]) -> Scalar[DType.int]
+fn find(mut self, x: Int) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **x** (`Scalar`)
+- **x** (`Int`)
 
 **Returns:**
 
-`Scalar`
+`Int`
 
 ### `components`
 
 ```mojo
-def components(self) -> List[Int]
+fn components(self) -> List[Int]
 ```
 
 **Args:**
@@ -86,6 +86,6 @@ def components(self) -> List[Int]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 

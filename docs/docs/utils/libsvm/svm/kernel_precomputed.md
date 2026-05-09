@@ -3,7 +3,7 @@ Mojo function
 # `kernel_precomputed`
 
 ```mojo
-def kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64
+fn kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64
 ```
 
 **Args:**

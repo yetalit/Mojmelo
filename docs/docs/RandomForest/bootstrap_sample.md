@@ -3,7 +3,7 @@ Mojo function
 # `bootstrap_sample`
 
 ```mojo
-def bootstrap_sample(X: Matrix, y: Matrix) -> Tuple[Matrix, Matrix]
+fn bootstrap_sample(X: Matrix, y: Matrix) -> Tuple[Matrix, Matrix]
 ```
 
 **Args:**
@@ -13,7 +13,7 @@ def bootstrap_sample(X: Matrix, y: Matrix) -> Tuple[Matrix, Matrix]
 
 **Returns:**
 
-`Tuple`
+`Tuple[Matrix, Matrix]`
 
 **Raises:**
 

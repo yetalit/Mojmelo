@@ -11,7 +11,7 @@ struct Cache
 
 - **l** (`Int`)
 - **size** (`UInt`)
-- **head** (`UnsafePointer[head_t, MutExternalOrigin]`)
+- **head** (`Optional[UnsafePointer[head_t, MutExternalOrigin]]`)
 - **lru_head** (`head_t`)
 
 ## Implemented traits
@@ -23,7 +23,7 @@ struct Cache
 ### `__init__`
 
 ```mojo
-def __init__(out self, l_: Int, size_: UInt)
+fn __init__(out self, l_: Int, size_: UInt)
 ```
 
 **Args:**
@@ -39,7 +39,7 @@ def __init__(out self, l_: Int, size_: UInt)
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -49,36 +49,36 @@ def __del__(deinit self)
 ### `lru_delete`
 
 ```mojo
-def lru_delete(self, h: UnsafePointer[head_t, MutAnyOrigin])
+fn lru_delete(self, h: Optional[UnsafePointer[head_t, MutAnyOrigin]])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **h** (`UnsafePointer`)
+- **h** (`Optional[UnsafePointer[head_t, MutAnyOrigin]]`)
 
 ### `lru_insert`
 
 ```mojo
-def lru_insert(mut self, h: UnsafePointer[head_t, MutExternalOrigin])
+fn lru_insert(mut self, h: Optional[UnsafePointer[head_t, MutExternalOrigin]])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **h** (`UnsafePointer`)
+- **h** (`Optional[UnsafePointer[head_t, MutExternalOrigin]]`)
 
 ### `get_data`
 
 ```mojo
-def get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32, MutExternalOrigin], MutAnyOrigin], var _len: Int) -> Int
+fn get_data(mut self, index: Int, data: Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutExternalOrigin]], MutAnyOrigin]], var _len: Int) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **index** (`Int`)
-- **data** (`UnsafePointer`)
+- **data** (`Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutExternalOrigin]], MutAnyOrigin]]`)
 - **_len** (`Int`)
 
 **Returns:**
@@ -88,7 +88,7 @@ def get_data(mut self, index: Int, data: UnsafePointer[UnsafePointer[Float32, Mu
 ### `swap_index`
 
 ```mojo
-def swap_index(mut self, var i: Int, var j: Int)
+fn swap_index(mut self, var i: Int, var j: Int)
 ```
 
 **Args:**

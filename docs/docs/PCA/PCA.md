@@ -34,7 +34,7 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 ### `__init__`
 
 ```mojo
-def __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False)
+fn __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False)
 ```
 
 **Args:**
@@ -51,7 +51,7 @@ def __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = F
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix)
+fn fit(mut self, X: Matrix)
 ```
 
 Fit the model.
@@ -66,7 +66,7 @@ Fit the model.
 ### `transform`
 
 ```mojo
-def transform(self, X: Matrix) -> Matrix
+fn transform(self, X: Matrix) -> Matrix
 ```
 
 Apply dimensionality reduction to X. X is projected on the first principal components previously extracted from a training set.
@@ -85,7 +85,7 @@ Apply dimensionality reduction to X. X is projected on the first principal compo
 ### `inverse_transform`
 
 ```mojo
-def inverse_transform(self, X_transformed: Matrix) -> Matrix
+fn inverse_transform(self, X_transformed: Matrix) -> Matrix
 ```
 
 Transform data back to its original space.
@@ -104,7 +104,7 @@ Transform data back to its original space.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for transformation to the specified path.
@@ -120,7 +120,7 @@ Save model data necessary for transformation to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for transformation.

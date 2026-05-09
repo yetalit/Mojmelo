@@ -3,7 +3,7 @@ Mojo function
 # `inv_StandardScaler`
 
 ```mojo
-def inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) -> Matrix
+fn inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) -> Matrix
 ```
 
 Reproduce scaled data given its mean and standard deviation.

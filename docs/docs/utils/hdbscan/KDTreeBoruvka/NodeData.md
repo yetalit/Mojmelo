@@ -13,7 +13,7 @@ struct NodeData
 - **idx_start** (`Int`)
 - **idx_end** (`Int`)
 - **radius** (`Float32`)
-- **center** (`List[Float32]`)
+- **center** (`CenterPtr`)
 
 ## Implemented traits
 

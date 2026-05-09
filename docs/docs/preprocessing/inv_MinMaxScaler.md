@@ -3,7 +3,7 @@ Mojo function
 # `inv_MinMaxScaler`
 
 ```mojo
-def inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Float32, Float32] = Tuple(VariadicPack(0, 1))) -> Matrix
+fn inv_MinMaxScaler(z: Matrix, x_min: Matrix, x_max: Matrix, feature_range: Tuple[Float32, Float32] = Tuple(Float32("0"), Float32("1"))) -> Matrix
 ```
 
 Reproduce scaled data given its range, data_min and data_max.
@@ -13,7 +13,7 @@ Reproduce scaled data given its range, data_min and data_max.
 - **z** (`Matrix`): Scaled data.
 - **x_min** (`Matrix`): Per feature minimum seen in the data.
 - **x_max** (`Matrix`): Per feature maximum seen in the data.
-- **feature_range** (`Tuple`): Desired range of transformed data.
+- **feature_range** (`Tuple[Float32, Float32]`): Desired range of transformed data.
 
 **Returns:**
 

@@ -3,8 +3,12 @@ Mojo function
 # `svm_train_one`
 
 ```mojo
-def svm_train_one(prob: svm_problem, param: svm_parameter, Cp: Float64, Cn: Float64) -> decision_function
+fn svm_train_one[k_t: Int](prob: svm_problem, param: svm_parameter, Cp: Float64, Cn: Float64) -> decision_function
 ```
+
+**Parameters:**
+
+- **k_t** (`Int`)
 
 **Args:**
 

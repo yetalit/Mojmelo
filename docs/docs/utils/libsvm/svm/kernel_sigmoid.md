@@ -3,7 +3,7 @@ Mojo function
 # `kernel_sigmoid`
 
 ```mojo
-def kernel_sigmoid(k: kernel_params, i: Int, j: Int) -> Float64
+fn kernel_sigmoid(k: kernel_params, i: Int, j: Int) -> Float64
 ```
 
 **Args:**

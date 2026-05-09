@@ -26,7 +26,7 @@ Gaussian Naive Bayes (GaussianNB).
 ### `__init__`
 
 ```mojo
-def __init__(out self, var_smoothing: Float32 = 1.0E-8)
+fn __init__(out self, var_smoothing: Float32 = 1.0E-8)
 ```
 
 **Args:**
@@ -41,7 +41,7 @@ def __init__(out self, var_smoothing: Float32 = 1.0E-8)
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit Gaussian Naive Bayes.
@@ -57,7 +57,7 @@ Fit Gaussian Naive Bayes.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict class for X.
@@ -76,7 +76,7 @@ Predict class for X.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -92,7 +92,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.

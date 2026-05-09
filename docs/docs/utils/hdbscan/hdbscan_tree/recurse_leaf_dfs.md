@@ -3,17 +3,17 @@ Mojo function
 # `recurse_leaf_dfs`
 
 ```mojo
-def recurse_leaf_dfs(cluster_tree: Dict[String, List[Scalar[DType.int]]], current_node: Scalar[DType.int]) -> List[Scalar[DType.int]]
+fn recurse_leaf_dfs(cluster_tree: Dict[String, List[Int]], current_node: Int) -> List[Int]
 ```
 
 **Args:**
 
-- **cluster_tree** (`Dict`)
-- **current_node** (`Scalar`)
+- **cluster_tree** (`Dict[String, List[Int]]`)
+- **current_node** (`Int`)
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 

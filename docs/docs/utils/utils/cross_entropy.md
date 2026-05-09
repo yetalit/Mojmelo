@@ -3,7 +3,7 @@ Mojo function
 # `cross_entropy`
 
 ```mojo
-def cross_entropy(y: Matrix, y_pred: Matrix) -> Float32
+fn cross_entropy(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Binary Cross Entropy.

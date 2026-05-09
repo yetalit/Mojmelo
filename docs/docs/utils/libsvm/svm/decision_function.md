@@ -3,16 +3,16 @@ Mojo struct
 # `decision_function`
 
 ```mojo
-@register_passable_trivial
+@register_passable
 struct decision_function
 ```
 
 ## Fields
 
-- **alpha** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **alpha** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
 - **rho** (`Float64`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
+`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`
 

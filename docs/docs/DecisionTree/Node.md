@@ -11,8 +11,8 @@ struct Node
 
 - **feature** (`Int`)
 - **threshold** (`Float32`)
-- **left** (`UnsafePointer[Node, MutAnyOrigin]`)
-- **right** (`UnsafePointer[Node, MutAnyOrigin]`)
+- **left** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
+- **right** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
 - **value** (`Float32`)
 
 ## Implemented traits
@@ -24,15 +24,15 @@ struct Node
 ### `__init__`
 
 ```mojo
-def __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer(), right: UnsafePointer[Node, MutAnyOrigin] = UnsafePointer(), value: Float32 = inf[DType.float32]())
+fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: Optional[UnsafePointer[Node, MutAnyOrigin]] = None, right: Optional[UnsafePointer[Node, MutAnyOrigin]] = None, value: Float32 = inf[DType.float32]())
 ```
 
 **Args:**
 
 - **feature** (`Int`)
 - **threshold** (`Float32`)
-- **left** (`UnsafePointer`)
-- **right** (`UnsafePointer`)
+- **left** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
+- **right** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
 - **value** (`Float32`)
 - **self** (`Self`)
 
@@ -43,7 +43,7 @@ def __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: UnsafePo
 ### `is_leaf_node`
 
 ```mojo
-def is_leaf_node(self) -> Bool
+fn is_leaf_node(self) -> Bool
 ```
 
 **Args:**
@@ -57,7 +57,7 @@ def is_leaf_node(self) -> Bool
 ### `__str__`
 
 ```mojo
-def __str__(self) -> String
+fn __str__(self) -> String
 ```
 
 **Args:**

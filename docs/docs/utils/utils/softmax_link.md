@@ -3,7 +3,7 @@ Mojo function
 # `softmax_link`
 
 ```mojo
-def softmax_link(score: Matrix) -> Matrix
+fn softmax_link(score: Matrix) -> Matrix
 ```
 
 **Args:**

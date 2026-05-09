@@ -4,7 +4,7 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct KNN
+struct KNN[metric: String = "euc"]
 ```
 
 Classifier implementing the k-nearest neighbors vote.
@@ -12,13 +12,19 @@ Classifier implementing the k-nearest neighbors vote.
 ## Aliases
 
 - `MODEL_ID = 4`
-- `metric_ids = List(VariadicList("euc", "man"), Tuple())`
+- `metric_ids = List(String("euc"), String("man"), __list_literal__=NoneType(None))`
+
+## Parameters
+
+- **metric** (`String`): Metric to use for distance computation:
+    Euclidean -> 'euc';
+    Manhattan -> 'man'.
 
 ## Fields
 
 - **k** (`Int`): Number of neighbors to use.
-- **metric** (`String`): Metric to use for distance computation: Euclidean -> 'euc'; Manhattan -> 'man'.
-- **kdtree** (`KDTree`)
+- **search_depth** (`Int`): Current KDTree implementation applies some approximation to its search results. Increasing search_depth can lead to more accurate results at the cost of performance.
+- **kdtree** (`KDTree[True, metric=metric]`)
 - **y_train** (`Matrix`)
 
 ## Implemented traits
@@ -30,13 +36,13 @@ Classifier implementing the k-nearest neighbors vote.
 ### `__init__`
 
 ```mojo
-def __init__(out self, k: Int = 3, metric: String = "euc")
+fn __init__(out self, k: Int = 3, search_depth: Int = 1)
 ```
 
 **Args:**
 
 - **k** (`Int`)
-- **metric** (`String`)
+- **search_depth** (`Int`)
 - **self** (`Self`)
 
 **Returns:**
@@ -46,12 +52,12 @@ def __init__(out self, k: Int = 3, metric: String = "euc")
 **Raises:**
 
 ```mojo
-def __init__(out self, params: Dict[String, String])
+fn __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -63,7 +69,7 @@ def __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the k-nearest neighbors classifier from the training dataset.
@@ -79,7 +85,7 @@ Fit the k-nearest neighbors classifier from the training dataset.
 ### `predict`
 
 ```mojo
-def predict(mut self, X: Matrix) -> Matrix
+fn predict(mut self, X: Matrix) -> Matrix
 ```
 
 Predict the class indices for the provided data.
@@ -98,7 +104,7 @@ Predict the class indices for the provided data.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -114,10 +120,14 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load[type: UInt8](path: String) -> KNN[(load_from_mem KNN[metric].metric_ids[type])]
 ```
 
 Load a saved model from the specified path for prediction.
+
+**Parameters:**
+
+- **type** (`UInt8`)
 
 **Args:**
 
@@ -125,7 +135,7 @@ Load a saved model from the specified path for prediction.
 
 **Returns:**
 
-`Self`
+`KNN[(load_from_mem KNN[metric].metric_ids[type])]`
 
 **Raises:**
 

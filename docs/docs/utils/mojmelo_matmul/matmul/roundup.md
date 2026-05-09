@@ -3,7 +3,7 @@ Mojo function
 # `roundup`
 
 ```mojo
-def roundup(a: Int, b: Int) -> Int
+fn roundup(a: Int, b: Int) -> Int
 ```
 
 **Args:**

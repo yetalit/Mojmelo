@@ -3,7 +3,7 @@ Mojo function
 # `accuracy_score`
 
 ```mojo
-def accuracy_score(y: Matrix, y_pred: Matrix) -> Float32
+fn accuracy_score(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Accuracy classification score.

@@ -3,21 +3,21 @@ Mojo function
 # `pack_A`
 
 ```mojo
-def pack_A[Type: DType, //, mr: Int](mc: Int, Ac_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin], Ac: Matrix[Type]) -> Matrix[Type]
+fn pack_A[Type: DType, //, mr: Int, inner_parallel: Bool = False](Ac_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin], Ac: Matrix[Type]) -> Matrix[Type]
 ```
 
 **Parameters:**
 
 - **Type** (`DType`)
 - **mr** (`Int`)
+- **inner_parallel** (`Bool`)
 
 **Args:**
 
-- **mc** (`Int`)
-- **Ac_buffer** (`UnsafePointer`)
-- **Ac** (`Matrix`)
+- **Ac_buffer** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
+- **Ac** (`Matrix[Type]`)
 
 **Returns:**
 
-`Matrix`
+`Matrix[Type]`
 

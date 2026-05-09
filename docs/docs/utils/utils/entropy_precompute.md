@@ -3,13 +3,13 @@ Mojo function
 # `entropy_precompute`
 
 ```mojo
-def entropy_precompute(size: Float32, histogram: List[Int]) -> Float32
+fn entropy_precompute(size: Float32, histogram: List[Int]) -> Float32
 ```
 
 **Args:**
 
 - **size** (`Float32`)
-- **histogram** (`List`)
+- **histogram** (`List[Int]`)
 
 **Returns:**
 

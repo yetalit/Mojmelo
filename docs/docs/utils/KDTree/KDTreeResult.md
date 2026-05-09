@@ -21,7 +21,7 @@ struct KDTreeResult
 ### `__lt__`
 
 ```mojo
-def __lt__(self, rhs: Self) -> Bool
+fn __lt__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -36,7 +36,7 @@ def __lt__(self, rhs: Self) -> Bool
 ### `__le__`
 
 ```mojo
-def __le__(self, rhs: Self) -> Bool
+fn __le__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -51,7 +51,7 @@ def __le__(self, rhs: Self) -> Bool
 ### `__gt__`
 
 ```mojo
-def __gt__(self, rhs: Self) -> Bool
+fn __gt__(self, rhs: Self) -> Bool
 ```
 
 **Args:**

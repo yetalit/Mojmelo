@@ -9,8 +9,8 @@ struct UnionFind
 
 ## Fields
 
-- **parent** (`List[Scalar[DType.int]]`)
-- **rank** (`List[Scalar[DType.int]]`)
+- **parent** (`List[Int]`)
+- **rank** (`List[Int]`)
 
 ## Implemented traits
 
@@ -21,7 +21,7 @@ struct UnionFind
 ### `__init__`
 
 ```mojo
-def __init__(out self, size: Int)
+fn __init__(out self, size: Int)
 ```
 
 **Args:**
@@ -38,28 +38,28 @@ def __init__(out self, size: Int)
 ### `find`
 
 ```mojo
-def find(mut self, x: Scalar[DType.int]) -> Scalar[DType.int]
+fn find(mut self, x: Int) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **x** (`Scalar`)
+- **x** (`Int`)
 
 **Returns:**
 
-`Scalar`
+`Int`
 
 ### `unite`
 
 ```mojo
-def unite(mut self, x: Scalar[DType.int], y: Scalar[DType.int])
+fn unite(mut self, x: Int, y: Int)
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **x** (`Scalar`)
-- **y** (`Scalar`)
+- **x** (`Int`)
+- **y** (`Int`)
 
 

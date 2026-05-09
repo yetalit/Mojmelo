@@ -3,15 +3,15 @@ Mojo function
 # `svm_decision_function`
 
 ```mojo
-def svm_decision_function(model: svm_model, x: UnsafePointer[svm_node, MutExternalOrigin]) -> Tuple[UnsafePointer[Float64, MutExternalOrigin], Int]
+fn svm_decision_function(model: svm_model, x: Optional[UnsafePointer[svm_node, MutExternalOrigin]]) -> Tuple[Optional[UnsafePointer[Float64, MutExternalOrigin]], Int]
 ```
 
 **Args:**
 
 - **model** (`svm_model`)
-- **x** (`UnsafePointer`)
+- **x** (`Optional[UnsafePointer[svm_node, MutExternalOrigin]]`)
 
 **Returns:**
 
-`Tuple`
+`Tuple[Optional[UnsafePointer[Float64, MutExternalOrigin]], Int]`
 

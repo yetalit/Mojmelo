@@ -3,7 +3,7 @@ Mojo function
 # `fill_indices`
 
 ```mojo
-def fill_indices(N: Int) -> UnsafePointer[Scalar[DType.int], MutExternalOrigin]
+fn fill_indices(N: Int) -> UnsafePointer[Int, MutExternalOrigin]
 ```
 
 Generates indices from 0 to N.
@@ -14,7 +14,7 @@ Generates indices from 0 to N.
 
 **Returns:**
 
-`UnsafePointer`: The pointer to indices.
+`UnsafePointer[Int, MutExternalOrigin]`: The pointer to indices.
 
 **Raises:**
 

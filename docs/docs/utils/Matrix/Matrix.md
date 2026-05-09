@@ -30,7 +30,7 @@ Native matrix data structure.
 ### `__init__`
 
 ```mojo
-def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutAnyOrigin], height: Int, width: Int, order: String = "c")
+fn __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutAnyOrigin], height: Int, width: Int, order: String = "c")
 ```
 
 **Parameters:**
@@ -39,7 +39,7 @@ def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[sr
 
 **Args:**
 
-- **data** (`UnsafePointer`)
+- **data** (`UnsafePointer[Scalar[src], MutAnyOrigin]`)
 - **height** (`Int`)
 - **width** (`Int`)
 - **order** (`String`)
@@ -50,14 +50,14 @@ def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[sr
 `Self`
 
 ```mojo
-def __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32, MutAnyOrigin] = UnsafePointer(), order: String = "c")
+fn __init__(out self, height: Int, width: Int, data: Optional[UnsafePointer[Float32, MutAnyOrigin]] = None, order: String = "c")
 ```
 
 **Args:**
 
 - **height** (`Int`)
 - **width** (`Int`)
-- **data** (`UnsafePointer`)
+- **data** (`Optional[UnsafePointer[Float32, MutAnyOrigin]]`)
 - **order** (`String`)
 - **self** (`Self`)
 
@@ -66,12 +66,12 @@ def __init__(out self, height: Int, width: Int, data: UnsafePointer[Float32, Mut
 `Self`
 
 ```mojo
-def __init__(out self, def_input: List[List[Float32]])
+fn __init__(out self, def_input: List[List[Float32]])
 ```
 
 **Args:**
 
-- **def_input** (`List`)
+- **def_input** (`List[List[Float32]]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -81,7 +81,7 @@ def __init__(out self, def_input: List[List[Float32]])
 **Raises:**
 
 ```mojo
-def __init__(out self, *, copy: Self)
+fn __init__(out self, *, copy: Self)
 ```
 
 **Args:**
@@ -94,7 +94,7 @@ def __init__(out self, *, copy: Self)
 `Self`
 
 ```mojo
-def __init__(out self, *, deinit take: Self)
+fn __init__(out self, *, deinit take: Self)
 ```
 
 **Args:**
@@ -109,7 +109,7 @@ def __init__(out self, *, deinit take: Self)
 ### `__del__`
 
 ```mojo
-def __del__(deinit self)
+fn __del__(deinit self)
 ```
 
 **Args:**
@@ -119,7 +119,7 @@ def __del__(deinit self)
 ### `__getitem__`
 
 ```mojo
-def __getitem__(self, row: Int, column: Int) -> Float32
+fn __getitem__(self, row: Int, column: Int) -> Float32
 ```
 
 The pattern to access a single value: [row, column] .
@@ -137,7 +137,7 @@ The pattern to access a single value: [row, column] .
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: Int) -> Self
+fn __getitem__(self, row: Int) -> Self
 ```
 
 The pattern to access a row: [row] .
@@ -154,7 +154,7 @@ The pattern to access a row: [row] .
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: Int, *, unsafe: Bool) -> Self
+fn __getitem__(self, row: Int, *, unsafe: Bool) -> Self
 ```
 
 **Args:**
@@ -168,7 +168,7 @@ def __getitem__(self, row: Int, *, unsafe: Bool) -> Self
 `Self`
 
 ```mojo
-def __getitem__(self, row: Int, offset: Bool, start_i: Int) -> Self
+fn __getitem__(self, row: Int, offset: Bool, start_i: Int) -> Self
 ```
 
 **Args:**
@@ -185,7 +185,7 @@ def __getitem__(self, row: Int, offset: Bool, start_i: Int) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: String, column: Int) -> Self
+fn __getitem__(self, row: String, column: Int) -> Self
 ```
 
 The pattern to access a column: ['', column] .
@@ -203,7 +203,7 @@ The pattern to access a column: ['', column] .
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: String, column: Int, *, unsafe: Bool) -> Self
+fn __getitem__(self, row: String, column: Int, *, unsafe: Bool) -> Self
 ```
 
 **Args:**
@@ -218,7 +218,7 @@ def __getitem__(self, row: String, column: Int, *, unsafe: Bool) -> Self
 `Self`
 
 ```mojo
-def __getitem__(self, offset: Bool, start_i: Int, column: Int) -> Self
+fn __getitem__(self, offset: Bool, start_i: Int, column: Int) -> Self
 ```
 
 **Args:**
@@ -235,7 +235,7 @@ def __getitem__(self, offset: Bool, start_i: Int, column: Int) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, rows: Self) -> Self
+fn __getitem__(self, rows: Self) -> Self
 ```
 
 **Args:**
@@ -250,7 +250,7 @@ def __getitem__(self, rows: Self) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: String, columns: Self) -> Self
+fn __getitem__(self, row: String, columns: Self) -> Self
 ```
 
 **Args:**
@@ -266,13 +266,13 @@ def __getitem__(self, row: String, columns: Self) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, rows: List[Int]) -> Self
+fn __getitem__(self, rows: List[Int]) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rows** (`List`)
+- **rows** (`List[Int]`)
 
 **Returns:**
 
@@ -281,13 +281,13 @@ def __getitem__(self, rows: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, rows: List[Scalar[DType.int]]) -> Self
+fn __getitem__(self, rows: List[Int]) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **rows** (`List`)
+- **rows** (`List[Int]`)
 
 **Returns:**
 
@@ -296,14 +296,14 @@ def __getitem__(self, rows: List[Scalar[DType.int]]) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: String, columns: List[Int]) -> Self
+fn __getitem__(self, row: String, columns: List[Int]) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **row** (`String`)
-- **columns** (`List`)
+- **columns** (`List[Int]`)
 
 **Returns:**
 
@@ -312,14 +312,14 @@ def __getitem__(self, row: String, columns: List[Int]) -> Self
 **Raises:**
 
 ```mojo
-def __getitem__(self, row: String, columns: List[Scalar[DType.int]]) -> Self
+fn __getitem__(self, row: String, columns: List[Int]) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **row** (`String`)
-- **columns** (`List`)
+- **columns** (`List[Int]`)
 
 **Returns:**
 
@@ -330,7 +330,7 @@ def __getitem__(self, row: String, columns: List[Scalar[DType.int]]) -> Self
 ### `__setitem__`
 
 ```mojo
-def __setitem__(mut self, row: Int, column: Int, val: Float32)
+fn __setitem__(mut self, row: Int, column: Int, val: Float32)
 ```
 
 **Args:**
@@ -343,7 +343,7 @@ def __setitem__(mut self, row: Int, column: Int, val: Float32)
 **Raises:**
 
 ```mojo
-def __setitem__(mut self, row: Int, val: Self)
+fn __setitem__(mut self, row: Int, val: Self)
 ```
 
 **Args:**
@@ -355,7 +355,7 @@ def __setitem__(mut self, row: Int, val: Self)
 **Raises:**
 
 ```mojo
-def __setitem__(mut self, row: Int, val: Self, *, unsafe: Bool)
+fn __setitem__(mut self, row: Int, val: Self, *, unsafe: Bool)
 ```
 
 **Args:**
@@ -366,7 +366,7 @@ def __setitem__(mut self, row: Int, val: Self, *, unsafe: Bool)
 - **unsafe** (`Bool`)
 
 ```mojo
-def __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Self)
+fn __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Self)
 ```
 
 **Args:**
@@ -380,7 +380,7 @@ def __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Self)
 **Raises:**
 
 ```mojo
-def __setitem__(mut self, row: String, column: Int, val: Self)
+fn __setitem__(mut self, row: String, column: Int, val: Self)
 ```
 
 **Args:**
@@ -393,7 +393,7 @@ def __setitem__(mut self, row: String, column: Int, val: Self)
 **Raises:**
 
 ```mojo
-def __setitem__(mut self, row: String, column: Int, val: Self, *, unsafe: Bool)
+fn __setitem__(mut self, row: String, column: Int, val: Self, *, unsafe: Bool)
 ```
 
 **Args:**
@@ -405,7 +405,7 @@ def __setitem__(mut self, row: String, column: Int, val: Self, *, unsafe: Bool)
 - **unsafe** (`Bool`)
 
 ```mojo
-def __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Self)
+fn __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Self)
 ```
 
 **Args:**
@@ -421,7 +421,7 @@ def __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Self)
 ### `__neg__`
 
 ```mojo
-def __neg__(self) -> Self
+fn __neg__(self) -> Self
 ```
 
 **Args:**
@@ -435,7 +435,7 @@ def __neg__(self) -> Self
 ### `__lt__`
 
 ```mojo
-def __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
+fn __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -445,12 +445,12 @@ def __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `__le__`
 
 ```mojo
-def __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]
+fn __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -460,12 +460,12 @@ def __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `__eq__`
 
 ```mojo
-def __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]
+fn __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -475,10 +475,10 @@ def __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ```mojo
-def __eq__(self, rhs: Self) -> Bool
+fn __eq__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -493,7 +493,7 @@ def __eq__(self, rhs: Self) -> Bool
 ### `__ne__`
 
 ```mojo
-def __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]
+fn __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -503,10 +503,10 @@ def __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ```mojo
-def __ne__(self, rhs: Self) -> Bool
+fn __ne__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -521,7 +521,7 @@ def __ne__(self, rhs: Self) -> Bool
 ### `__gt__`
 
 ```mojo
-def __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
+fn __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -531,12 +531,12 @@ def __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `__ge__`
 
 ```mojo
-def __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]
+fn __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -546,12 +546,12 @@ def __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `__add__`
 
 ```mojo
-def __add__(self, rhs: Self) -> Self
+fn __add__(self, rhs: Self) -> Self
 ```
 
 **Args:**
@@ -566,7 +566,7 @@ def __add__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-def __add__(self, rhs: Float32) -> Self
+fn __add__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
@@ -581,7 +581,7 @@ def __add__(self, rhs: Float32) -> Self
 ### `__sub__`
 
 ```mojo
-def __sub__(self, rhs: Self) -> Self
+fn __sub__(self, rhs: Self) -> Self
 ```
 
 **Args:**
@@ -596,7 +596,7 @@ def __sub__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-def __sub__(self, rhs: Float32) -> Self
+fn __sub__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
@@ -611,7 +611,7 @@ def __sub__(self, rhs: Float32) -> Self
 ### `__mul__`
 
 ```mojo
-def __mul__(self, rhs: Self) -> Self
+fn __mul__(self, rhs: Self) -> Self
 ```
 
 **Args:**
@@ -626,7 +626,7 @@ def __mul__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-def __mul__(self, rhs: Float32) -> Self
+fn __mul__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
@@ -641,7 +641,7 @@ def __mul__(self, rhs: Float32) -> Self
 ### `__truediv__`
 
 ```mojo
-def __truediv__(self, rhs: Self) -> Self
+fn __truediv__(self, rhs: Self) -> Self
 ```
 
 **Args:**
@@ -656,7 +656,7 @@ def __truediv__(self, rhs: Self) -> Self
 **Raises:**
 
 ```mojo
-def __truediv__(self, rhs: Float32) -> Self
+fn __truediv__(self, rhs: Float32) -> Self
 ```
 
 **Args:**
@@ -671,7 +671,7 @@ def __truediv__(self, rhs: Float32) -> Self
 ### `__pow__`
 
 ```mojo
-def __pow__(self, p: Int) -> Self
+fn __pow__(self, p: Int) -> Self
 ```
 
 **Args:**
@@ -686,7 +686,7 @@ def __pow__(self, p: Int) -> Self
 ### `__radd__`
 
 ```mojo
-def __radd__(self, lhs: Float32) -> Self
+fn __radd__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
@@ -701,7 +701,7 @@ def __radd__(self, lhs: Float32) -> Self
 ### `__rsub__`
 
 ```mojo
-def __rsub__(self, lhs: Float32) -> Self
+fn __rsub__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
@@ -716,7 +716,7 @@ def __rsub__(self, lhs: Float32) -> Self
 ### `__rmul__`
 
 ```mojo
-def __rmul__(self, lhs: Float32) -> Self
+fn __rmul__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
@@ -731,7 +731,7 @@ def __rmul__(self, lhs: Float32) -> Self
 ### `__rtruediv__`
 
 ```mojo
-def __rtruediv__(self, lhs: Float32) -> Self
+fn __rtruediv__(self, lhs: Float32) -> Self
 ```
 
 **Args:**
@@ -746,7 +746,7 @@ def __rtruediv__(self, lhs: Float32) -> Self
 ### `__iadd__`
 
 ```mojo
-def __iadd__(mut self, rhs: Self)
+fn __iadd__(mut self, rhs: Self)
 ```
 
 **Args:**
@@ -757,7 +757,7 @@ def __iadd__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-def __iadd__(mut self, rhs: Float32)
+fn __iadd__(mut self, rhs: Float32)
 ```
 
 **Args:**
@@ -768,7 +768,7 @@ def __iadd__(mut self, rhs: Float32)
 ### `__isub__`
 
 ```mojo
-def __isub__(mut self, rhs: Self)
+fn __isub__(mut self, rhs: Self)
 ```
 
 **Args:**
@@ -779,7 +779,7 @@ def __isub__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-def __isub__(mut self, rhs: Float32)
+fn __isub__(mut self, rhs: Float32)
 ```
 
 **Args:**
@@ -790,7 +790,7 @@ def __isub__(mut self, rhs: Float32)
 ### `__imul__`
 
 ```mojo
-def __imul__(mut self, rhs: Self)
+fn __imul__(mut self, rhs: Self)
 ```
 
 **Args:**
@@ -801,7 +801,7 @@ def __imul__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-def __imul__(mut self, rhs: Float32)
+fn __imul__(mut self, rhs: Float32)
 ```
 
 **Args:**
@@ -812,7 +812,7 @@ def __imul__(mut self, rhs: Float32)
 ### `__itruediv__`
 
 ```mojo
-def __itruediv__(mut self, rhs: Self)
+fn __itruediv__(mut self, rhs: Self)
 ```
 
 **Args:**
@@ -823,7 +823,7 @@ def __itruediv__(mut self, rhs: Self)
 **Raises:**
 
 ```mojo
-def __itruediv__(mut self, rhs: Float32)
+fn __itruediv__(mut self, rhs: Float32)
 ```
 
 **Args:**
@@ -834,7 +834,7 @@ def __itruediv__(mut self, rhs: Float32)
 ### `__ipow__`
 
 ```mojo
-def __ipow__(mut self, rhs: Int)
+fn __ipow__(mut self, rhs: Int)
 ```
 
 **Args:**
@@ -845,7 +845,7 @@ def __ipow__(mut self, rhs: Int)
 ### `load`
 
 ```mojo
-def load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]
+fn load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]
 ```
 
 **Parameters:**
@@ -860,12 +860,12 @@ def load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]
 
 **Returns:**
 
-`SIMD`
+`SIMD[DType.float32, nelts]`
 
 ### `store`
 
 ```mojo
-def store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts])
+fn store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts])
 ```
 
 **Parameters:**
@@ -877,12 +877,12 @@ def store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts])
 - **self** (`Self`)
 - **y** (`Int`)
 - **x** (`Int`)
-- **val** (`SIMD`)
+- **val** (`SIMD[DType.float32, nelts]`)
 
 ### `load_columns`
 
 ```mojo
-def load_columns(self, _range: Int) -> Self
+fn load_columns(self, _range: Int) -> Self
 ```
 
 **Args:**
@@ -899,7 +899,7 @@ def load_columns(self, _range: Int) -> Self
 ### `load_rows`
 
 ```mojo
-def load_rows(self, _range: Int) -> Self
+fn load_rows(self, _range: Int) -> Self
 ```
 
 **Args:**
@@ -916,7 +916,7 @@ def load_rows(self, _range: Int) -> Self
 ### `get_per_row`
 
 ```mojo
-def get_per_row(self, columns: Self) -> Self
+fn get_per_row(self, columns: Self) -> Self
 ```
 
 **Args:**
@@ -933,7 +933,7 @@ def get_per_row(self, columns: Self) -> Self
 ### `set_per_row`
 
 ```mojo
-def set_per_row(mut self, columns: Self, rhs: Self)
+fn set_per_row(mut self, columns: Self, rhs: Self)
 ```
 
 **Args:**
@@ -947,7 +947,7 @@ def set_per_row(mut self, columns: Self, rhs: Self)
 ### `__len__`
 
 ```mojo
-def __len__(self) -> Int
+fn __len__(self) -> Int
 ```
 
 **Args:**
@@ -961,7 +961,7 @@ def __len__(self) -> Int
 ### `ele_eq`
 
 ```mojo
-def ele_eq(self, rhs: Self) -> List[Scalar[DType.bool]]
+fn ele_eq(self, rhs: Self) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -971,12 +971,12 @@ def ele_eq(self, rhs: Self) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `ele_ne`
 
 ```mojo
-def ele_ne(self, rhs: Self) -> List[Scalar[DType.bool]]
+fn ele_ne(self, rhs: Self) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -986,12 +986,12 @@ def ele_ne(self, rhs: Self) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `ele_gt`
 
 ```mojo
-def ele_gt(self, rhs: Self) -> List[Scalar[DType.bool]]
+fn ele_gt(self, rhs: Self) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -1001,12 +1001,12 @@ def ele_gt(self, rhs: Self) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `ele_ge`
 
 ```mojo
-def ele_ge(self, rhs: Self) -> List[Scalar[DType.bool]]
+fn ele_ge(self, rhs: Self) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -1016,12 +1016,12 @@ def ele_ge(self, rhs: Self) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `ele_lt`
 
 ```mojo
-def ele_lt(self, rhs: Self) -> List[Scalar[DType.bool]]
+fn ele_lt(self, rhs: Self) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -1031,12 +1031,12 @@ def ele_lt(self, rhs: Self) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `ele_le`
 
 ```mojo
-def ele_le(self, rhs: Self) -> List[Scalar[DType.bool]]
+fn ele_le(self, rhs: Self) -> List[Scalar[DType.bool]]
 ```
 
 **Args:**
@@ -1046,12 +1046,12 @@ def ele_le(self, rhs: Self) -> List[Scalar[DType.bool]]
 
 **Returns:**
 
-`List`
+`List[Scalar[DType.bool]]`
 
 ### `ele_mul`
 
 ```mojo
-def ele_mul(self, rhs: Self) -> Self
+fn ele_mul(self, rhs: Self) -> Self
 ```
 
 **Args:**
@@ -1068,13 +1068,13 @@ def ele_mul(self, rhs: Self) -> Self
 ### `where`
 
 ```mojo
-def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **cmp** (`List`)
+- **cmp** (`List[Scalar[DType.bool]]`)
 - **_true** (`Float32`)
 - **_false** (`Float32`)
 
@@ -1083,13 +1083,13 @@ def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) 
 `Self`
 
 ```mojo
-def where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Float32) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Float32) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **cmp** (`List`)
+- **cmp** (`List[Scalar[DType.bool]]`)
 - **_true** (`Self`)
 - **_false** (`Float32`)
 
@@ -1098,13 +1098,13 @@ def where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Float32) -> 
 `Self`
 
 ```mojo
-def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Self) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Self) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **cmp** (`List`)
+- **cmp** (`List[Scalar[DType.bool]]`)
 - **_true** (`Float32`)
 - **_false** (`Self`)
 
@@ -1113,39 +1113,24 @@ def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Self) -> 
 `Self`
 
 ```mojo
-def where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Self) -> Self
+fn where(self, cmp: List[Scalar[DType.bool]], _true: Self, _false: Self) -> Self
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **cmp** (`List`)
+- **cmp** (`List[Scalar[DType.bool]]`)
 - **_true** (`Self`)
 - **_false** (`Self`)
 
 **Returns:**
 
 `Self`
-
-### `argwhere_l`
-
-```mojo
-def argwhere_l(self, cmp: List[Scalar[DType.bool]]) -> List[Int]
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **cmp** (`List`)
-
-**Returns:**
-
-`List`
 
 ### `C_transpose`
 
 ```mojo
-def C_transpose(self) -> Self
+fn C_transpose(self) -> Self
 ```
 
 **Args:**
@@ -1159,7 +1144,7 @@ def C_transpose(self) -> Self
 ### `F_transpose`
 
 ```mojo
-def F_transpose(self) -> Self
+fn F_transpose(self) -> Self
 ```
 
 **Args:**
@@ -1173,7 +1158,7 @@ def F_transpose(self) -> Self
 ### `T`
 
 ```mojo
-def T(self) -> Self
+fn T(self) -> Self
 ```
 
 **Args:**
@@ -1187,7 +1172,7 @@ def T(self) -> Self
 ### `asorder`
 
 ```mojo
-def asorder(self, order: String) -> Self
+fn asorder(self, order: String) -> Self
 ```
 
 **Args:**
@@ -1202,7 +1187,7 @@ def asorder(self, order: String) -> Self
 ### `cumsum`
 
 ```mojo
-def cumsum(self) -> Self
+fn cumsum(self) -> Self
 ```
 
 **Args:**
@@ -1216,7 +1201,7 @@ def cumsum(self) -> Self
 ### `sum`
 
 ```mojo
-def sum(self) -> Float32
+fn sum(self) -> Float32
 ```
 
 **Args:**
@@ -1230,7 +1215,7 @@ def sum(self) -> Float32
 **Raises:**
 
 ```mojo
-def sum(self, axis: Int) -> Self
+fn sum(self, axis: Int) -> Self
 ```
 
 **Args:**
@@ -1247,7 +1232,7 @@ def sum(self, axis: Int) -> Self
 ### `mean`
 
 ```mojo
-def mean(self) -> Float32
+fn mean(self) -> Float32
 ```
 
 **Args:**
@@ -1261,7 +1246,7 @@ def mean(self) -> Float32
 **Raises:**
 
 ```mojo
-def mean(self, axis: Int) -> Self
+fn mean(self, axis: Int) -> Self
 ```
 
 **Args:**
@@ -1278,7 +1263,7 @@ def mean(self, axis: Int) -> Self
 ### `mean_weighted`
 
 ```mojo
-def mean_weighted(self, weights: Self, size: Float32) -> Float32
+fn mean_weighted(self, weights: Self, size: Float32) -> Float32
 ```
 
 **Args:**
@@ -1296,7 +1281,7 @@ def mean_weighted(self, weights: Self, size: Float32) -> Float32
 ### `mean_slow`
 
 ```mojo
-def mean_slow(self) -> Float32
+fn mean_slow(self) -> Float32
 ```
 
 **Args:**
@@ -1312,7 +1297,7 @@ def mean_slow(self) -> Float32
 ### `mean_slow0`
 
 ```mojo
-def mean_slow0(self) -> Self
+fn mean_slow0(self) -> Self
 ```
 
 **Args:**
@@ -1328,7 +1313,7 @@ def mean_slow0(self) -> Self
 ### `std`
 
 ```mojo
-def std(self, correction: Bool = False) -> Float32
+fn std(self, correction: Bool = False) -> Float32
 ```
 
 **Args:**
@@ -1343,7 +1328,7 @@ def std(self, correction: Bool = False) -> Float32
 **Raises:**
 
 ```mojo
-def std(self, _mean: Float32, correction: Bool = False) -> Float32
+fn std(self, _mean: Float32, correction: Bool = False) -> Float32
 ```
 
 **Args:**
@@ -1359,7 +1344,7 @@ def std(self, _mean: Float32, correction: Bool = False) -> Float32
 **Raises:**
 
 ```mojo
-def std(self, axis: Int, correction: Bool = False) -> Self
+fn std(self, axis: Int, correction: Bool = False) -> Self
 ```
 
 **Args:**
@@ -1375,7 +1360,7 @@ def std(self, axis: Int, correction: Bool = False) -> Self
 **Raises:**
 
 ```mojo
-def std(self, axis: Int, _mean: Self, correction: Bool = False) -> Self
+fn std(self, axis: Int, _mean: Self, correction: Bool = False) -> Self
 ```
 
 **Args:**
@@ -1394,7 +1379,7 @@ def std(self, axis: Int, _mean: Self, correction: Bool = False) -> Self
 ### `std_slow`
 
 ```mojo
-def std_slow(self, _mean: Float32) -> Float32
+fn std_slow(self, _mean: Float32) -> Float32
 ```
 
 **Args:**
@@ -1409,7 +1394,7 @@ def std_slow(self, _mean: Float32) -> Float32
 **Raises:**
 
 ```mojo
-def std_slow(self, axis: Int, _mean: Self) -> Self
+fn std_slow(self, axis: Int, _mean: Self) -> Self
 ```
 
 **Args:**
@@ -1427,7 +1412,7 @@ def std_slow(self, axis: Int, _mean: Self) -> Self
 ### `abs`
 
 ```mojo
-def abs(self) -> Self
+fn abs(self) -> Self
 ```
 
 **Args:**
@@ -1441,7 +1426,7 @@ def abs(self) -> Self
 ### `log`
 
 ```mojo
-def log(self) -> Self
+fn log(self) -> Self
 ```
 
 **Args:**
@@ -1455,7 +1440,7 @@ def log(self) -> Self
 ### `sqrt`
 
 ```mojo
-def sqrt(self) -> Self
+fn sqrt(self) -> Self
 ```
 
 **Args:**
@@ -1469,7 +1454,7 @@ def sqrt(self) -> Self
 ### `exp`
 
 ```mojo
-def exp(self) -> Self
+fn exp(self) -> Self
 ```
 
 **Args:**
@@ -1483,7 +1468,7 @@ def exp(self) -> Self
 ### `argmin`
 
 ```mojo
-def argmin(self) -> Int
+fn argmin(self) -> Int
 ```
 
 **Args:**
@@ -1495,7 +1480,7 @@ def argmin(self) -> Int
 `Int`
 
 ```mojo
-def argmin(self, axis: Int) -> List[Int]
+fn argmin(self, axis: Int) -> List[Int]
 ```
 
 **Args:**
@@ -1505,12 +1490,12 @@ def argmin(self, axis: Int) -> List[Int]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 ### `argmax`
 
 ```mojo
-def argmax(self) -> Int
+fn argmax(self) -> Int
 ```
 
 **Args:**
@@ -1522,7 +1507,7 @@ def argmax(self) -> Int
 `Int`
 
 ```mojo
-def argmax(self, axis: Int) -> List[Int]
+fn argmax(self, axis: Int) -> List[Int]
 ```
 
 **Args:**
@@ -1532,12 +1517,12 @@ def argmax(self, axis: Int) -> List[Int]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 ### `argmax_f`
 
 ```mojo
-def argmax_f(self, axis: Int) -> Self
+fn argmax_f(self, axis: Int) -> Self
 ```
 
 **Args:**
@@ -1552,7 +1537,7 @@ def argmax_f(self, axis: Int) -> Self
 ### `argsort`
 
 ```mojo
-def argsort[ascending: Bool = True](self) -> List[Scalar[DType.int]]
+fn argsort[ascending: Bool = True](self) -> List[Int]
 ```
 
 **Parameters:**
@@ -1565,14 +1550,14 @@ def argsort[ascending: Bool = True](self) -> List[Scalar[DType.int]]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 
 ### `argsort_inplace`
 
 ```mojo
-def argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.int]]
+fn argsort_inplace[ascending: Bool = True](mut self) -> List[Int]
 ```
 
 **Parameters:**
@@ -1585,14 +1570,14 @@ def argsort_inplace[ascending: Bool = True](mut self) -> List[Scalar[DType.int]]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 
 ### `min`
 
 ```mojo
-def min(self) -> Float32
+fn min(self) -> Float32
 ```
 
 **Args:**
@@ -1606,7 +1591,7 @@ def min(self) -> Float32
 **Raises:**
 
 ```mojo
-def min(self, axis: Int) -> Self
+fn min(self, axis: Int) -> Self
 ```
 
 **Args:**
@@ -1623,7 +1608,7 @@ def min(self, axis: Int) -> Self
 ### `max`
 
 ```mojo
-def max(self) -> Float32
+fn max(self) -> Float32
 ```
 
 **Args:**
@@ -1637,7 +1622,7 @@ def max(self) -> Float32
 **Raises:**
 
 ```mojo
-def max(self, axis: Int) -> Self
+fn max(self, axis: Int) -> Self
 ```
 
 **Args:**
@@ -1654,7 +1639,7 @@ def max(self, axis: Int) -> Self
 ### `reshape`
 
 ```mojo
-def reshape(self, height: Int, width: Int) -> Self
+fn reshape(self, height: Int, width: Int) -> Self
 ```
 
 **Args:**
@@ -1671,13 +1656,13 @@ def reshape(self, height: Int, width: Int) -> Self
 
 ```mojo
 @staticmethod
-def lu_factor(mut A, piv: UnsafePointer[Int, MutAnyOrigin], N: Int)
+fn lu_factor(mut A, piv: UnsafePointer[Int, MutAnyOrigin], N: Int)
 ```
 
 **Args:**
 
 - **A** (`Self`)
-- **piv** (`UnsafePointer`)
+- **piv** (`UnsafePointer[Int, MutAnyOrigin]`)
 - **N** (`Int`)
 
 **Raises:**
@@ -1686,13 +1671,13 @@ def lu_factor(mut A, piv: UnsafePointer[Int, MutAnyOrigin], N: Int)
 
 ```mojo
 @staticmethod
-def lu_solve(A, piv: UnsafePointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: Int, Mi: Int)
+fn lu_solve(A, piv: UnsafePointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: Int, Mi: Int)
 ```
 
 **Args:**
 
 - **A** (`Self`)
-- **piv** (`UnsafePointer`)
+- **piv** (`UnsafePointer[Int, MutAnyOrigin]`)
 - **b** (`Self`)
 - **x** (`Self`)
 - **N** (`Int`)
@@ -1704,7 +1689,7 @@ def lu_solve(A, piv: UnsafePointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: 
 
 ```mojo
 @staticmethod
-def solve(var A, b: Self) -> Self
+fn solve(var A, b: Self) -> Self
 ```
 
 **Args:**
@@ -1721,7 +1706,7 @@ def solve(var A, b: Self) -> Self
 ### `inv`
 
 ```mojo
-def inv(self) -> Self
+fn inv(self) -> Self
 ```
 
 **Args:**
@@ -1738,7 +1723,7 @@ def inv(self) -> Self
 
 ```mojo
 @staticmethod
-def eye(n: Int, order: String = "c") -> Self
+fn eye(var n: Int, order: String = "c") -> Self
 ```
 
 **Args:**
@@ -1753,7 +1738,7 @@ def eye(n: Int, order: String = "c") -> Self
 ### `norm`
 
 ```mojo
-def norm(self) -> Float32
+fn norm(self) -> Float32
 ```
 
 **Args:**
@@ -1769,7 +1754,7 @@ def norm(self) -> Float32
 ### `outer`
 
 ```mojo
-def outer(self, rhs: Self) -> Self
+fn outer(self, rhs: Self) -> Self
 ```
 
 **Args:**
@@ -1786,7 +1771,7 @@ def outer(self, rhs: Self) -> Self
 ### `concatenate`
 
 ```mojo
-def concatenate(self, rhs: Self, axis: Int) -> Self
+fn concatenate(self, rhs: Self, axis: Int) -> Self
 ```
 
 **Args:**
@@ -1804,7 +1789,7 @@ def concatenate(self, rhs: Self, axis: Int) -> Self
 ### `bincount`
 
 ```mojo
-def bincount(self) -> List[Int]
+fn bincount(self) -> List[Int]
 ```
 
 **Args:**
@@ -1813,12 +1798,12 @@ def bincount(self) -> List[Int]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 
 ```mojo
-def bincount(self, weights: Self) -> List[Int]
+fn bincount(self, weights: Self) -> List[Int]
 ```
 
 **Args:**
@@ -1828,14 +1813,14 @@ def bincount(self, weights: Self) -> List[Int]
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 
 ### `unique`
 
 ```mojo
-def unique(self) -> List[List[Int]]
+fn unique(self) -> List[List[Int]]
 ```
 
 **Args:**
@@ -1844,10 +1829,10 @@ def unique(self) -> List[List[Int]]
 
 **Returns:**
 
-`List`
+`List[List[Int]]`
 
 ```mojo
-def unique(self, weights: Self) -> List[List[Int]]
+fn unique(self, weights: Self) -> List[List[Int]]
 ```
 
 **Args:**
@@ -1857,12 +1842,12 @@ def unique(self, weights: Self) -> List[List[Int]]
 
 **Returns:**
 
-`List`
+`List[List[Int]]`
 
 ### `is_uniquef`
 
 ```mojo
-def is_uniquef(self) -> Int
+fn is_uniquef(self) -> Int
 ```
 
 **Args:**
@@ -1877,7 +1862,7 @@ def is_uniquef(self) -> Int
 
 ```mojo
 @staticmethod
-def zeros(height: Int, width: Int, order: String = "c") -> Self
+fn zeros(height: Int, width: Int, order: String = "c") -> Self
 ```
 
 **Args:**
@@ -1894,7 +1879,7 @@ def zeros(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-def ones(height: Int, width: Int, order: String = "c") -> Self
+fn ones(height: Int, width: Int, order: String = "c") -> Self
 ```
 
 **Args:**
@@ -1911,7 +1896,7 @@ def ones(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-def full(height: Int, width: Int, val: Float32, order: String = "c") -> Self
+fn full(height: Int, width: Int, val: Float32, order: String = "c") -> Self
 ```
 
 **Args:**
@@ -1928,7 +1913,7 @@ def full(height: Int, width: Int, val: Float32, order: String = "c") -> Self
 ### `fill_zero`
 
 ```mojo
-def fill_zero(self)
+fn fill_zero(self)
 ```
 
 **Args:**
@@ -1938,7 +1923,7 @@ def fill_zero(self)
 ### `fill`
 
 ```mojo
-def fill(self, val: Float32)
+fn fill(self, val: Float32)
 ```
 
 **Args:**
@@ -1950,7 +1935,7 @@ def fill(self, val: Float32)
 
 ```mojo
 @staticmethod
-def random(height: Int, width: Int, order: String = "c") -> Self
+fn random(height: Int, width: Int, order: String = "c") -> Self
 ```
 
 **Args:**
@@ -1967,7 +1952,7 @@ def random(height: Int, width: Int, order: String = "c") -> Self
 
 ```mojo
 @staticmethod
-def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Scalar[DType.int]]
+fn rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) -> List[Int]
 ```
 
 **Args:**
@@ -1979,7 +1964,7 @@ def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) 
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 
@@ -1987,7 +1972,7 @@ def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) 
 
 ```mojo
 @staticmethod
-def linspace(start: Float32, stop: Float32, num: Int, order: String = "c") -> Self
+fn linspace(start: Float32, stop: Float32, num: Int, order: String = "c") -> Self
 ```
 
 **Args:**
@@ -2007,7 +1992,7 @@ def linspace(start: Float32, stop: Float32, num: Int, order: String = "c") -> Se
 
 ```mojo
 @staticmethod
-def from_numpy(np_arr: PythonObject, order: String = "c") -> Self
+fn from_numpy(np_arr: PythonObject, order: String = "c") -> Self
 ```
 
 Initialize a matrix from a numpy array.
@@ -2026,7 +2011,7 @@ Initialize a matrix from a numpy array.
 ### `to_numpy`
 
 ```mojo
-def to_numpy(self) -> PythonObject
+fn to_numpy(self) -> PythonObject
 ```
 
 Converts the matrix to a numpy array.
@@ -2044,7 +2029,7 @@ Converts the matrix to a numpy array.
 ### `cast_ptr`
 
 ```mojo
-def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutExternalOrigin]
+fn cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutExternalOrigin]
 ```
 
 **Parameters:**
@@ -2057,12 +2042,12 @@ def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutExternalOrigin]
 
 **Returns:**
 
-`UnsafePointer`
+`UnsafePointer[Scalar[des], MutExternalOrigin]`
 
 ### `write_to`
 
 ```mojo
-def write_to[W: Writer](self, mut writer: W)
+fn write_to[W: Writer](self, mut writer: W)
 ```
 
 **Parameters:**
@@ -2077,7 +2062,7 @@ def write_to[W: Writer](self, mut writer: W)
 ### `__str__`
 
 ```mojo
-def __str__(self) -> String
+fn __str__(self) -> String
 ```
 
 **Args:**

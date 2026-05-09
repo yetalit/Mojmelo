@@ -34,7 +34,7 @@ A Gradient Descent based linear regression with mse as the loss function.
 ### `__init__`
 
 ```mojo
-def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_alpha: Float32 = 0, l1_ratio: Float32 = -1, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
+fn __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_alpha: Float32 = 0, l1_ratio: Float32 = -1, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
 ```
 
 **Args:**
@@ -53,12 +53,12 @@ def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_
 `Self`
 
 ```mojo
-def __init__(out self, params: Dict[String, String])
+fn __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
 
-- **params** (`Dict`)
+- **params** (`Dict[String, String]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -70,7 +70,7 @@ def __init__(out self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix, y: Matrix)
+fn fit(mut self, X: Matrix, y: Matrix)
 ```
 
 Fit the model.
@@ -86,7 +86,7 @@ Fit the model.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> Matrix
+fn predict(self, X: Matrix) -> Matrix
 ```
 
 Predict regression values for X.
@@ -105,7 +105,7 @@ Predict regression values for X.
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -121,7 +121,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.

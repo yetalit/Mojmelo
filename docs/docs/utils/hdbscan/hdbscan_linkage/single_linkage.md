@@ -3,7 +3,7 @@ Mojo function
 # `single_linkage`
 
 ```mojo
-def single_linkage(distance_matrix: Matrix) -> Matrix
+fn single_linkage(distance_matrix: Matrix) -> Matrix
 ```
 
 **Args:**

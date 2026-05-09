@@ -3,16 +3,16 @@ Mojo function
 # `get_cluster_tree_leaves`
 
 ```mojo
-def get_cluster_tree_leaves(cluster_tree: Dict[String, List[Scalar[DType.int]]]) -> List[Scalar[DType.int]]
+fn get_cluster_tree_leaves(cluster_tree: Dict[String, List[Int]]) -> List[Int]
 ```
 
 **Args:**
 
-- **cluster_tree** (`Dict`)
+- **cluster_tree** (`Dict[String, List[Int]]`)
 
 **Returns:**
 
-`List`
+`List[Int]`
 
 **Raises:**
 

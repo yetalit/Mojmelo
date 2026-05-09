@@ -197,17 +197,6 @@ def le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -
     return a.le(b)
 
 @always_inline
-def partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]:
-    var nelts = size - offset
-    if nelts >= width:
-        return data.load[width=width](offset)
-    var point = data + offset
-    var simd = SIMD[DType.float32, width]()
-    for i in range(0, nelts):
-        simd[i] = point[i]
-    return simd
-
-@always_inline
 def sigmoid(z: Matrix) raises -> Matrix:
     var z_exp = z.exp()
     return z.where(z >= 0,

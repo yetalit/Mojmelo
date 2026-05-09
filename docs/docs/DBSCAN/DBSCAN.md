@@ -4,16 +4,21 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct DBSCAN
+struct DBSCAN[metric: String = "euc"]
 ```
 
 A density based clustering method that expands clusters from samples that have more neighbors within a radius.
+
+## Parameters
+
+- **metric** (`String`): Metric to use for distance computation:
+    Euclidean -> 'euc';
+    Manhattan -> 'man'.
 
 ## Fields
 
 - **eps** (`Float32`): The maximum distance between two samples for one to be considered as in the neighborhood of the other.
 - **min_samples** (`Int`): The number of samples in a neighborhood for a point to be considered as a core point.
-- **metric** (`String`): Metric to use for distance computation: Euclidean -> 'euc'; Manhattan -> 'man'.
 - **labels** (`List[Int]`)
 
 ## Implemented traits
@@ -25,14 +30,13 @@ A density based clustering method that expands clusters from samples that have m
 ### `__init__`
 
 ```mojo
-def __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = "euc")
+fn __init__(out self, eps: Float32 = 1, min_samples: Int = 5)
 ```
 
 **Args:**
 
 - **eps** (`Float32`)
 - **min_samples** (`Int`)
-- **metric** (`String`)
 - **self** (`Self`)
 
 **Returns:**
@@ -44,7 +48,7 @@ def __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = 
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix)
+fn fit(mut self, X: Matrix)
 ```
 
 Perform clustering.
@@ -59,7 +63,7 @@ Perform clustering.
 ### `fit_predict`
 
 ```mojo
-def fit_predict(mut self, X: Matrix) -> List[Int]
+fn fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Perform clustering and predict cluster indices.
@@ -71,7 +75,7 @@ Perform clustering and predict cluster indices.
 
 **Returns:**
 
-`List`: List of cluster indices.
+`List[Int]`: List of cluster indices.
 
 **Raises:**
 

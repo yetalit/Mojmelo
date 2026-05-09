@@ -35,7 +35,7 @@ K-Means clustering.
 ### `__init__`
 
 ```mojo
-def __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 0)
+fn __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 0)
 ```
 
 **Args:**
@@ -56,7 +56,7 @@ def __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: I
 ### `fit`
 
 ```mojo
-def fit(mut self, X: Matrix)
+fn fit(mut self, X: Matrix)
 ```
 
 Compute cluster centers and cluster index for each sample.
@@ -71,7 +71,7 @@ Compute cluster centers and cluster index for each sample.
 ### `predict`
 
 ```mojo
-def predict(self, X: Matrix) -> List[Int]
+fn predict(self, X: Matrix) -> List[Int]
 ```
 
 Predict cluster index for each sample.
@@ -83,14 +83,14 @@ Predict cluster index for each sample.
 
 **Returns:**
 
-`List`: List of cluster indices.
+`List[Int]`: List of cluster indices.
 
 **Raises:**
 
 ### `fit_predict`
 
 ```mojo
-def fit_predict(mut self, X: Matrix) -> List[Int]
+fn fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Compute cluster centers and predict cluster index for each sample.
@@ -102,14 +102,14 @@ Compute cluster centers and predict cluster index for each sample.
 
 **Returns:**
 
-`List`: List of cluster indices.
+`List[Int]`: List of cluster indices.
 
 **Raises:**
 
 ### `save`
 
 ```mojo
-def save(self, path: String)
+fn save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -125,7 +125,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-def load(path: String) -> Self
+fn load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.
@@ -143,7 +143,7 @@ Load a saved model from the specified path for prediction.
 ### `centroids`
 
 ```mojo
-def centroids(self) -> Matrix
+fn centroids(self) -> Matrix
 ```
 
 **Args:**

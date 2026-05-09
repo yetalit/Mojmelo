@@ -21,25 +21,25 @@ struct Layout
 ### `__init__`
 
 ```mojo
-def __init__(shape: Tuple[Int, Int], strides: Tuple[Int, Int]) -> Self
+fn __init__(shape: Tuple[Int, Int], strides: Tuple[Int, Int]) -> Self
 ```
 
 **Args:**
 
-- **shape** (`Tuple`)
-- **strides** (`Tuple`)
+- **shape** (`Tuple[Int, Int]`)
+- **strides** (`Tuple[Int, Int]`)
 
 **Returns:**
 
 `Self`
 
 ```mojo
-def __init__(shape: Tuple[Int, Int]) -> Self
+fn __init__(shape: Tuple[Int, Int]) -> Self
 ```
 
 **Args:**
 
-- **shape** (`Tuple`)
+- **shape** (`Tuple[Int, Int]`)
 
 **Returns:**
 
@@ -48,7 +48,7 @@ def __init__(shape: Tuple[Int, Int]) -> Self
 ### `__call__`
 
 ```mojo
-def __call__(self, i: Int, j: Int) -> Int
+fn __call__(self, i: Int, j: Int) -> Int
 ```
 
 **Args:**
@@ -64,7 +64,7 @@ def __call__(self, i: Int, j: Int) -> Int
 ### `size`
 
 ```mojo
-def size(self) -> Int
+fn size(self) -> Int
 ```
 
 **Args:**
@@ -78,7 +78,7 @@ def size(self) -> Int
 ### `write_to`
 
 ```mojo
-def write_to[W: Writer](self, mut writer: W)
+fn write_to[W: Writer](self, mut writer: W)
 ```
 
 **Parameters:**

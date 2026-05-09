@@ -3,14 +3,14 @@ Mojo struct
 # `kernel_params`
 
 ```mojo
-@register_passable_trivial
+@register_passable
 struct kernel_params
 ```
 
 ## Fields
 
-- **x** (`UnsafePointer[UnsafePointer[svm_node, MutExternalOrigin], MutExternalOrigin]`)
-- **x_square** (`UnsafePointer[Float64, MutExternalOrigin]`)
+- **x** (`Optional[UnsafePointer[Optional[UnsafePointer[svm_node, MutExternalOrigin]], MutExternalOrigin]]`)
+- **x_square** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
 - **kernel_type** (`Int`)
 - **degree** (`Int`)
 - **gamma** (`Float64`)
@@ -18,5 +18,5 @@ struct kernel_params
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
+`AnyType`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`
 

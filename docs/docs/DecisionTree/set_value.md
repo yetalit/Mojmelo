@@ -3,14 +3,14 @@ Mojo function
 # `set_value`
 
 ```mojo
-def set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) -> Float32
+fn set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: String) -> Float32
 ```
 
 **Args:**
 
 - **y** (`Matrix`)
 - **weights** (`Matrix`)
-- **freq** (`List`)
+- **freq** (`List[List[Int]]`)
 - **criterion** (`String`)
 
 **Returns:**

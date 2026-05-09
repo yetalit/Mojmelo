@@ -3,7 +3,7 @@ Mojo function
 # `argn`
 
 ```mojo
-def argn[is_max: Bool](input: Matrix, output: Matrix)
+fn argn[is_max: Bool](input: Matrix, output: Matrix)
 ```
 
 **Parameters:**

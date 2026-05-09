@@ -25,12 +25,12 @@ struct Matrix[Type: DType]
 ### `__init__`
 
 ```mojo
-def __init__(out self, shape: Tuple[Int, Int])
+fn __init__(out self, shape: Tuple[Int, Int])
 ```
 
 **Args:**
 
-- **shape** (`Tuple`)
+- **shape** (`Tuple[Int, Int]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -38,12 +38,12 @@ def __init__(out self, shape: Tuple[Int, Int])
 `Self`
 
 ```mojo
-def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout)
+fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout)
 ```
 
 **Args:**
 
-- **data** (`UnsafePointer`)
+- **data** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
 - **layout** (`Layout`)
 - **self** (`Self`)
 
@@ -52,13 +52,13 @@ def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layo
 `Self`
 
 ```mojo
-def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int])
+fn __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int])
 ```
 
 **Args:**
 
-- **data** (`UnsafePointer`)
-- **shape** (`Tuple`)
+- **data** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
+- **shape** (`Tuple[Int, Int]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -68,7 +68,7 @@ def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: T
 ### `__getitem__`
 
 ```mojo
-def __getitem__(ref self, i: Int, j: Int) -> ref[self_is_mut] Scalar[Type]
+fn __getitem__(ref self, i: Int, j: Int) -> ref[self_is_mut] Scalar[Type]
 ```
 
 **Args:**
@@ -79,12 +79,12 @@ def __getitem__(ref self, i: Int, j: Int) -> ref[self_is_mut] Scalar[Type]
 
 **Returns:**
 
-`ref`
+`ref[self_is_mut] Scalar[Type]`
 
 ### `slice`
 
 ```mojo
-def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self
+fn slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self
 ```
 
 **Args:**
@@ -102,7 +102,7 @@ def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self
 ### `shape`
 
 ```mojo
-def shape[dim: Int](self) -> Int
+fn shape[dim: Int](self) -> Int
 ```
 
 **Parameters:**
@@ -120,7 +120,7 @@ def shape[dim: Int](self) -> Int
 ### `stride`
 
 ```mojo
-def stride[dim: Int](self) -> Int
+fn stride[dim: Int](self) -> Int
 ```
 
 **Parameters:**
@@ -138,7 +138,7 @@ def stride[dim: Int](self) -> Int
 ### `rand`
 
 ```mojo
-def rand(mut self)
+fn rand(mut self)
 ```
 
 **Args:**
@@ -148,7 +148,7 @@ def rand(mut self)
 ### `load`
 
 ```mojo
-def load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]
+fn load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]
 ```
 
 **Parameters:**
@@ -164,12 +164,12 @@ def load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Type, width]
 
 **Returns:**
 
-`SIMD`
+`SIMD[Type, width]`
 
 ### `store`
 
 ```mojo
-def store[width: Int, *, dim: Int](self, value: SIMD[Type, width], i: Int, j: Int)
+fn store[width: Int, *, dim: Int](self, value: SIMD[Type, width], i: Int, j: Int)
 ```
 
 **Parameters:**
@@ -180,14 +180,14 @@ def store[width: Int, *, dim: Int](self, value: SIMD[Type, width], i: Int, j: In
 **Args:**
 
 - **self** (`Self`)
-- **value** (`SIMD`)
+- **value** (`SIMD[Type, width]`)
 - **i** (`Int`)
 - **j** (`Int`)
 
 ### `write_to`
 
 ```mojo
-def write_to[W: Writer](self, mut writer: W)
+fn write_to[W: Writer](self, mut writer: W)
 ```
 
 **Parameters:**
