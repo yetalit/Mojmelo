@@ -1,3 +1,4 @@
+import mojmelo
 from mojmelo_matmul import matmul
 from std.memory import memcpy, memset_zero
 from std.algorithm import vectorize, parallelize
@@ -117,13 +118,27 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
                 g = c * t - b
 
                 # update eigenvectors
-                @parameter
-                def column[simd_width: Int](idx: Int) unified {mut}:
-                    var tau = (V+(i + 1)*n).load[width=simd_width](idx)
-                    var Vki = (V+i*n).load[width=simd_width](idx)
-                    (V+(i + 1)*n).store(idx, s * Vki + c * tau)
-                    (V+i*n).store(idx, c * Vki - s * tau)
-                vectorize[simd_width](n, column)
+                var n_full = n // simd_width
+                var tail = n % simd_width
+                for v_i in range(n_full):
+                    var idx = v_i * simd_width
+
+                    var tau = (V + (i + 1) * n).load[width=simd_width](idx)
+                    var Vki = (V + i * n).load[width=simd_width](idx)
+
+                    (V + (i + 1) * n).store(idx, s * Vki + c * tau)
+                    (V + i * n).store(idx, c * Vki - s * tau)
+
+                # Tail
+                var tail_start = n_full * simd_width
+                for t_i in range(tail):
+                    var idx = tail_start + t_i
+
+                    var tau = (V + (i + 1) * n)[idx]
+                    var Vki = (V + i * n)[idx]
+
+                    (V + (i + 1) * n)[idx] = s * Vki + c * tau
+                    (V + i * n)[idx] = c * Vki - s * tau
 
             eig[l] -= p
             e[l] = g
@@ -132,7 +147,6 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
     e.free()
 
 def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin]) raises:
-    # Jacobi eigensolver on ATA to get eigenvalues (lambda) and eigenvectors (V_full)
     var eig = alloc[Float64](n)
     memset_zero(eig, n)
     var V_full = alloc[Float64](n*n)
@@ -158,8 +172,8 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
     Vout = V_f.load_columns(k)
     Vout.order = 'c'
     Vout = Vout.reshape(k, n)
-    # Build singular values S (k) and Vout (k x n) as the top-k eigenvectors
-    for r in range(k):
+
+    for r in range(n):
         var lambda_ = eig[r]
         if lambda_ < 0 and abs(lambda_) < 1e-14:
             lambda_ = 0.0 # clamp tiny negative
@@ -172,7 +186,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var A64 = A.cast_ptr[DType.float64]()
     var A64T = C_transpose(A, A64)
 
-    var S = alloc[Float64](k)
+    var S = alloc[Float64](A.width)
     var V = Matrix(0, 0)
 
     var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
@@ -184,7 +198,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     A64T.free()
     
     svd_thin(A.height, A.width, k, S, V, ATA.data)
-    return Matrix(S, 1, k), V^
+    return Matrix(S, 1, A.width), V^
 
 @always_inline
 def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafePointer[Float64, MutAnyOrigin]:
@@ -195,17 +209,16 @@ def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafeP
         for i in range(A.width):
             var idx_col = i
             var tmpPtr = A64 + idx_col
-            @parameter
-            def convert[simd_width: Int](idx: Int) unified {mut}:
+            def convert[simd_width: Int](idx: Int) {mut}:
                 AT.store(idx + idx_col * height, tmpPtr.strided_load[width=simd_width](width))
                 tmpPtr += simd_width * width
             vectorize[simd_width](A.height, convert)
     else:
         @parameter
-        def p(idx_col: Int):
+        def p(i: Int):
+            var idx_col = i
             var tmpPtr = A64 + idx_col
-            @parameter
-            def pconvert[simd_width: Int](idx: Int) unified {mut}:
+            def pconvert[simd_width: Int](idx: Int) {mut}:
                 AT.store(idx + idx_col * height, tmpPtr.strided_load[width=simd_width](width))
                 tmpPtr += simd_width * width
             vectorize[simd_width](A.height, pconvert)

@@ -1,7 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.svd import svd
 from mojmelo.utils.utils import MODEL_IDS
-from std.algorithm import parallelize
+from std.algorithm import parallelize, vectorize
 from std.python import Python
 
 struct PCA(Copyable):
@@ -38,21 +38,32 @@ struct PCA(Copyable):
     def fit(mut self, X: Matrix) raises:
         """Fit the model."""
         # Mean centering
-        self.mean = X.mean(0)
-        
+        self.mean = Matrix.zeros(1, X.width)
+        var n_rows = X.height
+        var n_cols = X.width
+        @parameter
+        def p(row: Int):
+            var x_ptr = X.data + row * n_cols
+
+            def add_row[simd_width: Int](col: Int) {read}:
+                self.mean.data.store(col, self.mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
+            vectorize[X.simd_width](n_cols, add_row)
+        parallelize[p](n_rows)
+        self.mean /= Float32(n_rows)
+
         var S: Matrix
         if self.lapack:
             numpy_linalg = Python.import_module('numpy.linalg')
             USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
-            S = Matrix.from_numpy(USVt[1]).load_columns(self.n_components)
+            S = Matrix.from_numpy(USVt[1])
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
             S, self.components = svd((X - self.mean), self.n_components)
 
         self.components_T = self.components.T()
-
-        self.explained_variance = (S ** 2) / Float32(X.height - 1)
-        self.explained_variance_ratio = self.explained_variance / self.explained_variance.sum()
+        var explained_variance = (S ** 2) / Float32(X.height - 1)
+        self.explained_variance = explained_variance.load_columns(self.n_components)
+        self.explained_variance_ratio = self.explained_variance / explained_variance.sum()
         if self.whiten:
             self.whiten_ = (self.explained_variance + 1e-8).sqrt() # Avoid division by zero
 

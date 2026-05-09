@@ -130,7 +130,7 @@ def dis_from_bnd(x: Float32, amin: Float32, amax: Float32) -> Float32:
         return amin-x
     return 0.0
 
-struct KDTreeNode(Copyable):
+struct KDTreeNode[metric: String = 'euc'](Copyable):
     var cut_dim: Int # dimension to cut
     var cut_val: Float32
     var cut_val_left: Float32
@@ -138,20 +138,19 @@ struct KDTreeNode(Copyable):
     var l: Int # extents in index array for searching
     var u: Int
     var box: List[interval] # [min,max] of the box enclosing all points
-    var left: UnsafePointer[KDTreeNode, MutAnyOrigin]
-    var right: UnsafePointer[KDTreeNode, MutAnyOrigin]
-    var metric: fn(Float32) -> Float32
+    var left: OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]
+    var right: OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]
+    comptime metric_func = Squared if Self.metric == 'euc' else Abs
 
-    def __init__(out self, dim: Int, metric: fn(Float32) -> Float32):
+    def __init__(out self, dim: Int):
         self.cut_dim = self.l = self.u = 0
         self.cut_val = self.cut_val_left = self.cut_val_right = 0.0
         self.box = List[interval](capacity=dim)
         self.box.resize(dim, interval(0.0, 0.0))
-        self.left = UnsafePointer[KDTreeNode, MutAnyOrigin]()
-        self.right = UnsafePointer[KDTreeNode, MutAnyOrigin]()
-        self.metric = metric
+        self.left = None
+        self.right = None
 
-    def search(self, mut sr: SearchRecord): # recursive innermost core routine for searching.. 
+    def search(self, mut sr: SearchRecord) raises: # recursive innermost core routine for searching.. 
         if not (self.left or self.right):
             # we are on a terminal node
             if sr.nn == 0:
@@ -159,8 +158,8 @@ struct KDTreeNode(Copyable):
             else:
                 self.process_terminal_node(sr)
         else:
-            var ncloser: UnsafePointer[KDTreeNode, MutAnyOrigin]
-            var nfarther: UnsafePointer[KDTreeNode, MutAnyOrigin]
+            var ncloser: OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]
+            var nfarther: OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]
 
             var extra: Float32
             var qval = sr.qv[self.cut_dim]
@@ -175,12 +174,12 @@ struct KDTreeNode(Copyable):
                 extra = qval-self.cut_val_left
 
             if ncloser:
-                ncloser[].search(sr)
+                ncloser.value()[].search(sr)
 
-            if nfarther and self.metric(extra) < sr.ballsize:
+            if nfarther and self.metric_func(extra) < sr.ballsize:
                 # first cut
-                if nfarther[].box_in_search_range(sr):
-                    nfarther[].search(sr)
+                if nfarther.value()[].box_in_search_range(sr):
+                    nfarther.value()[].search(sr)
 
     @always_inline
     def box_in_search_range(self, sr: SearchRecord) -> Bool:
@@ -188,7 +187,7 @@ struct KDTreeNode(Copyable):
         # have any point which is within 'sr.ballsize' to 'sr.qv'??
         var dis2: Float32 = 0.0
         for i in range(sr.dim):
-            dis2 += self.metric(dis_from_bnd(sr.qv[i],self.box[i].lower,self.box[i].upper))
+            dis2 += self.metric_func(dis_from_bnd(sr.qv[i],self.box[i].lower,self.box[i].upper))
             if dis2 > sr.ballsize:
                 return False
         return True
@@ -212,7 +211,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](i, k) - sr.qv[k])
+                    dis += self.metric_func(data[].load[1](i, k) - sr.qv[k])
                     if dis > ballsize:
                         early_exit=True
                         break
@@ -226,7 +225,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](indexofi, k) - sr.qv[k])
+                    dis += self.metric_func(data[].load[1](indexofi, k) - sr.qv[k])
                     if dis > ballsize:
                         early_exit= True 
                         break
@@ -270,7 +269,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](i, k) - sr.qv[k])
+                    dis += self.metric_func(data[].load[1](i, k) - sr.qv[k])
                     if dis > ballsize:
                         early_exit=True
                         break
@@ -289,7 +288,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](indexofi, k) - sr.qv[k])
+                    dis += self.metric_func(data[].load[1](indexofi, k) - sr.qv[k])
                     if dis > ballsize:
                         early_exit= True
                         break
@@ -303,27 +302,22 @@ struct KDTreeNode(Copyable):
             var e = KDTreeResult(dis, indexofi)
             sr.result[]._self.append(e.copy())
 
-struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
+struct KDTree[sort_results: Bool = False, rearrange: Bool = True, metric: String = 'euc'](Copyable):
     var _data: Matrix
     var N: Int   # number of data points
     var dim: Int
-    var root: UnsafePointer[KDTreeNode, MutAnyOrigin] # the root pointer
+    var root: OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin] # the root pointer
     var ind: List[Scalar[DType.int]]
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
-    var metric: fn(Float32) -> Float32
     comptime bucketsize = 12
 
-    def __init__(out self, X: Matrix, metric: String = 'euc', *, build: Bool = True) raises:
+    def __init__(out self, X: Matrix, *, build: Bool = True) raises:
         self._data = X
         self.N = self._data.height
         self.dim = self._data.width
-        self.root = UnsafePointer[KDTreeNode, MutAnyOrigin]()
+        self.root = None
         self.ind = List[Scalar[DType.int]]()
-        if metric.lower() == 'man':
-            self.metric = Abs
-        else:
-            self.metric = Squared
 
         if build:
             self.build_tree()
@@ -342,22 +336,21 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         self.dim = take.dim
         self.root = take.root
         self.ind = take.ind^
-        self.metric = take.metric
         #take.N = take.dim = 0
-        #take.root = UnsafePointer[KDTreeNode, MutAnyOrigin]()
+        #take.root = UnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]()
 
     def build_tree(mut self) raises: # builds the tree.  Used upon construction
         self.ind = fill_indices_list(self.N)
-        self.root = self.build_tree_for_range(0, self.N-1, UnsafePointer[KDTreeNode, MutAnyOrigin]())
+        self.root = self.build_tree_for_range(0, self.N-1, None)
 
-    def build_tree_for_range(mut self, l: Int, u: Int, parent: UnsafePointer[KDTreeNode, MutAnyOrigin]) -> UnsafePointer[KDTreeNode, MutAnyOrigin]:
+    def build_tree_for_range(mut self, l: Int, u: Int, parent: OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]) raises -> OptionalUnsafePointer[KDTreeNode[Self.metric], MutAnyOrigin]:
         # recursive function to build 
-        var node = alloc[KDTreeNode](1)
-        node.init_pointee_move(KDTreeNode(self.dim, self.metric))
+        var node = alloc[KDTreeNode[Self.metric]](1)
+        node.init_pointee_move(KDTreeNode[Self.metric](self.dim))
         # the newly created node. 
 
         if u<l:
-            return UnsafePointer[KDTreeNode, MutAnyOrigin]() # no data in this node. 
+            return None # no data in this node. 
       
         if (u-l) <= self.bucketsize:
             # create a terminal node. 
@@ -370,7 +363,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             node[].cut_val = 0.0
             node[].l = l
             node[].u = u
-            node[].left = node[].right = UnsafePointer[KDTreeNode, MutAnyOrigin]()
+            node[].left = node[].right = None
 
         else:
             # Compute an APPROXIMATE bounding box for this node.
@@ -383,10 +376,10 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             var maxspread: Float32 = 0.0 
 
             for i in range(self.dim):
-                if (not parent) or (parent[].cut_dim == i):
+                if (not parent) or (parent.value()[].cut_dim == i):
                     self.spread_in_coordinate(i,l,u,node[].box[i])
                 else:
-                    node[].box[i] = parent[].box[i].copy()
+                    node[].box[i] = parent.value()[].box[i].copy()
                 var spread = node[].box[i].upper - node[].box[i].lower 
                 if spread > maxspread:
                     maxspread = spread
@@ -414,27 +407,27 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
             if not node[].right:
                 for i in range(self.dim):
-                    node[].box[i] = node[].left[].box[i].copy()
-                node[].cut_val = node[].left[].box[c].upper
+                    node[].box[i] = node[].left.value()[].box[i].copy()
+                node[].cut_val = node[].left.value()[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             elif not node[].left:
                 for i in range(self.dim):
-                    node[].box[i] = node[].right[].box[i].copy()
-                node[].cut_val = node[].right[].box[c].upper
+                    node[].box[i] = node[].right.value()[].box[i].copy()
+                node[].cut_val = node[].right.value()[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             else:
-                node[].cut_val_right = node[].right[].box[c].lower
-                node[].cut_val_left  = node[].left[].box[c].upper
+                node[].cut_val_right = node[].right.value()[].box[c].lower
+                node[].cut_val_left  = node[].left.value()[].box[c].upper
                 node[].cut_val = (node[].cut_val_left + node[].cut_val_right) / 2.0
                 # now recompute true bounding box as union of subtree boxes.
                 # This is now faster having built the tree, being logarithmic in
                 # N, not linear as would be from naive method.
                 for i in range(self.dim):
-                    node[].box[i].upper = max(node[].left[].box[i].upper,
-                                node[].right[].box[i].upper)
+                    node[].box[i].upper = max(node[].left.value()[].box[i].upper,
+                                node[].right.value()[].box[i].upper)
                     
-                    node[].box[i].lower = min(node[].left[].box[i].lower,
-                                node[].right[].box[i].lower)
+                    node[].box[i].lower = min(node[].left.value()[].box[i].lower,
+                                node[].right.value()[].box[i].lower)
         return node
 
     def spread_in_coordinate(self, c: Int, l: Int, u: Int, mut interv: interval):
@@ -509,7 +502,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             return lb
         return lb-1
 
-    def n_nearest(mut self, qv: Span[Float32, MutAnyOrigin], nn: Int, mut result: KDTreeResultVector):
+    def n_nearest(mut self, qv: Span[Float32, MutAnyOrigin], nn: Int, mut result: KDTreeResultVector) raises:
         var sr = SearchRecord(qv,self,result)
 
         result._self.clear()
@@ -518,7 +511,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.correltime = 0
         sr.nn = UInt(nn)
 
-        self.root[].search(sr)
+        self.root.value()[].search(sr)
 
         _ = qv
 
@@ -526,7 +519,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
         
     def n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int,
-                        mut result: KDTreeResultVector):
+                        mut result: KDTreeResultVector) raises:
         var buf = alloc[Float32](self.dim)
         var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
         result._self.clear()
@@ -540,7 +533,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.centeridx = idxin
         sr.correltime = correltime
         sr.nn = UInt(nn)
-        self.root[].search(sr)
+        self.root.value()[].search(sr)
 
         buf.free()
 
@@ -548,7 +541,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
 
-    def r_nearest(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32, mut result: KDTreeResultVector):
+    def r_nearest(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32, mut result: KDTreeResultVector) raises:
         # search for all within a ball of a certain radius
         var sr = SearchRecord(qv,self,result)
 
@@ -559,14 +552,14 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.nn = 0
         sr.ballsize = r2
 
-        self.root[].search(sr)
+        self.root.value()[].search(sr)
 
         _ = qv
 
         if (Self.sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
-    def r_count(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32) -> Int:
+    def r_count(mut self, qv: Span[Float32, MutAnyOrigin], r2: Float32) raises -> Int:
         # search for all within a ball of a certain radius
         var result = KDTreeResultVector()
         sr = SearchRecord(qv,self,result)
@@ -576,13 +569,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.nn = 0
         sr.ballsize = r2
         
-        self.root[].search(sr)
+        self.root.value()[].search(sr)
         _ = qv
 
         return len(result)
 
     def r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32,
-                        mut result: KDTreeResultVector):
+                        mut result: KDTreeResultVector) raises:
         var buf = alloc[Float32](self.dim)
         var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
 
@@ -597,14 +590,14 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.correltime = correltime
         sr.ballsize = r2
         sr.nn = 0
-        self.root[].search(sr)
+        self.root.value()[].search(sr)
 
         buf.free()
 
         if (Self.sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
-    def r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) -> Int:
+    def r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) raises -> Int:
         var buf = alloc[Float32](self.dim)
         var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
 
@@ -618,18 +611,18 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.correltime = correltime
         sr.ballsize = r2
         sr.nn = 0
-        self.root[].search(sr)
+        self.root.value()[].search(sr)
         buf.free()
 
         return len(result)
 
     def __del__(deinit self):
         if self.root:
-            delTree(self.root)
+            delTree[Self.metric](self.root)
 
-def delTree(node: UnsafePointer[KDTreeNode, MutAnyOrigin]):
-    if node[].left:
-        delTree(node[].left)
-    if node[].right:
-        delTree(node[].right)
-    node.free()
+def delTree[metric: String = 'euc'](node: OptionalUnsafePointer[KDTreeNode[metric], MutAnyOrigin]):
+    if node.value()[].left:
+        delTree(node.value()[].left)
+    if node.value()[].right:
+        delTree(node.value()[].right)
+    node.value().free()

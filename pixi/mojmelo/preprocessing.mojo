@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, cartesian_product
+from mojmelo.utils.utils import CV, cartesian_product, accuracy_score, r2_score, mse
 from std.algorithm import parallelize
 from std.sys import num_performance_cores
 from std.python import Python, PythonObject
@@ -233,24 +233,33 @@ struct LabelEncoder:
             np_arr[i] = self.index_to_str[Int(y.data[i])]
         return np_arr^
 
-def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) raises -> Float32:
+def KFold[m_type: CV, scoring: String](mut model: m_type, X: Matrix, y: Matrix, n_splits: Int = 5) raises -> Float32:
     """K-Fold cross-validator.
 
     Parameters:
         m_type: Model type.
+        scoring: The scoring function:
+            accuracy_score -> 'accuracy';
+            r2_score -> 'r2';
+            MSE -> 'mse'.
 
     Args:
         model: Model.
         X: Samples.
         y: Targets.
-        scoring: Scoring function.
         n_splits: Number of folds.
 
     Returns:
         Score.
     """
+    comptime func = (
+        accuracy_score if scoring == 'accuracy' else
+        r2_score if scoring == 'r2' else
+        mse
+    )
+
     var ids = Matrix.rand_choice(X.height, X.height, False)
-    var test_count = Int((1 / n_splits) * X.height)
+    var test_count = Int(1 / Float64(n_splits) * Float64(X.height))
     var start_of_test = 0
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):
@@ -259,22 +268,25 @@ def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: fn(Matri
         model.fit(X[train_ids], y[train_ids])
         var test_ids = List[Scalar[DType.int]](ids[start_of_test:end_of_test])
         y_pred = model.predict(X[test_ids])
-        mean_score += scoring(y[test_ids], y_pred) / Float32(n_splits)
+        mean_score += func(y[test_ids], y_pred) / Float32(n_splits)
         start_of_test += test_count
     return mean_score
 
-def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
-                            scoring: fn(Matrix, Matrix) raises -> Float32, neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
+def GridSearchCV[m_type: CV, scoring: String](X: Matrix, y: Matrix, param_grid: Dict[String, List[String]],
+                            neg_score: Bool = False, n_jobs: Int = 0, cv: Int = 5) raises -> Tuple[Dict[String, String], Float32]:
     """Exhaustive search over specified parameter values for an estimator.
 
     Parameters:
         m_type: Model type.
+        scoring: The scoring function:
+            accuracy_score -> 'accuracy';
+            r2_score -> 'r2';
+            MSE -> 'mse'.
 
     Args:
         X: Samples.
         y: Targets.
         param_grid: Dictionary with parameters names as keys and lists of parameter settings to try as values.
-        scoring: Scoring function.
         neg_score: Invert the scoring results when finding the best params.
         n_jobs: Number of jobs to run in parallel. `-1` means using all processors.
         cv: Number of folds in a KFold.
@@ -296,7 +308,7 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
                 params[i][key] = combinations[i][j]
                 j += 1
             var model = m_type(params[i])
-            var score = KFold(model, X, y, scoring, cv)
+            var score = KFold[scoring=scoring](model, X, y, cv)
             if neg_score:
                 score *= -1
             scores.data[i] = score
@@ -313,7 +325,7 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
                 j += 1
             try:
                 var model = m_type(params[i])
-                var score = KFold(model, X, y, scoring, cv)
+                var score = KFold[scoring=scoring](model, X, y, cv)
                 if neg_score:
                     score *= -1
                 scores.data[i] = score

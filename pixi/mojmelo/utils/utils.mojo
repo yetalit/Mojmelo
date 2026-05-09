@@ -1,5 +1,4 @@
 from std.memory import memcpy
-from std.memory._nonnull import NonNullUnsafePointer
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
@@ -198,17 +197,6 @@ def le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -
     return a.le(b)
 
 @always_inline
-def partial_simd_load[width: Int](data: UnsafePointer[Float32, MutAnyOrigin], offset: Int, size: Int) -> SIMD[DType.float32, width]:
-    var nelts = size - offset
-    if nelts >= width:
-        return data.load[width=width](offset)
-    var point = data + offset
-    var simd = SIMD[DType.float32, width]()
-    for i in range(0, nelts):
-        simd[i] = point[i]
-    return simd
-
-@always_inline
 def sigmoid(z: Matrix) raises -> Matrix:
     var z_exp = z.exp()
     return z.where(z >= 0,
@@ -281,8 +269,8 @@ def accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     var correct_count = 0
     var y_data = y.data
     var y_pred_data = y_pred.data
-    @parameter
-    def compare[simd_width: Int](idx: Int) unified {mut}:
+
+    def compare[simd_width: Int](idx: Int) {mut}:
         correct_count += y_data.load[width=simd_width](idx).eq(y_pred_data.load[width=simd_width](idx)).reduce_bit_count()
     vectorize[y_pred.simd_width](len(y), compare)
     return Float32(correct_count) / Float32(len(y))
@@ -416,15 +404,15 @@ def fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
         N
     )
     var list = List[Scalar[DType.int]](unsafe_uninit_length=N)
-    list._data = NonNullUnsafePointer(unsafe_from_nullable=indices)
+    list._data = indices
     return list^
 
 @always_inline
 def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
     var ptr = alloc[Scalar[des]](size)
     if size < 262144:
-        @parameter
-        def matrix_vectorize[simd_width: Int](idx: Int) unified {mut}:
+
+        def matrix_vectorize[simd_width: Int](idx: Int) {read}:
             ptr.store(idx, data.load[width=simd_width](idx).cast[des]())
         vectorize[width](size, matrix_vectorize)
     else:

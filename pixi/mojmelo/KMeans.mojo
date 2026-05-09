@@ -1,7 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import squared_euclidean_distance, euclidean_distance, MODEL_IDS
+from mojmelo.utils.utils import euclidean_distance, squared_euclidean_distance, MODEL_IDS
 import std.random as random
 import std.math as math
+from std.algorithm import vectorize, parallelize
 
 struct KMeans(Copyable):
     """K-Means clustering."""
@@ -46,22 +47,34 @@ struct KMeans(Copyable):
     def fit(mut self, X: Matrix) raises:
         """Compute cluster centers and cluster index for each sample."""
         # Mean centering
-        self.X_mean = X.mean(0)
+        self.X_mean = Matrix.zeros(1, X.width)
+        var n_rows = X.height
+        var n_cols = X.width
+        @parameter
+        def p(row: Int):
+            var x_ptr = X.data + row * n_cols
+
+            def add_row[simd_width: Int](col: Int) {read}:
+                self.X_mean.data.store(col, self.X_mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
+            vectorize[X.simd_width](n_cols, add_row)
+        parallelize[p](n_rows)
+        self.X_mean /= Float32(n_rows)
         var X_ = X - self.X_mean
 
         self.centroids_ = self._initial_centroids(X_)
-        var dist_from_centroids = Matrix(X_.height, self.k)
-        self.labels = self._create_labels(dist_from_centroids, X_)
+        var X_norms = X_.ele_mul(X_).sum(axis=1)
+        var C_norms = self.centroids_.ele_mul(self.centroids_).sum(axis=1).T()
+        var dist_from_centroids = (X_ * self.centroids_.T()) * -2.0
+        dist_from_centroids += X_norms
+        dist_from_centroids += C_norms
+        self.labels = dist_from_centroids.argmin(axis=1)
         var centroids_old = self.centroids_
         var labels_old = self.labels.copy()
         var inertia_old = self.inertia
-        # Optimize clusters
+
         for i in range(self.max_iters):
-            # Calculate new centroids from the clusters
             self.centroids_ = self._get_centroids(dist_from_centroids, X_)
-            # Assign samples to closest centroids (create labels)
-            self.labels = self._create_labels(dist_from_centroids, X_)
-            # check if clusters have changed
+            self.labels = self._create_labels(dist_from_centroids, X_, X_norms)
             if self._is_converged(dist_from_centroids, centroids_old, labels_old, inertia_old):
                 break
             centroids_old = self.centroids_
@@ -69,6 +82,40 @@ struct KMeans(Copyable):
             inertia_old = self.inertia
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
+
+    @always_inline
+    def _get_centroids(mut self, dist_from_centroids: Matrix, X: Matrix) raises -> Matrix:
+        var centroids = Matrix.zeros(self.k, X.width)
+        var cluster_sizes = Matrix.zeros(self.k, 1)
+        self.inertia = 0.0
+        for idx in range(X.height):
+            var label = self.labels[idx]
+            self.inertia += dist_from_centroids[idx, label]
+            cluster_sizes.data[label] += 1.0
+            # write directly into centroid row pointer
+            var c_ptr = centroids.data + label * X.width
+            var x_ptr = X.data + idx * X.width
+
+            def accumulate[simd_width: Int](j: Int) {read}:
+                c_ptr.store(j, c_ptr.load[width=simd_width](j) + x_ptr.load[width=simd_width](j))
+            vectorize[centroids.simd_width](X.width, accumulate)
+        return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
+
+    @always_inline
+    def _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, 
+                    labels_old: List[Int], inertia_old: Float32) raises -> Bool:
+        if self.converge == 'centroid':
+            if euclidean_distance(centroids_old, self.centroids_) <= self.tol:
+                self.inertia = dist_from_centroids.min(axis=1).sum()
+                return True
+            return False
+        if self.converge == 'inertia':
+            if abs(inertia_old - self.inertia) <= self.tol:
+                self.centroids_ = centroids_old
+                self.labels = labels_old.copy()
+                return True
+            return False
+        return labels_old == self.labels
 
     def _initial_centroids(self, X: Matrix) raises -> Matrix:
         var candidate_centroids = List[Matrix]()
@@ -79,7 +126,18 @@ struct KMeans(Copyable):
                 var dist_from_centroids = Matrix(X.height, self.k)
                 for i in range(self.k):
                     # Compute distances to the nearest centroid
-                    dist_from_centroids['', i] = squared_euclidean_distance(X, candidate_centroids[idc][i], 1)
+                    var c_ptr = candidate_centroids[idc].data + i * X.width
+                    @parameter
+                    def p(row: Int):
+                        var x_ptr = X.data + row * X.width
+                        var acc: Float32 = 0.0
+
+                        def sq[simd_width: Int](col: Int) {mut}:
+                            var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
+                            acc += (d * d).reduce_add()
+                        vectorize[Matrix.simd_width](X.width, sq)
+                        dist_from_centroids.store[1](i, row, acc)
+                    parallelize[p](X.height)
                 inertia_values.data[idc] = dist_from_centroids.min(axis=1).sum()
         else:
             # Initialize centroids using KMeans++
@@ -140,57 +198,89 @@ struct KMeans(Copyable):
 
     def _kmeans_plus_plus(self, X: Matrix, mut candidate_centroids: List[Matrix], mut inertia_values: Matrix) raises:
         for idc in range(self.n_centroid_init):
-            # Randomly select the first centroid
             candidate_centroids.append(Matrix(self.k, X.width))
             candidate_centroids[idc][0] = X[Int(random.random_ui64(0, UInt64(X.height - 1)))]
 
-            var dist_from_centroids = Matrix.full(X.height, self.k, math.inf[DType.float32]())
+            var min_distances = Matrix.full(X.height, 1, math.inf[DType.float32]())
 
             for i in range(1, self.k):
-                # Compute distances to the nearest centroid
-                dist_from_centroids['', i-1] = squared_euclidean_distance(X, candidate_centroids[idc][i-1], 1)
-                var min_distances = dist_from_centroids.min(axis=1)
-                # Select the next centroid with probability proportional to the squared distances
-                var probabilities = (min_distances / min_distances.sum()).cumsum()
-                # Select the next centroid based on cumulative probabilities
-                var rand_prob = random.random_float64().cast[DType.float32]()
-                for idp in range(len(probabilities)):
-                    if rand_prob < probabilities.data[idp]:
+                # squared euclidean
+                var dists = Matrix(X.height, 1)
+                var c_ptr = candidate_centroids[idc].data + (i - 1) * X.width
+                @parameter
+                def p(row: Int):
+                    var x_ptr = X.data + row * X.width
+                    var acc: Float32 = 0.0
+
+                    def sq[simd_width: Int](col: Int) {mut}:
+                        var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
+                        acc += (d * d).reduce_add()
+                    vectorize[Matrix.simd_width](X.width, sq)
+                    dists.data[row] = acc
+                parallelize[p](X.height)
+
+                for row in range(X.height):
+                    if dists.data[row] < min_distances.data[row]:
+                        min_distances.data[row] = dists.data[row]
+                var total = min_distances.sum()
+                var rand_prob = random.random_float64().cast[DType.float32]() * total
+                var cumsum: Float32 = 0.0
+                for idp in range(X.height):
+                    cumsum += min_distances.data[idp]
+                    if cumsum >= rand_prob:
                         candidate_centroids[idc][i] = X[idp]
                         break
-            dist_from_centroids['', self.k-1] = squared_euclidean_distance(X, candidate_centroids[idc][self.k-1], 1)
-            inertia_values.data[idc] = dist_from_centroids.min(axis=1).sum()
+
+            var dists_last = Matrix(X.height, 1)
+            var c_ptr_last = candidate_centroids[idc].data + (self.k - 1) * X.width
+            @parameter
+            def p_last(row: Int):
+                var x_ptr = X.data + row * X.width
+                var acc: Float32 = 0.0
+
+                def sq_last[simd_width: Int](col: Int) {mut}:
+                    var d = x_ptr.load[width=simd_width](col) - c_ptr_last.load[width=simd_width](col)
+                    acc += (d * d).reduce_add()
+                vectorize[X.simd_width](X.width, sq_last)
+                dists_last.data[row] = acc
+            parallelize[p_last](X.height)
+            for row in range(X.height):
+                if dists_last.data[row] < min_distances.data[row]:
+                    min_distances.data[row] = dists_last.data[row]
+            inertia_values.data[idc] = min_distances.sum()
 
     @always_inline
-    def _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix) raises -> List[Int]:
-        # Compute distances to the nearest centroid
-        for idc in range(self.k):
-            dist_from_centroids['', idc] = squared_euclidean_distance(X, self.centroids_[idc], 1)
-        return dist_from_centroids.argmin(axis=1)
+    def _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix, X_norms: Matrix) raises -> List[Int]:
+        var labels = List[Int](capacity=X.height)
+        labels.resize(X.height, 0)
+        var C_norms = self.centroids_.ele_mul(self.centroids_).sum(axis=1)
+        @parameter
+        def p(i: Int):
+            var best = 0
+            var best_dist: Float32 = math.inf[DType.float32]()
 
-    @always_inline
-    def _get_centroids(mut self, dist_from_centroids: Matrix, X: Matrix) raises -> Matrix:
-        # assign mean value of clusters to centroids
-        var centroids = Matrix.zeros(self.k, X.width)
-        var cluster_sizes = Matrix.zeros(self.k, 1)
-        self.inertia = 0.0
-        for idx in range(X.height):
-            self.inertia += dist_from_centroids[idx, self.labels[idx]]
-            centroids[self.labels[idx]] += X[idx]
-            cluster_sizes.data[self.labels[idx]] += 1
-        return centroids / cluster_sizes
+            var x_ptr = X.data + i * X.width
+            var d_ptr =
+                dist_from_centroids.data + i * self.k
 
-    @always_inline
-    def _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, labels_old: List[Int], inertia_old: Float32) raises -> Bool:
-        if self.converge == 'centroid':
-            if euclidean_distance(centroids_old, self.centroids_, 1).sum() <= self.tol:
-                self.inertia = dist_from_centroids.min(axis=1).sum()  
-                return True
-            return False
-        if self.converge == 'inertia':
-            if abs(inertia_old - self.inertia) <= self.tol:
-                self.centroids_ = centroids_old
-                self.labels = labels_old.copy()
-                return True
-            return False
-        return labels_old == self.labels
+            for k in range(self.k):
+                var c_ptr = self.centroids_.data + k * X.width
+
+                var dot: Float32 = 0.0
+
+                def mul[simd_width: Int](j: Int) {mut}:
+                    dot += (x_ptr.load[width=simd_width](j) *
+                            c_ptr.load[width=simd_width](j)).reduce_add()
+                vectorize[X.simd_width](X.width, mul)
+
+                var dist = X_norms.data[i] - 2.0 * dot + C_norms.data[k]
+                d_ptr[k] = dist
+
+                if dist < best_dist:
+                    best_dist = dist
+                    best = k
+
+            labels[i] = best
+        parallelize[p](X.height)
+
+        return labels^
