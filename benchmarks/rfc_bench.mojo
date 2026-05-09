@@ -19,7 +19,7 @@ def main() raises:
     accuracy = 0.0
     # warm-up
     for _ in range(WARMUP):
-        rfc = RandomForest(n_trees=10, max_depth=10)
+        rfc = RandomForest[criterion='gini'](n_trees=10, max_depth=10)
         rfc.fit(X_train, y_train)
         y_pred = rfc.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred).cast[DType.float64]()
@@ -29,7 +29,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        rfc = RandomForest(n_trees=10, max_depth=10)
+        rfc = RandomForest[criterion='gini'](n_trees=10, max_depth=10)
 
         t0 = time.perf_counter()
         rfc.fit(X_train, y_train)

@@ -19,7 +19,7 @@ def main() raises:
     mse = 0.0
     # warm-up
     for _ in range(WARMUP):
-        dtr = DecisionTree(criterion='mse', max_depth=10)
+        dtr = DecisionTree[criterion='mse'](max_depth=10)
         dtr.fit(X_train, y_train)
         y_pred = dtr.predict(X_test)
         mse = mean_squared_error(y_test, y_pred).cast[DType.float64]()
@@ -29,7 +29,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        dtr = DecisionTree(criterion='mse', max_depth=10)
+        dtr = DecisionTree[criterion='mse'](max_depth=10)
 
         t0 = time.perf_counter()
         dtr.fit(X_train, y_train)

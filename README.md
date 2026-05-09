@@ -131,29 +131,29 @@ from mojmelo.utils.utils import *
 
 | Model          | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |----------------|-----------------|----------------|--------------|
-| sklearn KMeans | 0.2782 ± 0.0010 |       -        | 0.9389       |
-| mojmelo KMeans | 0.2276 ± 0.0005 | 1.0000         | 0.9389       |
+| sklearn KMeans | 0.2716 ± 0.0012 |       -        | 0.9389       |
+| mojmelo KMeans | 0.1870 ± 0.0052 | 0.8821         | 0.9389       |
 
 [`HDBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/hdbs_bench.mojo) (algorithm='boruvka_kdtree')
 
 | Model            | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |------------------|-----------------|----------------|--------------|
-| skl-contrib HDBS | 1.2791 ± 0.0042 |       -        | 0.9977       |
-| mojmelo HDBS     | 0.3536 ± 0.0013 | 0.9828         | 0.9844       |
+| skl-contrib HDBS | 1.1495 ± 0.0083 |       -        | 0.9997       |
+| mojmelo HDBS     | 0.3198 ± 0.0079 | 0.9930         | 0.9932       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
 | Model       | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |-------------|-----------------|----------------|--------------|
-| sklearn DBS | 1.1968 ± 0.0083 |       -        | 0.8723       |
-| mojmelo DBS | 0.5313 ± 0.0034 | 0.9999         | 0.8722       |
+| sklearn DBS | 1.1434 ± 0.0055 |       -        | 0.8566       |
+| mojmelo DBS | 0.4028 ± 0.0038 | 0.9996         | 0.8566       |
 
 [`KNN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/knn_bench.mojo) (algorithm='kd_tree')
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn KNN | 0.0357 ± 0.0011 | 1.6829 ± 0.0076  | 0.9227   |
-| mojmelo KNN | 0.0117 ± 0.0004 | 0.2609 ± 0.0028  | 0.9104   |
+| sklearn KNN | 0.0353 ± 0.0005 | 1.7600 ± 0.0063  | 0.8543   |
+| mojmelo KNN | 0.0149 ± 0.0006 | 0.2126 ± 0.0040  | 0.8347   |
 
 [`SVM`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/svm_bench.mojo)
 
@@ -173,8 +173,8 @@ from mojmelo.utils.utils import *
 
 | Model       | Fit Time (s)    | Predict Time (s) | MSE       |
 |-------------|-----------------|------------------|-----------|
-| sklearn DTR | 0.6518 ± 0.0003 | 0.0006 ± 0.0000  | 1185.1717 |
-| mojmelo DTR | 0.0664 ± 0.0023 | 0.0002 ± 0.0000  | 1175.6884 |
+| sklearn DTR | 0.6466 ± 0.0006 | 0.0005 ± 0.0000  | 8247.9358 |
+| mojmelo DTR | 0.0795 ± 0.0049 | 0.0003 ± 0.0000  | 8192.1982 |
 
 [`RandomForestClassifier`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/rfc_bench.mojo)
 

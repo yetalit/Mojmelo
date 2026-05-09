@@ -89,7 +89,7 @@ def benchmark_model(X_train, y_train, X_test, y_test, warmup=2, runs=5):
 
 
 def sklearn_model():
-    return SVC(kernel="rbf")
+    return SVC()
 
 
 # -----------------------

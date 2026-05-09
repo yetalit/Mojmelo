@@ -19,7 +19,7 @@ def main() raises:
     accuracy = 0.0
     # warm-up
     for _ in range(WARMUP):
-        dtc = DecisionTree(max_depth=10)
+        dtc = DecisionTree[criterion='gini'](max_depth=10)
         dtc.fit(X_train, y_train)
         y_pred = dtc.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred).cast[DType.float64]()
@@ -29,7 +29,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        dtc = DecisionTree(max_depth=10)
+        dtc = DecisionTree[criterion='gini'](max_depth=10)
 
         t0 = time.perf_counter()
         dtc.fit(X_train, y_train)

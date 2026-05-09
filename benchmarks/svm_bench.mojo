@@ -19,7 +19,7 @@ def main() raises:
     accuracy = 0.0
     # warm-up
     for _ in range(WARMUP):
-        svm = SVC(C = 1.0, kernel = 'rbf')
+        svm = SVC(C = 1.0)
         svm.fit(X_train, y_train)
         y_pred = svm.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred).cast[DType.float64]()
@@ -29,7 +29,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        svm = SVC(C = 1.0, kernel = 'rbf')
+        svm = SVC(C = 1.0)
 
         t0 = time.perf_counter()
         svm.fit(X_train, y_train)
