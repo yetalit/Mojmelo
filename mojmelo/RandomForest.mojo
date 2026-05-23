@@ -32,15 +32,8 @@ def _predict(y: Matrix, criterion: String) raises -> Float32:
             most_common = i
     return Float32(most_common)
 
-struct RandomForest[criterion: String = 'gini'](CV, Copyable):
-    """A random forest supporting both classification and regression.
-
-    Parameters:
-        criterion: The function to measure the quality of a split:
-            For classification -> 'entropy', 'gini';
-            For regression -> 'mse'.
-
-    """
+struct RandomForest(CV, Copyable):
+    """A random forest supporting both classification and regression."""
     var n_trees: Int
     """The number of trees in the forest."""
     var min_samples_split: Int
@@ -49,17 +42,23 @@ struct RandomForest[criterion: String = 'gini'](CV, Copyable):
     """The maximum depth of the tree."""
     var n_feats: Int
     """The number of features to consider when looking for the best split."""
-    var trees: UnsafePointer[DecisionTree[Self.criterion], MutAnyOrigin]
+    var criterion: String
+    """The function to measure the quality of a split:
+    For classification -> 'entropy', 'gini';
+    For regression -> 'mse'.
+    """
+    var trees: UnsafePointer[DecisionTree, MutAnyOrigin]
     comptime MODEL_ID = 10
-    comptime criterion_ids: List[String] = ['mse', 'entropy', 'gini']
+    comptime criterion_ids: List[String] = ['entropy', 'gini', 'mse']
 
-    def __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
+    def __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = 'gini', random_state: Int = 42):
         self.n_trees = n_trees
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
+        self.criterion = criterion.lower()
         random.seed(random_state)
-        self.trees = UnsafePointer[DecisionTree[Self.criterion], MutAnyOrigin].unsafe_dangling()
+        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin].unsafe_dangling()
 
     def __del__(deinit self):
         for i in range(self.n_trees):
@@ -68,7 +67,7 @@ struct RandomForest[criterion: String = 'gini'](CV, Copyable):
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Build a forest of trees from the training set."""
-        self.trees = alloc[DecisionTree[Self.criterion]](self.n_trees)
+        self.trees = alloc[DecisionTree](self.n_trees)
         var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
         if self.n_feats < 1:
@@ -78,11 +77,12 @@ struct RandomForest[criterion: String = 'gini'](CV, Copyable):
                 n_feats = math.sqrt(X.width)
         @parameter
         def p(i: Int):
-            var tree = DecisionTree[Self.criterion](
+            var tree = DecisionTree(
                 min_samples_split = self.min_samples_split,
                 max_depth = self.max_depth,
                 n_feats = n_feats,
                 random_state = -1,
+                criterion = self.criterion
             )
             try:
                 X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
@@ -149,26 +149,21 @@ struct RandomForest[criterion: String = 'gini'](CV, Copyable):
                     f.write_bytes(node.value.as_bytes())
 
     @staticmethod
-    def load[type: UInt8](path: String) raises -> RandomForest[Self.criterion_ids[type]]:
+    def load(path: String) raises -> Self:
         """Load a saved model from the specified path for prediction."""
         var _path = path if path.endswith('.mjml') else path + '.mjml'
-        var model = RandomForest[Self.criterion_ids[type]]()
+        var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
             if id < 1 or id > UInt8(MODEL_IDS.size-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var criterion = f.read_bytes(1)[0]
-            if type != criterion:
-                if type == 0 and criterion > 0:
-                    raise Error('Based on the metadata, ', _path, ' is for classification! Use [type=1]')
-                if type > 0 and criterion == 0:
-                    raise Error('Based on the metadata, ', _path, ' is for regression! Use [type=0]')
+            model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
             model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.trees = alloc[DecisionTree[Self.criterion_ids[type]]](model.n_trees)
+            model.trees = alloc[DecisionTree](model.n_trees)
             for t_i in range(model.n_trees):
-                var tree = DecisionTree[Self.criterion_ids[type]]()
+                var tree = DecisionTree()
                 var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
                 var node_list = List[UnsafePointer[Node, MutAnyOrigin]]()
                 var children_index_list = List[Tuple[Int, Int]]()
@@ -209,8 +204,12 @@ struct RandomForest[criterion: String = 'gini'](CV, Copyable):
             self.n_feats = atol(String(params['n_feats']))
         else:
             self.n_feats = -1
+        if 'criterion' in params:
+            self.criterion = params['criterion'].lower()
+        else:
+            self.criterion = 'gini'
         if 'random_state' in params:
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed(42)
-        self.trees = UnsafePointer[DecisionTree[Self.criterion], MutAnyOrigin].unsafe_dangling()
+        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin].unsafe_dangling()

@@ -116,7 +116,7 @@ struct KDTreeBoruvka:
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
         self.data = data.data
-        self.kdtree = KDTree[sort_results=True, metric='euc'](data)
+        self.kdtree = KDTree[sort_results=True](data, metric='euc')
         self.n = data.height
         self.dim = data.width
         self.leaf_size = leaf_size

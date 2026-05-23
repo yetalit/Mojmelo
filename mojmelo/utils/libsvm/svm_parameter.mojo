@@ -7,6 +7,13 @@ struct svm_parameter(Copyable):
 	comptime EPSILON_SVR: Int = 3
 	comptime NU_SVR: Int = 4
 
+	# kernel_type
+	comptime LINEAR: Int = 0
+	comptime POLY: Int = 1
+	comptime RBF: Int = 2
+	comptime SIGMOID: Int = 3
+	comptime PRECOMPUTED: Int = 4
+
 	var svm_type: Int
 	var kernel_type: Int
 	var degree: Int	# for poly

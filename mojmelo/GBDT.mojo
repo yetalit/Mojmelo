@@ -4,18 +4,15 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link, MODEL_IDS
 from std.algorithm import parallelize
 
-struct GBDT[criterion: String = 'log'](CV, Copyable):
-	"""Gradient Boosting with support for both classification and regression.
-
-	Parameters:
-		criterion: The method to measure the quality of a split:
-			For binary classification -> 'log';
-			For multi-class classification -> 'softmax';
-			For regression -> 'mse'.
-
-	"""
-	comptime loss_g = log_g if Self.criterion == 'log' else softmax_g if Self.criterion == 'softmax' else mse_g
-	comptime loss_h = log_h if Self.criterion == 'log' else softmax_h if Self.criterion == 'softmax' else mse_h
+struct GBDT(CV, Copyable):
+	"""Gradient Boosting with support for both classification and regression."""
+	var criterion: String
+	"""The method to measure the quality of a split:
+    For binary classification -> 'log';
+	For multi-class classification -> 'softmax';
+    For regression -> 'mse'."""
+	var loss_g: def(Matrix, Matrix) thin raises -> Matrix
+	var loss_h: def(Matrix) thin raises -> Matrix
 	var n_trees: Int
 	"""The number of boosting stages to perform."""
 	var min_samples_split: Int
@@ -36,12 +33,23 @@ struct GBDT[criterion: String = 'log'](CV, Copyable):
 	var score_start: Float32
 	var num_class: Int
 	comptime MODEL_ID = 11
-	comptime criterion_ids: List[String] = ['mse', 'log', 'softmax']
+	comptime criterion_ids: List[String] = ['log', 'softmax', 'mse']
 
 	def __init__(out self,
+		criterion: String = 'log',
 		n_trees: Int = 10, min_samples_split: Int = 10, max_depth: Int = 3,
 		learning_rate: Float32 = 0.1, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0
 		):
+		self.criterion = criterion.lower()
+		if self.criterion == 'log':
+			self.loss_g = log_g
+			self.loss_h = log_h
+		elif self.criterion == 'softmax':
+			self.loss_g = softmax_g
+			self.loss_h = softmax_h
+		else:
+			self.loss_g = mse_g
+			self.loss_h = mse_h
 		self.n_trees = n_trees
 		self.min_samples_split = min_samples_split
 		self.max_depth = max_depth
@@ -153,19 +161,17 @@ struct GBDT[criterion: String = 'log'](CV, Copyable):
 					f.write_bytes(node.value.as_bytes())
 
 	@staticmethod
-	def load[type: UInt8](path: String) raises -> GBDT[Self.criterion_ids[type]]:
+	def load(path: String) raises -> Self:
 		"""Load a saved model from the specified path for prediction."""
 		var _path = path if path.endswith('.mjml') else path + '.mjml'
-		var model = GBDT[Self.criterion_ids[type]]()
+		var model = Self()
 		with open(_path, "r") as f:
 			var id = f.read_bytes(1)[0]
 			if id < 1 or id > UInt8(MODEL_IDS.size-1):
 				raise Error('Input file with invalid metadata!')
 			elif id != Self.MODEL_ID:
 				raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-			var criterion = f.read_bytes(1)[0]
-			if type != criterion:
-				raise Error('Based on the metadata, ', _path, ' is using ', materialize[Self.criterion_ids]()[criterion], ' ! Use [type=', criterion, ']')
+			model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
 			model.learning_rate = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
 			model.score_start = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
 			model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
@@ -197,6 +203,16 @@ struct GBDT[criterion: String = 'log'](CV, Copyable):
 		return model^
 
 	def __init__(out self, params: Dict[String, String]) raises:
+		if 'criterion' in params:
+			self.criterion = params['criterion'].lower()
+		else:
+			self.criterion = 'log'
+		if self.criterion == 'log':
+			self.loss_g = log_g
+			self.loss_h = log_h
+		else:
+			self.loss_g = mse_g
+			self.loss_h = mse_h
 		if 'n_trees' in params:
 			self.n_trees = atol(String(params['n_trees']))
 		else:

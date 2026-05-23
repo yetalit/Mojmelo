@@ -10,13 +10,7 @@ import std.random as random
 from std.memory import memcpy
 from std.sys import size_of
 
-comptime LINEAR: Int = 0
-comptime POLY: Int = 1
-comptime RBF: Int = 2
-comptime SIGMOID: Int = 3
-comptime PRECOMPUTED: Int = 4
-
-struct SVC[kernel: Int = 2](CV, Copyable):
+struct SVC(CV, Copyable):
     """Support Vector Classification."""
     var C: Float64
     """Regularization parameter. When C != 0, C-Support Vector Classification model will be used."""
@@ -24,6 +18,8 @@ struct SVC[kernel: Int = 2](CV, Copyable):
     """An upper bound on the fraction of margin errors and a lower bound of the fraction of support vectors.
     When nu != 0, Nu-Support Vector Classification model will be used.
     """
+    var kernel: String
+    """Specifies the kernel type to be used in the algorithm: {'linear', 'poly', 'rbf', 'sigmoid', 'precomputed'}."""
     var degree: Int
     """Degree of the polynomial kernel function ('poly')."""
     var gamma: Float64
@@ -49,10 +45,11 @@ struct SVC[kernel: Int = 2](CV, Copyable):
     var _x_ptr: List[OptionalUnsafePointer[svm_node, MutExternalOrigin]]
     comptime MODEL_ID = 6
 
-    def __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, degree: Int = 2,
+    def __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf', degree: Int = 2,
                 coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
+        self.kernel = kernel.lower()
         self.degree = degree
         if gamma.lower() == 'scale':
             self.gamma = -1.0
@@ -72,10 +69,11 @@ struct SVC[kernel: Int = 2](CV, Copyable):
         self._x_list = List[List[svm_node]]()
         self._x_ptr = List[OptionalUnsafePointer[svm_node, MutExternalOrigin]]()
 
-    def __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, degree: Int = 2,
+    def __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf', degree: Int = 2,
                 coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
         self.C = C
         self.nu = nu
+        self.kernel = kernel.lower()
         self.degree = degree
         self.gamma = gamma
         self.coef0 = coef0
@@ -107,9 +105,21 @@ struct SVC[kernel: Int = 2](CV, Copyable):
         elif self.gamma == -0.1:
             self.gamma = 1.0 / Float64(X.width)
 
+        var svm_kernel = 5
+        if self.kernel == 'linear':
+            svm_kernel = svm_parameter.LINEAR
+        elif self.kernel == 'poly':
+            svm_kernel = svm_parameter.POLY
+        elif self.kernel == 'rbf':
+            svm_kernel = svm_parameter.RBF
+        elif self.kernel == 'sigmoid':
+            svm_kernel = svm_parameter.SIGMOID
+        elif self.kernel == 'precomputed':
+            svm_kernel = svm_parameter.PRECOMPUTED
+
         var param = svm_parameter(
             svm_type = svm_type,
-            kernel_type = Self.kernel,
+            kernel_type = svm_kernel,
             degree = self.degree,
             gamma = self.gamma,
             coef0 = self.coef0,
@@ -157,7 +167,7 @@ struct SVC[kernel: Int = 2](CV, Copyable):
             prob.y.value().free()
             raise Error(check)
 
-        self._model = svm_train[Self.kernel](prob, param)
+        self._model = svm_train(prob, param)
 
         prob.y.value().free()
     
@@ -388,6 +398,10 @@ struct SVC[kernel: Int = 2](CV, Copyable):
             self.nu = atof(String(params['nu']))
         else:
             self.nu = 0.0
+        if 'kernel' in params:
+            self.kernel = params['kernel']
+        else:
+            self.kernel = 'rbf'
         if 'degree' in params:
             self.degree = atol(String(params['degree']))
         else:

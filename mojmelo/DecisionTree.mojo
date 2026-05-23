@@ -29,18 +29,16 @@ struct Node(Copyable):
             return '{' + String(self.value) + '}'
         return '<' + String(self.feature) + ': ' + String(self.threshold) + '>'
 
-struct DecisionTree[criterion: String = 'gini'](CV, Copyable, ImplicitlyCopyable):
-    """A decision tree supporting both classification and regression.
-
-    Parameters:
-        criterion: The function to measure the quality of a split:
-            For classification -> 'entropy', 'gini';
-            For regression -> 'mse'.
-
+struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
+    """A decision tree supporting both classification and regression."""
+    var criterion: String
+    """The function to measure the quality of a split:
+    For classification -> 'entropy', 'gini';
+    For regression -> 'mse'.
     """
-    comptime loss_func = gini if Self.criterion == 'gini' else mse_loss if Self.criterion == 'mse' else entropy
-    comptime c_precompute = gini_precompute if Self.criterion == 'gini' else entropy_precompute
-    comptime r_precompute = mse_loss_precompute
+    var loss_func: def(Matrix, Matrix, Float32) thin raises -> Float32
+    var c_func: def(Float32, List[Int]) thin raises -> Float32
+    var r_func: def(Float32, Float32, Float32) thin raises -> Float32
     var min_samples_split: Int
     """The minimum number of samples required to split an internal node."""
     var max_depth: Int
@@ -50,7 +48,20 @@ struct DecisionTree[criterion: String = 'gini'](CV, Copyable, ImplicitlyCopyable
     var root: OptionalUnsafePointer[Node, MutAnyOrigin]
     comptime MODEL_ID = 9
     
-    def __init__(out self, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
+    def __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
+        self.criterion = criterion.lower()
+        if self.criterion == 'gini':
+            self.loss_func = gini
+            self.c_func = gini_precompute
+            self.r_func = mse_loss_precompute
+        elif self.criterion == 'mse':
+            self.loss_func = mse_loss
+            self.r_func = mse_loss_precompute
+            self.c_func = entropy_precompute
+        else:
+            self.loss_func = entropy
+            self.c_func = entropy_precompute
+            self.r_func = mse_loss_precompute
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
@@ -59,6 +70,22 @@ struct DecisionTree[criterion: String = 'gini'](CV, Copyable, ImplicitlyCopyable
         self.root = None
 
     def __init__(out self, params: Dict[String, String]) raises:
+        if 'criterion' in params:
+            self.criterion = params['criterion'].lower()
+        else:
+            self.criterion = 'gini'
+        if self.criterion == 'gini':
+            self.loss_func = gini
+            self.c_func = gini_precompute
+            self.r_func = mse_loss_precompute
+        elif self.criterion == 'mse':
+            self.loss_func = mse_loss
+            self.r_func = mse_loss_precompute
+            self.c_func = entropy_precompute
+        else:
+            self.loss_func = entropy
+            self.c_func = entropy_precompute
+            self.r_func = mse_loss_precompute
         if 'min_samples_split' in params:
             self.min_samples_split = atol(String(params['min_samples_split']))
         else:
@@ -80,10 +107,13 @@ struct DecisionTree[criterion: String = 'gini'](CV, Copyable, ImplicitlyCopyable
         self.root = None
 
     def _moveinit_(mut self, mut take: Self):
+        self.criterion = take.criterion
+        self.loss_func = take.loss_func
         self.min_samples_split = take.min_samples_split
         self.max_depth = take.max_depth
         self.n_feats = take.n_feats
         self.root = take.root
+        take.criterion = ''
         take.min_samples_split = take.max_depth = take.n_feats = 0
         take.root = None
 
@@ -151,7 +181,7 @@ struct DecisionTree[criterion: String = 'gini'](CV, Copyable, ImplicitlyCopyable
         var best_feat: Int
         var best_thresh: Float32
 
-        best_feat, best_thresh = _best_criteria(X, indices, y, _y, weights, feat_idxs, self, self.criterion)
+        best_feat, best_thresh = _best_criteria(X, indices, y, _y, weights, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
 
         # grow the children that result from the split
         var left_indices = List[Scalar[DType.int]]()
@@ -239,9 +269,9 @@ def set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Stri
             most_common = i
     return Float32(most_common)
 
-def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], tree: DecisionTree, criterion: String) raises -> Tuple[Int, Float32]:
+def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: def(Matrix, Matrix, Float32) thin raises -> Float32, c_precompute: def(Float32, List[Int]) thin raises -> Float32, r_precompute: def(Float32, Float32, Float32) thin raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
     var total_samples = Float32(len(_y)) if y.width == 1 else weights.sum()
-    var parent_loss = tree.loss_func(_y, weights, total_samples)
+    var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
@@ -277,7 +307,7 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: M
                         continue
 
                     var n_right = total_samples - n_left
-                    var child_loss = (n_left / total_samples) * tree.c_precompute(n_left, left_histogram) + (n_right / total_samples) * tree.c_precompute(n_right, right_histogram)
+                    var child_loss = (n_left / total_samples) * c_precompute(n_left, left_histogram) + (n_right / total_samples) * c_precompute(n_right, right_histogram)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig
@@ -316,7 +346,7 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: M
                         continue
 
                     var n_right = total_samples - n_left
-                    var child_loss = (n_left / total_samples) * tree.r_precompute(n_left, left_sum, left_sum_sq) + (n_right / total_samples) * tree.r_precompute(n_right, sum_total - left_sum, sum_sq_total - left_sum_sq)
+                    var child_loss = (n_left / total_samples) * r_precompute(n_left, left_sum, left_sum_sq) + (n_right / total_samples) * r_precompute(n_right, sum_total - left_sum, sum_sq_total - left_sum_sq)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[idx]:
                         max_gains.data[idx] = ig

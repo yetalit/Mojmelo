@@ -136,7 +136,7 @@ struct KMeans(Copyable):
                             var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
                             acc += (d * d).reduce_add()
                         vectorize[Matrix.simd_width](X.width, sq)
-                        dist_from_centroids.store[1](i, row, acc)
+                        dist_from_centroids.store[1](row, i, acc)
                     parallelize[p](X.height)
                 inertia_values.data[idc] = dist_from_centroids.min(axis=1).sum()
         else:

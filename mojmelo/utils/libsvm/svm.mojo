@@ -9,7 +9,6 @@ from std.sys import size_of
 import std.math as math
 from std.algorithm import parallelize, reduction
 from mojmelo.utils.utils import fill_indices
-from mojmelo.SVM import LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
 import std.random as random
 
 comptime TAU = 1e-12
@@ -54,11 +53,11 @@ struct kernel_params(RegisterPassable):
     var coef0: Float64
 
 def k_function(var x: OptionalUnsafePointer[svm_node, MutExternalOrigin], var y: OptionalUnsafePointer[svm_node, MutExternalOrigin], param: svm_parameter) -> Float64:
-    if param.kernel_type == LINEAR:
+    if param.kernel_type == svm_parameter.LINEAR:
         return dot(x,y)
-    if param.kernel_type == POLY:
+    if param.kernel_type == svm_parameter.POLY:
         return powi(param.gamma*dot(x,y)+param.coef0,param.degree)
-    if param.kernel_type == RBF:
+    if param.kernel_type == svm_parameter.RBF:
         var sum = 0.0
         while x.value()[].index != -1 and y.value()[].index !=-1:
             if x.value()[].index == y.value()[].index:
@@ -83,9 +82,9 @@ def k_function(var x: OptionalUnsafePointer[svm_node, MutExternalOrigin], var y:
             y.value() += 1
 
         return math.exp(-param.gamma*sum)
-    if param.kernel_type == SIGMOID:
+    if param.kernel_type == svm_parameter.SIGMOID:
         return math.tanh(param.gamma*dot(x,y)+param.coef0)
-    if param.kernel_type == PRECOMPUTED:  # x: test (validation), y: SV
+    if param.kernel_type == svm_parameter.PRECOMPUTED:  # x: test (validation), y: SV
         return x.value()[Int(y.value()[].value)].value
     else:
         return 0  # Unreachable
@@ -1282,20 +1281,14 @@ struct Solver_NU:
 #
 # Q matrices for various formulations
 #
-struct SVC_Q[k_t: Int](QMatrix):
+struct SVC_Q(QMatrix):
     var y: OptionalUnsafePointer[Int8, MutExternalOrigin]
     var cache: Cache
     var QD: OptionalUnsafePointer[Float64, MutExternalOrigin]
 
     var _self: kernel_params
 
-    comptime kernel_function = (
-        kernel_linear if Self.k_t == LINEAR else
-        kernel_poly if Self.k_t == POLY else
-        kernel_rbf if Self.k_t == RBF else
-        kernel_sigmoid if Self.k_t == SIGMOID else
-        kernel_precomputed
-    )
+    var kernel_function: def(kernel_params, Int, Int) thin -> Float64
 
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter, y_: OptionalUnsafePointer[Int8, MutExternalOrigin]):
@@ -1304,7 +1297,7 @@ struct SVC_Q[k_t: Int](QMatrix):
         memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: OptionalUnsafePointer[Float64, MutExternalOrigin]
-        if param.kernel_type == RBF:
+        if param.kernel_type == svm_parameter.RBF:
             x_square = alloc[Float64](prob.l)
             for i in range(prob.l):
                 x_square.value()[i] = dot(x[i], x[i])
@@ -1312,6 +1305,19 @@ struct SVC_Q[k_t: Int](QMatrix):
             x_square = OptionalUnsafePointer[Float64, MutExternalOrigin]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        elif self._self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        elif self._self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
         ##
         self.y = alloc[Int8](prob.l)
         memcpy(dest=self.y, src=y_, count=prob.l)
@@ -1356,19 +1362,13 @@ struct SVC_Q[k_t: Int](QMatrix):
         if self.QD:
             self.QD.value().free()
 
-struct ONE_CLASS_Q[k_t: Int](QMatrix):
+struct ONE_CLASS_Q(QMatrix):
     var cache: Cache
     var QD: OptionalUnsafePointer[Float64, MutExternalOrigin]
 
     var _self: kernel_params
 
-    comptime kernel_function = (
-        kernel_linear if Self.k_t == LINEAR else
-        kernel_poly if Self.k_t == POLY else
-        kernel_rbf if Self.k_t == RBF else
-        kernel_sigmoid if Self.k_t == SIGMOID else
-        kernel_precomputed
-    )
+    var kernel_function: def(kernel_params, Int, Int) thin -> Float64
 
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter):
@@ -1377,7 +1377,7 @@ struct ONE_CLASS_Q[k_t: Int](QMatrix):
         memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: OptionalUnsafePointer[Float64, MutExternalOrigin]
-        if param.kernel_type == RBF:
+        if param.kernel_type == svm_parameter.RBF:
             x_square = alloc[Float64](prob.l)
             for i in range(prob.l):
                 x_square.value()[i] = dot(x[i], x[i])
@@ -1385,6 +1385,19 @@ struct ONE_CLASS_Q[k_t: Int](QMatrix):
             x_square = OptionalUnsafePointer[Float64, MutExternalOrigin]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        elif self._self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        elif self._self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
         ##
         self.cache = Cache(prob.l, UInt(Int(param.cache_size*(1<<20))))
 
@@ -1421,7 +1434,7 @@ struct ONE_CLASS_Q[k_t: Int](QMatrix):
         if self.QD:
             self.QD.value().free()
 
-struct SVR_Q[k_t: Int](QMatrix):
+struct SVR_Q(QMatrix):
     var l: Int
     var cache: Cache
     var sign: OptionalUnsafePointer[Int8, MutExternalOrigin]
@@ -1432,13 +1445,7 @@ struct SVR_Q[k_t: Int](QMatrix):
 
     var _self: kernel_params
 
-    comptime kernel_function = (
-        kernel_linear if Self.k_t == LINEAR else
-        kernel_poly if Self.k_t == POLY else
-        kernel_rbf if Self.k_t == RBF else
-        kernel_sigmoid if Self.k_t == SIGMOID else
-        kernel_precomputed
-    )
+    var kernel_function: def(kernel_params, Int, Int) thin -> Float64
 
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter):
@@ -1447,7 +1454,7 @@ struct SVR_Q[k_t: Int](QMatrix):
         memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: OptionalUnsafePointer[Float64, MutExternalOrigin]
-        if param.kernel_type == RBF:
+        if param.kernel_type == svm_parameter.RBF:
             x_square = alloc[Float64](prob.l)
             for i in range(prob.l):
                 x_square.value()[i] = dot(x[i], x[i])
@@ -1455,6 +1462,19 @@ struct SVR_Q[k_t: Int](QMatrix):
             x_square = OptionalUnsafePointer[Float64, MutExternalOrigin]()
 
         self._self = kernel_params(x, x_square, param.kernel_type, param.degree, param.gamma, param.coef0)
+
+        if self._self.kernel_type == svm_parameter.LINEAR:
+            self.kernel_function = kernel_linear
+        elif self._self.kernel_type == svm_parameter.POLY:
+            self.kernel_function = kernel_poly
+        elif self._self.kernel_type == svm_parameter.RBF:
+            self.kernel_function = kernel_rbf
+        elif self._self.kernel_type == svm_parameter.SIGMOID:
+            self.kernel_function = kernel_sigmoid
+        elif self._self.kernel_type == svm_parameter.PRECOMPUTED:
+            self.kernel_function = kernel_precomputed
+        else:
+            self.kernel_function = kernel_linear
         ##
         self.l = prob.l
         self.cache = Cache(self.l, UInt(Int(param.cache_size*(1<<20))))
@@ -1515,7 +1535,7 @@ struct SVR_Q[k_t: Int](QMatrix):
 #
 # construct and solve various formulations
 #
-def solve_c_svc[k_t: Int](
+def solve_c_svc(
     prob: svm_problem, param: svm_parameter,
     alpha: OptionalUnsafePointer[Float64, MutExternalOrigin], mut si: SolutionInfo, Cp: Float64, Cn: Float64):
     var l = prob.l
@@ -1531,7 +1551,7 @@ def solve_c_svc[k_t: Int](
             y[i] = -1
 
     var s = Solver()
-    var q = SVC_Q[k_t](prob,param,y)
+    var q = SVC_Q(prob,param,y)
     s.Solve(l, q, minus_ones, y,
         alpha, Cp, Cn, param.eps, si, param.shrinking)
 
@@ -1545,7 +1565,7 @@ def solve_c_svc[k_t: Int](
     minus_ones.free()
     y.free()
 
-def solve_nu_svc[k_t: Int](
+def solve_nu_svc(
     prob: svm_problem, param: svm_parameter,
     alpha: OptionalUnsafePointer[Float64, MutExternalOrigin], mut si: SolutionInfo):
     var l = prob.l
@@ -1574,7 +1594,7 @@ def solve_nu_svc[k_t: Int](
     memset_zero(zeros, l)
 
     var s = Solver_NU()
-    var q = SVC_Q[k_t](prob,param,y)
+    var q = SVC_Q(prob,param,y)
     s.Solve(l, q, zeros, y,
         alpha, 1.0, 1.0, param.eps, si, param.shrinking)
     var r = si.r
@@ -1590,7 +1610,7 @@ def solve_nu_svc[k_t: Int](
     y.free()
     zeros.free()
 
-def solve_one_class[k_t: Int](
+def solve_one_class(
     prob: svm_problem, param: svm_parameter,
     alpha: OptionalUnsafePointer[Float64, MutExternalOrigin], mut si: SolutionInfo):
     var l = prob.l
@@ -1611,14 +1631,14 @@ def solve_one_class[k_t: Int](
         ones[i] = 1
 
     var s = Solver()
-    var q = ONE_CLASS_Q[k_t](prob,param)
+    var q = ONE_CLASS_Q(prob,param)
     s.Solve(l, q, zeros, ones,
         alpha, 1.0, 1.0, param.eps, si, param.shrinking)
 
     zeros.free()
     ones.free()
 
-def solve_epsilon_svr[k_t: Int](
+def solve_epsilon_svr(
     prob: svm_problem, param: svm_parameter,
     alpha: OptionalUnsafePointer[Float64, MutExternalOrigin], mut si: SolutionInfo):
     var l = prob.l
@@ -1636,7 +1656,7 @@ def solve_epsilon_svr[k_t: Int](
         y[i+l] = -1
 
     var s = Solver()
-    var q = SVR_Q[k_t](prob,param)
+    var q = SVR_Q(prob,param)
     s.Solve(2*l, q, linear_term, y,
         alpha2, param.C, param.C, param.eps, si, param.shrinking)
 
@@ -1649,7 +1669,7 @@ def solve_epsilon_svr[k_t: Int](
     linear_term.free()
     y.free()
 
-def solve_nu_svr[k_t: Int](
+def solve_nu_svr(
     prob: svm_problem, param: svm_parameter,
     alpha: OptionalUnsafePointer[Float64, MutExternalOrigin], mut si: SolutionInfo):
     var l = prob.l
@@ -1670,7 +1690,7 @@ def solve_nu_svr[k_t: Int](
         y[i+l] = -1
 
     var s = Solver_NU()
-    var q = SVR_Q[k_t](prob,param)
+    var q = SVR_Q(prob,param)
     s.Solve(2*l, q, linear_term, y,
         alpha2, C, C, param.eps, si, param.shrinking)
 
@@ -1689,21 +1709,21 @@ struct decision_function(RegisterPassable, Copyable):
     var alpha: OptionalUnsafePointer[Float64, MutExternalOrigin]
     var rho: Float64
 
-def svm_train_one[k_t: Int](
+def svm_train_one(
     prob: svm_problem, param: svm_parameter,
     Cp: Float64, Cn: Float64) -> decision_function:
     var alpha = alloc[Float64](prob.l)
     var si = SolutionInfo()
     if param.svm_type == svm_parameter.C_SVC:
-        solve_c_svc[k_t](prob,param,alpha,si,Cp,Cn)
+        solve_c_svc(prob,param,alpha,si,Cp,Cn)
     elif param.svm_type == svm_parameter.NU_SVC:
-        solve_nu_svc[k_t](prob,param,alpha,si)
+        solve_nu_svc(prob,param,alpha,si)
     elif param.svm_type == svm_parameter.ONE_CLASS:
-        solve_one_class[k_t](prob,param,alpha,si)
+        solve_one_class(prob,param,alpha,si)
     elif param.svm_type == svm_parameter.EPSILON_SVR:
-        solve_epsilon_svr[k_t](prob,param,alpha,si)
+        solve_epsilon_svr(prob,param,alpha,si)
     elif param.svm_type == svm_parameter.NU_SVR:
-        solve_nu_svr[k_t](prob,param,alpha,si)
+        solve_nu_svr(prob,param,alpha,si)
 
     # output SVs
 
@@ -1889,7 +1909,7 @@ def multiclass_probability(k: Int, r: OptionalUnsafePointer[OptionalUnsafePointe
     Qp.free()
 
 # Using cross-validation decision values to get parameters for SVC probability estimates
-def svm_binary_svc_probability[k_t: Int](
+def svm_binary_svc_probability(
     prob: svm_problem, param: svm_parameter,
     Cp: Float64, Cn: Float64, mut probA: Float64, mut probB: Float64):
     var nr_fold = 5
@@ -1955,7 +1975,7 @@ def svm_binary_svc_probability[k_t: Int](
             subparam.weight_label.value()[1]=-1
             subparam.weight.value()[0]=Cp
             subparam.weight.value()[1]=Cn
-            var submodel = svm_train[k_t](subprob,subparam)
+            var submodel = svm_train(subprob,subparam)
             for j in range(begin, end):
                 _ = svm_predict_values(submodel.value()[],prob.x.value()[perm.value()[j]],dec_values + perm.value()[j])
                 # ensure +1 -1 order; reason not using CV subroutine
@@ -2037,14 +2057,14 @@ def svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_
     return ret
 
 # Return parameter of a Laplace distribution
-def svm_svr_probability[k_t: Int](prob: svm_problem, param: svm_parameter) -> Float64:
+def svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
     var nr_fold = 5
     var ymv = alloc[Float64](prob.l)
     var mae = 0.0
 
     var newparam = param.copy()
     newparam.probability = 0
-    svm_cross_validation[k_t](prob, newparam, nr_fold, ymv)
+    svm_cross_validation(prob, newparam, nr_fold, ymv)
     for i in range(prob.l):
         ymv[i]=prob.y.value()[i]-ymv[i]
         mae += abs(ymv[i])
@@ -2130,7 +2150,7 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
 #
 # Interface functions
 #
-def svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[svm_model, MutExternalOrigin]:
+def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[svm_model, MutExternalOrigin]:
     var model = alloc[svm_model](1)
     model[].param = param.copy()
     model[].free_sv = 0
@@ -2145,7 +2165,7 @@ def svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> OptionalUnsa
         model[].prob_density_marks = OptionalUnsafePointer[Float64, MutExternalOrigin]()
         model[].sv_coef = alloc[OptionalUnsafePointer[Float64, MutExternalOrigin]](1)
 
-        var f = svm_train_one[k_t](prob,param,0,0)
+        var f = svm_train_one(prob,param,0,0)
         model[].rho = alloc[Float64](1)
         model[].rho.value()[0] = f.rho
 
@@ -2167,7 +2187,7 @@ def svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> OptionalUnsa
 
         if param.probability and (param.svm_type == svm_parameter.EPSILON_SVR or param.svm_type == svm_parameter.NU_SVR):
             model[].probA = alloc[Float64](1)
-            model[].probA.value()[0] = svm_svr_probability[k_t](prob,param)
+            model[].probA.value()[0] = svm_svr_probability(prob,param)
         elif param.probability and param.svm_type == svm_parameter.ONE_CLASS:
             var nr_marks = 10
             var prob_density_marks = alloc[Float64](nr_marks)
@@ -2242,9 +2262,9 @@ def svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> OptionalUnsa
                     sub_prob.y.value()[ci+k] = -1
 
                 if param.probability:
-                    svm_binary_svc_probability[k_t](sub_prob,param,weighted_C[i],weighted_C[j],probA.value()[p],probB.value()[p])
+                    svm_binary_svc_probability(sub_prob,param,weighted_C[i],weighted_C[j],probA.value()[p],probB.value()[p])
 
-                f[p] = svm_train_one[k_t](sub_prob,param,weighted_C[i],weighted_C[j])
+                f[p] = svm_train_one(sub_prob,param,weighted_C[i],weighted_C[j])
                 for k in range(ci):
                     if not nonzero[si+k] and abs(f[p].alpha.value()[k]) > 0:
                         nonzero[si+k] = True
@@ -2355,7 +2375,7 @@ def svm_train[k_t: Int](prob: svm_problem, param: svm_parameter) -> OptionalUnsa
     return model
 
 # Stratified cross validation
-def svm_cross_validation[k_t: Int](prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: OptionalUnsafePointer[Float64, MutExternalOrigin]):
+def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: OptionalUnsafePointer[Float64, MutExternalOrigin]):
     var fold_start = alloc[Int](nr_fold+1)
     var l = prob.l
     var perm = alloc[Scalar[DType.int]](l)
@@ -2439,7 +2459,7 @@ def svm_cross_validation[k_t: Int](prob: svm_problem, param: svm_parameter, var 
             subprob.y.value()[k] = prob.y.value()[perm[j]]
             k += 1
 
-        var submodel = svm_train[k_t](subprob,param)
+        var submodel = svm_train(subprob,param)
         if param.probability and (param.svm_type == svm_parameter.C_SVC or param.svm_type == svm_parameter.NU_SVC):
             var prob_estimates = alloc[Float64](svm_get_nr_class(submodel.value()[]))
             for j in range(begin, end):
@@ -2683,13 +2703,13 @@ def svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
     # kernel_type, degree
 
     var kernel_type = param.kernel_type
-    if kernel_type != LINEAR and kernel_type != POLY and kernel_type != RBF and kernel_type != SIGMOID and kernel_type != PRECOMPUTED:
+    if kernel_type != svm_parameter.LINEAR and kernel_type != svm_parameter.POLY and kernel_type != svm_parameter.RBF and kernel_type != svm_parameter.SIGMOID and kernel_type != svm_parameter.PRECOMPUTED:
         return "unknown kernel type"
 
-    if (kernel_type == POLY or kernel_type == RBF or kernel_type == SIGMOID) and param.gamma < 0:
+    if (kernel_type == svm_parameter.POLY or kernel_type == svm_parameter.RBF or kernel_type == svm_parameter.SIGMOID) and param.gamma < 0:
         return "gamma < 0"
 
-    if kernel_type == POLY and param.degree < 0:
+    if kernel_type == svm_parameter.POLY and param.degree < 0:
         return "degree of polynomial kernel < 0"
 
     # cache_size,eps,C,nu,p,shrinking
