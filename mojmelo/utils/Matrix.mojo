@@ -732,10 +732,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             return self
         var mat = Self(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = self.data
-    
             def math_vectorize[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, pow(data.load[width=simd_width](idx), p))
+                mat.data.store(idx, pow(self.data.load[width=simd_width](idx), p))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -787,10 +785,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = cmp.unsafe_ptr()
-    
             def convert[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, data.load[width=simd_width](idx).select(_true, _false))
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true, _false))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -804,11 +800,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Float32) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = cmp.unsafe_ptr()
-            var _true_data = _true.data
-    
             def convert[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, data.load[width=simd_width](idx).select(_true_data.load[width=simd_width](idx), _false))
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true.data.load[width=simd_width](idx), _false))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -822,11 +815,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = cmp.unsafe_ptr()
-            var _false_data = _false.data
-    
             def convert[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, data.load[width=simd_width](idx).select(_true, _false_data.load[width=simd_width](idx)))
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true, _false.data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -841,12 +831,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Matrix) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = cmp.unsafe_ptr()
-            var _true_data = _true.data
-            var _false_data = _false.data
-    
             def convert[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, data.load[width=simd_width](idx).select(_true_data.load[width=simd_width](idx), _false_data.load[width=simd_width](idx)))
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true.data.load[width=simd_width](idx), _false.data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -1173,10 +1159,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def abs(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = self.data
-    
             def math_vectorize[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, abs(data.load[width=simd_width](idx)))
+                mat.data.store(idx, abs(self.data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -1749,11 +1733,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def _elemwise_matrix_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[DType.bool, width]](self, rhs: Self) -> List[Scalar[DType.bool]]:
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
-            var self_data = self.data
-            var rhs_data = rhs.data
-    
             def convert[simd_width: Int](idx: Int) {read}:
-                result_ptr.store(idx, func(self_data.load[width=simd_width](idx), rhs_data.load(idx)))
+                result_ptr.store(idx, func(self.data.load[width=simd_width](idx), rhs.data.load(idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -1770,10 +1751,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def _elemwise_scalar[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[dtype, width]](self, rhs: Float32) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = self.data
-    
             def scalar_vectorize[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, func[DType.float32, simd_width](data.load[width=simd_width](idx), rhs))
+                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
             vectorize[self.simd_width](self.size, scalar_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -1788,11 +1767,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def _elemwise_matrix[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin ->SIMD[dtype, width]](self, rhs: Self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var self_data = self.data
-            var rhs_data = rhs.data
-    
             def matrix_vectorize[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, func[DType.float32, simd_width](self_data.load[width=simd_width](idx), rhs_data.load[width=simd_width](idx)))
+                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, matrix_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
@@ -1807,10 +1783,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def _elemwise_math[func: def[dtype: DType, width: Int](SIMD[dtype, width]) thin->SIMD[dtype, width]](self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
-            var data = self.data
-
             def math_vectorize[simd_width: Int](idx: Int) {read}:
-                mat.data.store(idx, func(data.load[width=simd_width](idx)))
+                mat.data.store(idx, func(self.data.load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
