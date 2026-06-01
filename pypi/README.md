@@ -7,7 +7,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/yetalit/mojmelo">
-    <img src="./_mojmelo/images/logo-min.jpg" alt="Logo" width="256" height="256">
+    <img src="./images/logo-min.jpg" alt="Logo" width="256" height="256">
   </a>
   <h3 align="center">Mojmelo</h3>
   <p align="center">

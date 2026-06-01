@@ -30,8 +30,6 @@ def main():
             with open(rc, "w") as f:
                 f.write(var_line)
 
-    os.system(f"source {rc}")
-
     root_dir = files("_mojmelo")
 
     build_command = [f"{os.path.dirname(sys.executable)}/mojo", "build", f"{root_dir}/setup.mojo", "-o", f"{root_dir}/setup"]
@@ -39,6 +37,6 @@ def main():
 
     for i in range(10):
         run_command = [f"{root_dir}/setup"] if i == 0 else [f"{root_dir}/setup", str(i)]
-        subprocess.run(run_command, check=True)
+        subprocess.run(run_command, cwd=root_dir, check=True)
 
     os.remove(f"{root_dir}/setup")
