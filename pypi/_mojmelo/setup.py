@@ -17,22 +17,8 @@ def main():
     lib_dir = Path(sys.prefix) / "lib"
     var_name = "MODULAR_MOJO_MAX_IMPORT_PATH"
 
-    # Find sitecustomize.py
-    for p in site.getsitepackages():
-        sc = Path(p) / "sitecustomize.py"
-        if sc.exists():
-            break
-    else:
-        # Create it in the first site-packages directory
-        sc = Path(site.getsitepackages()[0]) / "sitecustomize.py"
-        sc.touch()
-
-    code = f"import os\nos.environ['{var_name}'] = '{lib_dir}'\n"
-
-    text = sc.read_text(encoding="utf-8")
-    if code not in text:
-        with open(sc, "a", encoding="utf-8") as f:
-            f.write("\n" + code)
+    with open(Path(site.getsitepackages()[0]) / "mojmelo_import.pth", "w") as f:
+        file.write(f"import os; os.environ['{var_name}'] = '{lib_dir}';")
 
     root_dir = files("_mojmelo")
 
