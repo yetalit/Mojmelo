@@ -4,6 +4,7 @@ import subprocess
 import sys
 from importlib.resources import files
 import os
+import re
 
 
 def main():
@@ -21,14 +22,23 @@ def main():
     rc_files = [Path.home() / ".bashrc", Path.home() / ".zshrc"]
 
     for rc in rc_files:
-        if rc.exists():
-            content = rc.read_text()
-            if f'export {var_name}=' not in content:
-                with open(rc, "a") as f:
-                    f.write(var_line)
+        content = rc.read_text() if rc.exists() else ""
+
+        pattern = rf"^export\s+{re.escape(var_name)}=.*$"
+
+        if re.search(pattern, content, flags=re.MULTILINE):
+            content = re.sub(
+                pattern,
+                var_line.rstrip(),
+                content,
+                flags=re.MULTILINE,
+            )
         else:
-            with open(rc, "w") as f:
-                f.write(var_line)
+            if content and not content.endswith("\n"):
+                content += "\n"
+            content += var_line
+
+        rc.write_text(content)
 
     root_dir = files("_mojmelo")
 
