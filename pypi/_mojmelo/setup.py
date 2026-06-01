@@ -18,7 +18,7 @@ def main():
     var_name = "MODULAR_MOJO_MAX_IMPORT_PATH"
 
     with open(Path(site.getsitepackages()[0]) / "mojmelo_import.pth", "w") as f:
-        file.write(f"import os; os.environ['{var_name}'] = '{lib_dir}';")
+        f.write(f"import os; os.environ['{var_name}'] = '{lib_dir}';")
 
     root_dir = files("_mojmelo")
 
