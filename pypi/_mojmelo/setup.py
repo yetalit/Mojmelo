@@ -1,10 +1,10 @@
 import platform
 from pathlib import Path
+import site
 import subprocess
 import sys
 from importlib.resources import files
 import os
-import re
 
 
 def main():
@@ -16,29 +16,23 @@ def main():
 
     lib_dir = Path(sys.prefix) / "lib"
     var_name = "MODULAR_MOJO_MAX_IMPORT_PATH"
-    var_line = f'export {var_name}="{lib_dir}"\n'
 
-    # Detect shell rc files
-    rc_files = [Path.home() / ".bashrc", Path.home() / ".zshrc"]
+    # Find sitecustomize.py
+    for p in site.getsitepackages():
+        sc = Path(p) / "sitecustomize.py"
+        if sc.exists():
+            break
+    else:
+        # Create it in the first site-packages directory
+        sc = Path(site.getsitepackages()[0]) / "sitecustomize.py"
+        sc.touch()
 
-    for rc in rc_files:
-        content = rc.read_text() if rc.exists() else ""
+    code = f"import os\nos.environ['{var_name}'] = '{lib_dir}'\n"
 
-        pattern = rf"^export\s+{re.escape(var_name)}=.*$"
-
-        if re.search(pattern, content, flags=re.MULTILINE):
-            content = re.sub(
-                pattern,
-                var_line.rstrip(),
-                content,
-                flags=re.MULTILINE,
-            )
-        else:
-            if content and not content.endswith("\n"):
-                content += "\n"
-            content += var_line
-
-        rc.write_text(content)
+    text = sc.read_text(encoding="utf-8")
+    if code not in text:
+        with open(sc, "a", encoding="utf-8") as f:
+            f.write("\n" + code)
 
     root_dir = files("_mojmelo")
 
