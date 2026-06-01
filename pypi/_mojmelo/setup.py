@@ -1,5 +1,5 @@
 import platform
-import shutil
+from pathlib import Path
 import subprocess
 import sys
 from importlib.resources import files
@@ -30,15 +30,9 @@ def main():
             with open(rc, "w") as f:
                 f.write(var_line)
 
-    os.environ[var_name] = var_line
-
-    if shutil.which("mojo") is None:
-        print("Error: 'mojo' is not recognized.")
-        sys.exit(1)
-
     root_dir = files("_mojmelo")
 
-    build_command = ["mojo", "build", f"{root_dir}/setup.mojo", "-o", "setup"]
+    build_command = [f"{os.path.dirname(sys.executable)}/mojo", "build", f"{root_dir}/setup.mojo", "-o", f"{root_dir}/setup"]
     subprocess.run(build_command, check=True)
 
     for i in range(10):
