@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mojmelo"
+version = "0.1.3"
+
+dependencies = ["mojo-compiler==1.0.0b1"]
+
+[project.scripts]
+mojmelo-setup = "_mojmelo.setup:main"
+
+[tool.setuptools]
+packages = ["_mojmelo"]
+
+[tool.setuptools.package-data]
+_mojmelo = [
+    "setup.mojo",
+    "mojmelo/*",
+    "mojmelo/**/*",
+]

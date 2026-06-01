@@ -1,0 +1,4 @@
+comptime L1_CACHE_SIZE = 32768
+comptime L1_ASSOCIATIVITY = 8
+comptime L2_CACHE_SIZE = 262144
+comptime L2_ASSOCIATIVITY = 4

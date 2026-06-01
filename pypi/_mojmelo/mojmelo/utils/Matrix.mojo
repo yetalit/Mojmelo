@@ -1,0 +1,1824 @@
+import mojmelo
+from .mojmelo_matmul import matmul
+from std.sys import simd_width_of, CompilationTarget
+from std.memory import memcpy, memcmp, memset_zero
+from std.algorithm import vectorize, parallelize, reduction
+import std.math as math
+import std.random as random
+from mojmelo.utils.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, fill_indices, fill_indices_list, cast
+from std.python import Python, PythonObject
+
+struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
+    """Native matrix data structure."""
+    var height: Int
+    """The number of rows."""
+    var width: Int
+    """The number of columns."""
+    var size: Int
+    """The total size."""
+    var data: UnsafePointer[Float32, MutAnyOrigin]
+    """The pointer to the underlying data."""
+    var order: String
+    """The order of matrix:
+    Row-major -> 'c';
+    Column-major -> 'f'.
+    """
+    comptime simd_width: Int = 4 * simd_width_of[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float32]()
+
+    # initialize from UnsafePointer
+    @always_inline
+    def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutAnyOrigin], height: Int, width: Int, order: String = 'c'):
+        self.height = height
+        self.width = width
+        self.size = height * width
+        if src == DType.float32:
+            self.data = data.bitcast[Float32]()
+        else:
+            self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size)
+            data.free()
+        self.order = order.lower()
+
+    # initialize by copying from UnsafePointer
+    @always_inline
+    def __init__(out self, height: Int, width: Int, data: OptionalUnsafePointer[Float32, MutAnyOrigin] = None, order: String = 'c'):
+        self.height = height
+        self.width = width
+        self.size = height * width
+        self.data = alloc[Float32](self.size)
+        self.order = order.lower()
+        if data:
+            memcpy(dest=self.data, src=data.value(), count=self.size)
+
+    # initialize from 2D List
+    def __init__(out self, def_input: List[List[Float32]]) raises:
+        self.height = len(def_input)
+        self.width = len(def_input[0]) if self.height > 0 else 0
+        self.size = self.height * self.width
+        self.data = alloc[Float32](self.size)
+        self.order = 'c'
+        if self.size > 0:
+            for row_i in range(len(def_input)):
+                memcpy(dest=self.data + row_i * self.width, src=def_input[row_i].unsafe_ptr(), count=self.width)
+
+    def __init__(out self, *, copy: Self):
+        self.height = copy.height
+        self.width = copy.width
+        self.size = copy.size
+        self.data = alloc[Float32](self.size)
+        self.order = copy.order
+        memcpy(dest=self.data, src=copy.data, count=self.size)
+
+    def __init__(out self, *, deinit take: Self):
+        self.height = take.height
+        self.width = take.width
+        self.size = take.size
+        self.data = take.data
+        self.order = take.order
+        #take.height = take.width = take.size = 0
+        #take.order = ''
+        #take.data = UnsafePointer[Float32, MutAnyOrigin]()
+
+    @always_inline
+    def load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]:
+        var loc: Int
+        if self.order == 'c':
+            loc = (y * self.width) + x
+        else:
+            loc = (x * self.height) + y
+        return self.data.load[width=nelts](loc)
+
+    @always_inline
+    def store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts]):
+        var loc: Int
+        if self.order == 'c':
+            loc = (y * self.width) + x
+        else:
+            loc = (x * self.height) + y
+        return self.data.store(loc, val)
+
+    # access an element
+    @always_inline
+    def __getitem__(self, row: Int, column: Int) raises -> Float32:
+        """The pattern to access a single value: [row, column] ."""
+        var loc: Int
+        if self.order == 'c':
+            loc = (row * self.width) + column
+        else:
+            loc = (column * self.height) + row
+        if loc > self.size - 1 or loc < 0:
+            raise Error("Location is out of range!")
+        return self.data[loc]
+
+    # access a row
+    @always_inline
+    def __getitem__(self, row: Int) raises -> Matrix:
+        """The pattern to access a row: [row] ."""
+        if row >= self.height or row < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' or self.height == 1:
+            return Matrix(1, self.width, self.data + (row * self.width), self.order)
+        var mat = Matrix(1, self.width, order= self.order)
+        var tmpPtr = self.data + row
+        var height = self.height
+
+        def convert[simd_width: Int](idx: Int) {mut}:
+            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](height))
+            tmpPtr += simd_width * height
+        vectorize[self.simd_width](mat.width, convert)
+        return mat^
+
+    # access a row (unsafe)
+    @always_inline
+    def __getitem__(self, row: Int, *, unsafe: Bool) -> Matrix:
+        if self.order == 'c' or self.height == 1:
+            return Matrix(1, self.width, self.data + (row * self.width), self.order)
+        var mat = Matrix(1, self.width, order= self.order)
+        var tmpPtr = self.data + row
+        var height = self.height
+
+        def convert[simd_width: Int](idx: Int) {mut}:
+            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](height))
+            tmpPtr += simd_width * height
+        vectorize[self.simd_width](mat.width, convert)
+        return mat^
+
+    # access a row with offset
+    @always_inline
+    def __getitem__(self, row: Int, offset: Bool, start_i: Int) raises -> Matrix:
+        if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' or self.height == 1:
+            return Matrix(1, self.width - start_i, self.data + (row * self.width) + start_i, self.order)
+        var mat = Matrix(1, self.width - start_i, order= self.order)
+        var tmpPtr = self.data + row + (start_i * self.height)
+        var height = self.height
+
+        def convert[simd_width: Int](idx: Int) {mut}:
+            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](height))
+            tmpPtr += simd_width * height
+        vectorize[self.simd_width](mat.width, convert)
+        return mat^
+
+    # access a column
+    @always_inline
+    def __getitem__(self, row: String, column: Int) raises -> Matrix:
+        """The pattern to access a column: ['', column] ."""
+        if column >= self.width or column < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' and self.width > 1:
+            var mat = Matrix(self.height, 1)
+            var tmpPtr = self.data + column
+            var width = self.width
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](width))
+                tmpPtr += simd_width * width
+            vectorize[self.simd_width](mat.height, convert)
+            return mat^
+        return Matrix(self.height, 1, self.data + (column * self.height), self.order)
+
+    # access a column (unsafe)
+    @always_inline
+    def __getitem__(self, row: String, column: Int, *, unsafe: Bool) -> Matrix:
+        if self.order == 'c' and self.width > 1:
+            var mat = Matrix(self.height, 1)
+            var tmpPtr = self.data + column
+            var width = self.width
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](width))
+                tmpPtr += simd_width * width
+            vectorize[self.simd_width](mat.height, convert)
+            return mat^
+        return Matrix(self.height, 1, self.data + (column * self.height), self.order)
+
+    # access a column with offset
+    @always_inline
+    def __getitem__(self, offset: Bool, start_i: Int, column: Int) raises -> Matrix:
+        if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' and self.width > 1:
+            var mat = Matrix(self.height - start_i, 1)
+            var tmpPtr = self.data + column + (start_i * self.width)
+            var width = self.width
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](width))
+                tmpPtr += simd_width * width
+            vectorize[self.simd_width](mat.height, convert)
+            return mat^
+        return Matrix(self.height - start_i, 1, self.data + (column * self.height) + start_i, self.order)
+
+    # access given rows (by their indices)
+    @always_inline
+    def __getitem__(self, rows: Matrix) raises -> Matrix:
+        var mat = Matrix(rows.size, self.width, order= self.order)
+        if rows.size > 96:
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[i] = self[Int(rows.data[i])]
+                except e:
+                    print('Error:', e)
+            parallelize[p](rows.size)
+        else:
+            for i in range(rows.size):
+                mat[i] = self[Int(rows.data[i])]
+        return mat^
+
+    # access given columns (by their indices)
+    @always_inline
+    def __getitem__(self, row: String, columns: Matrix) raises -> Matrix:
+        var mat = Matrix(self.height, columns.size, order= self.order)
+        if columns.size > 96 or (self.order == 'c' and self.height * columns.size > 24576):
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[row, i] = self[row, Int(columns.data[i])]
+                except e:
+                    print('Error:', e)
+            parallelize[p](columns.size)
+        else:
+            for i in range(columns.size):
+                mat[row, i] = self[row, Int(columns.data[i])]
+        return mat^
+
+    # access given rows (by their indices)
+    @always_inline
+    def __getitem__(self, rows: List[Int]) raises -> Matrix:
+        var mat = Matrix(len(rows), self.width, order= self.order)
+        if len(rows) > 96:
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[i] = self[rows[i]]
+                except e:
+                    print('Error:', e)
+            parallelize[p](len(rows))
+        else:
+            for i in range(mat.height):
+                mat[i] = self[rows[i]]
+        return mat^
+
+    # access given rows (by their indices)
+    @always_inline
+    def __getitem__(self, rows: List[Scalar[DType.int]]) raises -> Matrix:
+        var mat = Matrix(len(rows), self.width, order= self.order)
+        if len(rows) > 96:
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[i] = self[Int(rows[i])]
+                except e:
+                    print('Error:', e)
+            parallelize[p](len(rows))
+        else:
+            for i in range(mat.height):
+                mat[i] = self[Int(rows[i])]
+        return mat^
+
+    # access given columns (by their indices)
+    @always_inline
+    def __getitem__(self, row: String, columns: List[Int]) raises -> Matrix:
+        var mat = Matrix(self.height, len(columns), order= self.order)
+        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[row, i] = self[row, columns[i]]
+                except e:
+                    print('Error:', e)
+            parallelize[p](len(columns))
+        else:
+            for i in range(mat.width):
+                mat[row, i] = self[row, columns[i]]
+        return mat^
+
+    # access given columns (by their indices)
+    @always_inline
+    def __getitem__(self, row: String, columns: List[Scalar[DType.int]]) raises -> Matrix:
+        var mat = Matrix(self.height, len(columns), order= self.order)
+        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[row, i] = self[row, Int(columns[i])]
+                except e:
+                    print('Error:', e)
+            parallelize[p](len(columns))
+        else:
+            for i in range(mat.width):
+                mat[row, i] = self[row, Int(columns[i])]
+        return mat^
+
+    # replace an element
+    @always_inline
+    def __setitem__(mut self, row: Int, column: Int, val: Float32) raises:
+        var loc: Int
+        if self.order == 'c':
+            loc = (row * self.width) + column
+        else:
+            loc = (column * self.height) + row
+        if loc > self.size - 1:
+            raise Error("Location is out of range!")
+        self.data[loc] = val
+
+    # replace the given row
+    @always_inline
+    def __setitem__(mut self, row: Int, val: Matrix) raises:
+        if row >= self.height or row < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' or self.height == 1:
+            memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
+        else:
+            var tmpPtr = self.data + row
+            var val_data = val.data
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.height)
+                tmpPtr += simd_width * self.height
+            vectorize[self.simd_width](val.size, convert)
+
+    # replace the given row (unsafe)
+    @always_inline
+    def __setitem__(mut self, row: Int, val: Matrix, *, unsafe: Bool):
+        if self.order == 'c' or self.height == 1:
+            memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
+        else:
+            var tmpPtr = self.data + row
+            var val_data = val.data
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.height)
+                tmpPtr += simd_width * self.height
+            vectorize[self.simd_width](val.size, convert)
+
+    # replace the given row with offset
+    @always_inline
+    def __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Matrix) raises:
+        if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' or self.height == 1:
+            memcpy(dest=self.data + (row * self.width) + start_i, src=val.data, count=val.size)
+        else:
+            var tmpPtr = self.data + row + (start_i * self.height)
+            var val_data = val.data
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.height)
+                tmpPtr += simd_width * self.height
+            vectorize[self.simd_width](val.size, convert)
+
+    # replace the given column
+    @always_inline
+    def __setitem__(mut self, row: String, column: Int, val: Matrix) raises:
+        if column >= self.width or column < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' and self.width > 1:
+            var tmpPtr = self.data + column
+            var val_data = val.data
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.width)
+                tmpPtr += simd_width * self.width
+            vectorize[self.simd_width](val.size, convert)
+        else:
+            memcpy(dest=self.data + (column * self.height), src=val.data, count=val.size)
+
+    # replace the given column (unsafe)
+    @always_inline
+    def __setitem__(mut self, row: String, column: Int, val: Matrix, *, unsafe: Bool):
+        if self.order == 'c' and self.width > 1:
+            var tmpPtr = self.data + column
+            var val_data = val.data
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.width)
+                tmpPtr += simd_width * self.width
+            vectorize[self.simd_width](val.size, convert)
+        else:
+            memcpy(dest=self.data + (column * self.height), src=val.data, count=val.size)
+
+    # replace the given column with offset
+    @always_inline
+    def __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Matrix) raises:
+        if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
+            raise Error("Index out of range!")
+        if self.order == 'c' and self.width > 1:
+            var tmpPtr = self.data + column + (start_i * self.width)
+            var val_data = val.data
+    
+            def convert[simd_width: Int](idx: Int) {mut}:
+                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.width)
+                tmpPtr += simd_width * self.width
+            vectorize[self.simd_width](val.size, convert)
+        else:
+            memcpy(dest=self.data + (column * self.height) + start_i, src=val.data, count=val.size)
+
+    @always_inline
+    def load_columns(self, _range: Int) raises -> Matrix:
+        if _range > self.width:
+            raise Error("Index out of range!")
+        var mat = Matrix(self.height, _range, order=self.order)
+        if self.order == 'f' or self.height == 1:
+            memcpy(dest=mat.data, src=self.data, count=mat.size)
+        else:
+            @parameter
+            def p(i: Int):
+                memcpy(dest=mat.data + i * _range, src=self.data + i * self.width, count=_range)
+            parallelize[p](self.height)
+        return mat^
+
+    @always_inline
+    def load_rows(self, _range: Int) raises -> Matrix:
+        if _range > self.height:
+            raise Error("Index out of range!")
+        var mat = Matrix(_range, self.width, order=self.order)
+        if self.order == 'c' or self.width == 1:
+            memcpy(dest=mat.data, src=self.data, count=mat.size)
+        else:
+            @parameter
+            def p(i: Int):
+                memcpy(dest=mat.data + i * _range, src=self.data + i * self.height, count=_range)
+            parallelize[p](self.width)
+        return mat^
+
+    # access given columns per row
+    @always_inline
+    def get_per_row(self, columns: Matrix) raises -> Matrix:
+        var mat = Matrix(self.height, 1, order= self.order)
+        if self.height > 550000:
+            @parameter
+            def p(i: Int):
+                mat.data[i] = self.load[1](i, Int(columns.data[i]))
+            parallelize[p](self.height)
+        else:
+            for i in range(self.height):
+                mat.data[i] = self[i, Int(columns.data[i])]
+        return mat^
+
+    # replace given columns per row
+    @always_inline
+    def set_per_row(mut self, columns: Matrix, rhs: Matrix) raises:
+        if self.height > 550000:
+            @parameter
+            def p(i: Int):
+                self.store[1](i, Int(columns.data[i]), rhs.data[i])
+            parallelize[p](self.height)
+        else:
+            for i in range(self.height):
+                self[i, Int(columns.data[i])] = rhs.data[i]
+
+    @always_inline
+    def __del__(deinit self):
+        self.data.free()
+
+    @always_inline
+    def __len__(self) -> Int:
+        return self.size
+
+    @always_inline
+    def __eq__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        return self._elemwise_scalar_cmp[eq](rhs)
+
+    @always_inline
+    def ele_eq(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        return self._elemwise_matrix_cmp[eq](rhs)
+
+    @always_inline
+    def __ne__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        return self._elemwise_scalar_cmp[ne](rhs)
+
+    @always_inline
+    def ele_ne(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        return self._elemwise_matrix_cmp[ne](rhs)
+
+    @always_inline
+    def __gt__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        return self._elemwise_scalar_cmp[gt](rhs)
+
+    @always_inline
+    def ele_gt(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        return self._elemwise_matrix_cmp[gt](rhs)
+
+    @always_inline
+    def __ge__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        return self._elemwise_scalar_cmp[ge](rhs)
+
+    @always_inline
+    def ele_ge(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        return self._elemwise_matrix_cmp[ge](rhs)
+
+    @always_inline
+    def __lt__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        return self._elemwise_scalar_cmp[lt](rhs)
+
+    @always_inline
+    def ele_lt(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        return self._elemwise_matrix_cmp[lt](rhs)
+
+    @always_inline
+    def __le__(self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        return self._elemwise_scalar_cmp[le](rhs)
+
+    @always_inline
+    def ele_le(self, rhs: Matrix) -> List[Scalar[DType.bool]]:
+        return self._elemwise_matrix_cmp[le](rhs)
+
+    @always_inline
+    def __eq__(self, rhs: Self) -> Bool:
+        return self.height == rhs.height and self.width == rhs.width and memcmp(self.data, rhs.data, self.size) == 0
+
+    @always_inline
+    def __ne__(self, rhs: Self) -> Bool:
+        return not self == rhs
+
+    @always_inline
+    def __add__(self, rhs: Self) raises -> Self:
+        if self.height == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self + rhs.data[0]
+            if self.width == 1:
+                return self.data[0] + rhs
+            if self.width == rhs.width:
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[add](rhs)
+            raise Error("Cannot add matrices with different shapes!")
+        if self.width == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self + rhs.data[0]
+            if self.height == rhs.height:
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[add](rhs)
+            raise Error("Cannot add matrices with different shapes!")
+        if rhs.height == 1:
+            if rhs.width == 1:
+                return self + rhs.data[0]
+            elif rhs.width == self.width:
+                return self._elemwise_matrix[add](rhs._broadcast_row(self.height, self.width, self.order))
+            raise Error("Cannot add matrices with different shapes!")
+        if rhs.width == 1:
+            if rhs.height == self.height:
+                return self._elemwise_matrix[add](rhs._broadcast_column(self.height, self.width, self.order))
+            raise Error("Cannot add matrices with different shapes!")
+        if self.height == rhs.height and self.width == rhs.width:
+            if self.order == rhs.order:
+                return self._elemwise_matrix[add](rhs)
+            return self._elemwise_matrix[add](rhs.asorder(self.order))
+        raise Error("Cannot add matrices with different shapes!")
+
+    @always_inline
+    def __iadd__(mut self, rhs: Self) raises:
+        self = self + rhs
+
+    @always_inline
+    def __add__(self, rhs: Float32) -> Self:
+        return self._elemwise_scalar[add](rhs)
+
+    @always_inline
+    def __radd__(self, lhs: Float32) -> Self:
+        return self + lhs
+
+    @always_inline
+    def __iadd__(mut self, rhs: Float32):
+        self = self + rhs
+
+    @always_inline
+    def __sub__(self, rhs: Self) raises -> Self:
+        if self.height == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self - rhs.data[0]
+            if self.width == 1:
+                return self.data[0] - rhs
+            if self.width == rhs.width:
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[sub](rhs)
+            raise Error("Cannot subtract matrices with different shapes!")
+        if self.width == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self - rhs.data[0]
+            if self.height == rhs.height:
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[sub](rhs)
+            raise Error("Cannot subtract matrices with different shapes!")
+        if rhs.height == 1:
+            if rhs.width == 1:
+                return self - rhs.data[0]
+            elif rhs.width == self.width:
+                return self._elemwise_matrix[sub](rhs._broadcast_row(self.height, self.width, self.order))
+            raise Error("Cannot subtract matrices with different shapes!")
+        if rhs.width == 1:
+            if rhs.height == self.height:
+                return self._elemwise_matrix[sub](rhs._broadcast_column(self.height, self.width, self.order))
+            raise Error("Cannot subtract matrices with different shapes!")
+        if self.height == rhs.height and self.width == rhs.width:
+            if self.order == rhs.order:
+                return self._elemwise_matrix[sub](rhs)
+            return self._elemwise_matrix[sub](rhs.asorder(self.order))
+        raise Error("Cannot subtract matrices with different shapes!")
+
+    @always_inline
+    def __isub__(mut self, rhs: Self) raises:
+        self = self - rhs
+
+    @always_inline
+    def __sub__(self, rhs: Float32) -> Self:
+        return self._elemwise_scalar[sub](rhs)
+
+    @always_inline
+    def __rsub__(self, lhs: Float32) -> Self:
+        return -(self - lhs)
+
+    @always_inline
+    def __isub__(mut self, rhs: Float32):
+        self = self - rhs
+
+    @always_inline
+    def __truediv__(self, rhs: Self) raises -> Self:
+        if self.height == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self / rhs.data[0]
+            if self.width == 1:
+                return self.data[0] / rhs
+            if self.width == rhs.width:
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[div](rhs)
+            raise Error("Cannot divide matrices with different shapes!")
+        if self.width == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self / rhs.data[0]
+            if self.height == rhs.height:
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[div](rhs)
+            raise Error("Cannot divide matrices with different shapes!")
+        if rhs.height == 1:
+            if rhs.width == 1:
+                return self / rhs.data[0]
+            elif rhs.width == self.width:
+                return self._elemwise_matrix[div](rhs._broadcast_row(self.height, self.width, self.order))
+            raise Error("Cannot divide matrices with different shapes!")
+        if rhs.width == 1:
+            if rhs.height == self.height:
+                return self._elemwise_matrix[div](rhs._broadcast_column(self.height, self.width, self.order))
+            raise Error("Cannot divide matrices with different shapes!")
+        if self.height == rhs.height and self.width == rhs.width:
+            if self.order == rhs.order:
+                return self._elemwise_matrix[div](rhs)
+            return self._elemwise_matrix[div](rhs.asorder(self.order))
+        raise Error("Cannot divide matrices with different shapes!")
+
+    @always_inline
+    def __itruediv__(mut self, rhs: Self) raises:
+        self = self / rhs
+
+    @always_inline
+    def __truediv__(self, rhs: Float32) -> Self:
+        return self._elemwise_scalar[div](rhs)
+
+    @always_inline
+    def __rtruediv__(self, lhs: Float32) -> Self:
+        return lhs * (self ** -1)
+
+    @always_inline
+    def __itruediv__(mut self, rhs: Float32):
+        self = self / rhs
+
+    @always_inline
+    def __mul__(self, rhs: Self) raises -> Self:
+        if self.width != rhs.height:
+            raise Error('Cannot multiply matrices with shapes (' + String(self.height) + ', ' + String(self.width) + ') and (' + String(rhs.height) + ', ' + String(rhs.width) + ')')
+        
+        if self.height == 1 and rhs.width == 1:
+            # Dot product
+            var mat = Self(1, 1)
+            mat.data[0] = self.ele_mul(rhs.T()).sum()
+            return mat^
+        
+        if self.height * self.width * rhs.width <= 4096:
+            # matmul naive
+            var mat = Self(self.height, rhs.width)
+            for i in range(self.size):
+                var rhsr = i % self.width
+                for j in range(rhsr * rhs.width, rhsr * rhs.width + rhs.width):
+                    if rhsr != 0:
+                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[i] * rhs.data[j]
+                    else:
+                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] = self.data[i] * rhs.data[j]
+            return mat^
+        var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
+        var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
+        var C = matmul.Matrix[DType.float32]((self.height, rhs.width))
+        memset_zero(C.data, self.height * rhs.width)
+        matmul.matmul(self.height, self.width, rhs.width, C, A, B)
+        return Matrix(C.data, self.height, rhs.width)
+
+    @always_inline
+    def __imul__(mut self, rhs: Self) raises:
+        self = self * rhs
+
+    @always_inline
+    def __mul__(self, rhs: Float32) -> Self:
+        return self._elemwise_scalar[mul](rhs)
+
+    @always_inline
+    def __rmul__(self, lhs: Float32) -> Self:
+        return self * lhs
+
+    @always_inline
+    def __imul__(mut self, rhs: Float32):
+        self = self * rhs
+
+    @always_inline
+    def __neg__(self) -> Self:
+        return self * (-1.0)
+
+    @always_inline
+    def __pow__(self, p: Int) -> Self:
+        if p == 1:
+            return self
+        var mat = Self(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, pow(self.data.load[width=simd_width](idx), p))
+            vectorize[self.simd_width](self.size, math_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, pow(self.data.load[width=self.simd_width](idx), p))
+            parallelize[math_vectorize_parallelize](n_vects)
+        return mat^
+
+    @always_inline
+    def __ipow__(mut self, rhs: Int):
+        self = self ** rhs
+
+    @always_inline
+    def ele_mul(self, rhs: Matrix) raises -> Matrix:
+        # element-wise multiplication
+        if self.height == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self * rhs.data[0]
+            if self.width == 1:
+                return self.data[0] * rhs
+            if self.width == rhs.width:
+                return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[mul](rhs)
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
+        if self.width == 1:
+            if rhs.height == 1 and rhs.width == 1:
+                return self * rhs.data[0]
+            if self.height == rhs.height:
+                return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[mul](rhs)
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
+        if rhs.height == 1:
+            if rhs.width == 1:
+                return self * rhs.data[0]
+            elif rhs.width == self.width:
+                return self._elemwise_matrix[mul](rhs._broadcast_row(self.height, self.width, self.order))
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
+        if rhs.width == 1:
+            if rhs.height == self.height:
+                return self._elemwise_matrix[mul](rhs._broadcast_column(self.height, self.width, self.order))
+            raise Error("Cannot element-wise multiply matrices with different shapes!")
+        if self.height == rhs.height and self.width == rhs.width:
+            if self.order == rhs.order:
+                return self._elemwise_matrix[mul](rhs)
+            return self._elemwise_matrix[mul](rhs.asorder(self.order))
+        raise Error("Cannot element-wise multiply matrices with different shapes!")
+
+    @always_inline
+    def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Float32) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def convert[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true, _false))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=self.simd_width](idx).select(_true, _false))
+            parallelize[vectorize_parallelize](n_vects)
+        return mat^
+
+    def where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Float32) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def convert[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true.data.load[width=simd_width](idx), _false))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=self.simd_width](idx).select(_true.data.load[width=self.simd_width](idx), _false))
+            parallelize[vectorize_parallelize](n_vects)
+        return mat^
+
+    def where(self, cmp: List[Scalar[DType.bool]], _true: Float32, _false: Matrix) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def convert[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true, _false.data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=self.simd_width](idx).select(_true, _false.data.load[width=self.simd_width](idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        return mat^
+
+    @always_inline
+    def where(self, cmp: List[Scalar[DType.bool]], _true: Matrix, _false: Matrix) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def convert[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=simd_width](idx).select(_true.data.load[width=simd_width](idx), _false.data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, cmp.unsafe_ptr().load[width=self.simd_width](idx).select(_true.data.load[width=self.simd_width](idx), _false.data.load[width=self.simd_width](idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        return mat^
+
+    @always_inline
+    def C_transpose(self) -> Matrix:
+        var mat = Matrix(self.width, self.height)
+        if self.size < 98304:
+            for i in range(self.width):
+                var idx_col = i
+                var tmpPtr = self.data + idx_col
+        
+                def convert[simd_width: Int](idx: Int) {mut}:
+                    mat.data.store(idx + idx_col * mat.width, tmpPtr.strided_load[width=simd_width](mat.height))
+                    tmpPtr += simd_width * mat.height
+                vectorize[self.simd_width](self.height, convert)
+        else:
+            @parameter
+            def p(i: Int):
+                var idx_col = i
+                var tmpPtr = self.data + idx_col
+        
+                def pconvert[simd_width: Int](idx: Int) {mut}:
+                    mat.data.store(idx + idx_col * mat.width, tmpPtr.strided_load[width=simd_width](mat.height))
+                    tmpPtr += simd_width * mat.height
+                vectorize[self.simd_width](self.height, pconvert)
+            parallelize[p](self.width)
+        return mat^
+
+    @always_inline
+    def F_transpose(self) -> Matrix:
+        var mat = Matrix(self.width, self.height, order= self.order)
+        if self.size < 98304:
+            for i in range(self.height):
+                var idx_row = i
+                var tmpPtr = self.data + idx_row
+        
+                def convert[simd_width: Int](idx: Int) {mut}:
+                    mat.data.store(idx + idx_row * mat.height, tmpPtr.strided_load[width=simd_width](mat.width))
+                    tmpPtr += simd_width * mat.width
+                vectorize[self.simd_width](self.width, convert)
+        else:
+            @parameter
+            def p(i: Int):
+                var idx_row = i
+                var tmpPtr = self.data + idx_row
+        
+                def pconvert[simd_width: Int](idx: Int) {mut}:
+                    mat.data.store(idx + idx_row * mat.height, tmpPtr.strided_load[width=simd_width](mat.width))
+                    tmpPtr += simd_width * mat.width
+                vectorize[self.simd_width](self.width, pconvert)
+            parallelize[p](self.height)
+        return mat^
+
+    @always_inline
+    def T(self) -> Matrix:
+        if self.height == 1 or self.width == 1:
+            return self.reshape(self.width, self.height)
+        if self.order == 'c':
+            return self.C_transpose()
+        return self.F_transpose()
+
+    def asorder(self, order: String) -> Matrix:
+        _order = order.lower()
+        if _order == self.order:
+            return self
+        var mat = self.T().reshape(self.height, self.width)
+        mat.order = _order
+        return mat^
+
+    @always_inline
+    def cumsum(self) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        reduction.cumsum(Span(ptr=mat.data, length=self.size), Span(ptr=self.data, length=self.size))
+        return mat^
+
+    @always_inline
+    def sum(self) raises -> Float32:
+        return reduction.sum(Span(ptr=self.data, length=self.size))
+
+    @always_inline
+    def sum(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].sum()
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].sum()
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].sum()
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].sum()
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def mean(self) raises -> Float32:
+        return self.sum() / Float32(self.size)
+
+    @always_inline
+    def mean_weighted(self, weights: Matrix, size: Float32) raises -> Float32:
+        return (self.ele_mul(weights)).sum() / size
+
+    @always_inline
+    def mean(self, axis: Int) raises -> Matrix:
+        if axis == 0:
+            return self.sum(0) / Float32(self.height)
+        return self.sum(1) / Float32(self.width)
+
+    def mean_slow(self) raises -> Float32:
+        return (self / Float32(self.size)).sum()
+
+    def mean_slow0(self) raises -> Matrix:
+        var mat = Matrix(1, self.width, order= self.order)
+        if self.width < 768:
+            for i in range(self.width):
+                mat.data[i] = self['', i, unsafe=True].mean_slow()
+        else:
+            @parameter
+            def p0(i: Int):
+                try:
+                    mat.data[i] = self['', i, unsafe=True].mean_slow()
+                except e:
+                    print('Error:', e)
+            parallelize[p0](self.width)
+        return mat^
+
+    @always_inline
+    def _var(self, correction: Bool = False) raises -> Float32:
+        return reduction.variance(Span(ptr=self.data, length=self.size), correction=Int(correction))
+
+    @always_inline
+    def _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
+        return reduction.variance(Span(ptr=self.data, length=self.size), mean_value=_mean, correction=Int(correction))
+
+    @always_inline
+    def _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True]._var(correction=correction)
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True]._var(correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def _var(self, axis: Int, _mean: Matrix, correction: Bool = False) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def std(self, correction: Bool = False) raises -> Float32:
+        return math.sqrt(self._var(correction=correction))
+
+    @always_inline
+    def std(self, _mean: Float32, correction: Bool = False) raises -> Float32:
+        return math.sqrt(self._var(_mean, correction=correction))
+
+    @always_inline
+    def std(self, axis: Int, correction: Bool = False) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std(correction=correction)
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].std(correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std(correction=correction)
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].std(correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def std(self, axis: Int, _mean: Matrix, correction: Bool = False) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    def std_slow(self, _mean: Float32) raises -> Float32:
+        return math.sqrt(((self - _mean) ** 2).mean_slow())
+
+    def std_slow(self, axis: Int, _mean: Matrix) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def abs(self) -> Matrix:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, abs(self.data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, math_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, abs(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects)
+        return mat^
+
+    @always_inline
+    def log(self) -> Matrix:
+        return self._elemwise_math[math.log]()
+
+    @always_inline
+    def sqrt(self) -> Matrix:
+        return self._elemwise_math[math.sqrt]()
+
+    @always_inline
+    def exp(self) -> Matrix:
+        return self._elemwise_math[math.exp]()
+
+    @always_inline
+    def argmin(self) -> Int:
+        var output = Matrix(1, 1)
+        argn[False](self, output)
+        var min_index = Int(output.data[0])
+        if self.order == 'c':
+            return min_index
+        return (min_index % self.height) * self.width + min_index // self.height
+
+    @always_inline
+    def argmin(self, axis: Int) -> List[Int]:
+        var vect = UnsafePointer[Int, MutExternalOrigin].unsafe_dangling()
+        var length = 0
+        if axis == 0:
+            vect = alloc[Int](self.width)
+            length = self.width
+            if self.width < 512:
+                for i in range(self.width):
+                    vect[i] = self['', i, unsafe=True].argmin()
+            else:
+                @parameter
+                def p0(i: Int):
+                    vect[i] = self['', i, unsafe=True].argmin()
+                parallelize[p0](self.width)
+        elif axis == 1:
+            vect = alloc[Int](self.height)
+            length = self.height
+            if self.height < 512:
+                for i in range(self.height):
+                    vect[i] = self[i, unsafe=True].argmin()
+            else:
+                @parameter
+                def p1(i: Int):
+                    vect[i] = self[i, unsafe=True].argmin()
+                parallelize[p1](self.height)
+        var list = List[Int](unsafe_uninit_length=length)
+        list._data = vect
+        return list^
+
+    @always_inline
+    def argmax(self) -> Int:
+        var output = Matrix(1, 1)
+        argn[True](self, output)
+        var max_index = Int(output.data[0])
+        if self.order == 'c':
+            return max_index
+        return (max_index % self.height) * self.width + max_index // self.height
+
+    @always_inline
+    def argmax(self, axis: Int) -> List[Int]:
+        var vect = UnsafePointer[Int, MutExternalOrigin].unsafe_dangling()
+        var length = 0
+        if axis == 0:
+            vect = alloc[Int](self.width)
+            length = self.width
+            if self.width < 512:
+                for i in range(self.width):
+                    vect[i] = self['', i, unsafe=True].argmax()
+            else:
+                @parameter
+                def p0(i: Int):
+                    vect[i] = self['', i, unsafe=True].argmax()
+                parallelize[p0](self.width)
+        elif axis == 1:
+            vect = alloc[Int](self.height)
+            length = self.height
+            if self.height < 512:
+                for i in range(self.height):
+                    vect[i] = self[i, unsafe=True].argmax()
+            else:
+                @parameter
+                def p1(i: Int):
+                    vect[i] = self[i, unsafe=True].argmax()
+                parallelize[p1](self.height)
+        var list = List[Int](unsafe_uninit_length=length)
+        list._data = vect
+        return list^
+
+    @always_inline
+    def argmax_f(self, axis: Int) -> Matrix:
+        if axis == 0:
+            var vect = alloc[Float32](self.width)
+            if self.width < 512:
+                for i in range(self.width):
+                    vect[i] = Float32(self['', i, unsafe=True].argmax())
+            else:
+                @parameter
+                def p0(i: Int):
+                    vect[i] = Float32(self['', i, unsafe=True].argmax())
+                parallelize[p0](self.width)
+            return Matrix(vect, 1, self.width, self.order)
+        else:
+            var vect = alloc[Float32](self.height)
+            if self.height < 512:
+                for i in range(self.height):
+                    vect[i] = Float32(self[i, unsafe=True].argmax())
+            else:
+                @parameter
+                def p1(i: Int):
+                    vect[i] = Float32(self[i, unsafe=True].argmax())
+                parallelize[p1](self.height)
+            return Matrix(vect, self.height, 1, self.order)
+
+    @always_inline
+    def argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.int]]:
+        var sorted_indices = fill_indices_list(self.size)
+        @parameter
+        def cmp_fn(a: Scalar[DType.int], b: Scalar[DType.int]) -> Bool:
+            comptime if ascending:
+                return self.data[a] < self.data[b]
+            else:
+                return self.data[a] > self.data[b]
+
+        sort[cmp_fn](
+            Span[
+                Scalar[DType.int],
+                origin_of(sorted_indices),
+            ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
+        )
+        return sorted_indices^
+
+    @always_inline
+    def argsort_inplace[ascending: Bool = True](mut self) raises -> List[Scalar[DType.int]]:
+        var sorted_indices = fill_indices_list(self.size)
+        @parameter
+        def cmp_fn(a: Float32, b: Float32) -> Bool:
+            comptime if ascending:
+                return a < b
+            else:
+                return a > b
+
+        mojmelo.utils.sort.sort[cmp_fn](
+            Span[
+                Float32,
+                MutAnyOrigin,
+            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr()
+        )
+        return sorted_indices^
+
+    @always_inline
+    def min(self) raises -> Float32:
+        return reduction.min(Span(ptr=self.data, length=self.size))
+
+    @always_inline
+    def min(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].min()
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].min()
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].min()
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].min()
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def max(self) raises -> Float32:
+        return reduction.max(Span(ptr=self.data, length=self.size))
+
+    @always_inline
+    def max(self, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(1, self.width, order= self.order)
+            if self.width < 768:
+                for i in range(self.width):
+                    mat.data[i] = self['', i, unsafe=True].max()
+            else:
+                @parameter
+                def p0(i: Int):
+                    try:
+                        mat.data[i] = self['', i, unsafe=True].max()
+                    except e:
+                        print('Error:', e)
+                parallelize[p0](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, 1, order= self.order)
+            if self.height < 768:
+                for i in range(self.height):
+                    mat.data[i] = self[i, unsafe=True].max()
+            else:
+                @parameter
+                def p1(i: Int):
+                    try:
+                        mat.data[i] = self[i, unsafe=True].max()
+                    except e:
+                        print('Error:', e)
+                parallelize[p1](self.height)
+        return mat^
+
+    @always_inline
+    def reshape(self, height: Int, width: Int) -> Matrix:
+        var mat: Matrix = self
+        mat.height = height
+        mat.width = width
+        return mat^
+
+    @staticmethod
+    @always_inline
+    def lu_factor(mut A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], N: Int) raises:
+        for i in range(N):
+            piv[i] = i
+
+        for k in range(N - 1):
+            var max_row = k
+            for i in range(k + 1, N):
+                if (abs(A[i, k]) > abs(A[max_row, k])):
+                    max_row = i
+
+            if k != max_row:
+                swap(A[k], A[max_row])
+
+                var temp = piv[k]
+                piv[k] = piv[max_row]
+                piv[max_row] = temp
+
+            # LU decomposition (Gaussian elimination)
+            for i in range(k + 1, N):
+                A[i, k] /= A[k, k]
+                A[i, True, k + 1] -= A[i, k] * A[k, True, k + 1]
+
+    @staticmethod
+    @always_inline
+    def lu_solve(A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
+        var y = Matrix(1, N)
+
+        # Forward substitution: solve L * y = P * b
+        for i in range(N):
+            y.data[i] = b[piv[i], Mi]
+            for j in range(i):
+                y.data[i] -= A[i, j] * y.data[j]
+
+        # Backward substitution: solve U * x = y
+        for i in range(N - 1, -1, -1):
+            x[i, Mi] = y.data[i]
+            for j in range(i + 1, N):
+                x[i, Mi] -= A[i, j] * x[j, Mi]
+            x[i, Mi] /= A[i, i]
+
+    @staticmethod
+    @always_inline
+    def solve(var A: Matrix, b: Matrix) raises -> Matrix:
+        if A.height != A.width:
+            raise Error("\"A\" must be square!")
+        if A.width != b.height:
+            raise Error("\"B\" has an unrelated shape to \"A\"!")
+        var N = A.height
+        var M = b.width
+        var X = Matrix(N, M, order=A.order)
+        var piv = alloc[Int](N)
+
+        Matrix.lu_factor(A, piv, N)
+        if M > 1:
+            @parameter
+            def p(i: Int):
+                try:
+                    Matrix.lu_solve(A, piv, b, X, N, i)
+                except e:
+                    print('Error:', e)
+            parallelize[p](M)
+        else:
+            Matrix.lu_solve(A, piv, b, X, N, 0)
+
+        piv.free()
+
+        return X^
+
+    def inv(self) raises -> Matrix:
+        if self.height != self.width:
+            raise Error("Matrix must be square to inverse!")
+        return Matrix.solve(self, Matrix.eye(self.height, self.order))
+
+    @staticmethod
+    @always_inline
+    def eye(var n: Int, order: String = 'c') -> Matrix:
+        var result = Matrix.zeros(n, n, order)
+        var tmpPtr = result.data
+
+        def convert[simd_width: Int](idx: Int) {mut}:
+            tmpPtr.strided_store[width=simd_width](1.0, (n + 1))
+            tmpPtr += simd_width * (n + 1)
+        vectorize[result.simd_width](n, convert)
+        return result^
+
+    @always_inline
+    def norm(self) raises -> Float32:
+        return math.sqrt((self ** 2).sum())
+
+    def outer(self, rhs: Matrix) raises -> Matrix:
+        var mat = Matrix(self.size, rhs.size, order= self.order)
+        if mat.order == 'c':
+            @parameter
+            def p1(i: Int):
+                try:
+                    mat[i] = self.data[i] * rhs
+                except e:
+                    print('Error:', e)
+            parallelize[p1](mat.height)
+        else:
+            @parameter
+            def p2(i: Int):
+                try:
+                    mat['', i] = self * rhs.data[i]
+                except e:
+                    print('Error:', e)
+            parallelize[p2](mat.width)
+        return mat^
+
+    def concatenate(self, rhs: Matrix, axis: Int) raises -> Matrix:
+        var mat = Matrix(0, 0)
+        if axis == 0:
+            mat = Matrix(self.height + rhs.height, self.width, order= self.order)
+            if self.order == 'c' or self.height == 1:
+                memcpy(dest=mat.data, src=self.data, count=self.size)
+                memcpy(dest=mat.data + self.size, src=rhs.data, count=rhs.size)
+            else:
+                @parameter
+                def pf(i: Int):
+                    memcpy(dest=mat.data + i * mat.height, src=self.data + i * self.height, count=self.height)
+                    memcpy(dest=mat.data + i * mat.height + self.height, src=rhs.data + i * rhs.height, count=rhs.height)
+                parallelize[pf](self.width)
+        elif axis == 1:
+            mat = Matrix(self.height, self.width + rhs.width, order= self.order)
+            if self.order == 'c' and self.width > 1:
+                @parameter
+                def pc(i: Int):
+                    memcpy(dest=mat.data + i * mat.width, src=self.data + i * self.width, count=self.width)
+                    memcpy(dest=mat.data + i * mat.width + self.width, src=rhs.data + i * rhs.width, count=rhs.width)
+                parallelize[pc](self.height)
+            else:
+                memcpy(dest=mat.data, src=self.data, count=self.size)
+                memcpy(dest=mat.data + self.size, src=rhs.data, count=rhs.size)
+        return mat^
+
+    @always_inline
+    def bincount(self) raises -> List[Int]:
+        var max_val = Int(self.max())
+        var vect = alloc[Int](max_val + 1)
+        memset_zero(vect, max_val + 1)
+
+        for i in range(self.size):
+            vect[Int(self.data[i])] += 1
+        var list = List[Int](unsafe_uninit_length=max_val + 1)
+        list._data = vect
+        return list^
+
+    @always_inline
+    def bincount(self, weights: Matrix) raises -> List[Int]:
+        var max_val = Int(self.max())
+        var vect = alloc[Int](max_val + 1)
+        memset_zero(vect, max_val + 1)
+
+        for i in range(self.size):
+            vect[Int(self.data[i])] += Int(weights.data[i])
+        var list = List[Int](unsafe_uninit_length=max_val + 1)
+        list._data = vect
+        return list^
+
+    @always_inline
+    def unique(self) -> List[List[Int]]:
+        var freq = List[List[Int]]()
+        for i in range(self.size):
+            var data = Int(self.data[i])
+            if len(freq) <= data:
+                for _ in range(data - len(freq) + 1):
+                    freq.append(List[Int]())
+            freq[data].append(i)
+        return freq^
+
+    @always_inline
+    def unique(self, weights: Matrix) -> List[List[Int]]:
+        var freq = List[List[Int]]()
+        for i in range(self.size):
+            var data = Int(self.data[i])
+            if len(freq) <= data:
+                for _ in range(data - len(freq) + 1):
+                    freq.append(List[Int]())
+            for _ in range(weights.data[i]):
+                freq[data].append(i)
+        return freq^
+
+    @always_inline
+    def is_uniquef(self) -> Int:
+        for i in range(1, self.size):
+            if self.data[i - 1] != self.data[i]:
+                return 0
+        return 1
+
+    @staticmethod
+    @always_inline
+    def zeros(height: Int, width: Int, order: String = 'c') -> Matrix:
+        var mat = Matrix(height, width, order= order)
+        memset_zero(mat.data, mat.size)
+        return mat^
+
+    @staticmethod
+    @always_inline
+    def ones(height: Int, width: Int, order: String = 'c') -> Matrix:
+        return Matrix.full(height, width, 1.0, order)
+
+    @staticmethod
+    def full(height: Int, width: Int, val: Float32, order: String = 'c') -> Matrix:
+        var mat = Matrix(height, width, order= order)
+        mat.fill(val)
+        return mat^
+
+    @always_inline
+    def fill_zero(self):
+        memset_zero(self.data, self.size)
+
+    @always_inline
+    def fill(self, val: Float32):
+        Span(ptr=self.data, length=self.size).fill(val)
+
+    @staticmethod
+    def random(height: Int, width: Int, order: String = 'c') -> Matrix:
+        random.seed()
+        var mat = Matrix(height, width, order= order)
+        random.rand(mat.data, mat.size, min=0.0, max=1.0)
+        return mat^
+
+    @staticmethod
+    @always_inline
+    def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Scalar[DType.int]]:
+        if seed:
+            random.seed()
+        var result = alloc[Scalar[DType.int]](size)
+        if replace:
+            random.randint(result, size, 0, arang - 1)
+        else:
+            var indices = fill_indices(arang)
+            for i in range(size):
+                var j = Int(random.random_ui64(UInt64(i), UInt64(arang - 1)))
+                indices[i], indices[j] = indices[j], indices[i]
+            memcpy(dest=result, src=indices, count=size)
+        var list = List[Scalar[DType.int]](unsafe_uninit_length=size)
+        list._data = result
+        return list^
+
+    @staticmethod
+    @always_inline
+    def linspace(start: Float32, stop: Float32, num: Int, order: String = 'c') raises -> Matrix:
+        var result = Matrix(1, num, order= order.lower())
+        var jump = (stop - start) / Float32(num - 1)
+        for i in range(num):
+            result.data[i] = start + Float32(i) * jump
+        return result^
+
+    @staticmethod
+    def from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
+        """Initialize a matrix from a numpy array.
+
+        Returns:
+            The matrix.
+        """
+        var np = Python.import_module("numpy")
+        var np_arr_f = np.array(np_arr, dtype= 'f', order= order.upper())
+        var height = Int(py=np_arr_f.shape[0])
+        var width: Int
+        try:
+            width = Int(py=np_arr_f.shape[1])
+        except:
+            width = height
+            height = 1
+        var mat = Matrix(height, width, np_arr_f.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), order)
+        _ = np_arr_f.__array_interface__['data'][0].__index__()
+        return mat^
+
+    def to_numpy(self) raises -> PythonObject:
+        """Converts the matrix to a numpy array.
+
+        Returns:
+            The numpy array.
+        """
+        var np = Python.import_module("numpy")
+        var np_arr = np.empty(Python.tuple(self.height,self.width), dtype='f', order= self.order.upper())
+        memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.float32](), src=self.data, count=self.size)
+        return np_arr^
+
+    @always_inline
+    def _broadcast_row(self, height: Int, width: Int, order: String) -> Matrix:
+        var mat = Matrix(height, width, order=order)
+        if height * width < 262144 and height < 1024:
+            for i in range(mat.height):
+                mat[i, unsafe=True] = self
+        else:
+            @parameter
+            def broadcast(i: Int):
+                mat[i, unsafe=True] = self
+            parallelize[broadcast](mat.height)
+        return mat^
+
+    @always_inline
+    def _broadcast_column(self, height: Int, width: Int, order: String) -> Matrix:
+        var mat = Matrix(height, width, order=order)
+        if height * width < 262144 and width < 1024:
+            for i in range(mat.width):
+                mat['', i, unsafe=True] = self
+        else:
+            @parameter
+            def broadcast(i: Int):
+                mat['', i, unsafe=True] = self
+            parallelize[broadcast](mat.width)
+        return mat^
+
+    @always_inline
+    def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
+        return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
+
+    @always_inline
+    def _elemwise_scalar_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[DType.bool, width]](self, rhs: Float32) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            def convert[simd_width: Int](idx: Int) {read}:
+                result_ptr.store(idx, func(self.data.load[width=simd_width](idx), rhs))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, func(self.data.load[width=self.simd_width](idx), rhs))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data = result_ptr
+        return result^
+
+    @always_inline
+    def _elemwise_matrix_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[DType.bool, width]](self, rhs: Self) -> List[Scalar[DType.bool]]:
+        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        if self.size < 524288:
+            def convert[simd_width: Int](idx: Int) {read}:
+                result_ptr.store(idx, func(self.data.load[width=simd_width](idx), rhs.data.load(idx)))
+            vectorize[self.simd_width](self.size, convert)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                result_ptr.store(idx, func(self.data.load[width=self.simd_width](idx), rhs.data.load(idx)))
+            parallelize[vectorize_parallelize](n_vects)
+        var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
+        result._data = result_ptr
+        return result^
+
+    @always_inline
+    def _elemwise_scalar[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[dtype, width]](self, rhs: Float32) -> Self:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def scalar_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
+            vectorize[self.simd_width](self.size, scalar_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def scalar_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
+            parallelize[scalar_vectorize_parallelize](n_vects)
+        return mat^
+
+    @always_inline
+    def _elemwise_matrix[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin ->SIMD[dtype, width]](self, rhs: Self) -> Self:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def matrix_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, matrix_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def matrix_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
+            parallelize[matrix_vectorize_parallelize](n_vects)
+        return mat^
+
+    @always_inline
+    def _elemwise_math[func: def[dtype: DType, width: Int](SIMD[dtype, width]) thin->SIMD[dtype, width]](self) -> Self:
+        var mat = Matrix(self.height, self.width, order= self.order)
+        if self.size < 262144:
+            def math_vectorize[simd_width: Int](idx: Int) {read}:
+                mat.data.store(idx, func(self.data.load[width=simd_width](idx)))
+            vectorize[self.simd_width](self.size, math_vectorize)
+        else:
+            var n_vects = Int(math.ceil(self.size / self.simd_width))
+            @parameter
+            def math_vectorize_parallelize(i: Int):
+                var idx = i * self.simd_width
+                mat.data.store(idx, func(self.data.load[width=self.simd_width](idx)))
+            parallelize[math_vectorize_parallelize](n_vects)
+        return mat^
+
+    def write_to[W: Writer](self, mut writer: W):
+        var res: String = "["
+        var strings = List[String]()
+        for i in range(self.width):
+            var max_len: Int = 0
+            for j in range(self.height):
+                strings.append("")
+                var val = self.load[1](j, i)
+                if val >= 0:
+                    strings[j] += " "
+                strings[j] += String(val)
+                if strings[j].byte_length() > max_len:
+                    max_len = strings[j].byte_length()
+            for j in range(self.height):
+                for _ in range(max_len - strings[j].byte_length() + 1):
+                    strings[j] += " "
+
+        for i in range(self.height):
+            if i != 0:
+                res += " "
+            res += "[" + strings[i] + "]"
+            if i != self.height - 1:
+                res += "\n"
+        writer.write(res + "]")
+
+    def __str__(self) -> String:
+        return String.write(self)
