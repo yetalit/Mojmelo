@@ -206,7 +206,7 @@ from mojmelo.utils.utils import *
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
 Contributions can be done to the project in these 3 ways:
-1. Applying improvements to the code and Opening a Pull Request
+1. Applying improvements to the code and opening a Pull Request
 2. Reporting a bug
 3. Suggesting new features
 
