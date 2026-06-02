@@ -55,7 +55,7 @@ If you are not familiar with Mojo projects, you can get started here: https://mo
 
 * mojo-compiler 1.0.0b1
 
-Additionally, you may want to install bellow Python packages for a better usability and to run tests:
+Optionally, bellow Python packages can be installed for a better usability and to run tests:
 1. Numpy
 2. Pandas
 3. Scikit-learn
@@ -63,33 +63,44 @@ Additionally, you may want to install bellow Python packages for a better usabil
 
 ### Installation
 
-There are two ways you can install mojmelo: Using Pixi CLI or through the source code.
+There are three ways to install mojmelo: Using Pixi CLI, PyPI CLI and through the source code.
 
-To complete the installation, you should also finish the setup process which will be discussed later.
+Additionally, completing the setup process (discussed later) is recommended.
 
 #### Pixi CLI
 
-Make sure you have the Modular community channel (https://repo.prefix.dev/modular-community) in your `pixi.toml` file in the channels section, then Run the following command:
+Make sure you have the Modular community channel (https://repo.prefix.dev/modular-community) in your `pixi.toml` file in the channels section, then add mojmelo this way:
 ```
 pixi add mojmelo
 ```
 
-To start the setup process, Run the following command from the `main folder` of your project:
+To start the setup process, run the following command from the `main folder` of your project:
 ```
 bash ./.pixi/envs/default/etc/conda/test-files/mojmelo/0/tests/setup.sh
 ```
 
-Note: If CPU cache details are available by your OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
+Note: If CPU cache details are available by the OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
+
+#### PyPI CLI
+
+Using the command below, the PyPI package containing the source code will be installed from the github repository:
+```
+pip install "git+https://github.com/yetalit/Mojmelo.git#subdirectory=pypi"
+```
+
+Then start the setup process this way:
+```
+mojmelo-setup
+```
+
+Note: If CPU cache details are available by the OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
 
 #### Source Code
 
-You can also install mojmelo through the source code. This way, you will have the source code in your project.
+Mojmelo can also be installed through the source code. This way, you will have the source code in your project.
 
-First, Download `mojmelo` folder and `setup.mojo` file. Then Add the following task to your `pixi.toml` file in the tasks section:
+First, Download `mojmelo` folder and `setup.mojo` file. To start the setup process, run these commands from where `mojmelo` folder and `setup.mojo` file are stored:
 ```
-[tasks]
-setup = """
-cd <path_to_mojmelo_location> &&
 mojo build setup.mojo -o setup &&
 ./setup &&
 ./setup 1 &&
@@ -101,25 +112,18 @@ mojo build setup.mojo -o setup &&
 ./setup 7 &&
 ./setup 8 &&
 ./setup 9 &&
-rm -f ./setup"""
+rm -f ./setup
 ```
 
-Don't forget to change `<path_to_mojmelo_location>` according to where `mojmelo` folder and `setup.mojo` file are stored.
-
-Then Run the following command to start the setup process:
-```
-pixi run setup
-```
-
-Note: If CPU cache details are available by your OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
+Note: If CPU cache details are available by the OS, benchmarking parts of the setup will be skipped. Otherwise, please try not to run other tasks on your pc during the process for better results.
 
 ## Usage
 
-Just import any model you want this way:
+Importing models is straightforward:
 ```python 
 from mojmelo.LinearRegression import LinearRegression
 ```
-You may also want to use the utility codes I've written for this project:
+You may also want to use the utility codes written for this project:
 ```python 
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import *
@@ -201,10 +205,10 @@ from mojmelo.utils.utils import *
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
-You can contribute to the project in 3 ways:
-1. Apply improvements to the code and Open a Pull Request
-2. Report a bug
-3. Suggest new features
+Contributions can be done to the project in these 3 ways:
+1. Applying improvements to the code and Opening a Pull Request
+2. Reporting a bug
+3. Suggesting new features
 
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
