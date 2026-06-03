@@ -1,10 +1,9 @@
 import platform
-from pathlib import Path
-import site
-import subprocess
 import sys
 from importlib.resources import files
+from mojo._package_root import get_package_root
 import os
+import subprocess
 
 
 def main():
@@ -14,19 +13,19 @@ def main():
         print(f"Error: Unsupported platform -> {system}")
         sys.exit(1)
 
-    lib_dir = Path(sys.prefix) / "lib"
+    root_dir = files("_mojmelo")
+    mojo_lib_dir = get_package_root() / "lib" / "mojo"
     var_name = "MODULAR_MOJO_MAX_IMPORT_PATH"
 
-    with open(Path(site.getsitepackages()[0]) / "mojmelo_import.pth", "w") as f:
-        f.write(f"import os; os.environ['{var_name}'] = '{lib_dir}';")
+    with open(root_dir.parent / "mojmelo_import.pth", "w") as f:
+        f.write(f"import os; os.environ['{var_name}']=','.join(dict.fromkeys([*filter(None, os.environ.get('{var_name}','').split(',')), '{mojo_lib_dir}', '{root_dir}']))")
 
-    root_dir = files("_mojmelo")
-
-    build_command = [f"{os.path.dirname(sys.executable)}/mojo", "build", f"{root_dir}/setup.mojo", "-o", f"{root_dir}/setup"]
+    build_command = [os.path.join(os.path.dirname(sys.executable), "mojo"), "build", os.path.join(root_dir, "setup.mojo"), "-o", os.path.join(root_dir, "setup")]
     subprocess.run(build_command, cwd=root_dir, check=True)
-
+    
+    setup_path = os.path.join(root_dir, "setup")
     for i in range(10):
-        run_command = [f"{root_dir}/setup"] if i == 0 else [f"{root_dir}/setup", str(i)]
+        run_command = [setup_path] if i == 0 else [setup_path, str(i)]
         subprocess.run(run_command, cwd=root_dir, check=True)
 
-    os.remove(f"{root_dir}/setup")
+    os.remove(setup_path)
