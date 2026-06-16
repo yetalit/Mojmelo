@@ -113,9 +113,9 @@ struct SearchRecord:
 
     def __init__(out self, qv_in: Span[Float32, MutAnyOrigin], mut tree_in: KDTree, mut result_in: KDTreeResultVector):  
         self.qv = qv_in.unsafe_ptr()
-        self.result = UnsafePointer(to=result_in)
-        self.data = UnsafePointer(to=tree_in._data)
-        self.ind = UnsafePointer(to=tree_in.ind) 
+        self.result = UnsafePointer(to=result_in).as_unsafe_any_origin()
+        self.data = UnsafePointer(to=tree_in._data).as_unsafe_any_origin()
+        self.ind = UnsafePointer(to=tree_in.ind).as_unsafe_any_origin()
         self.dim = tree_in.dim
         self.rearrange = tree_in.rearrange
         self.ballsize = math.inf[DType.float32]() 
@@ -527,7 +527,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         
     def n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int,
                         mut result: KDTreeResultVector) raises:
-        var buf = alloc[Float32](self.dim)
+        var buf = alloc[Float32](self.dim).as_unsafe_any_origin()
         var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
         result._self.clear()
 
@@ -583,7 +583,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
     def r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32,
                         mut result: KDTreeResultVector) raises:
-        var buf = alloc[Float32](self.dim)
+        var buf = alloc[Float32](self.dim).as_unsafe_any_origin()
         var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
 
         result._self.clear()
@@ -605,7 +605,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
     def r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) raises -> Int:
-        var buf = alloc[Float32](self.dim)
+        var buf = alloc[Float32](self.dim).as_unsafe_any_origin()
         var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
 
         for i in range(self.dim):

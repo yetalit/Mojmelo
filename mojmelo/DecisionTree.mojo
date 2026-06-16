@@ -173,7 +173,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             or len(indices) < self.min_samples_split
         ):
             new_node.init_pointee_move(Node(value = set_value(_y, weights, freq, self.criterion)))
-            return new_node
+            return new_node.as_unsafe_any_origin()
 
         var feat_idxs = Matrix.rand_choice(X.width, self.n_feats, False, seed = False)
 
@@ -195,7 +195,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         var left = self._grow_tree(X, Y, left_indices, depth + 1)
         var right = self._grow_tree(X, Y, right_indices, depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
-        return new_node
+        return new_node.as_unsafe_any_origin()
 
     def save(self, path: String) raises:
         """Save model data necessary for prediction to the specified path."""
@@ -244,7 +244,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
                 var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
                 var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
                 var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-                var node = alloc[Node](1)
+                var node = alloc[Node](1).as_unsafe_any_origin()
                 node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
                 node_list.append(node)
                 children_index_list.append((left, right))

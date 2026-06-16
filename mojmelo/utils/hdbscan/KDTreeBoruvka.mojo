@@ -124,10 +124,10 @@ struct KDTreeBoruvka:
 
         # One allocation for all node centers; upper bound on node count is 2n+1.
         var max_nodes = 2 * self.n + 1
-        self._center_arena = alloc[Float32](max_nodes * self.dim)
+        self._center_arena = alloc[Float32](max_nodes * self.dim).as_unsafe_any_origin()
         memset_zero(self._center_arena, max_nodes * self.dim)
 
-        self.core_dist = alloc[Float32](self.n)
+        self.core_dist = alloc[Float32](self.n).as_unsafe_any_origin()
         self.build_idx = fill_indices_list(self.n)
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
@@ -238,10 +238,10 @@ struct KDTreeBoruvka:
         var mid = (start + end) // 2
 
         nth_element(
-            self.build_idx._data + start,
-            self.build_idx._data + mid,
-            self.build_idx._data + end,
-            self.proj_buf._data + start,
+            (self.build_idx._data + start).as_unsafe_any_origin(),
+            (self.build_idx._data + mid).as_unsafe_any_origin(),
+            (self.build_idx._data + end).as_unsafe_any_origin(),
+            (self.proj_buf._data + start).as_unsafe_any_origin(),
             self.data,
             Scalar[DType.int](self.dim),
             split_dim

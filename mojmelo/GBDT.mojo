@@ -74,11 +74,11 @@ struct GBDT(CV, Copyable):
 		if self.criterion == 'softmax':
 			self.num_class = len(y.unique())
 			self.score_start = 0.0
-			self.trees = alloc[BDecisionTree](self.n_trees * self.num_class)
+			self.trees = alloc[BDecisionTree](self.n_trees * self.num_class).as_unsafe_any_origin()
 			score = Matrix.zeros(X.height, self.num_class)
 		else:
 			self.num_class = 1
-			self.trees = alloc[BDecisionTree](self.n_trees)
+			self.trees = alloc[BDecisionTree](self.n_trees).as_unsafe_any_origin()
 			self.score_start = y.mean()
 			score = Matrix.full(X.height, 1, self.score_start)
 
@@ -176,7 +176,7 @@ struct GBDT(CV, Copyable):
 			model.score_start = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
 			model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
 			model.num_class = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-			model.trees = alloc[BDecisionTree](model.n_trees * model.num_class)
+			model.trees = alloc[BDecisionTree](model.n_trees * model.num_class).as_unsafe_any_origin()
 			for t_i in range(model.n_trees * model.num_class):
 				var tree = BDecisionTree()
 				var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
@@ -188,7 +188,7 @@ struct GBDT(CV, Copyable):
 					var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
 					var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
 					var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-					var node = alloc[Node](1)
+					var node = alloc[Node](1).as_unsafe_any_origin()
 					node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
 					node_list.append(node)
 					children_index_list.append((left, right))

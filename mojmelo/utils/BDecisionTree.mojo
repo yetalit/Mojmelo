@@ -62,7 +62,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
             or len(indices) < self.min_samples_split
         ):
             new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
-            return new_node
+            return new_node.as_unsafe_any_origin()
 
         var feat_idxs = Matrix.rand_choice(X.width, X.width, False)
 
@@ -74,7 +74,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         if best_gain <= self.gamma:
             # The best gain is less than gamma
             new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
-            return new_node
+            return new_node.as_unsafe_any_origin()
         
         # grow the children that result from the split
         var left_indices = List[Scalar[DType.int]]()
@@ -88,7 +88,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var left = self._grow_tree(X, G, H, left_indices, depth + 1)
         var right = self._grow_tree(X, G, H, right_indices, depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
-        return new_node
+        return new_node.as_unsafe_any_origin()
 
 @always_inline
 def leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:

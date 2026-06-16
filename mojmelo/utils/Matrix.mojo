@@ -34,7 +34,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if src == DType.float32:
             self.data = data.bitcast[Float32]()
         else:
-            self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size)
+            self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size).as_unsafe_any_origin()
             data.free()
         self.order = order.lower()
 
@@ -44,7 +44,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = alloc[Float32](self.size)
+        self.data = alloc[Float32](self.size).as_unsafe_any_origin()
         self.order = order.lower()
         if data:
             memcpy(dest=self.data, src=data.value(), count=self.size)
@@ -54,7 +54,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.height = len(def_input)
         self.width = len(def_input[0]) if self.height > 0 else 0
         self.size = self.height * self.width
-        self.data = alloc[Float32](self.size)
+        self.data = alloc[Float32](self.size).as_unsafe_any_origin()
         self.order = 'c'
         if self.size > 0:
             for row_i in range(len(def_input)):
@@ -64,7 +64,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.height = copy.height
         self.width = copy.width
         self.size = copy.size
-        self.data = alloc[Float32](self.size)
+        self.data = alloc[Float32](self.size).as_unsafe_any_origin()
         self.order = copy.order
         memcpy(dest=self.data, src=copy.data, count=self.size)
 
@@ -260,23 +260,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 mat[i] = self[rows[i]]
         return mat^
 
-    # access given rows (by their indices)
-    @always_inline
-    def __getitem__(self, rows: List[Scalar[DType.int]]) raises -> Matrix:
-        var mat = Matrix(len(rows), self.width, order= self.order)
-        if len(rows) > 96:
-            @parameter
-            def p(i: Int):
-                try:
-                    mat[i] = self[Int(rows[i])]
-                except e:
-                    print('Error:', e)
-            parallelize[p](len(rows))
-        else:
-            for i in range(mat.height):
-                mat[i] = self[Int(rows[i])]
-        return mat^
-
     # access given columns (by their indices)
     @always_inline
     def __getitem__(self, row: String, columns: List[Int]) raises -> Matrix:
@@ -292,23 +275,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         else:
             for i in range(mat.width):
                 mat[row, i] = self[row, columns[i]]
-        return mat^
-
-    # access given columns (by their indices)
-    @always_inline
-    def __getitem__(self, row: String, columns: List[Scalar[DType.int]]) raises -> Matrix:
-        var mat = Matrix(self.height, len(columns), order= self.order)
-        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
-            @parameter
-            def p(i: Int):
-                try:
-                    mat[row, i] = self[row, Int(columns[i])]
-                except e:
-                    print('Error:', e)
-            parallelize[p](len(columns))
-        else:
-            for i in range(mat.width):
-                mat[row, i] = self[row, Int(columns[i])]
         return mat^
 
     # replace an element
@@ -1194,7 +1160,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def argmin(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int, MutExternalOrigin].unsafe_dangling()
+        var vect = UnsafePointer[Int, MutUntrackedOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
             vect = alloc[Int](self.width)
@@ -1233,7 +1199,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def argmax(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int, MutExternalOrigin].unsafe_dangling()
+        var vect = UnsafePointer[Int, MutUntrackedOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
             vect = alloc[Int](self.width)
@@ -1273,7 +1239,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 def p0(i: Int):
                     vect[i] = Float32(self['', i, unsafe=True].argmax())
                 parallelize[p0](self.width)
-            return Matrix(vect, 1, self.width, self.order)
+            return Matrix(vect.as_unsafe_any_origin(), 1, self.width, self.order)
         else:
             var vect = alloc[Float32](self.height)
             if self.height < 512:
@@ -1284,7 +1250,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 def p1(i: Int):
                     vect[i] = Float32(self[i, unsafe=True].argmax())
                 parallelize[p1](self.height)
-            return Matrix(vect, self.height, 1, self.order)
+            return Matrix(vect.as_unsafe_any_origin(), self.height, 1, self.order)
 
     @always_inline
     def argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.int]]:
@@ -1318,7 +1284,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             Span[
                 Float32,
                 MutAnyOrigin,
-            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr()
+            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr().as_unsafe_any_origin()
         )
         return sorted_indices^
 
@@ -1453,17 +1419,17 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var X = Matrix(N, M, order=A.order)
         var piv = alloc[Int](N)
 
-        Matrix.lu_factor(A, piv, N)
+        Matrix.lu_factor(A, piv.as_unsafe_any_origin(), N)
         if M > 1:
             @parameter
             def p(i: Int):
                 try:
-                    Matrix.lu_solve(A, piv, b, X, N, i)
+                    Matrix.lu_solve(A, piv.as_unsafe_any_origin(), b, X, N, i)
                 except e:
                     print('Error:', e)
             parallelize[p](M)
         else:
-            Matrix.lu_solve(A, piv, b, X, N, 0)
+            Matrix.lu_solve(A, piv.as_unsafe_any_origin(), b, X, N, 0)
 
         piv.free()
 
@@ -1708,7 +1674,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
+    def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]:
         return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
 
     @always_inline
@@ -1780,7 +1746,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def _elemwise_math[func: def[dtype: DType, width: Int](SIMD[dtype, width]) thin->SIMD[dtype, width]](self) -> Self:
+    def _elemwise_math[func: def[dtype: DType, width: SIMDSize](SIMD[dtype, width]) thin->SIMD[dtype, width]](self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def math_vectorize[simd_width: Int](idx: Int) {read}:

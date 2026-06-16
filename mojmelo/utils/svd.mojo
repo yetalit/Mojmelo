@@ -147,9 +147,9 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
     e.free()
 
 def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin]) raises:
-    var eig = alloc[Float64](n)
+    var eig = alloc[Float64](n).as_unsafe_any_origin()
     memset_zero(eig, n)
-    var V_full = alloc[Float64](n*n)
+    var V_full = alloc[Float64](n*n).as_unsafe_any_origin()
 
     eigensystem(ATA, eig, V_full, n)
 
@@ -163,7 +163,7 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
         Span[
             Float64,
             MutAnyOrigin,
-        ](ptr=eig, length=n), sorted_indices.unsafe_ptr()
+        ](ptr=eig, length=n), sorted_indices.unsafe_ptr().as_unsafe_any_origin()
     )
 
     var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
@@ -183,10 +183,10 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
     eig.free()
 
 def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
-    var A64 = A.cast_ptr[DType.float64]()
+    var A64 = A.cast_ptr[DType.float64]().as_unsafe_any_origin()
     var A64T = C_transpose(A, A64)
 
-    var S = alloc[Float64](A.width)
+    var S = alloc[Float64](A.width).as_unsafe_any_origin()
     var V = Matrix(0, 0)
 
     var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
@@ -202,7 +202,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
 
 @always_inline
 def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafePointer[Float64, MutAnyOrigin]:
-    var AT = alloc[Float64](A.size)
+    var AT = alloc[Float64](A.size).as_unsafe_any_origin()
     var height = A.height
     var width = A.width
     if A.size < 98304:

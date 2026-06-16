@@ -3,11 +3,12 @@ import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
 from std.algorithm import parallelize, elementwise, vectorize
+from std.gpu.host import DeviceContext
 from std.sys import simd_width_of
-from std.utils import IndexList
+from std.utils.coord import Coord
 
 # Cross Validation trait
-trait CV(ImplicitlyDestructible):
+trait CV(ImplicitlyDeletable):
     def __init__(out self, params: Dict[String, String]) raises:
         ...
     def fit(mut self, X: Matrix, y: Matrix) raises:
@@ -50,8 +51,8 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
     @parameter
     @always_inline
     def cmpeq[
-        type: DType, simd_width: Int
-    ](a: SIMD[type, simd_width], b: SIMD[type, simd_width]) -> SIMD[
+        dtype: DType, simd_width: SIMDSize
+    ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
         DType.bool, simd_width
     ]:
         comptime if is_max:
@@ -62,8 +63,8 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
     @parameter
     @always_inline
     def cmp[
-        type: DType, simd_width: Int
-    ](a: SIMD[type, simd_width], b: SIMD[type, simd_width]) -> SIMD[
+        dtype: DType, simd_width: SIMDSize
+    ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
         DType.bool, simd_width
     ]:
         comptime if is_max:
@@ -205,7 +206,7 @@ def sigmoid(z: Matrix) raises -> Matrix:
 
 @always_inline
 def normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
-    return (-((x - mean) ** 2) / (2 * _var)).exp() / (2 * math.pi * _var).sqrt()
+    return (-((x - mean) ** 2) / (2 * _var)).exp() / (2.0 * math.pi * _var).sqrt()
 
 @always_inline
 def unit_step(z: Matrix) -> Matrix:
@@ -372,7 +373,7 @@ def findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     return -1  # not found
 
 @always_inline
-def fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalOrigin]:
+def fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]:
     """Generates indices from 0 to N.
 
     Returns:
@@ -380,11 +381,11 @@ def fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutExternalO
     """
     var indices = alloc[Scalar[DType.int]](N)
     @parameter
-    def fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
-        indices.store(offset[0], math.iota[DType.int, width](Scalar[DType.int](offset[0])))
+    def fill_indices_iota[width: Int, alignment: Int = 1](offset: Coord):
+        indices.store(offset[0].value(), math.iota[DType.int, width](Scalar[DType.int](offset[0].value())))
 
     elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
-        N
+        N, DeviceContext(api="cpu")
     )
     return indices
 
@@ -395,20 +396,12 @@ def fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     Returns:
         The list of indices.
     """
-    var indices = alloc[Scalar[DType.int]](N)
-    @parameter
-    def fill_indices_iota[width: Int, rank: Int, alignment: Int = 1](offset: IndexList[rank]):
-        indices.store(offset[0], math.iota[DType.int, width](Scalar[DType.int](offset[0])))
-
-    elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
-        N
-    )
     var list = List[Scalar[DType.int]](unsafe_uninit_length=N)
-    list._data = indices
+    list._data = fill_indices(N)
     return list^
 
 @always_inline
-def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutExternalOrigin]:
+def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]:
     var ptr = alloc[Scalar[des]](size)
     if size < 262144:
 
@@ -432,18 +425,7 @@ def ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
-    return np_arr^
-
-def ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
-    """Converts list of indices to numpy array.
-
-    Returns:
-        The numpy array.
-    """
-    var np = Python.import_module("numpy")
-    var np_arr = np.empty(len(list), dtype='int')
-    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
+    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Int](), count=len(list))
     return np_arr^
 
 def cartesian_product(lists: List[List[String]]) -> List[List[String]]:

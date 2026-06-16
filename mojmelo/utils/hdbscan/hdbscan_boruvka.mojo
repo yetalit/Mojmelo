@@ -281,10 +281,10 @@ struct HDBSCANBoruvka:
                     0,
                     i,
                     comp,
-                    heap_dist,
-                    heap_nbr,
+                    heap_dist.as_unsafe_any_origin(),
+                    heap_nbr.as_unsafe_any_origin(),
                     self.tree[].core_dist[i],
-                    comp_bnd
+                    comp_bnd.as_unsafe_any_origin()
                 )
             except e:
                 print('Error:', e)
