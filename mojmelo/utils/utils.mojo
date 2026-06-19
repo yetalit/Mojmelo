@@ -425,7 +425,18 @@ def ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Int](), count=len(list))
+    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
+    return np_arr^
+
+def ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
+    """Converts list of indices to numpy array.
+
+    Returns:
+        The numpy array.
+    """
+    var np = Python.import_module("numpy")
+    var np_arr = np.empty(len(list), dtype='int')
+    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
     return np_arr^
 
 def cartesian_product(lists: List[List[String]]) -> List[List[String]]:

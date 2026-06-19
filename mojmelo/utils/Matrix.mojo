@@ -260,6 +260,23 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 mat[i] = self[rows[i]]
         return mat^
 
+    # access given rows (by their indices)
+    @always_inline
+    def __getitem__(self, rows: List[Scalar[DType.int]]) raises -> Matrix:
+        var mat = Matrix(len(rows), self.width, order= self.order)
+        if len(rows) > 96:
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[i] = self[Int(rows[i])]
+                except e:
+                    print('Error:', e)
+            parallelize[p](len(rows))
+        else:
+            for i in range(mat.height):
+                mat[i] = self[Int(rows[i])]
+        return mat^
+
     # access given columns (by their indices)
     @always_inline
     def __getitem__(self, row: String, columns: List[Int]) raises -> Matrix:
@@ -275,6 +292,23 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         else:
             for i in range(mat.width):
                 mat[row, i] = self[row, columns[i]]
+        return mat^
+
+    # access given columns (by their indices)
+    @always_inline
+    def __getitem__(self, row: String, columns: List[Scalar[DType.int]]) raises -> Matrix:
+        var mat = Matrix(self.height, len(columns), order= self.order)
+        if len(columns) > 96 or (self.order == 'c' and self.height * len(columns) > 24576):
+            @parameter
+            def p(i: Int):
+                try:
+                    mat[row, i] = self[row, Int(columns[i])]
+                except e:
+                    print('Error:', e)
+            parallelize[p](len(columns))
+        else:
+            for i in range(mat.width):
+                mat[row, i] = self[row, Int(columns[i])]
         return mat^
 
     # replace an element
