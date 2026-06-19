@@ -15,10 +15,10 @@ def key(idx: Scalar[DType.int],
 
 @always_inline
 def nth_element(
-    var first: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
-    nth: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
-    var last: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
-    var proj: UnsafePointer[Float32, MutAnyOrigin],
+    var first: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    nth: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    var last: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    var proj: UnsafePointer[Float32, MutUntrackedOrigin],
     data: UnsafePointer[Float32, MutAnyOrigin],
     dim: Scalar[DType.int],
     split_dim: Scalar[DType.int]):
@@ -33,7 +33,7 @@ def nth_element(
         var b = mid
         var c = _len - 1
 
-        var pivot_i = 0
+        var pivot_i: Int
         if proj[a] < proj[b]:
             pivot_i = b if proj[b] < proj[c] else (c if proj[a] < proj[c] else a)
         else:
@@ -238,10 +238,10 @@ struct KDTreeBoruvka:
         var mid = (start + end) // 2
 
         nth_element(
-            (self.build_idx._data + start).as_unsafe_any_origin(),
-            (self.build_idx._data + mid).as_unsafe_any_origin(),
-            (self.build_idx._data + end).as_unsafe_any_origin(),
-            (self.proj_buf._data + start).as_unsafe_any_origin(),
+            self.build_idx._data + start,
+            self.build_idx._data + mid,
+            self.build_idx._data + end,
+            self.proj_buf._data + start,
             self.data,
             Scalar[DType.int](self.dim),
             split_dim

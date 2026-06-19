@@ -302,8 +302,8 @@ def loop_n[
         var j = tile_idx * nc_actual
         var tile_n = min(N - j, nc_actual)
 
-        var Bc_buffer = _malloc[Scalar[Type]](kc * nc_actual * size_of[Type](), alignment=64).value().as_unsafe_any_origin()
-        var Bc = pack_B[kc, nr](Bc_buffer, B.slice(0, j, B.shape[0](), tile_n))
+        var Bc_buffer = _malloc[Scalar[Type]](kc * nc_actual * size_of[Type](), alignment=64).value()
+        var Bc = pack_B[kc, nr](Bc_buffer.as_unsafe_any_origin(), B.slice(0, j, B.shape[0](), tile_n))
         var Cc = C.slice(0, j, C.shape[0](), tile_n)
         macro_kernel[mr, nr](Cc, A, Bc)
         Bc_buffer.free()
@@ -319,14 +319,14 @@ def matmul_impl[
     var N = C.shape[1]()
     var K = A.shape[1]()
 
-    var Ac_buffer = _malloc[Scalar[Type]](mc * kc * size_of[Type](), alignment=64).value().as_unsafe_any_origin()
+    var Ac_buffer = _malloc[Scalar[Type]](mc * kc * size_of[Type](), alignment=64).value()
 
     for i in range(0, M, mc):
         var Cb = C.slice(i, 0, min(M - i, mc), N)
         for p in range(0, K, kc):
             # pack_A runs with inner_parallel=True because loop_n will parallelize
             var Ac = pack_A[mr, inner_parallel=True](
-                Ac_buffer,
+                Ac_buffer.as_unsafe_any_origin(),
                 A.slice(i, p, min(M - i, mc), min(K - p, kc)),
             )
             var Bb = B.slice(p, 0, min(K - p, kc), N)

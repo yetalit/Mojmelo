@@ -527,8 +527,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         
     def n_nearest_around_point(mut self, idxin: Int, correltime: Int, nn: Int,
                         mut result: KDTreeResultVector) raises:
-        var buf = alloc[Float32](self.dim).as_unsafe_any_origin()
-        var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
+        var buf = alloc[Float32](self.dim)
+        var qv = Span[origin=MutAnyOrigin](ptr=buf.as_unsafe_any_origin(), length=self.dim) #  query vector
         result._self.clear()
 
         for i in range(self.dim):
@@ -583,8 +583,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
     def r_nearest_around_point(mut self, idxin: Int, correltime: Int, r2: Float32,
                         mut result: KDTreeResultVector) raises:
-        var buf = alloc[Float32](self.dim).as_unsafe_any_origin()
-        var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
+        var buf = alloc[Float32](self.dim)
+        var qv = Span[origin=MutAnyOrigin](ptr=buf.as_unsafe_any_origin(), length=self.dim) #  query vector
 
         result._self.clear()
 
@@ -605,8 +605,8 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](ptr= result._self.unsafe_ptr(), length= len(result)))
 
     def r_count_around_point(mut self, idxin: Int, correltime: Int, r2: Float32) raises -> Int:
-        var buf = alloc[Float32](self.dim).as_unsafe_any_origin()
-        var qv = Span[origin=MutAnyOrigin](ptr=buf, length=self.dim) #  query vector
+        var buf = alloc[Float32](self.dim)
+        var qv = Span[origin=MutAnyOrigin](ptr=buf.as_unsafe_any_origin(), length=self.dim) #  query vector
 
         for i in range(self.dim):
             qv[i] = self._data.load[1](idxin, i) 

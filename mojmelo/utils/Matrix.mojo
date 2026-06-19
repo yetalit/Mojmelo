@@ -1318,7 +1318,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             Span[
                 Float32,
                 MutAnyOrigin,
-            ](ptr=self.data, length=self.size), sorted_indices.unsafe_ptr().as_unsafe_any_origin()
+            ](ptr=self.data, length=self.size), UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
         )
         return sorted_indices^
 

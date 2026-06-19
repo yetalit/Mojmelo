@@ -10,7 +10,7 @@ from mojmelo.utils.utils import fill_indices_list
 comptime EPS = 1e-13
 comptime simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
 
-def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Float64, MutAnyOrigin], V: UnsafePointer[Float64, MutAnyOrigin], n: Int):
+def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Float64, MutUntrackedOrigin], V: UnsafePointer[Float64, MutUntrackedOrigin], n: Int):
     memcpy(dest=V, src=A, count=n*n)
 
     var e = alloc[Float64](n)
@@ -146,10 +146,10 @@ def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Floa
 
     e.free()
 
-def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin]) raises:
-    var eig = alloc[Float64](n).as_unsafe_any_origin()
+def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutAnyOrigin]) raises:
+    var eig = alloc[Float64](n)
     memset_zero(eig, n)
-    var V_full = alloc[Float64](n*n).as_unsafe_any_origin()
+    var V_full = alloc[Float64](n*n)
 
     eigensystem(ATA, eig, V_full, n)
 
@@ -163,10 +163,10 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
         Span[
             Float64,
             MutAnyOrigin,
-        ](ptr=eig, length=n), sorted_indices.unsafe_ptr().as_unsafe_any_origin()
+        ](ptr=eig.as_unsafe_any_origin(), length=n), UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
     )
 
-    var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
+    var V_f = Matrix(V_full.as_unsafe_any_origin(), n, n, order='f')['', sorted_indices]
 
     # V_full columns are eigenvectors (n x n), copy into Vout row r as transpose
     Vout = V_f.load_columns(k)
@@ -183,14 +183,14 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutAnyOrigin], mu
     eig.free()
 
 def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
-    var A64 = A.cast_ptr[DType.float64]().as_unsafe_any_origin()
+    var A64 = A.cast_ptr[DType.float64]()
     var A64T = C_transpose(A, A64)
 
-    var S = alloc[Float64](A.width).as_unsafe_any_origin()
+    var S = alloc[Float64](A.width)
     var V = Matrix(0, 0)
 
-    var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
-    var B = matmul.Matrix[DType.float64](A64, (A.height, A.width))
+    var AT = matmul.Matrix[DType.float64](A64T.as_unsafe_any_origin(), (A.width, A.height))
+    var B = matmul.Matrix[DType.float64](A64.as_unsafe_any_origin(), (A.height, A.width))
     var ATA = matmul.Matrix[DType.float64]((A.width, A.width))
     memset_zero(ATA.data, A.width * A.width)
     matmul.matmul(A.width, A.height, A.width, ATA, AT, B)
@@ -198,11 +198,11 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     A64T.free()
     
     svd_thin(A.height, A.width, k, S, V, ATA.data)
-    return Matrix(S, 1, A.width), V^
+    return Matrix(S.as_unsafe_any_origin(), 1, A.width), V^
 
 @always_inline
-def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutAnyOrigin]) -> UnsafePointer[Float64, MutAnyOrigin]:
-    var AT = alloc[Float64](A.size).as_unsafe_any_origin()
+def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutUntrackedOrigin]) -> UnsafePointer[Float64, MutUntrackedOrigin]:
+    var AT = alloc[Float64](A.size)
     var height = A.height
     var width = A.width
     if A.size < 98304:

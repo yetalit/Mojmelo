@@ -298,14 +298,14 @@ def max_lambdas(tree: Dict[String, List[Scalar[DType.int]]], lambda_vals: List[F
 
 
 struct TreeUnionFind:
-    var _data: UnsafePointer[Scalar[DType.int], MutAnyOrigin]
+    var _data: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
     var size: Int
     comptime width = 2
     var is_component: List[Bool]
 
     @always_inline
     def __init__(out self, size: Int):
-        self._data = alloc[Scalar[DType.int]](size * self.width).as_unsafe_any_origin()
+        self._data = alloc[Scalar[DType.int]](size * self.width)
         memset_zero(self._data, size * self.width)
         self.size = size
         self.is_component = List[Bool](capacity=size)

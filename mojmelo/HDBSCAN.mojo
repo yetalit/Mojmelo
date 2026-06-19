@@ -101,7 +101,7 @@ struct HDBSCAN:
             raise Error('Invalid cluster_selection_method value!')
 
         var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=max(32, 2 * self.min_samples), search_depth=self.search_depth)
-        var boruvka_alg = HDBSCANBoruvka(UnsafePointer(to=tree).as_unsafe_any_origin(), min_samples=self.min_samples, alpha=self.alpha)
+        var boruvka_alg = HDBSCANBoruvka(UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=tree))), min_samples=self.min_samples, alpha=self.alpha)
         var mst_edges = boruvka_alg.spanning_tree()
         _ = tree
         mst_edges = mst_edges[mst_edges['', 2].argsort()]

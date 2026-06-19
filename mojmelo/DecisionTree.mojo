@@ -244,9 +244,9 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
                 var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
                 var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
                 var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-                var node = alloc[Node](1).as_unsafe_any_origin()
+                var node = alloc[Node](1)
                 node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
-                node_list.append(node)
+                node_list.append(node.as_unsafe_any_origin())
                 children_index_list.append((left, right))
             model.root = node_list[0]
             for i in range(node_size):

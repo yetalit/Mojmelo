@@ -40,7 +40,7 @@ struct UnionFind:
 
 
 struct HDBSCANBoruvka:
-    var tree: UnsafePointer[KDTreeBoruvka, MutAnyOrigin]
+    var tree: UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin]
     var n: Int
     var dim: Int
     var min_samples: Int
@@ -73,7 +73,7 @@ struct HDBSCANBoruvka:
 
     @always_inline
     def __init__(out self,
-                 t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin],
+                 t: UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin],
                  min_samples: Int = 5,
                  alpha: Float32 = 1.0) raises:
         self.tree = t
@@ -174,10 +174,10 @@ struct HDBSCANBoruvka:
                       node: Int,
                       point_idx: Int,
                       point_component: Int,
-                      heap_dist: UnsafePointer[Float32, MutAnyOrigin],
-                      heap_nbr: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
+                      heap_dist: UnsafePointer[Float32, MutUntrackedOrigin],
+                      heap_nbr: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
                       core_p: Float32,
-                      comp_bound: UnsafePointer[Float32, MutAnyOrigin]) raises:
+                      comp_bound: UnsafePointer[Float32, MutUntrackedOrigin]) raises:
         var nd = UnsafePointer(to=self.tree[].nodes[node])
 
         # --- Pruning case 1: node is entirely one component (same as query) ---
@@ -281,10 +281,10 @@ struct HDBSCANBoruvka:
                     0,
                     i,
                     comp,
-                    heap_dist.as_unsafe_any_origin(),
-                    heap_nbr.as_unsafe_any_origin(),
+                    UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(heap_dist)),
+                    UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(heap_nbr)),
                     self.tree[].core_dist[i],
-                    comp_bnd.as_unsafe_any_origin()
+                    UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(comp_bnd))
                 )
             except e:
                 print('Error:', e)
