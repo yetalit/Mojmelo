@@ -11,7 +11,7 @@ def test(X_projected, y):
     x2 = X_projected[:, 1]
 
     plt.scatter(
-        x1, x2, c=y, edgecolor="none", alpha=0.8, cmap=plt.cm.get_cmap("viridis", 3)
+        x1, x2, c=y, edgecolor="none", alpha=0.8, cmap=plt.get_cmap("viridis", 3)
     )
 
     plt.xlabel("Principal Component 1")

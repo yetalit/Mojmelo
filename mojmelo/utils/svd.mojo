@@ -196,7 +196,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     matmul.matmul(A.width, A.height, A.width, ATA, AT, B)
     A64.free()
     A64T.free()
-    
+
     svd_thin(A.height, A.width, k, S, V, ATA.data)
     return Matrix(S.as_unsafe_any_origin(), 1, A.width), V^
 

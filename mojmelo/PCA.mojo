@@ -42,14 +42,13 @@ struct PCA(Copyable):
         var n_rows = X.height
         var n_cols = X.width
         @parameter
-        def p(row: Int):
-            var x_ptr = X.data + row * n_cols
+        def p(col: Int):
+            var sum: Float32 = 0
+            for row in range(n_rows):
+                sum += X.data.load(row * n_cols + col)
 
-            def add_row[simd_width: Int](col: Int) {read}:
-                self.mean.data.store(col, self.mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
-            vectorize[X.simd_width](n_cols, add_row)
-        parallelize[p](n_rows)
-        self.mean /= Float32(n_rows)
+            self.mean.store[1](0, col, sum / Float32(n_rows))
+        parallelize[p](n_cols)
 
         var S: Matrix
         if self.lapack:

@@ -51,14 +51,13 @@ struct KMeans(Copyable):
         var n_rows = X.height
         var n_cols = X.width
         @parameter
-        def p(row: Int):
-            var x_ptr = X.data + row * n_cols
+        def p(col: Int):
+            var sum: Float32 = 0
+            for row in range(n_rows):
+                sum += X.data.load(row * n_cols + col)
 
-            def add_row[simd_width: Int](col: Int) {read}:
-                self.X_mean.data.store(col, self.X_mean.data.load[width=simd_width](col) + x_ptr.load[width=simd_width](col))
-            vectorize[X.simd_width](n_cols, add_row)
-        parallelize[p](n_rows)
-        self.X_mean /= Float32(n_rows)
+            self.X_mean.store[1](0, col, sum / Float32(n_rows))
+        parallelize[p](n_cols)
         var X_ = X - self.X_mean
 
         self.centroids_ = self._initial_centroids(X_)
