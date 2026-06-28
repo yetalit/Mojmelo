@@ -685,7 +685,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.height == 1 and rhs.width == 1:
             # Dot product
             var mat = Self(1, 1)
-            mat.data[0] = self.ele_mul(rhs.T()).sum()
+            mat.data[0] = self._elemwise_matrix[mul](rhs).sum()
             return mat^
         
         if self.height * self.width * rhs.width <= 4096:

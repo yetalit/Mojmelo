@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS
+from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS, sub, add
 import std.math as math
 import std.time as time
 import std.random as random
@@ -91,25 +91,23 @@ struct PolyRegression(CV, Copyable):
 
                     var y_batch_predicted = X_batch * self.weights['', 0] + self.bias
                     for i in range(1, self.degree):
-                        y_batch_predicted += X_poly[i - 1][batch_indices] * self.weights['', i]
+                        y_batch_predicted = y_batch_predicted._elemwise_matrix[add](X_poly[i - 1][batch_indices] * self.weights['', i])
                     if self.tol > 0.0:
                         cost += mse(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     # compute gradients and update parameters
-                    var y_error = y_batch_predicted - y_batch
+                    var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
                     dw['', 0] = (X_batch.T() * y_error) / Float32(len(y_batch))
                     for i in range(1, self.degree):
                         dw['', i] = (X_poly_batch[i - 1].T() * y_error) / Float32(len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
-                        dw += l1_lambda * sign(self.weights)
+                        dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                     if l2_lambda > 0.0:
                         # L2 regularization
-                        dw += l2_lambda * self.weights
+                        dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                     var db = y_error.mean()
-                    self.weights['', 0] -= self.lr * dw['', 0]
+                    self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                     self.bias -= self.lr * db
-                    for i in range(1, self.degree):
-                        self.weights['', i] -= self.lr * dw['', i]
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break
@@ -117,7 +115,7 @@ struct PolyRegression(CV, Copyable):
             else:
                 var y_predicted = X * self.weights['', 0] + self.bias
                 for i in range(1, self.degree):
-                    y_predicted += X_poly[i - 1] * self.weights['', i]
+                    y_predicted = y_predicted._elemwise_matrix[add](X_poly[i - 1] * self.weights['', i])
 
                 if self.tol > 0.0:
                     var cost = mse(y, y_predicted)
@@ -125,22 +123,20 @@ struct PolyRegression(CV, Copyable):
                         break
                     prev_cost = cost
                 # compute gradients and update parameters
-                var y_error = y_predicted - y
+                var y_error = y_predicted._elemwise_matrix[sub](y)
                 var dw = Matrix(X.width, self.degree, order='f')
                 dw['', 0] = (X_T * y_error) / Float32(X.height)
                 for i in range(1, self.degree):
                     dw['', i] = (X_poly_T[i - 1] * y_error) / Float32(X.height)
                 if l1_lambda > 0.0:
                     # L1 regularization
-                    dw += l1_lambda * sign(self.weights)
+                    dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                 if l2_lambda > 0.0:
                     # L2 regularization
-                    dw += l2_lambda * self.weights
+                    dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                 var db = y_error.mean()
-                self.weights['', 0] -= self.lr * dw['', 0]
+                self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                 self.bias -= self.lr * db
-                for i in range(1, self.degree):
-                    self.weights['', i] -= self.lr * dw['', i]
 
     def predict(self, X: Matrix) raises -> Matrix:
         """Predict regression values for X.

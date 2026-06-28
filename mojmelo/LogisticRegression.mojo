@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS
+from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS, sub, mul, add
 import std.math as math
 import std.time as time
 import std.random as random
@@ -81,28 +81,28 @@ struct LogisticRegression(CV, Copyable):
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
                     if self.tol > 0.0:
                         cost += cross_entropy(y_batch, y_batch_predicted) / Float32(num_b_iters)
-                    var y_error = y_batch_predicted - y_batch
+                    var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
                     var X_batch_T = X_batch.T()
                     var dw = (X_batch_T * y_error) / Float32(len(y_batch))
                     if l2_lambda > 0.0:
                         # L2 regularization
-                        dw += l2_lambda * self.weights
+                        dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                     var db = y_error.mean()
                     if self.method == 'newton':
                         # curvature weights
-                        var r = y_batch_predicted.ele_mul(1.0 - y_batch_predicted)
+                        var r = y_batch_predicted._elemwise_matrix[mul](1.0 - y_batch_predicted)
 
-                        var H = (X_batch_T * X_batch.ele_mul(r)) / Float32(len(y_batch))
+                        var H = (X_batch_T * X_batch._elemwise_matrix[mul](r._broadcast_column(X_batch.height, X_batch.width, X_batch.order))) / Float32(len(y_batch))
                         # Update weights using Newton's method
-                        self.weights -= Matrix.solve(H + _reg, dw)
+                        self.weights = self.weights._elemwise_matrix[sub](Matrix.solve(H + _reg, dw))
                         var Hb = r.mean()
                         self.bias -= db / (Hb + self.damping)
                     else:
                         # gradient descent
                         if l1_lambda > 0.0:
                             # L1 regularization
-                            dw += l1_lambda * sign(self.weights)
-                        self.weights -= self.lr * dw
+                            dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
+                        self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                         self.bias -= self.lr * db
                 if self.tol > 0.0:
                     if abs(prev_cost - cost) <= self.tol:
@@ -118,27 +118,27 @@ struct LogisticRegression(CV, Copyable):
                         break
                     prev_cost = cost
 
-                var y_error = y_predicted - y
+                var y_error = y_predicted._elemwise_matrix[sub](y)
                 var dw = (X_T * y_error) / Float32(X.height)
                 if l2_lambda > 0.0:
                     # L2 regularization
-                    dw += l2_lambda * self.weights
+                    dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                 var db = y_error.mean()
                 if self.method == 'newton':
                     # curvature weights
-                    var r = y_predicted.ele_mul(1.0 - y_predicted)
+                    var r = y_predicted._elemwise_matrix[mul](1.0 - y_predicted)
 
-                    var H = (X_T * X.ele_mul(r)) / Float32(X.height)
+                    var H = (X_T * X._elemwise_matrix[mul](r._broadcast_column(X.height, X.width, X.order))) / Float32(X.height)
                     # Update weights using Newton's method
-                    self.weights -= Matrix.solve(H + _reg, dw)
+                    self.weights = self.weights._elemwise_matrix[sub](Matrix.solve(H + _reg, dw))
                     var Hb = r.mean()
                     self.bias -= db / (Hb + self.damping)
                 else:
                     # gradient descent
                     if l1_lambda > 0.0:
                         # L1 regularization
-                        dw += l1_lambda * sign(self.weights)
-                    self.weights -= self.lr * dw
+                        dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
+                    self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                     self.bias -= self.lr * db
 
     def predict(self, X: Matrix) raises -> Matrix:
