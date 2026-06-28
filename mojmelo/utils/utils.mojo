@@ -202,7 +202,7 @@ def sigmoid(z: Matrix) raises -> Matrix:
     var z_exp = z.exp()
     return z.where(z >= 0,
                     1 / (1 + (-z).exp()),
-                    z_exp / (1 + z_exp))
+                    z_exp._elemwise_matrix[div](1 + z_exp))
 
 @always_inline
 def normal_distr(x: Matrix, mean: Matrix, _var: Matrix) raises -> Matrix:
@@ -242,7 +242,7 @@ def mse(y: Matrix, y_pred: Matrix) raises -> Float32:
     Returns:
         The error.
     """
-    return ((y - y_pred) ** 2).mean()
+    return ((y._elemwise_matrix[sub](y_pred)) ** 2).mean()
 
 @always_inline
 def cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
@@ -251,7 +251,7 @@ def cross_entropy(y: Matrix, y_pred: Matrix) raises -> Float32:
     Returns:
         The loss.
     """
-    return -(y.ele_mul((y_pred + 1e-15).log()) + (1.0 - y).ele_mul((1.0 - y_pred + 1e-15).log())).mean()
+    return -(y._elemwise_matrix[mul]((y_pred + 1e-15).log()) + (1.0 - y)._elemwise_matrix[mul]((1.0 - y_pred + 1e-15).log())).mean()
 
 def r2_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     """Coefficient of determination.
