@@ -380,7 +380,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             # all coordinates except for the parent's cut dimension.  
             # That, we recompute ourself.
             var c = -1
-            var maxspread: Float32 = 0.0 
+            var maxspread: Float32 = 0.0
 
             for i in range(self.dim):
                 if (not parent) or (parent.value()[].cut_dim == i):
@@ -412,29 +412,31 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             node[].left = self.build_tree_for_range(l,m,node)
             node[].right = self.build_tree_for_range(m+1,u,node)
 
+            var node_left = node[].left.value()
+            var node_right = node[].right.value()
             if not node[].right:
                 for i in range(self.dim):
-                    node[].box[i] = node[].left.value()[].box[i].copy()
-                node[].cut_val = node[].left.value()[].box[c].upper
+                    node[].box[i] = node_left[].box[i].copy()
+                node[].cut_val = node_left[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             elif not node[].left:
                 for i in range(self.dim):
-                    node[].box[i] = node[].right.value()[].box[i].copy()
-                node[].cut_val = node[].right.value()[].box[c].upper
+                    node[].box[i] = node_right[].box[i].copy()
+                node[].cut_val = node_right[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             else:
-                node[].cut_val_right = node[].right.value()[].box[c].lower
-                node[].cut_val_left  = node[].left.value()[].box[c].upper
+                node[].cut_val_right = node_right[].box[c].lower
+                node[].cut_val_left  = node_left[].box[c].upper
                 node[].cut_val = (node[].cut_val_left + node[].cut_val_right) / 2.0
                 # now recompute true bounding box as union of subtree boxes.
                 # This is now faster having built the tree, being logarithmic in
                 # N, not linear as would be from naive method.
                 for i in range(self.dim):
-                    node[].box[i].upper = max(node[].left.value()[].box[i].upper,
-                                node[].right.value()[].box[i].upper)
+                    node[].box[i].upper = max(node_left[].box[i].upper,
+                                node_right[].box[i].upper)
                     
-                    node[].box[i].lower = min(node[].left.value()[].box[i].lower,
-                                node[].right.value()[].box[i].lower)
+                    node[].box[i].lower = min(node_left[].box[i].lower,
+                                node_right[].box[i].lower)
         return node
 
     def spread_in_coordinate(self, c: Int, l: Int, u: Int, mut interv: interval):
@@ -625,11 +627,11 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
     def __del__(deinit self):
         if self.root:
-            delTree(self.root)
+            delTree(self.root.value())
 
-def delTree(node: OptionalUnsafePointer[KDTreeNode, MutAnyOrigin]):
-    if node.value()[].left:
-        delTree(node.value()[].left)
-    if node.value()[].right:
-        delTree(node.value()[].right)
-    node.value().free()
+def delTree(node: UnsafePointer[KDTreeNode, MutAnyOrigin]):
+    if node[].left:
+        delTree(node[].left.value())
+    if node[].right:
+        delTree(node[].right.value())
+    node.free()

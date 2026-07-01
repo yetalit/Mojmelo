@@ -5,7 +5,7 @@ struct svm_model:
 	var param: svm_parameter # parameter
 	var nr_class: Int # number of classes, = 2 in regression/one class svm
 	var l: Int # total SV
-	var SV: OptionalUnsafePointer[OptionalUnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin] # SVs (SV[l])
+	var SV: OptionalUnsafePointer[UnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin] # SVs (SV[l])
 	var sv_coef: OptionalUnsafePointer[OptionalUnsafePointer[Float64, MutUntrackedOrigin], MutUntrackedOrigin]	# coefficients for SVs in decision functions (sv_coef[k-1][l])
 	var rho: OptionalUnsafePointer[Float64, MutUntrackedOrigin]	# constants in decision functions (rho[k*(k-1)/2])
 	var probA: OptionalUnsafePointer[Float64, MutUntrackedOrigin] # pariwise probability information
