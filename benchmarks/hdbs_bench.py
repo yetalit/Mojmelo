@@ -1,7 +1,8 @@
 import numpy as np
 import time
 from sklearn.datasets import make_blobs
-from hdbscan import HDBSCAN
+import hdbscan
+import fast_hdbscan
 from sklearn.metrics import adjusted_rand_score
 
 
@@ -44,25 +45,28 @@ def prepare_data(seed, n_samples=30000, n_features=15):
 
 
 def sklearn_model():
-    return HDBSCAN(algorithm='boruvka_kdtree')
+    return hdbscan.HDBSCAN(algorithm='boruvka_kdtree', core_dist_n_jobs=-1)
+
+def fast_hdbscan_model():
+    return fast_hdbscan.HDBSCAN()
 
 
 # -----------------------
 # CORE BENCHMARK
 # -----------------------
-def benchmark_model(X, warmup=2, runs=5):
+def benchmark_model(model, X, warmup=2, runs=5):
     labels = None
 
     # warm-up
     for _ in range(warmup):
-        m = sklearn_model()
+        m = model()
         labels = m.fit_predict(X)
 
     times = []
 
     # timed runs
     for _ in range(runs):
-        m = sklearn_model()
+        m = model()
 
         t0 = time.perf_counter()
         m.fit(X)
@@ -87,23 +91,35 @@ def benchmark_model(X, warmup=2, runs=5):
 def run_benchmark(seed, mean, std, labels):
     X, y_true = prepare_data(seed)
 
-    sk = benchmark_model(X)
+    sk = benchmark_model(sklearn_model, X)
+    fhdbs = benchmark_model(fast_hdbscan_model, X)
 
     ari_vs_sklearn = adjusted_rand_score(sk["labels"], labels)
+    ari_vs_fast_hdbscan = adjusted_rand_score(fhdbs["labels"], labels)
     sk_ari_vs_truth = adjusted_rand_score(y_true, sk["labels"])
+    fast_hdbscan_ari_vs_truth = adjusted_rand_score(y_true, fhdbs["labels"])
     ari_vs_truth = adjusted_rand_score(y_true, labels)
 
-    print("| Model            | Fit Time (s)    | ARI vs sklearn | ARI vs truth |")
-    print("|------------------|-----------------|----------------|--------------|")
+    print("| Model            | Fit Time (s)    | ARI vs sklearn | ARI vs fast_hdbscan | ARI vs truth |")
+    print("|------------------|-----------------|----------------|---------------------|--------------|")
 
     print(
         f"| skl-contrib HDBS | {sk['mean']:.4f} ± {sk['std']:.4f} "
         f"| {'-':^14} "
+        f"| {'-':^19} "
         f"| {sk_ari_vs_truth:.4f}       |"
+    )
+
+    print(
+        f"| fast hdbscan     | {fhdbs['mean']:.4f} ± {fhdbs['std']:.4f} "
+        f"| {'-':^14} "
+        f"| {'-':^19} "
+        f"| {fast_hdbscan_ari_vs_truth:.4f}       |"
     )
 
     print(
         f"| mojmelo HDBS     | {mean:.4f} ± {std:.4f} "
         f"| {ari_vs_sklearn:.4f}         "
+        f"| {fast_hdbscan_ari_vs_truth:.4f}              "
         f"| {ari_vs_truth:.4f}       |"
     )
