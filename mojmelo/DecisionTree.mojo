@@ -275,6 +275,7 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: M
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
+    var indices_to_sort = fill_indices_list(len(indices))
     if criterion != 'mse':
         var num_classes = Int(_y.max() + 1)  # assuming y is 0-indexed
         var histogram = _y.bincount() if weights.size == 0 else _y.bincount(weights)
@@ -288,7 +289,8 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: M
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
                 var right_histogram = histogram.copy()
-                var sorted_indices = column.argsort_inplace()
+                var sorted_indices = indices_to_sort.copy()
+                column.argsort_inplace(sorted_indices)
                 var n_left: Float32 = 0.0
                 for step in range(1, len(indices)):
                     var prev = Int(sorted_indices[step - 1])
@@ -325,7 +327,8 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], y: Matrix, _y: M
                 var column = Matrix(len(indices), 1)
                 for i in range(len(indices)):
                     column.data[i] = X[Int(indices[i]), feat]
-                var sorted_indices = column.argsort_inplace()
+                var sorted_indices = indices_to_sort.copy()
+                column.argsort_inplace(sorted_indices)
                 var left_sum: Float32 = 0.0
                 var left_sum_sq: Float32 = 0.0
                 var n_left: Float32 = 0.0

@@ -116,6 +116,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
+    var indices_to_sort = fill_indices_list(len(indices)) if n_bins < 2 or len(indices) < n_bins else List[Scalar[DType.int]]()
 
     @parameter
     def p(idx: Int):
@@ -125,7 +126,8 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
             for i in range(len(indices)):
                 column.data[i] = X[Int(indices[i]), feat]
             if n_bins < 2 or len(column) < n_bins:
-                var sorted_indices = column.argsort_inplace()
+                var sorted_indices = indices_to_sort.copy()
+                column.argsort_inplace(sorted_indices)
 
                 var left_g_sum: Float32 = 0.0
                 var left_h_sum: Float32 = 0.0

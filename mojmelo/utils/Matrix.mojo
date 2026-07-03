@@ -1305,8 +1305,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return sorted_indices^
 
     @always_inline
-    def argsort_inplace[ascending: Bool = True](mut self) raises -> List[Scalar[DType.int]]:
-        var sorted_indices = fill_indices_list(self.size)
+    def argsort_inplace[ascending: Bool = True](mut self, mut sorted_indices: List[Scalar[DType.int]]) raises:
         @parameter
         def cmp_fn(a: Float32, b: Float32) -> Bool:
             comptime if ascending:
@@ -1320,7 +1319,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 MutAnyOrigin,
             ](ptr=self.data, length=self.size), UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
         )
-        return sorted_indices^
 
     @always_inline
     def min(self) raises -> Float32:
