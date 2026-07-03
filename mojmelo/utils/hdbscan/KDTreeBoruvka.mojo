@@ -80,9 +80,10 @@ def node_pair_lower_bound(
     vectorize[Matrix.simd_width](dim, v)
 
     var R = r1 + r2
-    var lb2 = dist2 - (R * R)
+    var dist = math.sqrt(dist2) if dist2 > 0.0 else Float32(0.0)
+    var lb = dist - R
 
-    return lb2 if lb2 > 0.0 else 0.0
+    return (lb * lb) if lb > 0.0 else Float32(0.0)
 
 
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
@@ -167,7 +168,7 @@ struct KDTreeBoruvka:
     def ensure_node(mut self, i: Int):
         if len(self.nodes) <= i:
             # Placeholder center; overwritten immediately in build_node
-            self.nodes.resize(i + 1, NodeData(False, 0, 0, 0.0, CenterPtr(self._center_arena)))
+            self.nodes.resize(i + 1, NodeData(True, 0, 0, 0.0, CenterPtr(self._center_arena)))
 
     # Fused single O(n) pass: finds min/max across ALL dims simultaneously.
     def choose_split_dim(self, start: Int, end: Int) -> Scalar[DType.int]:

@@ -4,6 +4,7 @@ from .KDTreeBoruvka import KDTreeBoruvka, node_pair_lower_bound
 import std.math as math
 from std.algorithm import vectorize, parallelize
 from std.memory import memset
+from std.sys.info import size_of
 
 struct UnionFind:
     var parent: List[Scalar[DType.int]]
@@ -140,7 +141,7 @@ struct HDBSCANBoruvka:
                 next_id += 1
             self.component_of_point[i] = self.component_remap[c]
 
-        memset(self.component_remap.unsafe_ptr(), -1, self.n)
+        memset(self.component_remap.unsafe_ptr().bitcast[UInt8](), -1, self.n * size_of[DType.int]())
         self.num_components = Int(next_id)
 
         # --- 3. Propagate component labels up the node tree (bottom-up) ---
@@ -152,10 +153,10 @@ struct HDBSCANBoruvka:
             if nd[].is_leaf:
                 var start = nd[].idx_start
                 var end   = nd[].idx_end
-                var c = self.component_of_point[start]
+                var c = self.component_of_point[Int(self.tree[].build_idx[start])]
                 var same = True
                 for i in range(start + 1, end):
-                    if self.component_of_point[i] != c:
+                    if self.component_of_point[Int(self.tree[].build_idx[i])] != c:
                         same = False
                         break
                 self.component_of_node[ni] = c if same else -1
@@ -204,12 +205,10 @@ struct HDBSCANBoruvka:
         # --- Leaf: examine every point in the node ---
         if nd[].is_leaf:
             for i in range(nd[].idx_start, nd[].idx_end):
-                var q = Scalar[DType.int](i)
-                if self.component_of_point[i] == Scalar[DType.int](point_component):
+                var q = self.tree[].build_idx[i]
+                if self.component_of_point[Int(q)] == Scalar[DType.int](point_component):
                     continue
-
-                # Skip q if its core distance alone can't improve comp_bound
-                if self.tree[].core_dist[q] >= comp_bound[0]:
+                if self.tree[].core_dist[Int(q)] >= comp_bound[0]:
                     continue
 
                 var xq = self.tree[].data + q * Scalar[DType.int](self.dim)
@@ -256,8 +255,8 @@ struct HDBSCANBoruvka:
 
     def boruvka_query(mut self) raises:
         # Reset per-point candidates
-        memset(self.candidate_point.unsafe_ptr(),    -1, self.n)
-        memset(self.candidate_neighbor.unsafe_ptr(), -1, self.n)
+        memset(self.candidate_point.unsafe_ptr().bitcast[UInt8](), -1, self.n * size_of[DType.int]())
+        memset(self.candidate_neighbor.unsafe_ptr().bitcast[UInt8](), -1, self.n * size_of[DType.int]())
         Span[Float32, origin_of(self.candidate_dist)](
             ptr=self.candidate_dist.unsafe_ptr(), length=self.n
         ).fill(math.inf[DType.float32]())
