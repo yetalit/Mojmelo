@@ -3,7 +3,7 @@ Mojo function
 # `sign`
 
 ```mojo
-fn sign(z: Matrix) -> Matrix
+fn def sign(z: Matrix) -> Matrix
 ```
 
 **Args:**

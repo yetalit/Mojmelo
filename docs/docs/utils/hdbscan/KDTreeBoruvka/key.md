@@ -3,7 +3,7 @@ Mojo function
 # `key`
 
 ```mojo
-fn key(idx: Int, data: UnsafePointer[Float32, MutAnyOrigin], dim: Int, split_dim: Int) -> Float32
+fn def key(idx: Int, data: UnsafePointer[Float32, MutAnyOrigin], dim: Int, split_dim: Int) -> Float32
 ```
 
 **Args:**

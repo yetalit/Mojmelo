@@ -9,8 +9,8 @@ struct kernel_params
 
 ## Fields
 
-- **x** (`Optional[UnsafePointer[Optional[UnsafePointer[svm_node, MutExternalOrigin]], MutExternalOrigin]]`)
-- **x_square** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
+- **x** (`UnsafePointer[UnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]`)
+- **x_square** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
 - **kernel_type** (`Int`)
 - **degree** (`Int`)
 - **gamma** (`Float64`)
@@ -18,5 +18,5 @@ struct kernel_params
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`
+`AnyType`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`
 

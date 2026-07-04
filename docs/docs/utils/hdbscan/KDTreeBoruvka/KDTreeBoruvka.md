@@ -21,14 +21,14 @@ struct KDTreeBoruvka
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int)
+fn def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int)
 ```
 
 **Args:**
@@ -48,7 +48,7 @@ fn __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_dep
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+fn def __del__(deinit self)
 ```
 
 **Args:**
@@ -58,7 +58,7 @@ fn __del__(deinit self)
 ### `left`
 
 ```mojo
-fn left(self, i: Int) -> Int
+fn def left(self, i: Int) -> Int
 ```
 
 **Args:**
@@ -73,7 +73,7 @@ fn left(self, i: Int) -> Int
 ### `right`
 
 ```mojo
-fn right(self, i: Int) -> Int
+fn def right(self, i: Int) -> Int
 ```
 
 **Args:**
@@ -88,7 +88,7 @@ fn right(self, i: Int) -> Int
 ### `ensure_node`
 
 ```mojo
-fn ensure_node(mut self, i: Int)
+fn def ensure_node(mut self, i: Int)
 ```
 
 **Args:**
@@ -99,7 +99,7 @@ fn ensure_node(mut self, i: Int)
 ### `choose_split_dim`
 
 ```mojo
-fn choose_split_dim(self, start: Int, end: Int) -> Int
+fn def choose_split_dim(self, start: Int, end: Int) -> Int
 ```
 
 **Args:**
@@ -115,7 +115,7 @@ fn choose_split_dim(self, start: Int, end: Int) -> Int
 ### `build_node`
 
 ```mojo
-fn build_node(mut self, node: Int, start: Int, end: Int)
+fn def build_node(mut self, node: Int, start: Int, end: Int)
 ```
 
 **Args:**

@@ -3,7 +3,7 @@ Mojo function
 # `fill_indices_list`
 
 ```mojo
-fn fill_indices_list(N: Int) -> List[Int]
+fn def fill_indices_list(N: Int) -> List[Int]
 ```
 
 Generates indices from 0 to N.

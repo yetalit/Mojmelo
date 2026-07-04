@@ -3,13 +3,13 @@ Mojo function
 # `svm_predict`
 
 ```mojo
-fn svm_predict(model: svm_model, x: Optional[UnsafePointer[svm_node, MutExternalOrigin]]) -> Float64
+fn def svm_predict(model: svm_model, x: UnsafePointer[svm_node, MutUntrackedOrigin]) -> Float64
 ```
 
 **Args:**
 
 - **model** (`svm_model`)
-- **x** (`Optional[UnsafePointer[svm_node, MutExternalOrigin]]`)
+- **x** (`UnsafePointer[svm_node, MutUntrackedOrigin]`)
 
 **Returns:**
 

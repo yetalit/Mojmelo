@@ -11,7 +11,7 @@ Mojo trait
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self: _Self, column: Int, _len: Int) -> Optional[UnsafePointer[Float32, MutExternalOrigin]]
+fn def get_Q(mut self: _Self, column: Int, _len: Int) -> UnsafePointer[Float32, MutUntrackedOrigin]
 ```
 
 **Args:**
@@ -22,12 +22,12 @@ fn get_Q(mut self: _Self, column: Int, _len: Int) -> Optional[UnsafePointer[Floa
 
 **Returns:**
 
-`Optional[UnsafePointer[Float32, MutExternalOrigin]]`
+`UnsafePointer[Float32, MutUntrackedOrigin]`
 
 ### `get_QD`
 
 ```mojo
-fn get_QD(self: _Self) -> Optional[UnsafePointer[Float64, MutExternalOrigin]]
+fn def get_QD(self: _Self) -> UnsafePointer[Float64, MutUntrackedOrigin]
 ```
 
 **Args:**
@@ -36,12 +36,12 @@ fn get_QD(self: _Self) -> Optional[UnsafePointer[Float64, MutExternalOrigin]]
 
 **Returns:**
 
-`Optional[UnsafePointer[Float64, MutExternalOrigin]]`
+`UnsafePointer[Float64, MutUntrackedOrigin]`
 
 ### `swap_index`
 
 ```mojo
-fn swap_index(mut self: _Self, i: Int, j: Int)
+fn def swap_index(mut self: _Self, i: Int, j: Int)
 ```
 
 **Args:**

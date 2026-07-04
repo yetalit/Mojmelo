@@ -3,13 +3,13 @@ Mojo function
 # `k_function`
 
 ```mojo
-fn k_function(var x: Optional[UnsafePointer[svm_node, MutExternalOrigin]], var y: Optional[UnsafePointer[svm_node, MutExternalOrigin]], param: svm_parameter) -> Float64
+fn def k_function(var x: UnsafePointer[svm_node, MutUntrackedOrigin], var y: UnsafePointer[svm_node, MutUntrackedOrigin], param: svm_parameter) -> Float64
 ```
 
 **Args:**
 
-- **x** (`Optional[UnsafePointer[svm_node, MutExternalOrigin]]`)
-- **y** (`Optional[UnsafePointer[svm_node, MutExternalOrigin]]`)
+- **x** (`UnsafePointer[svm_node, MutUntrackedOrigin]`)
+- **y** (`UnsafePointer[svm_node, MutUntrackedOrigin]`)
 - **param** (`svm_parameter`)
 
 **Returns:**

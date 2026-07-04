@@ -17,5 +17,5 @@ struct NodeData
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
 

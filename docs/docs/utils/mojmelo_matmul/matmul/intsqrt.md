@@ -3,7 +3,7 @@ Mojo function
 # `intsqrt`
 
 ```mojo
-fn intsqrt[n: Int]() -> Int
+fn def intsqrt[n: Int]() -> Int
 ```
 
 **Parameters:**

@@ -3,7 +3,7 @@ Mojo function
 # `mul`
 
 ```mojo
-fn mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
+fn def mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
 ```
 
 **Parameters:**

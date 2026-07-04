@@ -11,18 +11,18 @@ struct head_t
 
 - **prev** (`Optional[UnsafePointer[head_t, MutAnyOrigin]]`)
 - **next** (`Optional[UnsafePointer[head_t, MutAnyOrigin]]`)
-- **data** (`Optional[UnsafePointer[Float32, MutExternalOrigin]]`)
+- **data** (`Optional[UnsafePointer[Float32, MutUntrackedOrigin]]`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`
+`AnyType`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__() -> Self
+fn def __init__() -> Self
 ```
 
 **Returns:**

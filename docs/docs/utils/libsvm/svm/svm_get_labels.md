@@ -3,11 +3,11 @@ Mojo function
 # `svm_get_labels`
 
 ```mojo
-fn svm_get_labels(model: svm_model, label: Optional[UnsafePointer[Int, MutExternalOrigin]])
+fn def svm_get_labels(model: svm_model, label: Optional[UnsafePointer[Int, MutUntrackedOrigin]])
 ```
 
 **Args:**
 
 - **model** (`svm_model`)
-- **label** (`Optional[UnsafePointer[Int, MutExternalOrigin]]`)
+- **label** (`Optional[UnsafePointer[Int, MutUntrackedOrigin]]`)
 

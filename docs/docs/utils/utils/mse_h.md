@@ -3,7 +3,7 @@ Mojo function
 # `mse_h`
 
 ```mojo
-fn mse_h(score: Matrix) -> Matrix
+fn def mse_h(score: Matrix) -> Matrix
 ```
 
 **Args:**

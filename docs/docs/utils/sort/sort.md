@@ -3,7 +3,7 @@ Mojo function
 # `sort`
 
 ```mojo
-fn sort[dtype: DType, origin: MutOrigin, //, cmp_fn: def(Scalar[dtype], Scalar[dtype]) capturing -> Bool](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Int, MutAnyOrigin])
+fn def sort[dtype: DType, origin: MutOrigin, //, cmp_fn: def(Scalar[dtype], Scalar[dtype]) capturing -> Bool](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Int, MutUntrackedOrigin])
 ```
 
 **Parameters:**
@@ -15,5 +15,5 @@ fn sort[dtype: DType, origin: MutOrigin, //, cmp_fn: def(Scalar[dtype], Scalar[d
 **Args:**
 
 - **span** (`Span[Scalar[dtype], origin]`)
-- **indices** (`UnsafePointer[Int, MutAnyOrigin]`)
+- **indices** (`UnsafePointer[Int, MutUntrackedOrigin]`)
 

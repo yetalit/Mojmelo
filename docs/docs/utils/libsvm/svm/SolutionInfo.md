@@ -17,14 +17,14 @@ struct SolutionInfo
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__() -> Self
+fn def __init__() -> Self
 ```
 
 **Returns:**

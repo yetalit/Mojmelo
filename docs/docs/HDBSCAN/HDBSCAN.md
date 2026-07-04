@@ -31,14 +31,14 @@ Cluster data using hierarchical density-based clustering.
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, min_samples: Int = 5, min_cluster_size: Int = 5, cluster_selection_method: String = "eom", alpha: Float32 = 1, cluster_selection_epsilon: Float32 = Float32("0"), cluster_selection_epsilon_max: Float32 = inf[DType.float32](), cluster_selection_persistence: Float32 = Float32("0"), max_cluster_size: Int = 0, allow_single_cluster: Bool = False, match_reference_implementation: Bool = False, search_depth: Int = 1)
+fn def __init__(out self, min_samples: Int = 5, min_cluster_size: Int = 5, cluster_selection_method: String = "eom", alpha: Float32 = 1, cluster_selection_epsilon: Float32 = Float32("0"), cluster_selection_epsilon_max: Float32 = inf[DType.float32](), cluster_selection_persistence: Float32 = Float32("0"), max_cluster_size: Int = 0, allow_single_cluster: Bool = False, match_reference_implementation: Bool = False, search_depth: Int = 1)
 ```
 
 **Args:**
@@ -63,7 +63,7 @@ fn __init__(out self, min_samples: Int = 5, min_cluster_size: Int = 5, cluster_s
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix)
+fn def fit(mut self, X: Matrix)
 ```
 
 Find clusters based on hierarchical density-based clustering.
@@ -78,7 +78,7 @@ Find clusters based on hierarchical density-based clustering.
 ### `fit_predict`
 
 ```mojo
-fn fit_predict(mut self, X: Matrix) -> List[Int]
+fn def fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Cluster X and return the associated cluster labels.

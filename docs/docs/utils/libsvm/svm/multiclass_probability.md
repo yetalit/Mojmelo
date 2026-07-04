@@ -3,12 +3,12 @@ Mojo function
 # `multiclass_probability`
 
 ```mojo
-fn multiclass_probability(k: Int, r: Optional[UnsafePointer[Optional[UnsafePointer[Float64, MutExternalOrigin]], MutExternalOrigin]], p: Optional[UnsafePointer[Float64, MutExternalOrigin]])
+fn def multiclass_probability(k: Int, r: UnsafePointer[UnsafePointer[Float64, MutUntrackedOrigin], MutUntrackedOrigin], p: UnsafePointer[Float64, MutUntrackedOrigin])
 ```
 
 **Args:**
 
 - **k** (`Int`)
-- **r** (`Optional[UnsafePointer[Optional[UnsafePointer[Float64, MutExternalOrigin]], MutExternalOrigin]]`)
-- **p** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
+- **r** (`UnsafePointer[UnsafePointer[Float64, MutUntrackedOrigin], MutUntrackedOrigin]`)
+- **p** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
 

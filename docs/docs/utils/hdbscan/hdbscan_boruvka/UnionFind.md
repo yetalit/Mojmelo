@@ -14,14 +14,14 @@ struct UnionFind
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, size: Int)
+fn def __init__(out self, size: Int)
 ```
 
 **Args:**
@@ -38,7 +38,7 @@ fn __init__(out self, size: Int)
 ### `find`
 
 ```mojo
-fn find(mut self, x: Int) -> Int
+fn def find(mut self, x: Int) -> Int
 ```
 
 **Args:**
@@ -53,7 +53,7 @@ fn find(mut self, x: Int) -> Int
 ### `unite`
 
 ```mojo
-fn unite(mut self, x: Int, y: Int)
+fn def unite(mut self, x: Int, y: Int)
 ```
 
 **Args:**

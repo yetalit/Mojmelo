@@ -18,14 +18,14 @@ struct TreeUnionFind
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, size: Int)
+fn def __init__(out self, size: Int)
 ```
 
 **Args:**
@@ -40,7 +40,7 @@ fn __init__(out self, size: Int)
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+fn def __del__(deinit self)
 ```
 
 **Args:**
@@ -50,7 +50,7 @@ fn __del__(deinit self)
 ### `union_`
 
 ```mojo
-fn union_(mut self, x: Int, y: Int)
+fn def union_(mut self, x: Int, y: Int)
 ```
 
 **Args:**
@@ -62,7 +62,7 @@ fn union_(mut self, x: Int, y: Int)
 ### `find`
 
 ```mojo
-fn find(mut self, x: Int) -> Int
+fn def find(mut self, x: Int) -> Int
 ```
 
 **Args:**
@@ -77,7 +77,7 @@ fn find(mut self, x: Int) -> Int
 ### `components`
 
 ```mojo
-fn components(self) -> List[Int]
+fn def components(self) -> List[Int]
 ```
 
 **Args:**

@@ -11,19 +11,19 @@ struct Cache
 
 - **l** (`Int`)
 - **size** (`UInt`)
-- **head** (`Optional[UnsafePointer[head_t, MutExternalOrigin]]`)
+- **head** (`Optional[UnsafePointer[head_t, MutUntrackedOrigin]]`)
 - **lru_head** (`head_t`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, l_: Int, size_: UInt)
+fn def __init__(out self, l_: Int, size_: UInt)
 ```
 
 **Args:**
@@ -39,7 +39,7 @@ fn __init__(out self, l_: Int, size_: UInt)
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+fn def __del__(deinit self)
 ```
 
 **Args:**
@@ -49,36 +49,36 @@ fn __del__(deinit self)
 ### `lru_delete`
 
 ```mojo
-fn lru_delete(self, h: Optional[UnsafePointer[head_t, MutAnyOrigin]])
+fn def lru_delete(self, h: UnsafePointer[head_t, MutAnyOrigin])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **h** (`Optional[UnsafePointer[head_t, MutAnyOrigin]]`)
+- **h** (`UnsafePointer[head_t, MutAnyOrigin]`)
 
 ### `lru_insert`
 
 ```mojo
-fn lru_insert(mut self, h: Optional[UnsafePointer[head_t, MutExternalOrigin]])
+fn def lru_insert(mut self, h: UnsafePointer[head_t, MutUntrackedOrigin])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **h** (`Optional[UnsafePointer[head_t, MutExternalOrigin]]`)
+- **h** (`UnsafePointer[head_t, MutUntrackedOrigin]`)
 
 ### `get_data`
 
 ```mojo
-fn get_data(mut self, index: Int, data: Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutExternalOrigin]], MutAnyOrigin]], var _len: Int) -> Int
+fn def get_data(mut self, index: Int, data: Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutUntrackedOrigin]], MutAnyOrigin]], var _len: Int) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **index** (`Int`)
-- **data** (`Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutExternalOrigin]], MutAnyOrigin]]`)
+- **data** (`Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutUntrackedOrigin]], MutAnyOrigin]]`)
 - **_len** (`Int`)
 
 **Returns:**
@@ -88,7 +88,7 @@ fn get_data(mut self, index: Int, data: Optional[UnsafePointer[Optional[UnsafePo
 ### `swap_index`
 
 ```mojo
-fn swap_index(mut self, var i: Int, var j: Int)
+fn def swap_index(mut self, var i: Int, var j: Int)
 ```
 
 **Args:**

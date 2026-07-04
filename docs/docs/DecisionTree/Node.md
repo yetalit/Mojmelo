@@ -17,22 +17,22 @@ struct Node
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: Optional[UnsafePointer[Node, MutAnyOrigin]] = None, right: Optional[UnsafePointer[Node, MutAnyOrigin]] = None, value: Float32 = inf[DType.float32]())
+fn def __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: Optional[UnsafePointer[Self, MutAnyOrigin]] = None, right: Optional[UnsafePointer[Self, MutAnyOrigin]] = None, value: Float32 = inf[DType.float32]())
 ```
 
 **Args:**
 
 - **feature** (`Int`)
 - **threshold** (`Float32`)
-- **left** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
-- **right** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
+- **left** (`Optional[UnsafePointer[Self, MutAnyOrigin]]`)
+- **right** (`Optional[UnsafePointer[Self, MutAnyOrigin]]`)
 - **value** (`Float32`)
 - **self** (`Self`)
 
@@ -43,7 +43,7 @@ fn __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: Optional[
 ### `is_leaf_node`
 
 ```mojo
-fn is_leaf_node(self) -> Bool
+fn def is_leaf_node(self) -> Bool
 ```
 
 **Args:**
@@ -57,7 +57,7 @@ fn is_leaf_node(self) -> Bool
 ### `__str__`
 
 ```mojo
-fn __str__(self) -> String
+fn def __str__(self) -> String
 ```
 
 **Args:**

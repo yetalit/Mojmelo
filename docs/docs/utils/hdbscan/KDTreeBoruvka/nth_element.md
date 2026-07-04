@@ -3,15 +3,15 @@ Mojo function
 # `nth_element`
 
 ```mojo
-fn nth_element(var first: UnsafePointer[Int, MutAnyOrigin], nth: UnsafePointer[Int, MutAnyOrigin], var last: UnsafePointer[Int, MutAnyOrigin], var proj: UnsafePointer[Float32, MutAnyOrigin], data: UnsafePointer[Float32, MutAnyOrigin], dim: Int, split_dim: Int)
+fn def nth_element(var first: UnsafePointer[Int, MutUntrackedOrigin], nth: UnsafePointer[Int, MutUntrackedOrigin], var last: UnsafePointer[Int, MutUntrackedOrigin], var proj: UnsafePointer[Float32, MutUntrackedOrigin], data: UnsafePointer[Float32, MutAnyOrigin], dim: Int, split_dim: Int)
 ```
 
 **Args:**
 
-- **first** (`UnsafePointer[Int, MutAnyOrigin]`)
-- **nth** (`UnsafePointer[Int, MutAnyOrigin]`)
-- **last** (`UnsafePointer[Int, MutAnyOrigin]`)
-- **proj** (`UnsafePointer[Float32, MutAnyOrigin]`)
+- **first** (`UnsafePointer[Int, MutUntrackedOrigin]`)
+- **nth** (`UnsafePointer[Int, MutUntrackedOrigin]`)
+- **last** (`UnsafePointer[Int, MutUntrackedOrigin]`)
+- **proj** (`UnsafePointer[Float32, MutUntrackedOrigin]`)
 - **data** (`UnsafePointer[Float32, MutAnyOrigin]`)
 - **dim** (`Int`)
 - **split_dim** (`Int`)

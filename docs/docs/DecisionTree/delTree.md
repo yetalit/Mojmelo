@@ -3,7 +3,7 @@ Mojo function
 # `delTree`
 
 ```mojo
-fn delTree(node: UnsafePointer[Node, MutAnyOrigin])
+fn def delTree(node: UnsafePointer[Node, MutAnyOrigin])
 ```
 
 **Args:**

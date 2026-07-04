@@ -14,14 +14,14 @@ struct Layout
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`, `Writable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`, `Writable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(shape: Tuple[Int, Int], strides: Tuple[Int, Int]) -> Self
+fn def __init__(shape: Tuple[Int, Int], strides: Tuple[Int, Int]) -> Self
 ```
 
 **Args:**
@@ -34,7 +34,7 @@ fn __init__(shape: Tuple[Int, Int], strides: Tuple[Int, Int]) -> Self
 `Self`
 
 ```mojo
-fn __init__(shape: Tuple[Int, Int]) -> Self
+fn def __init__(shape: Tuple[Int, Int]) -> Self
 ```
 
 **Args:**
@@ -48,7 +48,7 @@ fn __init__(shape: Tuple[Int, Int]) -> Self
 ### `__call__`
 
 ```mojo
-fn __call__(self, i: Int, j: Int) -> Int
+fn def __call__(self, i: Int, j: Int) -> Int
 ```
 
 **Args:**
@@ -64,7 +64,7 @@ fn __call__(self, i: Int, j: Int) -> Int
 ### `size`
 
 ```mojo
-fn size(self) -> Int
+fn def size(self) -> Int
 ```
 
 **Args:**
@@ -78,7 +78,7 @@ fn size(self) -> Int
 ### `write_to`
 
 ```mojo
-fn write_to[W: Writer](self, mut writer: W)
+fn def write_to[W: Writer](self, mut writer: W)
 ```
 
 **Parameters:**

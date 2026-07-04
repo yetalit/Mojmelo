@@ -16,30 +16,30 @@ struct Solver
 ## Fields
 
 - **active_size** (`Int`)
-- **y** (`Optional[UnsafePointer[Int8, MutExternalOrigin]]`)
-- **G** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
-- **alpha_status** (`Optional[UnsafePointer[Int8, MutExternalOrigin]]`)
-- **alpha** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
-- **QD** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
+- **y** (`UnsafePointer[Int8, MutUntrackedOrigin]`)
+- **G** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **alpha_status** (`UnsafePointer[Int8, MutUntrackedOrigin]`)
+- **alpha** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **QD** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
 - **eps** (`Float64`)
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
-- **p** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
-- **active_set** (`Optional[UnsafePointer[Int, MutExternalOrigin]]`)
-- **G_bar** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
+- **p** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **active_set** (`UnsafePointer[Int, MutUntrackedOrigin]`)
+- **G_bar** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
 - **l** (`Int`)
 - **unshrink** (`Bool`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self)
+fn def __init__(out self)
 ```
 
 **Args:**
@@ -53,7 +53,7 @@ fn __init__(out self)
 ### `get_C`
 
 ```mojo
-fn get_C(self, i: Int) -> Float64
+fn def get_C(self, i: Int) -> Float64
 ```
 
 **Args:**
@@ -68,7 +68,7 @@ fn get_C(self, i: Int) -> Float64
 ### `update_alpha_status`
 
 ```mojo
-fn update_alpha_status(self, i: Int)
+fn def update_alpha_status(self, i: Int)
 ```
 
 **Args:**
@@ -79,7 +79,7 @@ fn update_alpha_status(self, i: Int)
 ### `is_upper_bound`
 
 ```mojo
-fn is_upper_bound(self, i: Int) -> Bool
+fn def is_upper_bound(self, i: Int) -> Bool
 ```
 
 **Args:**
@@ -94,7 +94,7 @@ fn is_upper_bound(self, i: Int) -> Bool
 ### `is_lower_bound`
 
 ```mojo
-fn is_lower_bound(self, i: Int) -> Bool
+fn def is_lower_bound(self, i: Int) -> Bool
 ```
 
 **Args:**
@@ -109,7 +109,7 @@ fn is_lower_bound(self, i: Int) -> Bool
 ### `is_free`
 
 ```mojo
-fn is_free(self, i: Int) -> Bool
+fn def is_free(self, i: Int) -> Bool
 ```
 
 **Args:**
@@ -124,7 +124,7 @@ fn is_free(self, i: Int) -> Bool
 ### `swap_index`
 
 ```mojo
-fn swap_index[QM: QMatrix](self, mut Q: QM, i: Int, j: Int)
+fn def swap_index[QM: QMatrix](self, mut Q: QM, i: Int, j: Int)
 ```
 
 **Parameters:**
@@ -141,7 +141,7 @@ fn swap_index[QM: QMatrix](self, mut Q: QM, i: Int, j: Int)
 ### `reconstruct_gradient`
 
 ```mojo
-fn reconstruct_gradient[QM: QMatrix](self, mut Q: QM)
+fn def reconstruct_gradient[QM: QMatrix](self, mut Q: QM)
 ```
 
 **Parameters:**
@@ -156,7 +156,7 @@ fn reconstruct_gradient[QM: QMatrix](self, mut Q: QM)
 ### `Solve`
 
 ```mojo
-fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[UnsafePointer[Float64, MutExternalOrigin]], y_: Optional[UnsafePointer[Int8, MutExternalOrigin]], alpha_: Optional[UnsafePointer[Float64, MutExternalOrigin]], Cp: Float64, Cn: Float64, eps: Float64, mut si: SolutionInfo, shrinking: Int)
+fn def Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[UnsafePointer[Float64, MutUntrackedOrigin]], y_: Optional[UnsafePointer[Int8, MutUntrackedOrigin]], alpha_: UnsafePointer[Float64, MutUntrackedOrigin], Cp: Float64, Cn: Float64, eps: Float64, mut si: SolutionInfo, shrinking: Int)
 ```
 
 **Parameters:**
@@ -168,9 +168,9 @@ fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[UnsafePointer[Fl
 - **self** (`Self`)
 - **l** (`Int`)
 - **Q** (`QM`)
-- **p_** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
-- **y_** (`Optional[UnsafePointer[Int8, MutExternalOrigin]]`)
-- **alpha_** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
+- **p_** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
+- **y_** (`Optional[UnsafePointer[Int8, MutUntrackedOrigin]]`)
+- **alpha_** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
 - **eps** (`Float64`)
@@ -180,7 +180,7 @@ fn Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[UnsafePointer[Fl
 ### `select_working_set`
 
 ```mojo
-fn select_working_set[QM: QMatrix](self, mut Q: QM, mut out_i: Int, mut out_j: Int) -> Int
+fn def select_working_set[QM: QMatrix](self, mut Q: QM, mut out_i: Int, mut out_j: Int) -> Int
 ```
 
 **Parameters:**
@@ -201,7 +201,7 @@ fn select_working_set[QM: QMatrix](self, mut Q: QM, mut out_i: Int, mut out_j: I
 ### `be_shrunk`
 
 ```mojo
-fn be_shrunk(self, i: Int, Gmax1: Float64, Gmax2: Float64) -> Bool
+fn def be_shrunk(self, i: Int, Gmax1: Float64, Gmax2: Float64) -> Bool
 ```
 
 **Args:**
@@ -218,7 +218,7 @@ fn be_shrunk(self, i: Int, Gmax1: Float64, Gmax2: Float64) -> Bool
 ### `do_shrinking`
 
 ```mojo
-fn do_shrinking[QM: QMatrix](mut self, mut Q: QM)
+fn def do_shrinking[QM: QMatrix](mut self, mut Q: QM)
 ```
 
 **Parameters:**
@@ -233,7 +233,7 @@ fn do_shrinking[QM: QMatrix](mut self, mut Q: QM)
 ### `calculate_rho`
 
 ```mojo
-fn calculate_rho(self) -> Float64
+fn def calculate_rho(self) -> Float64
 ```
 
 **Args:**

@@ -9,7 +9,7 @@ struct HDBSCANBoruvka
 
 ## Fields
 
-- **tree** (`UnsafePointer[KDTreeBoruvka, MutAnyOrigin]`)
+- **tree** (`UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin]`)
 - **n** (`Int`)
 - **dim** (`Int`)
 - **min_samples** (`Int`)
@@ -29,19 +29,19 @@ struct HDBSCANBoruvka
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`
+`AnyType`, `ImplicitlyDeletable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples: Int = 5, alpha: Float32 = 1)
+fn def __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin], min_samples: Int = 5, alpha: Float32 = 1)
 ```
 
 **Args:**
 
-- **t** (`UnsafePointer[KDTreeBoruvka, MutAnyOrigin]`)
+- **t** (`UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin]`)
 - **min_samples** (`Int`)
 - **alpha** (`Float32`)
 - **self** (`Self`)
@@ -55,7 +55,7 @@ fn __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutAnyOrigin], min_samples
 ### `mr_rdist`
 
 ```mojo
-fn mr_rdist(self, var d2: Float32, p: Int, q: Int) -> Float32
+fn def mr_rdist(self, var d2: Float32, p: Int, q: Int) -> Float32
 ```
 
 **Args:**
@@ -72,7 +72,7 @@ fn mr_rdist(self, var d2: Float32, p: Int, q: Int) -> Float32
 ### `update_components_and_nodes`
 
 ```mojo
-fn update_components_and_nodes(mut self)
+fn def update_components_and_nodes(mut self)
 ```
 
 **Args:**
@@ -84,7 +84,7 @@ fn update_components_and_nodes(mut self)
 ### `boruvka_query`
 
 ```mojo
-fn boruvka_query(mut self)
+fn def boruvka_query(mut self)
 ```
 
 **Args:**
@@ -96,7 +96,7 @@ fn boruvka_query(mut self)
 ### `merge_components`
 
 ```mojo
-fn merge_components(mut self) -> Int
+fn def merge_components(mut self) -> Int
 ```
 
 **Args:**
@@ -112,7 +112,7 @@ fn merge_components(mut self) -> Int
 ### `spanning_tree`
 
 ```mojo
-fn spanning_tree(mut self) -> Matrix
+fn def spanning_tree(mut self) -> Matrix
 ```
 
 **Args:**

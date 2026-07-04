@@ -28,14 +28,14 @@ K-Means clustering.
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`
+`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 0)
+fn def __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 0)
 ```
 
 **Args:**
@@ -56,7 +56,7 @@ fn __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: In
 ### `fit`
 
 ```mojo
-fn fit(mut self, X: Matrix)
+fn def fit(mut self, X: Matrix)
 ```
 
 Compute cluster centers and cluster index for each sample.
@@ -71,7 +71,7 @@ Compute cluster centers and cluster index for each sample.
 ### `predict`
 
 ```mojo
-fn predict(self, X: Matrix) -> List[Int]
+fn def predict(self, X: Matrix) -> List[Int]
 ```
 
 Predict cluster index for each sample.
@@ -90,7 +90,7 @@ Predict cluster index for each sample.
 ### `fit_predict`
 
 ```mojo
-fn fit_predict(mut self, X: Matrix) -> List[Int]
+fn def fit_predict(mut self, X: Matrix) -> List[Int]
 ```
 
 Compute cluster centers and predict cluster index for each sample.
@@ -109,7 +109,7 @@ Compute cluster centers and predict cluster index for each sample.
 ### `save`
 
 ```mojo
-fn save(self, path: String)
+fn def save(self, path: String)
 ```
 
 Save model data necessary for prediction to the specified path.
@@ -125,7 +125,7 @@ Save model data necessary for prediction to the specified path.
 
 ```mojo
 @staticmethod
-fn load(path: String) -> Self
+fn def load(path: String) -> Self
 ```
 
 Load a saved model from the specified path for prediction.
@@ -143,7 +143,7 @@ Load a saved model from the specified path for prediction.
 ### `centroids`
 
 ```mojo
-fn centroids(self) -> Matrix
+fn def centroids(self) -> Matrix
 ```
 
 **Args:**

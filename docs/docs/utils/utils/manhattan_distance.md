@@ -3,7 +3,7 @@ Mojo function
 # `manhattan_distance`
 
 ```mojo
-fn manhattan_distance(x1: Matrix, x2: Matrix) -> Float32
+fn def manhattan_distance(x1: Matrix, x2: Matrix) -> Float32
 ```
 
 **Args:**
@@ -18,7 +18,7 @@ fn manhattan_distance(x1: Matrix, x2: Matrix) -> Float32
 **Raises:**
 
 ```mojo
-fn manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) -> Matrix
+fn def manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) -> Matrix
 ```
 
 **Args:**

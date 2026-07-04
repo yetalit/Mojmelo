@@ -3,7 +3,7 @@ Mojo function
 # `r2_score`
 
 ```mojo
-fn r2_score(y: Matrix, y_pred: Matrix) -> Float32
+fn def r2_score(y: Matrix, y_pred: Matrix) -> Float32
 ```
 
 Coefficient of determination.

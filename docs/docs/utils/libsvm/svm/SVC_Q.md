@@ -4,40 +4,33 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct SVC_Q[k_t: Int]
+struct SVC_Q
 ```
-
-## Aliases
-
-- `kernel_function = kernel_linear if (k_t == LINEAR) else kernel_poly if (k_t == POLY) else kernel_rbf if (k_t == RBF) else kernel_sigmoid if (k_t == SIGMOID) else kernel_precomputed`
-
-## Parameters
-
-- **k_t** (`Int`)
 
 ## Fields
 
-- **y** (`Optional[UnsafePointer[Int8, MutExternalOrigin]]`)
+- **y** (`UnsafePointer[Int8, MutUntrackedOrigin]`)
 - **cache** (`Cache`)
-- **QD** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
+- **QD** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **kernel_function** (`def(kernel_params, Int, Int) -> Float64`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`, `QMatrix`
+`AnyType`, `ImplicitlyDeletable`, `QMatrix`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: Optional[UnsafePointer[Int8, MutExternalOrigin]])
+fn def __init__(out self, prob: svm_problem, param: svm_parameter, y_: Optional[UnsafePointer[Int8, MutUntrackedOrigin]])
 ```
 
 **Args:**
 
 - **prob** (`svm_problem`)
 - **param** (`svm_parameter`)
-- **y_** (`Optional[UnsafePointer[Int8, MutExternalOrigin]]`)
+- **y_** (`Optional[UnsafePointer[Int8, MutUntrackedOrigin]]`)
 - **self** (`Self`)
 
 **Returns:**
@@ -47,7 +40,7 @@ fn __init__(out self, prob: svm_problem, param: svm_parameter, y_: Optional[Unsa
 ### `__del__`
 
 ```mojo
-fn __del__(deinit self)
+fn def __del__(deinit self)
 ```
 
 **Args:**
@@ -57,7 +50,7 @@ fn __del__(deinit self)
 ### `get_Q`
 
 ```mojo
-fn get_Q(mut self, i: Int, _len: Int) -> Optional[UnsafePointer[Float32, MutExternalOrigin]]
+fn def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutUntrackedOrigin]
 ```
 
 **Args:**
@@ -68,12 +61,12 @@ fn get_Q(mut self, i: Int, _len: Int) -> Optional[UnsafePointer[Float32, MutExte
 
 **Returns:**
 
-`Optional[UnsafePointer[Float32, MutExternalOrigin]]`
+`UnsafePointer[Float32, MutUntrackedOrigin]`
 
 ### `get_QD`
 
 ```mojo
-fn get_QD(self) -> Optional[UnsafePointer[Float64, MutExternalOrigin]]
+fn def get_QD(self) -> UnsafePointer[Float64, MutUntrackedOrigin]
 ```
 
 **Args:**
@@ -82,12 +75,12 @@ fn get_QD(self) -> Optional[UnsafePointer[Float64, MutExternalOrigin]]
 
 **Returns:**
 
-`Optional[UnsafePointer[Float64, MutExternalOrigin]]`
+`UnsafePointer[Float64, MutUntrackedOrigin]`
 
 ### `swap_index`
 
 ```mojo
-fn swap_index(mut self, i: Int, j: Int)
+fn def swap_index(mut self, i: Int, j: Int)
 ```
 
 **Args:**

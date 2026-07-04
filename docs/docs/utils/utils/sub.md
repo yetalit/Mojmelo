@@ -3,7 +3,7 @@ Mojo function
 # `sub`
 
 ```mojo
-fn sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
+fn def sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]
 ```
 
 **Parameters:**

@@ -10,19 +10,19 @@ struct svm_problem
 ## Fields
 
 - **l** (`Int`)
-- **y** (`Optional[UnsafePointer[Float64, MutExternalOrigin]]`)
-- **x** (`Optional[UnsafePointer[Optional[UnsafePointer[svm_node, MutExternalOrigin]], MutExternalOrigin]]`)
+- **y** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **x** (`UnsafePointer[UnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`
+`AnyType`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__() -> Self
+fn def __init__() -> Self
 ```
 
 **Returns:**

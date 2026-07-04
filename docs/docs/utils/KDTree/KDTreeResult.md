@@ -14,14 +14,14 @@ struct KDTreeResult
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDestructible`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
+`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
 ### `__lt__`
 
 ```mojo
-fn __lt__(self, rhs: Self) -> Bool
+fn def __lt__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -36,7 +36,7 @@ fn __lt__(self, rhs: Self) -> Bool
 ### `__le__`
 
 ```mojo
-fn __le__(self, rhs: Self) -> Bool
+fn def __le__(self, rhs: Self) -> Bool
 ```
 
 **Args:**
@@ -51,7 +51,7 @@ fn __le__(self, rhs: Self) -> Bool
 ### `__gt__`
 
 ```mojo
-fn __gt__(self, rhs: Self) -> Bool
+fn def __gt__(self, rhs: Self) -> Bool
 ```
 
 **Args:**

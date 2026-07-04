@@ -9,14 +9,14 @@ struct KDTreeResultVector
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDestructible`, `Movable`, `Sized`
+`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`, `Sized`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn __init__(out self)
+fn def __init__(out self)
 ```
 
 **Args:**
@@ -30,7 +30,7 @@ fn __init__(out self)
 ### `__getitem__`
 
 ```mojo
-fn __getitem__(self, index: Int) -> KDTreeResult
+fn def __getitem__(self, index: Int) -> KDTreeResult
 ```
 
 **Args:**
@@ -45,7 +45,7 @@ fn __getitem__(self, index: Int) -> KDTreeResult
 ### `__setitem__`
 
 ```mojo
-fn __setitem__(mut self, index: Int, val: KDTreeResult)
+fn def __setitem__(mut self, index: Int, val: KDTreeResult)
 ```
 
 **Args:**
@@ -57,7 +57,7 @@ fn __setitem__(mut self, index: Int, val: KDTreeResult)
 ### `__len__`
 
 ```mojo
-fn __len__(self) -> Int
+fn def __len__(self) -> Int
 ```
 
 **Args:**
@@ -71,7 +71,7 @@ fn __len__(self) -> Int
 ### `append_heap`
 
 ```mojo
-fn append_heap(mut self)
+fn def append_heap(mut self)
 ```
 
 **Args:**
@@ -81,7 +81,7 @@ fn append_heap(mut self)
 ### `append_element_and_heapify`
 
 ```mojo
-fn append_element_and_heapify(mut self, e: KDTreeResult)
+fn def append_element_and_heapify(mut self, e: KDTreeResult)
 ```
 
 **Args:**
@@ -92,7 +92,7 @@ fn append_element_and_heapify(mut self, e: KDTreeResult)
 ### `pop_heap`
 
 ```mojo
-fn pop_heap(mut self)
+fn def pop_heap(mut self)
 ```
 
 **Args:**
@@ -102,7 +102,7 @@ fn pop_heap(mut self)
 ### `max_value`
 
 ```mojo
-fn max_value(self) -> Float32
+fn def max_value(self) -> Float32
 ```
 
 **Args:**
@@ -116,7 +116,7 @@ fn max_value(self) -> Float32
 ### `replace_maxpri_elt_return_new_maxpri`
 
 ```mojo
-fn replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> Float32
+fn def replace_maxpri_elt_return_new_maxpri(mut self, e: KDTreeResult) -> Float32
 ```
 
 **Args:**
