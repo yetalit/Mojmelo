@@ -140,10 +140,11 @@ from mojmelo.utils.utils import *
 
 [`HDBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/hdbs_bench.mojo) (algorithm='boruvka_kdtree')
 
-| Model            | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
-|------------------|-----------------|----------------|--------------|
-| skl-contrib HDBS | 1.1495 ± 0.0083 |       -        | 0.9997       |
-| mojmelo HDBS     | 0.3198 ± 0.0079 | 0.9930         | 0.9932       |
+| Model            | Fit Time (s)    | ARI vs sklearn | ARI vs fast_hdbscan | ARI vs truth |
+|------------------|-----------------|----------------|---------------------|--------------|
+| skl-contrib HDBS | 1.2308 ± 0.0075 |       -        |          -          | 0.9975       |
+| fast hdbscan     | 0.2493 ± 0.0046 |       -        |          -          | 0.9978       |
+| mojmelo HDBS     | 0.2055 ± 0.0016 | 0.9902         | 0.9978              | 0.9919       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
@@ -163,8 +164,8 @@ from mojmelo.utils.utils import *
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn SVM | 1.0595 ± 0.0010 | 0.3066 ± 0.0002  | 0.9798   |
-| mojmelo SVM | 0.8733 ± 0.0129 | 0.0603 ± 0.0032  | 0.9797   |
+| sklearn SVM | 1.2857 ± 0.0020 | 0.3720 ± 0.0008  | 0.9750   |
+| mojmelo SVM | 0.8618 ± 0.0091 | 0.0600 ± 0.0002  | 0.9750   |
 
 [`DecisionTreeClassifier`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dtc_bench.mojo)
 
@@ -184,8 +185,8 @@ from mojmelo.utils.utils import *
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn RFC | 0.4707 ± 0.0064 | 0.0140 ± 0.0003  | 0.9182   |
-| mojmelo RFC | 0.4534 ± 0.0094 | 0.0040 ± 0.0000  | 0.9174   |
+| sklearn RFC | 0.4401 ± 0.0078 | 0.0139 ± 0.0002  | 0.9163   |
+| mojmelo RFC | 0.4064 ± 0.0036 | 0.0044 ± 0.0001  | 0.9144   |
 
 [`RandomForestRegressor`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/rfr_bench.mojo)
 
@@ -198,8 +199,8 @@ from mojmelo.utils.utils import *
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 0.2070 ± 0.0025 | 0.0061 ± 0.0000    | 0.5363        |
-| mojmelo PCA | 0.0737 ± 0.0003 | 0.0270 ± 0.0015    | 0.5363        |
+| sklearn PCA | 0.2231 ± 0.0008 | 0.0063 ± 0.0000    | 0.5329        |
+| mojmelo PCA | 0.0760 ± 0.0011 | 0.0166 ± 0.0013    | 0.5329        |
 
 ## Contributing
 
