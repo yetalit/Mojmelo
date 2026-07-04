@@ -15,10 +15,10 @@ def key(idx: Scalar[DType.int],
 
 @always_inline
 def nth_element(
-    var first: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
-    nth: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
-    var last: UnsafePointer[Scalar[DType.int], MutAnyOrigin],
-    var proj: UnsafePointer[Float32, MutAnyOrigin],
+    var first: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    nth: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    var last: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    var proj: UnsafePointer[Float32, MutUntrackedOrigin],
     data: UnsafePointer[Float32, MutAnyOrigin],
     dim: Scalar[DType.int],
     split_dim: Scalar[DType.int]):
@@ -33,7 +33,7 @@ def nth_element(
         var b = mid
         var c = _len - 1
 
-        var pivot_i = 0
+        var pivot_i: Int
         if proj[a] < proj[b]:
             pivot_i = b if proj[b] < proj[c] else (c if proj[a] < proj[c] else a)
         else:
@@ -80,9 +80,10 @@ def node_pair_lower_bound(
     vectorize[Matrix.simd_width](dim, v)
 
     var R = r1 + r2
-    var lb2 = dist2 - (R * R)
+    var dist = math.sqrt(dist2) if dist2 > 0.0 else Float32(0.0)
+    var lb = dist - R
 
-    return lb2 if lb2 > 0.0 else 0.0
+    return (lb * lb) if lb > 0.0 else Float32(0.0)
 
 
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
@@ -116,7 +117,7 @@ struct KDTreeBoruvka:
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
         self.data = data.data
-        self.kdtree = KDTree[sort_results=True, metric='euc'](data)
+        self.kdtree = KDTree[sort_results=True](data, metric='euc')
         self.n = data.height
         self.dim = data.width
         self.leaf_size = leaf_size
@@ -124,10 +125,10 @@ struct KDTreeBoruvka:
 
         # One allocation for all node centers; upper bound on node count is 2n+1.
         var max_nodes = 2 * self.n + 1
-        self._center_arena = alloc[Float32](max_nodes * self.dim)
+        self._center_arena = alloc[Float32](max_nodes * self.dim).as_unsafe_any_origin()
         memset_zero(self._center_arena, max_nodes * self.dim)
 
-        self.core_dist = alloc[Float32](self.n)
+        self.core_dist = alloc[Float32](self.n).as_unsafe_any_origin()
         self.build_idx = fill_indices_list(self.n)
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
@@ -167,7 +168,7 @@ struct KDTreeBoruvka:
     def ensure_node(mut self, i: Int):
         if len(self.nodes) <= i:
             # Placeholder center; overwritten immediately in build_node
-            self.nodes.resize(i + 1, NodeData(False, 0, 0, 0.0, CenterPtr(self._center_arena)))
+            self.nodes.resize(i + 1, NodeData(True, 0, 0, 0.0, CenterPtr(self._center_arena)))
 
     # Fused single O(n) pass: finds min/max across ALL dims simultaneously.
     def choose_split_dim(self, start: Int, end: Int) -> Scalar[DType.int]:

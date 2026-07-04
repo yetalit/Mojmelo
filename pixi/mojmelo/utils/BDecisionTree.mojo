@@ -62,7 +62,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
             or len(indices) < self.min_samples_split
         ):
             new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
-            return new_node
+            return new_node.as_unsafe_any_origin()
 
         var feat_idxs = Matrix.rand_choice(X.width, X.width, False)
 
@@ -74,7 +74,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         if best_gain <= self.gamma:
             # The best gain is less than gamma
             new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
-            return new_node
+            return new_node.as_unsafe_any_origin()
         
         # grow the children that result from the split
         var left_indices = List[Scalar[DType.int]]()
@@ -88,7 +88,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var left = self._grow_tree(X, G, H, left_indices, depth + 1)
         var right = self._grow_tree(X, G, H, right_indices, depth + 1)
         new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
-        return new_node
+        return new_node.as_unsafe_any_origin()
 
 @always_inline
 def leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
@@ -116,6 +116,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
+    var indices_to_sort = fill_indices_list(len(indices)) if n_bins < 2 or len(indices) < n_bins else List[Scalar[DType.int]]()
 
     @parameter
     def p(idx: Int):
@@ -125,7 +126,8 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
             for i in range(len(indices)):
                 column.data[i] = X[Int(indices[i]), feat]
             if n_bins < 2 or len(column) < n_bins:
-                var sorted_indices = column.argsort_inplace()
+                var sorted_indices = indices_to_sort.copy()
+                column.argsort_inplace(sorted_indices)
 
                 var left_g_sum: Float32 = 0.0
                 var left_h_sum: Float32 = 0.0

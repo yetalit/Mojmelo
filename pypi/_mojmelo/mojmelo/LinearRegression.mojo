@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS
+from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS, sub, add
 import std.math as math
 import std.time as time
 import std.random as random
@@ -76,14 +76,14 @@ struct LinearRegression(CV, Copyable):
                     if self.tol > 0.0:
                         cost += mse(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     # compute gradients and update parameters
-                    var y_error = y_batch_predicted - y_batch
+                    var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
                     var dw = (X_batch.T() * y_error) / Float32(len(y_batch))
                     if l1_lambda > 0.0:
                         # L1 regularization
-                        dw += l1_lambda * sign(self.weights)
+                        dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                     if l2_lambda > 0.0:
                         # L2 regularization
-                        dw += l2_lambda * self.weights
+                        dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                     var db = y_error.mean()
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
@@ -100,16 +100,16 @@ struct LinearRegression(CV, Copyable):
                         break
                     prev_cost = cost
                 # compute gradients and update parameters
-                var y_error = y_predicted - y
+                var y_error = y_predicted._elemwise_matrix[sub](y)
                 var dw = (X_T * y_error) / Float32(X.height)
                 if l1_lambda > 0.0:
                     # L1 regularization
-                    dw += l1_lambda * sign(self.weights)
+                    dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                 if l2_lambda > 0.0:
                     # L2 regularization
-                    dw += l2_lambda * self.weights
+                    dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                 var db = y_error.mean()
-                self.weights -= self.lr * dw
+                self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                 self.bias -= self.lr * db
 
     def predict(self, X: Matrix) raises -> Matrix:

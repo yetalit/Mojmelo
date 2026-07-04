@@ -3,22 +3,21 @@ from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from std.collections import Set
 from std.algorithm import parallelize
 
-struct DBSCAN[metric: String = 'euc']:
-    """A density based clustering method that expands clusters from samples that have more neighbors within a radius.
-
-    Parameters:
-        metric: Metric to use for distance computation:
-            Euclidean -> 'euc';
-            Manhattan -> 'man'.
-
-    """
+struct DBSCAN:
+    """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""
     var eps: Float32
     """The maximum distance between two samples for one to be considered as in the neighborhood of the other."""
     var min_samples: Int
     """The number of samples in a neighborhood for a point to be considered as a core point."""
+    var metric: String
+    """Metric to use for distance computation:
+    Euclidean -> 'euc';
+    Manhattan -> 'man'.
+    """
     var labels: List[Int]
 
-    def __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5) raises:
+    def __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc') raises:
+        self.metric = metric.lower()
         self.eps = eps ** 2 if self.metric == 'euc' else eps
         self.min_samples = min_samples
         self.labels = List[Int]()
@@ -27,7 +26,7 @@ struct DBSCAN[metric: String = 'euc']:
         """Perform clustering."""
         self.labels = List[Int](capacity=X.height)
         self.labels.resize(X.height, -2)
-        var kdtree = KDTree[metric=Self.metric](X)
+        var kdtree = KDTree(X, self.metric)
 
         var neighborhoods = List[List[Int]](capacity=X.height)
         neighborhoods.resize(X.height, List[Int]())

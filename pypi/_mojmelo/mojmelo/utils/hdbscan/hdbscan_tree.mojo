@@ -12,16 +12,6 @@ from std.sys import CompilationTarget, simd_width_of
 comptime simd_width: Int = 4 * simd_width_of[DType.int]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.int]()
 
 @always_inline
-def arange(start: Scalar[DType.int], stop: Scalar[DType.int]) -> List[Int]:
-    var start_i = Int(start)
-    var stop_i = Int(stop)
-    var buff = List[Int](capacity=stop_i - start_i)
-    buff.resize(stop_i - start_i, 0)
-    for i in range(stop_i - start_i):
-        buff[i] = i + start_i
-    return buff^
-
-@always_inline
 def arange(start: Int, stop: Int) -> List[Scalar[DType.int]]:
     var buff = List[Scalar[DType.int]](capacity=stop - start)
     buff.resize(stop - start, 0)
@@ -251,7 +241,7 @@ def bfs_from_cluster_tree(tree: Dict[String, List[Scalar[DType.int]]], bfs_root:
 
     while len(to_process) > 0:
         result.extend(to_process.copy())
-        var to_process_dict = Dict[Scalar[DType.int], Scalar[DType.int]].fromkeys(to_process)
+        var to_process_dict = Dict[Scalar[DType.int], Scalar[DType.int]].fromkeys(to_process, 0)
         to_process.clear()
         for i in range(len(tree['parent'])):
             if tree['parent'][i] in to_process_dict:
@@ -308,7 +298,7 @@ def max_lambdas(tree: Dict[String, List[Scalar[DType.int]]], lambda_vals: List[F
 
 
 struct TreeUnionFind:
-    var _data: UnsafePointer[Scalar[DType.int], MutAnyOrigin]
+    var _data: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
     var size: Int
     comptime width = 2
     var is_component: List[Bool]
