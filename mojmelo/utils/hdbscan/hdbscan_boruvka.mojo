@@ -7,17 +7,17 @@ from std.memory import unsafe_memset
 from std.sys.info import size_of
 
 struct UnionFind:
-    var parent: List[Scalar[DType.int]]
-    var rank: List[Scalar[DType.int]]
+    var parent: List[Int]
+    var rank: List[Int]
 
     @always_inline
     def __init__(out self, size: Int) raises:
         self.parent = fill_indices_list(size)
-        self.rank = List[Scalar[DType.int]](capacity=size)
+        self.rank = List[Int](capacity=size)
         self.rank.resize(size, 0)
 
     @always_inline
-    def find(mut self, x: Scalar[DType.int]) -> Scalar[DType.int]:
+    def find(mut self, x: Int) -> Int:
         var v = x
         while self.parent[v] != v:
             var index = self.parent[v]
@@ -26,7 +26,7 @@ struct UnionFind:
         return v
 
     @always_inline
-    def unite(mut self, x: Scalar[DType.int], y: Scalar[DType.int]):
+    def unite(mut self, x: Int, y: Int):
         var xr = self.find(x)
         var yr = self.find(y)
         if xr == yr:
@@ -49,14 +49,14 @@ struct HDBSCANBoruvka:
     var num_components: Int
 
     # Per-point candidate edge (indexed by point)
-    var candidate_point: List[Scalar[DType.int]]
-    var candidate_neighbor: List[Scalar[DType.int]]
-    var candidate_dist: List[Scalar[DType.float32]]
+    var candidate_point: List[Int]
+    var candidate_neighbor: List[Int]
+    var candidate_dist: List[Int]
 
     # Per-component best bound — key for pruning in traversal
     # component_bound[c] = best mutual-reachability distance found so far
     # for any edge leaving component c this round.
-    var component_bound: List[Scalar[DType.float32]]
+    var component_bound: List[Int]
 
     var u_f: UnionFind
     # u_f_finds[i] = find(i) result after last update_components; used to
@@ -67,10 +67,10 @@ struct HDBSCANBoruvka:
     var num_edges: Int
 
     # Component membership arrays updated each Borůvka round
-    var component_of_point: List[Scalar[DType.int]]
-    var component_of_node: List[Scalar[DType.int]]
+    var component_of_point: List[Int]
+    var component_of_node: List[Int]
     # Temporary remap buffer, kept alive across rounds to avoid re-alloc
-    var component_remap: List[Scalar[DType.int]]
+    var component_remap: List[Int]
 
     @always_inline
     def __init__(out self,
@@ -84,9 +84,9 @@ struct HDBSCANBoruvka:
         self.alpha = alpha
         self.num_components = self.n
 
-        self.candidate_point = List[Scalar[DType.int]](capacity=self.n)
+        self.candidate_point = List[Int](capacity=self.n)
         self.candidate_point.resize(self.n, -1)
-        self.candidate_neighbor = List[Scalar[DType.int]](capacity=self.n)
+        self.candidate_neighbor = List[Int](capacity=self.n)
         self.candidate_neighbor.resize(self.n, -1)
         self.candidate_dist = List[Scalar[DType.float32]](capacity=self.n)
         self.candidate_dist.resize(self.n, math.inf[DType.float32]())
@@ -102,9 +102,9 @@ struct HDBSCANBoruvka:
         self.num_edges = 0
 
         self.component_of_point = fill_indices_list(self.n)
-        self.component_of_node = List[Scalar[DType.int]](capacity=len(t[].nodes))
+        self.component_of_node = List[Int](capacity=len(t[].nodes))
         self.component_of_node.resize(len(t[].nodes), -1)
-        self.component_remap = List[Scalar[DType.int]](capacity=self.n)
+        self.component_remap = List[Int](capacity=self.n)
         self.component_remap.resize(self.n, -1)
 
     # ------------------------------------------------------------------ #
@@ -113,8 +113,8 @@ struct HDBSCANBoruvka:
 
     @always_inline
     def mr_rdist(self, var d2: Float32,
-                 p: Scalar[DType.int],
-                 q: Scalar[DType.int]) -> Float32:
+                 p: Int,
+                 q: Int) -> Float32:
         if self.alpha != 1.0:
             d2 /= (self.alpha * self.alpha)
         return max(max(d2, self.tree[].core_dist[p]),
@@ -128,12 +128,12 @@ struct HDBSCANBoruvka:
         # --- 1. Refresh point→component labels in parallel ---
         @parameter
         def update_point(i: Int):
-            self.component_of_point[i] = self.u_f.find(Scalar[DType.int](i))
-            self.u_f_finds[i] = Int(self.component_of_point[i])
+            self.component_of_point[i] = self.u_f.find(i)
+            self.u_f_finds[i] = self.component_of_point[i]
         parallelize[update_point](self.n)
 
         # --- 2. Compact component IDs to [0, num_components) ---
-        var next_id: Scalar[DType.int] = 0
+        var next_id = 0
         for i in range(self.n):
             var c = self.component_of_point[i]
             if self.component_remap[c] == -1:
@@ -142,7 +142,7 @@ struct HDBSCANBoruvka:
             self.component_of_point[i] = self.component_remap[c]
 
         unsafe_memset(self.component_remap.unsafe_ptr().unsafe_bitcast[UInt8](), -1, self.n * size_of[DType.int]())
-        self.num_components = Int(next_id)
+        self.num_components = next_id
 
         # --- 3. Propagate component labels up the node tree (bottom-up) ---
         # A node gets a definite component label only when ALL points below
@@ -153,10 +153,10 @@ struct HDBSCANBoruvka:
             if nd[].is_leaf:
                 var start = nd[].idx_start
                 var end   = nd[].idx_end
-                var c = self.component_of_point[Int(self.tree[].build_idx[start])]
+                var c = self.component_of_point[self.tree[].build_idx[start]]
                 var same = True
                 for i in range(start + 1, end):
-                    if self.component_of_point[Int(self.tree[].build_idx[i])] != c:
+                    if self.component_of_point[self.tree[].build_idx[i]] != c:
                         same = False
                         break
                 self.component_of_node[ni] = c if same else -1
@@ -176,17 +176,17 @@ struct HDBSCANBoruvka:
                       point_idx: Int,
                       point_component: Int,
                       heap_dist: UnsafePointer[Float32, MutUntrackedOrigin],
-                      heap_nbr: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+                      heap_nbr: UnsafePointer[Int, MutUntrackedOrigin],
                       core_p: Float32,
                       comp_bound: UnsafePointer[Float32, MutUntrackedOrigin]) raises:
         var nd = UnsafePointer(to=self.tree[].nodes[node])
 
         # --- Pruning case 1: node is entirely one component (same as query) ---
-        if self.component_of_node[node] == Scalar[DType.int](point_component):
+        if self.component_of_node[node] == point_component:
             return
 
         # --- Pruning case 2: node lower-bound can't beat current heap top ---
-        var xp = self.tree[].data + Scalar[DType.int](point_idx) * Scalar[DType.int](self.dim)
+        var xp = self.tree[].data + point_idx * self.dim
         var lb2 = node_pair_lower_bound(
             xp,
             nd[].center._data,
@@ -206,12 +206,12 @@ struct HDBSCANBoruvka:
         if nd[].is_leaf:
             for i in range(nd[].idx_start, nd[].idx_end):
                 var q = self.tree[].build_idx[i]
-                if self.component_of_point[Int(q)] == Scalar[DType.int](point_component):
+                if self.component_of_point[q] == point_component:
                     continue
-                if self.tree[].core_dist[Int(q)] >= comp_bound[0]:
+                if self.tree[].core_dist[q] >= comp_bound[0]:
                     continue
 
-                var xq = self.tree[].data + q * Scalar[DType.int](self.dim)
+                var xq = self.tree[].data + q * self.dim
                 var d2: Float32 = 0.0
 
                 def v[simd_width: Int](k: Int) {mut}:
@@ -219,13 +219,13 @@ struct HDBSCANBoruvka:
                     d2 += (t * t).reduce_add()
                 vectorize[Matrix.simd_width](self.dim, v)
 
-                var mr = self.mr_rdist(d2, Scalar[DType.int](point_idx), q)
+                var mr = self.mr_rdist(d2, point_idx, q)
 
                 if mr < heap_dist[0]:
                     heap_dist[0] = mr
                     heap_nbr[0]  = q
                     # Also record query point so merge_components can read it
-                    self.candidate_point[point_idx] = Scalar[DType.int](point_idx)
+                    self.candidate_point[point_idx] = point_idx
                     # Tighten the shared component bound immediately so that
                     # other points in the same component benefit from this find.
                     if mr < comp_bound[0]:
@@ -271,7 +271,7 @@ struct HDBSCANBoruvka:
         # component_bound[component] with all other points in the same component 
         @parameter
         def query_point(i: Int):
-            var comp = Int(self.component_of_point[i])
+            var comp = self.component_of_point[i]
             var heap_dist = self.candidate_dist.unsafe_ptr().unsafe_offset(i)
             var heap_nbr  = self.candidate_neighbor.unsafe_ptr().unsafe_offset(i)
             var comp_bnd  = self.component_bound.unsafe_ptr().unsafe_offset(comp)
@@ -281,7 +281,7 @@ struct HDBSCANBoruvka:
                     i,
                     comp,
                     UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(heap_dist)),
-                    UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(heap_nbr)),
+                    UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(heap_nbr)),
                     self.tree[].core_dist[i],
                     UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(comp_bnd))
                 )
@@ -302,8 +302,8 @@ struct HDBSCANBoruvka:
         # achieved it.
 
         # best_i[comp] = point index that achieved component_bound[comp]
-        var best_i   = List[Scalar[DType.int]](capacity=self.n)
-        var best_nbr = List[Scalar[DType.int]](capacity=self.n)
+        var best_i   = List[Int](capacity=self.n)
+        var best_nbr = List[Int](capacity=self.n)
         best_i.resize(self.n, -1)
         best_nbr.resize(self.n, -1)
 
@@ -311,9 +311,9 @@ struct HDBSCANBoruvka:
             # candidate_point[i] is set to i only when a neighbor was found
             if self.candidate_point[i] < 0:
                 continue
-            var comp = Int(self.component_of_point[i])
-            if best_i[comp] < 0 or self.candidate_dist[i] < self.candidate_dist[Int(best_i[comp])]:
-                best_i[comp]   = Scalar[DType.int](i)
+            var comp = self.component_of_point[i]
+            if best_i[comp] < 0 or self.candidate_dist[i] < self.candidate_dist[best_i[comp]]:
+                best_i[comp] = i
                 best_nbr[comp] = self.candidate_neighbor[i]
 
         var edges_added = 0
@@ -330,10 +330,10 @@ struct HDBSCANBoruvka:
             if cp == cq:
                 continue
 
-            var d = math.sqrt(self.candidate_dist[Int(i)])
+            var d = math.sqrt(Float32(self.candidate_dist[i]))
 
-            self.edges[self.num_edges, 0] = i.cast[DType.float32]()
-            self.edges[self.num_edges, 1] = q.cast[DType.float32]()
+            self.edges[self.num_edges, 0] = Float32(i)
+            self.edges[self.num_edges, 1] = Float32(q)
             self.edges[self.num_edges, 2] = d
             self.num_edges += 1
             edges_added += 1

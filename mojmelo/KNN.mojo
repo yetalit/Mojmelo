@@ -78,7 +78,7 @@ struct KNN(CV, Copyable):
             f.write_bytes(UInt64(self.kdtree.dim).as_bytes())
             var X = Matrix(self.kdtree.N, self.kdtree.dim)
             for i in range(self.kdtree.N):
-                X[Int(self.kdtree.ind[i]), unsafe=True] = self.kdtree._data[i, unsafe=True]
+                X[self.kdtree.ind[i], unsafe=True] = self.kdtree._data[i, unsafe=True]
             f.write_bytes(Span(unsafe_ptr=X.data.unsafe_bitcast[UInt8](), length=4*X.size))
             f.write_bytes(Span(unsafe_ptr=self.y_train.data.unsafe_bitcast[UInt8](), length=4*self.y_train.size))
 

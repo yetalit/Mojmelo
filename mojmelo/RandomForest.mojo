@@ -8,7 +8,7 @@ import std.random as random
 @always_inline
 def bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
     var idxs = Matrix.rand_choice(X.height, X.height, True, seed = False)
-    var unique_idxs = List[Scalar[DType.int]]()
+    var unique_idxs = List[Int]()
     var freqs = Matrix.zeros(X.height, 1)
     for idx in idxs:
         freqs.data[idx] += 1

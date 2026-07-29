@@ -23,7 +23,7 @@ def _insertion_sort[
     T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]):
     """Sort the array[start:end] slice"""
     var array = span.unsafe_ptr().as_unsafe_any_origin()
     var size = len(span)
@@ -53,7 +53,7 @@ def _quicksort_partition_right[
     T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]) -> Int:
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]) -> Int:
     var size = len(span)
 
     var left = 1
@@ -83,7 +83,7 @@ def _quicksort_partition_left[
     T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]) -> Int:
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]) -> Int:
     var size = len(span)
 
     var left = 1
@@ -111,7 +111,7 @@ def _delegate_small_sort[
     T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]):
     var size = len(span)
     if size == 2:
         _small_sort[2, T, cmp_fn](span, indices)
@@ -143,7 +143,7 @@ def _quicksort[
     cmp_fn: def (T, T) capturing [_] -> Bool,
     *,
     do_smallsort: Bool = False,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]):
     var size = len(span)
     if size == 0:
         return
@@ -215,7 +215,7 @@ def _sort[
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
     do_smallsort: Bool = False,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]):
     comptime if do_smallsort:
         if len(span) <= 5:
             _delegate_small_sort[cmp_fn](span, indices)
@@ -233,7 +233,7 @@ def sort[
     origin: MutOrigin, //,
     cmp_fn: def (Scalar[dtype], Scalar[dtype]) capturing [_] -> Bool,
     *,
-](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+](span: Span[Scalar[dtype], origin], indices: UnsafePointer[Int, MutUntrackedOrigin]):
 
     _sort[cmp_fn, do_smallsort=True](span, indices)
 
@@ -250,7 +250,7 @@ def _sort2[
     span: Span[T, origin],
     offset0: Int,
     offset1: Int,
-    indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
+    indices: UnsafePointer[Int, MutUntrackedOrigin]
 ):
     if not cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
         span.unsafe_swap_elements(offset0, offset1)
@@ -266,7 +266,7 @@ def _sort3[
     offset0: Int,
     offset1: Int,
     offset2: Int,
-    indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
+    indices: UnsafePointer[Int, MutUntrackedOrigin]
 ):
     _sort2[T, cmp_fn](span, offset0, offset1, indices)
     _sort2[T, cmp_fn](span, offset1, offset2, indices)
@@ -283,7 +283,7 @@ def _sort_partial_3[
     offset0: Int,
     offset1: Int,
     offset2: Int,
-    indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
+    indices: UnsafePointer[Int, MutUntrackedOrigin]
 ):
     """Sorts [a, b, c] assuming [b, c] is already sorted."""
     if cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
@@ -301,7 +301,7 @@ def _small_sort[
     n: Int,
     T: Copyable,
     cmp_fn: def (T, T) capturing [_] -> Bool,
-](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+](span: Span[T, origin], indices: UnsafePointer[Int, MutUntrackedOrigin]):
     comptime if n == 2:
         _sort2[T, cmp_fn](span, 0, 1, indices)
         return

@@ -373,16 +373,16 @@ def findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     return -1  # not found
 
 @always_inline
-def fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]:
+def fill_indices(N: Int) raises -> UnsafePointer[Int, MutUntrackedOrigin]:
     """Generates indices from 0 to N.
 
     Returns:
         The pointer to indices.
     """
-    var indices = alloc[Scalar[DType.int]](N)
+    var indices = alloc[Int](N)
     @parameter
     def fill_indices_iota[width: Int, alignment: Int = 1](offset: Coord):
-        indices.store(offset[0].value(), math.iota[DType.int, width](Scalar[DType.int](offset[0].value())))
+        indices.store(offset[0].value(), math.iota[DType.int, width](Int(offset[0].value())))
 
     elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
         N, DeviceContext(api="cpu")
@@ -390,13 +390,13 @@ def fill_indices(N: Int) raises -> UnsafePointer[Scalar[DType.int], MutUntracked
     return indices
 
 @always_inline
-def fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
+def fill_indices_list(N: Int) raises -> List[Int]:
     """Generates indices from 0 to N.
 
     Returns:
         The list of indices.
     """
-    var list = List[Scalar[DType.int]](unsafe_uninit_length=N)
+    var list = List[Int](unsafe_uninit_length=N)
     list._data = fill_indices(N)
     return list^
 
@@ -425,7 +425,7 @@ def ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    unsafe_memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.unsafe_bitcast[Scalar[DType.int]](), count=len(list))
+    unsafe_memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.unsafe_bitcast[Int](), count=len(list))
     return np_arr^
 
 def cartesian_product(lists: List[List[String]]) -> List[List[String]]:

@@ -147,13 +147,13 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    def _grow_tree(self, X: Matrix, Y: Matrix, indices: List[Scalar[DType.int]], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
+    def _grow_tree(self, X: Matrix, Y: Matrix, indices: List[Int], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
         var _y = Matrix(len(indices), 1, order=Y.order)
         var weights = Matrix(len(indices), 1, order=Y.order) if Y.width == 2 else Matrix(0, 0)
         for i, idx in enumerate(indices):
-            _y.data[i] = Y.data[Int(idx)]
+            _y.data[i] = Y.data[idx]
             if Y.width == 2:
-                weights.data[i] = Y.data[Int(idx) + Y.height]
+                weights.data[i] = Y.data[idx + Y.height]
 
         var unique_targets: Int
         var freq = List[List[Int]]()
@@ -182,10 +182,10 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         best_feat, best_thresh = _best_criteria(X, indices, _y, weights, feat_idxs, self.loss_func, self.c_func, self.r_func, self.criterion)
 
         # grow the children that result from the split
-        var left_indices = List[Scalar[DType.int]]()
-        var right_indices = List[Scalar[DType.int]]()
+        var left_indices = List[Int]()
+        var right_indices = List[Int]()
         for i in range(len(indices)):
-            if X[Int(indices[i]), best_feat] <= best_thresh:
+            if X[indices[i], best_feat] <= best_thresh:
                 left_indices.append(indices[i])
             else:
                 right_indices.append(indices[i])
@@ -267,7 +267,7 @@ def set_value(y: Matrix, weights: Matrix, freq: List[List[Int]], criterion: Stri
             most_common = i
     return Float32(most_common)
 
-def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], _y: Matrix, weights: Matrix, feat_idxs: List[Scalar[DType.int]], loss_func: def(Matrix, Matrix, Float32) thin raises -> Float32, c_precompute: def(Float32, List[Int]) thin raises -> Float32, r_precompute: def(Float32, Float32, Float32) thin raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
+def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, feat_idxs: List[Int], loss_func: def(Matrix, Matrix, Float32) thin raises -> Float32, c_precompute: def(Float32, List[Int]) thin raises -> Float32, r_precompute: def(Float32, Float32, Float32) thin raises -> Float32, criterion: String) raises -> Tuple[Int, Float32]:
     var total_samples = Float32(len(_y)) if weights.size == 0 else weights.sum()
     var parent_loss = loss_func(_y, weights, total_samples)
     var max_gains = Matrix(1, len(feat_idxs))
@@ -280,10 +280,9 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], _y: Matrix, weig
         @parameter
         def p_c(idx: Int):
             try:
-                var feat = Int(feat_idxs[idx])
                 var column = Matrix(len(indices), 1)
                 for i in range(len(indices)):
-                    column.data[i] = X[Int(indices[i]), feat]
+                    column.data[i] = X[indices[i], feat_idxs[idx]]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
                 var right_histogram = histogram.copy()
@@ -291,7 +290,7 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], _y: Matrix, weig
                 column.argsort_inplace(sorted_indices)
                 var n_left: Float32 = 0.0
                 for step in range(1, len(indices)):
-                    var prev = Int(sorted_indices[step - 1])
+                    var prev = sorted_indices[step - 1]
                     var c = Int(_y.data[prev])
                     if weights.size == 0:
                         n_left += 1
@@ -321,17 +320,16 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], _y: Matrix, weig
         @parameter
         def p_r(idx: Int):
             try:
-                var feat = Int(feat_idxs[idx])
                 var column = Matrix(len(indices), 1)
                 for i in range(len(indices)):
-                    column.data[i] = X[Int(indices[i]), feat]
+                    column.data[i] = X[indices[i], feat_idxs[idx]]
                 var sorted_indices = indices_to_sort.copy()
                 column.argsort_inplace(sorted_indices)
                 var left_sum: Float32 = 0.0
                 var left_sum_sq: Float32 = 0.0
                 var n_left: Float32 = 0.0
                 for step in range(1, len(indices)):
-                    var prev = Int(sorted_indices[step - 1])
+                    var prev = sorted_indices[step - 1]
                     var yi = _y.data[prev]
                     if weights.size == 0:
                         n_left += 1
@@ -357,7 +355,7 @@ def _best_criteria(X: Matrix, indices: List[Scalar[DType.int]], _y: Matrix, weig
         parallelize[p_r](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx]
+    return feat_idxs[feat_idx], best_thresholds.data[feat_idx]
 
 def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():

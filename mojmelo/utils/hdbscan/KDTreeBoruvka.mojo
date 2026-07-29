@@ -7,21 +7,21 @@ from std.sys import size_of
 from std.memory import unsafe_memset_zero
 
 @always_inline
-def key(idx: Scalar[DType.int],
+def key(idx: Int,
         data: UnsafePointer[Float32, MutUntrackedOrigin],
-        dim: Scalar[DType.int],
-        split_dim: Scalar[DType.int]) -> Float32:
+        dim: Int,
+        split_dim: Int) -> Float32:
     return data[idx * dim + split_dim]
 
 @always_inline
 def nth_element(
-    var first: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
-    nth: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
-    var last: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
+    var first: UnsafePointer[Int, MutUntrackedOrigin],
+    nth: UnsafePointer[Int, MutUntrackedOrigin],
+    var last: UnsafePointer[Int, MutUntrackedOrigin],
     var proj: UnsafePointer[Float32, MutUntrackedOrigin],
     data: UnsafePointer[Float32, MutUntrackedOrigin],
-    dim: Scalar[DType.int],
-    split_dim: Scalar[DType.int]):
+    dim: Int,
+    split_dim: Int):
     for i in range((Int(last) - Int(first))//size_of[DType.int]()):
         proj[i] = key(first[i], data, dim, split_dim)
 
@@ -109,7 +109,7 @@ struct KDTreeBoruvka:
     var leaf_size: Int
     var nodes: List[NodeData]
     var core_dist: UnsafePointer[Float32, MutUntrackedOrigin]
-    var build_idx: List[Scalar[DType.int]]
+    var build_idx: List[Int]
     var proj_buf: List[Float32]
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
     var _center_arena: UnsafePointer[Float32, MutUntrackedOrigin]
@@ -171,26 +171,26 @@ struct KDTreeBoruvka:
             self.nodes.resize(i + 1, NodeData(True, 0, 0, 0.0, CenterPtr(self._center_arena)))
 
     # Fused single O(n) pass: finds min/max across ALL dims simultaneously.
-    def choose_split_dim(self, start: Int, end: Int) -> Scalar[DType.int]:
+    def choose_split_dim(self, start: Int, end: Int) -> Int:
         var mn = List[Float32](capacity=self.dim)
         var mx = List[Float32](capacity=self.dim)
         mn.resize(self.dim,  math.inf[DType.float32]())
         mx.resize(self.dim, -math.inf[DType.float32]())
 
         for i in range(start, end):
-            var p = self.data + Int(self.build_idx[i]) * self.dim
+            var p = self.data + self.build_idx[i] * self.dim
             for d in range(self.dim):
                 var v = p[d]
                 if v < mn[d]: mn[d] = v
                 if v > mx[d]: mx[d] = v
 
-        var best: Scalar[DType.int] = 0
+        var best = 0
         var best_spread: Float32 = -1.0
         for d in range(self.dim):
             var s = mx[d] - mn[d]
             if s > best_spread:
                 best_spread = s
-                best = Scalar[DType.int](d)
+                best = d
         return best
 
     def build_node(mut self, node: Int, start: Int, end: Int):
@@ -206,7 +206,7 @@ struct KDTreeBoruvka:
         nd[].center = CenterPtr(cptr)
 
         for i in range(start, end):
-            var p = self.data + Int(self.build_idx[i]) * self.dim
+            var p = self.data + self.build_idx[i] * self.dim
 
             def v1[simd_width: Int](k: Int) {imm}:
                 cptr.store(k, cptr.load[width=simd_width](k) + p.load[width=simd_width](k))
@@ -217,7 +217,7 @@ struct KDTreeBoruvka:
 
         var maxd: Float32 = 0.0
         for i in range(start, end):
-            var p = self.data + Int(self.build_idx[i]) * self.dim
+            var p = self.data + self.build_idx[i] * self.dim
             var d2: Float32 = 0.0
 
             def v2[simd_width: Int](k: Int) {mut}:
@@ -229,7 +229,7 @@ struct KDTreeBoruvka:
 
         nd[].radius = math.sqrt(maxd)
 
-        if Int(count) <= self.leaf_size:
+        if end - start <= self.leaf_size:
             nd[].is_leaf = True
             return
 
@@ -244,7 +244,7 @@ struct KDTreeBoruvka:
             self.build_idx._data.unsafe_offset(end),
             self.proj_buf._data.unsafe_offset(start),
             self.data,
-            Scalar[DType.int](self.dim),
+            self.dim,
             split_dim
         )
 

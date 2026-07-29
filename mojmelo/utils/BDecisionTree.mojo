@@ -49,12 +49,12 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    def _grow_tree(self, X: Matrix, G: Matrix, H: Matrix, indices: List[Scalar[DType.int]], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
+    def _grow_tree(self, X: Matrix, G: Matrix, H: Matrix, indices: List[Int], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
         var g = Matrix(len(indices), G.width, order=G.order)
         var h = Matrix(len(indices), H.width, order=H.order)
         for i, idx in enumerate(indices):
-            g.data[i] = G.data[Int(idx)]
-            h.data[i] = H.data[Int(idx)]
+            g.data[i] = G.data[idx]
+            h.data[i] = H.data[idx]
         var new_node = alloc[Node](1)
         # stopping criteria
         if (
@@ -77,10 +77,10 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
             return new_node
         
         # grow the children that result from the split
-        var left_indices = List[Scalar[DType.int]]()
-        var right_indices = List[Scalar[DType.int]]()
+        var left_indices = List[Int]()
+        var right_indices = List[Int]()
         for i in range(len(indices)):
-            if X[Int(indices[i]), best_feat] <= best_thresh:
+            if X[indices[i], best_feat] <= best_thresh:
                 left_indices.append(indices[i])
             else:
                 right_indices.append(indices[i])
@@ -109,22 +109,21 @@ def leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) rai
 def leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 
-def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: List[Scalar[DType.int]], g: Matrix, h: Matrix, feat_idxs: List[Scalar[DType.int]], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
+def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: List[Int], g: Matrix, h: Matrix, feat_idxs: List[Int], n_bins: Int) raises -> Tuple[Int, Float32, Float32]:
     var total_g_sum = g.sum()
     var total_h_sum = h.sum()
     var parent_loss = leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum, total_h_sum)
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
-    var indices_to_sort = fill_indices_list(len(indices)) if n_bins < 2 or len(indices) < n_bins else List[Scalar[DType.int]]()
+    var indices_to_sort = fill_indices_list(len(indices)) if n_bins < 2 or len(indices) < n_bins else List[Int]()
 
     @parameter
     def p(idx: Int):
         try:
-            var feat = Int(feat_idxs[idx])
             var column = Matrix(len(indices), 1)
             for i in range(len(indices)):
-                column.data[i] = X[Int(indices[i]), feat]
+                column.data[i] = X[indices[i], feat_idxs[idx]]
             if n_bins < 2 or len(column) < n_bins:
                 var sorted_indices = indices_to_sort.copy()
                 column.argsort_inplace(sorted_indices)
@@ -133,7 +132,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
                 var left_h_sum: Float32 = 0.0
 
                 for step in range(1, len(indices)):
-                    var prev = Int(sorted_indices[step - 1])
+                    var prev = sorted_indices[step - 1]
                     left_g_sum += g.data[prev]
                     left_h_sum += h.data[prev]
 
@@ -185,7 +184,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     parallelize[p](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx], max_gains.data[feat_idx]
+    return feat_idxs[feat_idx], best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
 def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():

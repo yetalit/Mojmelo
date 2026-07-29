@@ -1253,10 +1253,10 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             return Matrix(vect, self.height, 1, self.order)
 
     @always_inline
-    def argsort[ascending: Bool = True](self) raises -> List[Scalar[DType.int]]:
+    def argsort[ascending: Bool = True](self) raises -> List[Int]:
         var sorted_indices = fill_indices_list(self.size)
         @parameter
-        def cmp_fn(a: Scalar[DType.int], b: Scalar[DType.int]) -> Bool:
+        def cmp_fn(a: Int, b: Int) -> Bool:
             comptime if ascending:
                 return self.data[a] < self.data[b]
             else:
@@ -1264,14 +1264,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
         sort[cmp_fn](
             Span[
-                Scalar[DType.int],
+                Int,
                 origin_of(sorted_indices),
             ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
         )
         return sorted_indices^
 
     @always_inline
-    def argsort_inplace[ascending: Bool = True](mut self, mut sorted_indices: List[Scalar[DType.int]]) raises:
+    def argsort_inplace[ascending: Bool = True](mut self, mut sorted_indices: List[Int]) raises:
         @parameter
         def cmp_fn(a: Float32, b: Float32) -> Bool:
             comptime if ascending:
@@ -1280,7 +1280,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 return a > b
 
         msort.sort[cmp_fn](
-            Span(unsafe_ptr=self.data, length=self.size), UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
+            Span(unsafe_ptr=self.data, length=self.size), UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
         )
 
     @always_inline
@@ -1586,10 +1586,10 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @staticmethod
     @always_inline
-    def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Scalar[DType.int]]:
+    def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Int]:
         if seed:
             random.seed()
-        var result = alloc[Scalar[DType.int]](size)
+        var result = alloc[Int](size)
         if replace:
             random.randint(result, size, 0, arang - 1)
         else:
@@ -1598,7 +1598,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 var j = Int(random.random_ui64(UInt64(i), UInt64(arang - 1)))
                 indices[i], indices[j] = indices[j], indices[i]
             unsafe_memcpy(dest=result, src=indices, count=size)
-        var list = List[Scalar[DType.int]](unsafe_uninit_length=size)
+        var list = List[Int](unsafe_uninit_length=size)
         list._data = result
         return list^
 

@@ -160,7 +160,7 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutUntrackedOrigi
         return a > b
 
     msort.sort[cmp_fn](
-        Span(unsafe_ptr=eig, length=n), UnsafePointer[Scalar[DType.int], MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
+        Span(unsafe_ptr=eig, length=n), UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
     )
 
     var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]

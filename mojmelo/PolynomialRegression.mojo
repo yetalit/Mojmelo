@@ -72,7 +72,7 @@ struct PolyRegression(CV, Copyable):
         # gradient descent
         for _ in range(self.n_iters):
             if self.batch_size > 0:
-                var ids: List[Scalar[DType.int]]
+                var ids: List[Int]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
                 else:
@@ -81,7 +81,7 @@ struct PolyRegression(CV, Copyable):
                 var cost: Float32 = 0.0
                 # Iterate over mini-batches
                 for start_idx in range(0, X.height, self.batch_size):
-                    var batch_indices = List[Scalar[DType.int]](ids[start_idx:start_idx + self.batch_size])
+                    var batch_indices = List[Int](ids[start_idx:start_idx + self.batch_size])
                     
                     var X_batch = X[batch_indices]
                     var X_poly_batch = List[Matrix]()

@@ -157,8 +157,8 @@ def train_test_split(X: Matrix, y: Matrix, *, test_size: Float32 = 0.5, train_si
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(Float32(X.height) - (test_ratio * Float32(X.height)))
-    var split_train = List[Scalar[DType.int]](ids[:split_i])
-    var split_test = List[Scalar[DType.int]](ids[split_i:])
+    var split_train = List[Int](ids[:split_i])
+    var split_test = List[Int](ids[split_i:])
     return X[split_train], X[split_test], y[split_train], y[split_test]
 
 def train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float32 = 0.5, train_size: Float32 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
@@ -167,8 +167,8 @@ def train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Floa
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
     var split_i = Int(Float32(X.height) - (test_ratio * Float32(X.height)))
-    var split_train = List[Scalar[DType.int]](ids[:split_i])
-    var split_test = List[Scalar[DType.int]](ids[split_i:])
+    var split_train = List[Int](ids[:split_i])
+    var split_test = List[Int](ids[split_i:])
     return X[split_train], X[split_test], y[split_train], y[split_test]
 
 struct LabelEncoder:
@@ -255,9 +255,9 @@ def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matr
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):
         var end_of_test = min(start_of_test + test_count, X.height)
-        var train_ids = List[Scalar[DType.int]](ids[end_of_test:]) + List[Scalar[DType.int]](ids[:start_of_test])
+        var train_ids = List[Int](ids[end_of_test:]) + List[Int](ids[:start_of_test])
         model.fit(X[train_ids], y[train_ids])
-        var test_ids = List[Scalar[DType.int]](ids[start_of_test:end_of_test])
+        var test_ids = List[Int](ids[start_of_test:end_of_test])
         y_pred = model.predict(X[test_ids])
         mean_score += scoring(y[test_ids], y_pred) / Float32(n_splits)
         start_of_test += test_count

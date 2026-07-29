@@ -329,7 +329,7 @@ struct Solver:
     var Cp: Float64
     var Cn: Float64
     var p: UnsafePointer[Float64, MutUntrackedOrigin]
-    var active_set: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
+    var active_set: UnsafePointer[Int, MutUntrackedOrigin]
     var G_bar: UnsafePointer[Float64, MutUntrackedOrigin]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
@@ -346,7 +346,7 @@ struct Solver:
         self.Cp = 0.0
         self.Cn = 0.0
         self.p = UnsafePointer[Float64, MutUntrackedOrigin].unsafe_dangling()
-        self.active_set = UnsafePointer[Scalar[DType.int], MutUntrackedOrigin].unsafe_dangling()
+        self.active_set = UnsafePointer[Int, MutUntrackedOrigin].unsafe_dangling()
         self.G_bar = UnsafePointer[Float64, MutUntrackedOrigin].unsafe_dangling()
         self.l = 0
         self.unshrink = False
@@ -441,8 +441,8 @@ struct Solver:
         try:
             self.active_set = fill_indices(self.l)
         except:
-            self.active_set = alloc[Scalar[DType.int]](self.l)
-            for i in range(Scalar[DType.int](self.l)):
+            self.active_set = alloc[Int](self.l)
+            for i in range(self.l):
                 self.active_set[i] = i
         self.active_size = self.l
 
@@ -800,7 +800,7 @@ struct Solver_NU:
     var Cp: Float64
     var Cn: Float64
     var p: UnsafePointer[Float64, MutUntrackedOrigin]
-    var active_set: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
+    var active_set: UnsafePointer[Int, MutUntrackedOrigin]
     var G_bar: UnsafePointer[Float64, MutUntrackedOrigin]	# gradient, if we treat free variables as 0
     var l: Int
     var unshrink: Bool
@@ -818,7 +818,7 @@ struct Solver_NU:
         self.Cp = 0.0
         self.Cn = 0.0
         self.p = UnsafePointer[Float64, MutUntrackedOrigin].unsafe_dangling()
-        self.active_set = UnsafePointer[Scalar[DType.int], MutUntrackedOrigin].unsafe_dangling()
+        self.active_set = UnsafePointer[Int, MutUntrackedOrigin].unsafe_dangling()
         self.G_bar = UnsafePointer[Float64, MutUntrackedOrigin].unsafe_dangling()
         self.l = 0
         self.unshrink = False
@@ -915,8 +915,8 @@ struct Solver_NU:
         try:
             self.active_set = fill_indices(self.l)
         except:
-            self.active_set = alloc[Scalar[DType.int]](self.l)
-            for i in range(Scalar[DType.int](self.l)):
+            self.active_set = alloc[Int](self.l)
+            for i in range(self.l):
                 self.active_set[i] = i
         self.active_size = self.l
 
@@ -1906,15 +1906,15 @@ def svm_binary_svc_probability(
     prob: svm_problem, param: svm_parameter,
     Cp: Float64, Cn: Float64, mut probA: Float64, mut probB: Float64):
     var nr_fold = 5
-    var perm: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]
+    var perm: UnsafePointer[Int, MutUntrackedOrigin]
     var dec_values = alloc[Float64](prob.l)
 
     # random shuffle
     try:
         perm = fill_indices(prob.l)
     except:
-        perm = alloc[Scalar[DType.int]](prob.l)
-        for i in range(Scalar[DType.int](prob.l)):
+        perm = alloc[Int](prob.l)
+        for i in range(prob.l):
             perm[i]=i
 
     for i in range(prob.l - 1, 0, -1):
@@ -2074,7 +2074,7 @@ def svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
 
 # label: label name, start: begin of each class, count: #data of classes, perm: indices to the original data
 # perm, length l, must be allocated before calling this subroutine
-def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: OptionalUnsafePointer[Int, MutUntrackedOrigin], mut start_ret: OptionalUnsafePointer[Int, MutUntrackedOrigin], mut count_ret: OptionalUnsafePointer[Int, MutUntrackedOrigin], perm: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: OptionalUnsafePointer[Int, MutUntrackedOrigin], mut start_ret: OptionalUnsafePointer[Int, MutUntrackedOrigin], mut count_ret: OptionalUnsafePointer[Int, MutUntrackedOrigin], perm: UnsafePointer[Int, MutUntrackedOrigin]):
     var l = prob.l
     var max_nr_class = 16
     var nr_class = 0
@@ -2124,7 +2124,7 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
     start[0] = 0
     for i in range(1,nr_class):
         start[i] = start[i-1]+count[i-1]
-    for i in range(Scalar[DType.int](l)):
+    for i in range(l):
         perm[start[data_label[i]]] = i
         start[data_label[i]] += 1
     start[0] = 0
@@ -2166,9 +2166,9 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[
         model[].l = nSV
         model[].SV = alloc[UnsafePointer[svm_node, MutUntrackedOrigin]](nSV)
         model[].sv_coef.value()[0] = alloc[Float64](nSV)
-        model[].sv_indices = alloc[Scalar[DType.int]](nSV)
+        model[].sv_indices = alloc[Int](nSV)
         var j = 0
-        for i in range(Scalar[DType.int](prob.l)):
+        for i in range(prob.l):
             if abs(f.alpha.value()[i]) > 0:
                 model[].SV.value()[j] = prob.x[i]
                 model[].sv_coef.value()[0].value()[j] = f.alpha.value()[i]
@@ -2195,7 +2195,7 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[
         var label = OptionalUnsafePointer[Int, MutUntrackedOrigin]()
         var start = OptionalUnsafePointer[Int, MutUntrackedOrigin]()
         var count = OptionalUnsafePointer[Int, MutUntrackedOrigin]()
-        var perm = alloc[Scalar[DType.int]](l)
+        var perm = alloc[Int](l)
 
         # group training data of the same class
         svm_group_classes(prob,nr_class,label,start,count,perm)
@@ -2304,7 +2304,7 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[
 
         model[].l = total_sv
         model[].SV = alloc[UnsafePointer[svm_node, MutUntrackedOrigin]](total_sv)
-        model[].sv_indices = alloc[Scalar[DType.int]](total_sv)
+        model[].sv_indices = alloc[Int](total_sv)
         p = 0
         for i in range(l):
             if nonzero[i]:
@@ -2368,7 +2368,7 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[
 def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: OptionalUnsafePointer[Float64, MutUntrackedOrigin]):
     var fold_start = alloc[Int](nr_fold+1)
     var l = prob.l
-    var perm = alloc[Scalar[DType.int]](l)
+    var perm = alloc[Int](l)
     var nr_class = 0
     if nr_fold > l:
         print("WARNING: # folds ("+ String(nr_fold) +") > # data ("+ String(l) +"). Will use # folds = # data instead (i.e., leave-one-out cross validation)\n")
@@ -2384,7 +2384,7 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
 
         # random shuffle and then data grouped by fold using the array perm
         var fold_count = alloc[Int](nr_fold)
-        var index = alloc[Scalar[DType.int]](l)
+        var index = alloc[Int](l)
         unsafe_memcpy(dest=index, src=perm, count=l)
         for c in range(nr_class):
             for i in range(count.value()[c] - 1, 0, -1):
@@ -2419,8 +2419,8 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
         try:
             perm = fill_indices(l)
         except:
-            perm = alloc[Scalar[DType.int]](l)
-            for i in range(Scalar[DType.int](l)):
+            perm = alloc[Int](l)
+            for i in range(l):
                 perm[i]=i
         for i in range(l - 1, 0, -1):
             var j = Int(random.random_ui64(0, UInt64(i)))
@@ -2478,7 +2478,7 @@ def svm_get_labels(model: svm_model, label: OptionalUnsafePointer[Int, MutUntrac
         for i in range(model.nr_class):
             label.value()[i] = model.label.value()[i]
 
-def svm_get_sv_indices(model: svm_model, indices: OptionalUnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
+def svm_get_sv_indices(model: svm_model, indices: OptionalUnsafePointer[Int, MutUntrackedOrigin]):
     if model.sv_indices:
         unsafe_memcpy(dest=indices.value(), src=model.sv_indices.value(), count=model.l)
 

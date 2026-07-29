@@ -109,13 +109,13 @@ struct SearchRecord:
     var correltime: Int
     var result: UnsafePointer[KDTreeResultVector, MutUntrackedOrigin]
     var data: UnsafePointer[Matrix, MutUntrackedOrigin]
-    var ind: UnsafePointer[List[Scalar[DType.int]], MutUntrackedOrigin]
+    var ind: UnsafePointer[List[Int], MutUntrackedOrigin]
 
     def __init__(out self, qv_in: Span[Float32, MutUntrackedOrigin], tree_in: KDTree, result_in: KDTreeResultVector):  
         self.qv = qv_in.unsafe_ptr()
         self.result = UnsafePointer[KDTreeResultVector, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=result_in)))
         self.data = UnsafePointer[Matrix, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=tree_in._data)))
-        self.ind = UnsafePointer[List[Scalar[DType.int]], MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=tree_in.ind)))
+        self.ind = UnsafePointer[List[Int], MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=tree_in.ind)))
         self.dim = tree_in.dim
         self.rearrange = tree_in.rearrange
         self.ballsize = math.inf[DType.float32]() 
@@ -218,11 +218,11 @@ struct KDTreeNode(Copyable):
                         break
                 if early_exit:
                     continue
-                indexofi = Int(sr.ind[][i])
+                indexofi = sr.ind[][i]
             else:
                 # but if we are not using the rearranged data, then
                 # we must always 
-                indexofi = Int(sr.ind[][i])
+                indexofi = sr.ind[][i]
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
@@ -281,11 +281,11 @@ struct KDTreeNode(Copyable):
                 # we need not read in the actual point index, thus saving main
                 # memory bandwidth.  If the distance to point is less than the
                 # ballsize, though, then we need the index.
-                indexofi = Int(sr.ind[][i])
+                indexofi = sr.ind[][i]
             else:
                 # but if we are not using the rearranged data, then
                 # we must always 
-                indexofi = Int(sr.ind[][i])
+                indexofi = sr.ind[][i]
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
@@ -308,7 +308,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
     var N: Int   # number of data points
     var dim: Int
     var root: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin] # the root pointer
-    var ind: List[Scalar[DType.int]]
+    var ind: List[Int]
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
     var metric: def(Float32) thin -> Float32
@@ -319,7 +319,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         self.N = self._data.height
         self.dim = self._data.width
         self.root = None
-        self.ind = List[Scalar[DType.int]]()
+        self.ind = List[Int]()
         if metric.lower() == 'man':
             self.metric = Abs
         else:
@@ -333,7 +333,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
                 # permute the data for it.
                 for i in range(self.N):
-                        rearranged_data[i, unsafe=True] = self._data[Int(self.ind[i]), unsafe=True]
+                        rearranged_data[i, unsafe=True] = self._data[self.ind[i], unsafe=True]
                 self._data = rearranged_data^
 
     def __init__(out self, *, deinit move: Self):
@@ -398,7 +398,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             var average: Float32
 
             for k in range(l, u+1):
-                sum += self._data.load[1](Int(self.ind[k]), c)
+                sum += self._data.load[1](self.ind[k], c)
             average = sum / Float32(u-l+1)
 	
             var m = self.select_on_coordinate_value(c,average,l,u)
@@ -447,13 +447,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         var lmax: Float32
         var i = l+2
 
-        smin = self._data.load[1](Int(self.ind[l]), c)
+        smin = self._data.load[1](self.ind[l], c)
         smax = smin
         
         # process two at a time.
         while i<= u:
-            lmin = self._data.load[1](Int(self.ind[i-1]), c)
-            lmax = self._data.load[1](Int(self.ind[i]), c)
+            lmin = self._data.load[1](self.ind[i-1], c)
+            lmax = self._data.load[1](self.ind[i], c)
 
             if lmin > lmax:
                 swap(lmin,lmax)
@@ -466,7 +466,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
         # is there one more element? 
         if i == u+1:
-            var last = self._data.load[1](Int(self.ind[u]), c)
+            var last = self._data.load[1](self.ind[u], c)
             if smin>last:
                 smin = last
             if smax<last:
@@ -478,11 +478,11 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         #  Move indices in ind[l..u] so that the elements in [l .. k] 
         #  are less than the [k+1..u] elmeents, viewed across dimension 'c'. 
         while l < u:
-            var t = Int(self.ind[l])
+            var t = self.ind[l]
             var m = l
 
             for i in range(l+1, u+1):
-                if self._data.load[1](Int(self.ind[i]), c) < self._data.load[1](t, c):
+                if self._data.load[1](self.ind[i], c) < self._data.load[1](t, c):
                     m += 1
                     self.ind.swap_elements(i, m)
             self.ind.swap_elements(l, m)
@@ -500,14 +500,14 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         var ub = u
 
         while lb < ub:
-            if self._data.load[1](Int(self.ind[lb]), c) <= alpha:
+            if self._data.load[1](self.ind[lb], c) <= alpha:
                 lb += 1 # good where it is.
             else:
                 self.ind.swap_elements(lb, ub)
                 ub -= 1
 
         # here ub=lb
-        if self._data.load[1](Int(self.ind[lb]), c) <= alpha:
+        if self._data.load[1](self.ind[lb], c) <= alpha:
             return lb
         return lb-1
 

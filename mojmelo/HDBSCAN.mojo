@@ -43,7 +43,7 @@ struct HDBSCAN:
         Increasing search_depth can lead to more accurate results at the cost of performance.
         This can be useful for small datasets."""
 
-    var labels: List[Scalar[DType.int]]
+    var labels: List[Int]
     """Cluster labels for each point in the dataset given to fit()."""
     var probabilities: List[Float32]
     """The strength with which each sample is a member of its assigned cluster."""
@@ -51,7 +51,7 @@ struct HDBSCAN:
     """A score of how persistent each cluster is. A score of 1.0 represents
         a perfectly stable cluster that persists over all distance scales,
         while a score of 0.0 represents a perfectly ephemeral cluster."""
-    var condensed_tree: Dict[String, List[Scalar[DType.int]]]
+    var condensed_tree: Dict[String, List[Int]]
     """The condensed tree produced by HDBSCAN."""
     var condensed_tree_lambda: List[Float32]
     """The condensed tree lambda values produced by HDBSCAN."""
@@ -83,10 +83,10 @@ struct HDBSCAN:
         self.match_reference_implementation = match_reference_implementation
         self.search_depth = search_depth
         
-        self.labels = List[Scalar[DType.int]]()
+        self.labels = List[Int]()
         self.probabilities = List[Float32]()
         self.cluster_persistence = List[Float32]()
-        self.condensed_tree = Dict[String, List[Scalar[DType.int]]]()
+        self.condensed_tree = Dict[String, List[Int]]()
         self.condensed_tree_lambda = List[Float32]()
         self.single_linkage_tree = Matrix(0, 0)
 
@@ -120,7 +120,7 @@ struct HDBSCAN:
         allow_single_cluster=self.allow_single_cluster,
         match_reference_implementation=self.match_reference_implementation,
         cluster_selection_epsilon=self.cluster_selection_epsilon,
-        max_cluster_size=Scalar[DType.int](self.max_cluster_size),
+        max_cluster_size=self.max_cluster_size,
         cluster_selection_epsilon_max=self.cluster_selection_epsilon_max
         )
 
@@ -131,7 +131,7 @@ struct HDBSCAN:
         self.condensed_tree_lambda = lambda_vals^
         self.single_linkage_tree = hierarchy^
     
-    def fit_predict(mut self, X: Matrix) raises -> List[Scalar[DType.int]]:
+    def fit_predict(mut self, X: Matrix) raises -> List[Int]:
         """Cluster X and return the associated cluster labels.
         
         Returns:

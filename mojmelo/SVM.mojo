@@ -355,7 +355,7 @@ struct SVC(CV, Copyable):
                 unsafe_memcpy(dest=probA.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
                 probB = alloc[Float64]((nr_class*(nr_class-1))//2)
                 unsafe_memcpy(dest=probB.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-            var sv_indices = alloc[Scalar[DType.int]](l)
+            var sv_indices = alloc[Int](l)
             unsafe_memcpy(dest=sv_indices, src=f.read_bytes(size_of[DType.int]()*l).unsafe_ptr().unsafe_bitcast[Scalar[DType.int]](), count=l)
             var label = alloc[Int](nr_class)
             unsafe_memcpy(dest=label, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
