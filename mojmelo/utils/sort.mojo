@@ -20,7 +20,7 @@ comptime insertion_sort_threshold = 32
 
 @always_inline
 def _insertion_sort[
-    T: Copyable & Movable,
+    T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
@@ -29,26 +29,28 @@ def _insertion_sort[
     var size = len(span)
 
     for i in range(1, size):
-        var value = (array + i).take_pointee()
+        var value = array.unsafe_offset(i).unsafe_take_pointee()
         var value_b = indices[i]
         var j = i
 
         # Find the placement of the value in the array, shifting as we try to
         # find the position. Throughout, we assume array[start:i] has already
         # been sorted.
-        while j > 0 and cmp_fn(value, array[j - 1]):
-            (array + j).init_pointee_move_from(array + j - 1)
+        while j > 0 and cmp_fn(value, array[unsafe_offset=j - 1]):
+            array.unsafe_offset(j).unsafe_write_move_from(
+                array.unsafe_offset(j - 1)
+            )
             indices[j] = indices[j - 1]
             j -= 1
 
-        (array + j).init_pointee_move(value^)
+        array.unsafe_offset(j).unsafe_write(value^)
         indices[j] = value_b
 
 
 # put everything thats "<" to the left of pivot
 @always_inline
 def _quicksort_partition_right[
-    T: Copyable & Movable,
+    T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]) -> Int:
@@ -78,7 +80,7 @@ def _quicksort_partition_right[
 # put everything thats "<=" to the left of pivot
 @always_inline
 def _quicksort_partition_left[
-    T: Copyable & Movable,
+    T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]) -> Int:
@@ -106,7 +108,7 @@ def _quicksort_partition_left[
 
 @always_inline
 def _delegate_small_sort[
-    T: Copyable & Movable,
+    T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
@@ -136,7 +138,7 @@ def _delegate_small_sort[
 
 @always_inline
 def _quicksort[
-    T: Copyable & Movable,
+    T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
     *,
@@ -151,7 +153,7 @@ def _quicksort[
     comptime ImmSpan = span.Immutable
 
     var stack = List[Span[T, origin]](capacity=_estimate_initial_height(size))
-    var stack_b = List[UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]](capacity=stack.capacity)
+    var stack_b = List[UnsafePointer[Int, MutUntrackedOrigin]](capacity=stack.capacity())
     stack.append(span)
     stack_b.append(indices)
     while len(stack) > 0:
@@ -176,7 +178,7 @@ def _quicksort[
         # already have array[-1] <= array[0]
         var interval_ptr = interval.unsafe_ptr()
         if interval_ptr > span.unsafe_ptr() and not cmp_fn(
-            interval_ptr[-1], interval_ptr[0]
+            interval_ptr[unsafe_offset=-1], interval_ptr[unsafe_offset=0]
         ):
             var pivot = _quicksort_partition_left[cmp_fn](interval, interval_b)
             if len > pivot + 2:
@@ -209,7 +211,7 @@ def _quicksort[
 
 # Junction from public to private API
 def _sort[
-    T: Copyable & Movable,
+    T: Copyable,
     origin: MutOrigin, //,
     cmp_fn: def (T, T) capturing [_] -> Bool,
     do_smallsort: Bool = False,
@@ -242,7 +244,7 @@ def sort[
 @always_inline
 def _sort2[
     origin: MutOrigin, //,
-    T: Copyable & Movable,
+    T: Copyable,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](
     span: Span[T, origin],
@@ -257,7 +259,7 @@ def _sort2[
 @always_inline
 def _sort3[
     origin: MutOrigin, //,
-    T: Copyable & Movable,
+    T: Copyable,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](
     span: Span[T, origin],
@@ -274,7 +276,7 @@ def _sort3[
 @always_inline
 def _sort_partial_3[
     origin: MutOrigin, //,
-    T: Copyable & Movable,
+    T: Copyable,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](
     span: Span[T, origin],
@@ -297,7 +299,7 @@ def _sort_partial_3[
 def _small_sort[
     origin: MutOrigin, //,
     n: Int,
-    T: Copyable & Movable,
+    T: Copyable,
     cmp_fn: def (T, T) capturing [_] -> Bool,
 ](span: Span[T, origin], indices: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
     comptime if n == 2:

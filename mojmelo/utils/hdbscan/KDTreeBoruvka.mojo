@@ -4,11 +4,11 @@ from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
 import std.math as math
 from std.algorithm import vectorize, parallelize
 from std.sys import size_of
-from std.memory import memset_zero
+from std.memory import unsafe_memset_zero
 
 @always_inline
 def key(idx: Scalar[DType.int],
-        data: UnsafePointer[Float32, MutAnyOrigin],
+        data: UnsafePointer[Float32, MutUntrackedOrigin],
         dim: Scalar[DType.int],
         split_dim: Scalar[DType.int]) -> Float32:
     return data[idx * dim + split_dim]
@@ -19,7 +19,7 @@ def nth_element(
     nth: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
     var last: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
     var proj: UnsafePointer[Float32, MutUntrackedOrigin],
-    data: UnsafePointer[Float32, MutAnyOrigin],
+    data: UnsafePointer[Float32, MutUntrackedOrigin],
     dim: Scalar[DType.int],
     split_dim: Scalar[DType.int]):
     for i in range((Int(last) - Int(first))//size_of[DType.int]()):
@@ -65,8 +65,8 @@ def nth_element(
 
 @always_inline
 def node_pair_lower_bound(
-    var center1: UnsafePointer[Float32, MutAnyOrigin],
-    var center2: UnsafePointer[Float32, MutAnyOrigin],
+    var center1: UnsafePointer[Float32, MutUntrackedOrigin],
+    var center2: UnsafePointer[Float32, MutUntrackedOrigin],
     r1: Float32,
     r2: Float32,
     dim: Int
@@ -89,7 +89,7 @@ def node_pair_lower_bound(
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
 @fieldwise_init
 struct CenterPtr(TrivialRegisterPassable):
-    var _data: UnsafePointer[Float32, MutAnyOrigin]
+    var _data: UnsafePointer[Float32, MutUntrackedOrigin]
 
 
 @fieldwise_init
@@ -102,17 +102,17 @@ struct NodeData(Copyable):
 
 
 struct KDTreeBoruvka:
-    var data: UnsafePointer[Float32, MutAnyOrigin]
+    var data: UnsafePointer[Float32, MutUntrackedOrigin]
     var kdtree: KDTree[sort_results=True]
     var n: Int
     var dim: Int
     var leaf_size: Int
     var nodes: List[NodeData]
-    var core_dist: UnsafePointer[Float32, MutAnyOrigin]
+    var core_dist: UnsafePointer[Float32, MutUntrackedOrigin]
     var build_idx: List[Scalar[DType.int]]
     var proj_buf: List[Float32]
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
-    var _center_arena: UnsafePointer[Float32, MutAnyOrigin]
+    var _center_arena: UnsafePointer[Float32, MutUntrackedOrigin]
 
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
@@ -125,10 +125,10 @@ struct KDTreeBoruvka:
 
         # One allocation for all node centers; upper bound on node count is 2n+1.
         var max_nodes = 2 * self.n + 1
-        self._center_arena = alloc[Float32](max_nodes * self.dim).as_unsafe_any_origin()
-        memset_zero(self._center_arena, max_nodes * self.dim)
+        self._center_arena = alloc[Float32](max_nodes * self.dim)
+        unsafe_memset_zero(self._center_arena, max_nodes * self.dim)
 
-        self.core_dist = alloc[Float32](self.n).as_unsafe_any_origin()
+        self.core_dist = alloc[Float32](self.n)
         self.build_idx = fill_indices_list(self.n)
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
@@ -140,7 +140,7 @@ struct KDTreeBoruvka:
             try:
                 var kd_results = KDTreeResultVector()
                 self.kdtree.n_nearest(
-                    Span(ptr=self.data + p * self.dim, length=self.dim),
+                    Span(unsafe_ptr=self.data + p * self.dim, length=self.dim),
                     k,
                     kd_results
                 )
@@ -195,7 +195,7 @@ struct KDTreeBoruvka:
 
     def build_node(mut self, node: Int, start: Int, end: Int):
         self.ensure_node(node)
-        var nd = self.nodes._data + node
+        var nd = self.nodes._data.unsafe_offset(node)
         nd[].idx_start = start
         nd[].idx_end = end
 
@@ -208,7 +208,7 @@ struct KDTreeBoruvka:
         for i in range(start, end):
             var p = self.data + Int(self.build_idx[i]) * self.dim
 
-            def v1[simd_width: Int](k: Int) {read}:
+            def v1[simd_width: Int](k: Int) {imm}:
                 cptr.store(k, cptr.load[width=simd_width](k) + p.load[width=simd_width](k))
             vectorize[Matrix.simd_width](self.dim, v1)
 
@@ -239,10 +239,10 @@ struct KDTreeBoruvka:
         var mid = (start + end) // 2
 
         nth_element(
-            self.build_idx._data + start,
-            self.build_idx._data + mid,
-            self.build_idx._data + end,
-            self.proj_buf._data + start,
+            self.build_idx._data.unsafe_offset(start),
+            self.build_idx._data.unsafe_offset(mid),
+            self.build_idx._data.unsafe_offset(end),
+            self.proj_buf._data.unsafe_offset(start),
             self.data,
             Scalar[DType.int](self.dim),
             split_dim

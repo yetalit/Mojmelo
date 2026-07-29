@@ -1,6 +1,6 @@
 # Re-implementation of libsvm, a library for support vector machines by Chih-Chung Chang and Chih-Jen Lin (https://www.csie.ntu.edu.tw/~cjlin/libsvm/) with some modifications.
 
-from std.memory import memcpy, memset_zero
+from std.memory import unsafe_memcpy, unsafe_memset_zero
 from .svm_node import svm_node
 from .svm_parameter import svm_parameter
 from .svm_problem import svm_problem
@@ -106,8 +106,8 @@ def kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64:
     return k.x[i][Int(k.x[j][0].value)].value
 
 struct head_t(RegisterPassable):
-    var prev: OptionalUnsafePointer[head_t, MutAnyOrigin]
-    var next: OptionalUnsafePointer[head_t, MutAnyOrigin]	# a cicular list
+    var prev: OptionalUnsafePointer[head_t, MutUntrackedOrigin]
+    var next: OptionalUnsafePointer[head_t, MutUntrackedOrigin]	# a cicular list
     var data: OptionalUnsafePointer[Float32, MutUntrackedOrigin]
     var _len: Int		# data[0,len) is cached in this entry
 
@@ -133,14 +133,14 @@ struct Cache:
         self.l = l_
         self.size = (size_ - UInt(self.l * size_of[head_t]())) // 4
         self.head = alloc[head_t](self.l)
-        memset_zero(self.head.value(), self.l) # initialized to 0
+        unsafe_memset_zero(self.head.value(), self.l) # initialized to 0
         self.size = max(self.size, UInt(2) * UInt(self.l))  # cache must be large enough for two columns
         self.lru_head = head_t()
-        self.lru_head.next = self.lru_head.prev = UnsafePointer(to=self.lru_head)
+        self.lru_head.next = self.lru_head.prev = UnsafePointer[head_t, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=self.lru_head)))
 
     def __del__(deinit self):
         var h = self.lru_head.next
-        while h != UnsafePointer(to=self.lru_head):
+        while h != UnsafePointer[head_t, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=self.lru_head))):
             var _h = h.value()
             if _h[].data:
                 _h[].data.value().free()
@@ -148,20 +148,20 @@ struct Cache:
         if self.head:
             self.head.value().free()
 
-    def lru_delete(self, h: UnsafePointer[head_t, MutAnyOrigin]):
+    def lru_delete(self, h: UnsafePointer[head_t, MutUntrackedOrigin]):
         # delete from current location
         h[].prev.value()[].next = h[].next
         h[].next.value()[].prev = h[].prev
 
     def lru_insert(mut self, h: UnsafePointer[head_t, MutUntrackedOrigin]):
         # insert to last position
-        h[].next = UnsafePointer(to=self.lru_head)
+        h[].next = UnsafePointer[head_t, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=self.lru_head)))
         h[].prev = self.lru_head.prev
         h[].prev.value()[].next = h
         h[].next.value()[].prev = h
 
     @always_inline
-    def get_data(mut self, index: Int, data: OptionalUnsafePointer[OptionalUnsafePointer[Float32, MutUntrackedOrigin], MutAnyOrigin], var _len: Int) -> Int:
+    def get_data(mut self, index: Int, data: UnsafePointer[OptionalUnsafePointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin], var _len: Int) -> Int:
         var h = self.head.value() + index
         if h[]._len:
             self.lru_delete(h)
@@ -179,7 +179,7 @@ struct Cache:
 
             # allocate new space
             var new = alloc[Float32](_len)
-            memcpy(dest=new, src=h[].data, count=h[]._len)
+            unsafe_memcpy(dest=new, src=h[].data.value(), count=h[]._len)
             if h[].data:
                 h[].data.value().free()
             h[].data = new
@@ -187,7 +187,7 @@ struct Cache:
             swap(h[]._len, _len)
 
         self.lru_insert(h)
-        data.value()[] = h[].data
+        data[] = h[].data
         return _len
 
     @always_inline
@@ -246,7 +246,7 @@ trait QMatrix:
 #    @always_inline
 #    def __init__(out self, l: Int, x_: OptionalUnsafePointer[OptionalUnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin], param: svm_parameter):
 #        var x = alloc[OptionalUnsafePointer[svm_node, MutUntrackedOrigin]](l)
-#        memcpy(dest=x, src=x_, count=l)
+#        unsafe_memcpy(dest=x, src=x_, count=l)
 #
 #        var x_square: OptionalUnsafePointer[Float64, MutUntrackedOrigin]
 #        if param.kernel_type == svm_parameter.RBF:
@@ -417,11 +417,11 @@ struct Solver:
         self.QD = UnsafePointer[Float64, MutUntrackedOrigin].unsafe_dangling()
         self.QD = Q.get_QD()
         self.p = alloc[Float64](self.l)
-        memcpy(dest=self.p, src=p_, count=self.l)
+        unsafe_memcpy(dest=self.p, src=p_.value(), count=self.l)
         self.y = alloc[Int8](self.l)
-        memcpy(dest=self.y, src=y_, count=self.l)
+        unsafe_memcpy(dest=self.y, src=y_.value(), count=self.l)
         self.alpha = alloc[Float64](self.l)
-        memcpy(dest=self.alpha, src=alpha_, count=self.l)
+        unsafe_memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
         self.eps = eps
@@ -449,8 +449,8 @@ struct Solver:
         # initialize gradient
         self.G = alloc[Float64](self.l)
         self.G_bar = alloc[Float64](self.l)
-        memcpy(dest=self.G, src=self.p, count=self.l)
-        memset_zero(self.G_bar, self.l)
+        unsafe_memcpy(dest=self.G, src=self.p, count=self.l)
+        unsafe_memset_zero(self.G_bar, self.l)
 
         for i in range(self.l):
             if not self.is_lower_bound(i):
@@ -891,11 +891,11 @@ struct Solver_NU:
         self.QD = UnsafePointer[Float64, MutUntrackedOrigin].unsafe_dangling()
         self.QD = Q.get_QD()
         self.p = alloc[Float64](self.l)
-        memcpy(dest=self.p, src=p_, count=self.l)
+        unsafe_memcpy(dest=self.p, src=p_.value(), count=self.l)
         self.y = alloc[Int8](self.l)
-        memcpy(dest=self.y, src=y_, count=self.l)
+        unsafe_memcpy(dest=self.y, src=y_.value(), count=self.l)
         self.alpha = alloc[Float64](self.l)
-        memcpy(dest=self.alpha, src=alpha_, count=self.l)
+        unsafe_memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
         self.eps = eps
@@ -923,8 +923,8 @@ struct Solver_NU:
         # initialize gradient
         self.G = alloc[Float64](self.l)
         self.G_bar = alloc[Float64](self.l)
-        memcpy(dest=self.G, src=self.p, count=self.l)
-        memset_zero(self.G_bar, self.l)
+        unsafe_memcpy(dest=self.G, src=self.p, count=self.l)
+        unsafe_memset_zero(self.G_bar, self.l)
 
         for i in range(self.l):
             if not self.is_lower_bound(i):
@@ -1296,7 +1296,7 @@ struct SVC_Q(QMatrix):
     def __init__(out self, prob: svm_problem, param: svm_parameter, y_: OptionalUnsafePointer[Int8, MutUntrackedOrigin]):
         # Kernel
         var x = alloc[UnsafePointer[svm_node, MutUntrackedOrigin]](prob.l)
-        memcpy(dest=x, src=prob.x, count=prob.l)
+        unsafe_memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: UnsafePointer[Float64, MutUntrackedOrigin]
         if param.kernel_type == svm_parameter.RBF:
@@ -1322,7 +1322,7 @@ struct SVC_Q(QMatrix):
             self.kernel_function = kernel_linear
         ##
         self.y = alloc[Int8](prob.l)
-        memcpy(dest=self.y, src=y_, count=prob.l)
+        unsafe_memcpy(dest=self.y, src=y_.value(), count=prob.l)
 
         self.cache = Cache(prob.l, UInt(Int(param.cache_size*(1<<20))))
 
@@ -1332,7 +1332,7 @@ struct SVC_Q(QMatrix):
 
     def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutUntrackedOrigin]:
         var data = OptionalUnsafePointer[Float32, MutUntrackedOrigin]()
-        var start = self.cache.get_data(i, UnsafePointer(to=data),_len)
+        var start = self.cache.get_data(i, UnsafePointer[OptionalUnsafePointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=data))),_len)
         if start < _len:
             @parameter
             def p(j: Int):
@@ -1373,7 +1373,7 @@ struct ONE_CLASS_Q(QMatrix):
     def __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
         var x = alloc[UnsafePointer[svm_node, MutUntrackedOrigin]](prob.l)
-        memcpy(dest=x, src=prob.x, count=prob.l)
+        unsafe_memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: UnsafePointer[Float64, MutUntrackedOrigin]
         if param.kernel_type == svm_parameter.RBF:
@@ -1406,7 +1406,7 @@ struct ONE_CLASS_Q(QMatrix):
 
     def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutUntrackedOrigin]:
         var data = OptionalUnsafePointer[Float32, MutUntrackedOrigin]()
-        var start = self.cache.get_data(i, UnsafePointer(to=data),_len)
+        var start = self.cache.get_data(i, UnsafePointer[OptionalUnsafePointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=data))),_len)
         if start < _len:
             for j in range(start, _len):
                 data.value()[j] = self.kernel_function(self._self, i,j).cast[DType.float32]()
@@ -1437,7 +1437,7 @@ struct SVR_Q(QMatrix):
     var sign: UnsafePointer[Int8, MutUntrackedOrigin]
     var index: UnsafePointer[Int, MutUntrackedOrigin]
     var next_buffer: Int
-    var buffer: InlineArray[OptionalUnsafePointer[Float32, MutUntrackedOrigin], 2]
+    var buffer: Array[OptionalUnsafePointer[Float32, MutUntrackedOrigin], 2]
     var QD: UnsafePointer[Float64, MutUntrackedOrigin]
 
     var _self: kernel_params
@@ -1448,7 +1448,7 @@ struct SVR_Q(QMatrix):
     def __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
         var x = alloc[UnsafePointer[svm_node, MutUntrackedOrigin]](prob.l)
-        memcpy(dest=x, src=prob.x, count=prob.l)
+        unsafe_memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: UnsafePointer[Float64, MutUntrackedOrigin]
         if param.kernel_type == svm_parameter.RBF:
@@ -1485,7 +1485,7 @@ struct SVR_Q(QMatrix):
             self.index[k+self.l] = k
             self.QD[k] = self.kernel_function(self._self, k,k)
             self.QD[k+self.l] = self.QD[k]
-        self.buffer: InlineArray[OptionalUnsafePointer[Float32, MutUntrackedOrigin], 2] = [alloc[Float32](2*self.l), alloc[Float32](2*self.l)]
+        self.buffer: Array[OptionalUnsafePointer[Float32, MutUntrackedOrigin], 2] = [alloc[Float32](2*self.l), alloc[Float32](2*self.l)]
         self.next_buffer = 0
 
     def swap_index(self, i: Int, j: Int):
@@ -1496,7 +1496,7 @@ struct SVR_Q(QMatrix):
     def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutUntrackedOrigin]:
         var data = OptionalUnsafePointer[Float32, MutUntrackedOrigin]()
         var real_i = self.index[i]
-        if self.cache.get_data(real_i, UnsafePointer(to=data),self.l) < self.l:
+        if self.cache.get_data(real_i, UnsafePointer[OptionalUnsafePointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=data))),self.l) < self.l:
             @parameter
             def p(j: Int):
                 data.value()[j] = self.kernel_function(self._self, real_i,j).cast[DType.float32]()
@@ -1535,7 +1535,7 @@ def solve_c_svc(
     var minus_ones = alloc[Float64](l)
     var y = alloc[Int8](l)
 
-    memset_zero(alpha, l)
+    unsafe_memset_zero(alpha, l)
     for i in range(l):
         minus_ones[i] = -1
         if prob.y[i] > 0:
@@ -1584,7 +1584,7 @@ def solve_nu_svc(
             sum_neg -= alpha[i]
 
     var zeros = alloc[Float64](l)
-    memset_zero(zeros, l)
+    unsafe_memset_zero(zeros, l)
 
     var s = Solver_NU()
     var q = SVC_Q(prob,param,y)
@@ -1619,7 +1619,7 @@ def solve_one_class(
     for i in range(n+1, l):
         alpha[i] = 0
 
-    memset_zero(zeros, l)
+    unsafe_memset_zero(zeros, l)
     for i in range(l):
         ones[i] = 1
 
@@ -2015,10 +2015,7 @@ def svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_
         return a < b
 
     sort[cmp_fn](
-        Span[
-            Float64,
-            MutUntrackedOrigin,
-        ](ptr=dec_values, length=prob.l)
+        Span(unsafe_ptr=dec_values, length=prob.l)
     )
 
     var neg_counter=0
@@ -2098,11 +2095,11 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
         if j == nr_class:
             if nr_class == max_nr_class:
                 var new = alloc[Int](max_nr_class*2)
-                memcpy(dest=new, src=label, count=max_nr_class)
+                unsafe_memcpy(dest=new, src=label, count=max_nr_class)
                 label.free()
                 label = new
                 new = alloc[Int](max_nr_class*2)
-                memcpy(dest=new, src=count, count=max_nr_class)
+                unsafe_memcpy(dest=new, src=count, count=max_nr_class)
                 count.free()
                 count = new
             label[nr_class] = this_label
@@ -2225,7 +2222,7 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalUnsafePointer[
         # train k*(k-1)/2 models
 
         var nonzero = alloc[Bool](l)
-        memset_zero(nonzero, l)
+        unsafe_memset_zero(nonzero, l)
         var f = alloc[decision_function](nr_class*(nr_class-1)//2)
 
         var probA = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
@@ -2388,7 +2385,7 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
         # random shuffle and then data grouped by fold using the array perm
         var fold_count = alloc[Int](nr_fold)
         var index = alloc[Scalar[DType.int]](l)
-        memcpy(dest=index, src=perm, count=l)
+        unsafe_memcpy(dest=index, src=perm, count=l)
         for c in range(nr_class):
             for i in range(count.value()[c] - 1, 0, -1):
                 var j = Int(random.random_ui64(0, UInt64(i)))
@@ -2483,7 +2480,7 @@ def svm_get_labels(model: svm_model, label: OptionalUnsafePointer[Int, MutUntrac
 
 def svm_get_sv_indices(model: svm_model, indices: OptionalUnsafePointer[Scalar[DType.int], MutUntrackedOrigin]):
     if model.sv_indices:
-        memcpy(dest=indices, src=model.sv_indices, count=model.l)
+        unsafe_memcpy(dest=indices.value(), src=model.sv_indices.value(), count=model.l)
 
 @always_inline
 def svm_get_nr_sv(model: svm_model) -> Int:
@@ -2496,7 +2493,7 @@ def svm_get_svr_probability(model: svm_model) -> Float64:
         print("Model doesn't contain information for SVR probability inference\n")
         return 0.0
 
-def svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, MutUntrackedOrigin], dec_values: OptionalUnsafePointer[Float64, MutAnyOrigin]) -> Float64:
+def svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, MutUntrackedOrigin], dec_values: UnsafePointer[Float64, MutUntrackedOrigin]) -> Float64:
     if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
         var sv_coef = model.sv_coef.value()[0]
         var sum = 0.0
@@ -2513,7 +2510,7 @@ def svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, MutUntracked
         values.free()
         
         sum -= model.rho.value()[0]
-        dec_values.value()[] = sum
+        dec_values[] = sum
 
         if model.param.svm_type == svm_parameter.ONE_CLASS:
             return 1.0 if sum>0 else -1
@@ -2556,9 +2553,9 @@ def svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, MutUntracked
                 for k in range(cj):
                     sum += coef2.value()[sj+k] * kvalue[sj+k]
                 sum -= model.rho.value()[p]
-                dec_values.value()[p] = sum
+                dec_values[p] = sum
 
-                if dec_values.value()[p] > 0:
+                if dec_values[p] > 0:
                     vote[i] += 1
                 else:
                     vote[j] += 1
@@ -2618,14 +2615,14 @@ def svm_predict_probability(model: svm_model, x: UnsafePointer[svm_node, MutUntr
         return Float64(model.label.value()[prob_max_idx])
     elif model.param.svm_type == svm_parameter.ONE_CLASS and model.prob_density_marks:
         var dec_value = 0.0
-        var pred_result = svm_predict_values(model,x,UnsafePointer(to=dec_value))
+        var pred_result = svm_predict_values(model,x,UnsafePointer[Float64, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=dec_value))))
         prob_estimates[0] = predict_one_class_probability(model,dec_value)
         prob_estimates[1] = 1-prob_estimates[0]
         return pred_result
     else:
         return svm_predict(model, x)
 
-def svm_decision_function(model: svm_model, x: UnsafePointer[svm_node, MutUntrackedOrigin]) -> Tuple[OptionalUnsafePointer[Float64, MutUntrackedOrigin], Int]:
+def svm_decision_function(model: svm_model, x: UnsafePointer[svm_node, MutUntrackedOrigin]) -> Tuple[UnsafePointer[Float64, MutUntrackedOrigin], Int]:
     var nr_class = model.nr_class
     var l: Int
     var dec_values: UnsafePointer[Float64, MutUntrackedOrigin]
@@ -2752,11 +2749,11 @@ def svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
             if j == nr_class:
                 if nr_class == max_nr_class:
                     var new = alloc[Int](max_nr_class*2)
-                    memcpy(dest=new, src=label, count=max_nr_class)
+                    unsafe_memcpy(dest=new, src=label, count=max_nr_class)
                     label.free()
                     label = new
                     new = alloc[Int](max_nr_class*2)
-                    memcpy(dest=new, src=count, count=max_nr_class)
+                    unsafe_memcpy(dest=new, src=count, count=max_nr_class)
                     count.free()
                     count = new
                 label[nr_class] = this_label

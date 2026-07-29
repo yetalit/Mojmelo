@@ -95,11 +95,11 @@ struct PCA(Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.n_components).as_bytes())
             f.write_bytes(UInt64(self.components.width).as_bytes())
-            f.write_bytes(Span(ptr=self.components.data.bitcast[UInt8](), length=4*self.components.size))
-            f.write_bytes(Span(ptr=self.mean.data.bitcast[UInt8](), length=4*self.mean.size))
+            f.write_bytes(Span(unsafe_ptr=self.components.data.unsafe_bitcast[UInt8](), length=4*self.components.size))
+            f.write_bytes(Span(unsafe_ptr=self.mean.data.unsafe_bitcast[UInt8](), length=4*self.mean.size))
             f.write_bytes(UInt8(self.whiten).as_bytes())
             if self.whiten:
-                f.write_bytes(Span(ptr=self.whiten_.data.bitcast[UInt8](), length=4*self.whiten_.size))
+                f.write_bytes(Span(unsafe_ptr=self.whiten_.data.unsafe_bitcast[UInt8](), length=4*self.whiten_.size))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -108,16 +108,16 @@ struct PCA(Copyable):
         var model = Self(0)
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var n_components = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var components_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components*components_width).unsafe_ptr())))
+            var n_components = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var components_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components*components_width).unsafe_ptr())))
             model.components_T = model.components.T()
-            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*components_width).unsafe_ptr())))
+            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*components_width).unsafe_ptr())))
             model.whiten = Bool(f.read_bytes(1)[0])
             if model.whiten:
-                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components).unsafe_ptr())))
+                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components).unsafe_ptr())))
         return model^

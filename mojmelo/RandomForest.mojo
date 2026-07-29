@@ -47,7 +47,7 @@ struct RandomForest(CV, Copyable):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var trees: UnsafePointer[DecisionTree, MutAnyOrigin]
+    var trees: UnsafePointer[DecisionTree, MutUntrackedOrigin]
     comptime MODEL_ID = 10
     comptime criterion_ids: List[String] = ['entropy', 'gini', 'mse']
 
@@ -58,16 +58,16 @@ struct RandomForest(CV, Copyable):
         self.n_feats = n_feats
         self.criterion = criterion.lower()
         random.seed(random_state)
-        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin].unsafe_dangling()
+        self.trees = UnsafePointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()
 
     def __del__(deinit self):
         for i in range(self.n_trees):
-            (self.trees + i).destroy_pointee()
+            (self.trees + i).unsafe_deinit_pointee()
         self.trees.free()
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Build a forest of trees from the training set."""
-        self.trees = alloc[DecisionTree](self.n_trees).as_unsafe_any_origin()
+        self.trees = alloc[DecisionTree](self.n_trees)
         var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
         if self.n_feats < 1:
@@ -89,7 +89,7 @@ struct RandomForest(CV, Copyable):
                 tree.fit_weighted(X_samp, y_samp_with_weights)
             except e:
                 print('Error:', e)
-            (self.trees + i).init_pointee_move(tree)
+            (self.trees + i).unsafe_write(tree)
             self.trees[i]._moveinit_(tree)
         parallelize[p](self.n_trees)
 
@@ -155,27 +155,27 @@ struct RandomForest(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
-            model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.trees = alloc[DecisionTree](model.n_trees).as_unsafe_any_origin()
+            model.n_trees = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            model.trees = alloc[DecisionTree](model.n_trees)
             for t_i in range(model.n_trees):
                 var tree = DecisionTree()
-                var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                var node_list = List[UnsafePointer[Node, MutAnyOrigin]]()
+                var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                var node_list = List[UnsafePointer[Node, MutUntrackedOrigin]]()
                 var children_index_list = List[Tuple[Int, Int]]()
                 for i in range(node_size):
-                    var feature = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                    var threshold = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-                    var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                    var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                    var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+                    var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                    var threshold = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+                    var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                    var right = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                    var value = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
                     var node = alloc[Node](1)
-                    node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
-                    node_list.append(node.as_unsafe_any_origin())
+                    node.unsafe_write(Node(feature=feature, threshold=threshold, value=value))
+                    node_list.append(node)
                     children_index_list.append((left, right))
                 tree.root = node_list[0]
                 for i in range(node_size):
@@ -183,7 +183,7 @@ struct RandomForest(CV, Copyable):
                         node_list[i][].left = node_list[children_index_list[i][0]]
                     if children_index_list[i][1] != -1:
                         node_list[i][].right = node_list[children_index_list[i][1]]
-                (model.trees + t_i).init_pointee_move(tree)
+                (model.trees + t_i).unsafe_write(tree)
                 model.trees[t_i]._moveinit_(tree)
         return model^
 
@@ -212,4 +212,4 @@ struct RandomForest(CV, Copyable):
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed(42)
-        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin].unsafe_dangling()
+        self.trees = UnsafePointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()

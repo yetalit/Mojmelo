@@ -33,7 +33,7 @@ struct KNN(CV, Copyable):
         self.kdtree = KDTree[sort_results=True](X, self.metric)
         self.y_train = y
 
-    def predict(mut self, X: Matrix) raises -> Matrix:
+    def predict(self, X: Matrix) raises -> Matrix:
         """Predict the class indices for the provided data.
 
         Returns:
@@ -50,9 +50,9 @@ struct KNN(CV, Copyable):
         return y_pred^
 
     @always_inline
-    def _predict(mut self, x: Matrix) raises -> Float32:
+    def _predict(self, x: Matrix) raises -> Float32:
         var kd_results = KDTreeResultVector()
-        self.kdtree.n_nearest(Span(ptr=x.data, length=x.size), self.search_depth * self.k, kd_results)
+        self.kdtree.n_nearest(Span(unsafe_ptr=x.data, length=x.size), self.search_depth * self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[Int, Int]()
         var most_common = Int(self.y_train.data[kd_results[0].idx])
@@ -79,8 +79,8 @@ struct KNN(CV, Copyable):
             var X = Matrix(self.kdtree.N, self.kdtree.dim)
             for i in range(self.kdtree.N):
                 X[Int(self.kdtree.ind[i]), unsafe=True] = self.kdtree._data[i, unsafe=True]
-            f.write_bytes(Span(ptr=X.data.bitcast[UInt8](), length=4*X.size))
-            f.write_bytes(Span(ptr=self.y_train.data.bitcast[UInt8](), length=4*self.y_train.size))
+            f.write_bytes(Span(unsafe_ptr=X.data.unsafe_bitcast[UInt8](), length=4*X.size))
+            f.write_bytes(Span(unsafe_ptr=self.y_train.data.unsafe_bitcast[UInt8](), length=4*self.y_train.size))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -89,17 +89,17 @@ struct KNN(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var k = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
+            var k = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
-            var search_depth = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
-            var n_samples = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples * n_features).unsafe_ptr())))
-            var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples).unsafe_ptr())))
+            var search_depth = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
+            var n_samples = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples * n_features).unsafe_ptr())))
+            var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples).unsafe_ptr())))
             model.k = k
             model.metric = metric
             model.search_depth = search_depth

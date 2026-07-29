@@ -95,7 +95,7 @@ struct KMeans(Copyable):
             var c_ptr = centroids.data + label * X.width
             var x_ptr = X.data + idx * X.width
 
-            def accumulate[simd_width: Int](j: Int) {read}:
+            def accumulate[simd_width: Int](j: Int) {imm}:
                 c_ptr.store(j, c_ptr.load[width=simd_width](j) + x_ptr.load[width=simd_width](j))
             vectorize[centroids.simd_width](X.width, accumulate)
         return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
@@ -171,8 +171,8 @@ struct KMeans(Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.k).as_bytes())
             f.write_bytes(UInt64(self.centroids_.size).as_bytes())
-            f.write_bytes(Span(ptr=self.centroids_.data.bitcast[UInt8](), length=4*self.centroids_.size))
-            f.write_bytes(Span(ptr=self.X_mean.data.bitcast[UInt8](), length=4*self.X_mean.size))
+            f.write_bytes(Span(unsafe_ptr=self.centroids_.data.unsafe_bitcast[UInt8](), length=4*self.centroids_.size))
+            f.write_bytes(Span(unsafe_ptr=self.X_mean.data.unsafe_bitcast[UInt8](), length=4*self.X_mean.size))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -181,15 +181,15 @@ struct KMeans(Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var k = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var k = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             model.k = k
-            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
-            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
+            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
+            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
         return model^
 
     def centroids(self) raises -> Matrix:

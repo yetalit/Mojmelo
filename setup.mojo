@@ -51,14 +51,14 @@ def cachel2() -> Int32:
 
 def initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: Int, cache_l2_associativity: Int) raises:
     if cache_l1_associativity <= 1 or cache_l2_associativity <= 1:
-        possible_l1_associativities = InlineArray[Int, 3](fill=0)
+        possible_l1_associativities = Array[Int, 3](fill=0)
         if cache_l1_associativity > 1:
             possible_l1_associativities[0] = possible_l1_associativities[1] = possible_l1_associativities[2] = cache_l1_associativity
         else:
             possible_l1_associativities[0] = 4 if cache_l1_size < 65534 else 8
             possible_l1_associativities[1] = possible_l1_associativities[0] * 2
             possible_l1_associativities[2] = 12
-        possible_l2_associativities = InlineArray[Int, 3](fill=0)
+        possible_l2_associativities = Array[Int, 3](fill=0)
         if cache_l2_associativity > 1:
             possible_l2_associativities[0] = possible_l2_associativities[1] = possible_l2_associativities[2] = cache_l2_associativity
         else:
@@ -135,7 +135,7 @@ def main() raises:
             return
 
         comptime NUM_ITER = 16
-        results = InlineArray[Int, 3](fill=0)
+        results = Array[Int, 3](fill=0)
         var junk: Float32 = 0.0
         a = Matrix.random(512, 4096)
         b = Matrix.random(4096, 512)
@@ -174,11 +174,11 @@ def main() raises:
                 f.write(code)
             print('Setup', command + '/8', 'done!')
         else:
-            results_list = List[InlineArray[Int, 3]]()
+            results_list = List[Array[Int, 3]]()
             for i in range(1, 9):
                 with open("./results" + String(i), "r") as f:
-                    res = f.read().split(',')
-                    results_list.append(InlineArray[Int, 3](fill=0))
+                    var res = f.read().split(',')
+                    results_list.append(Array[Int, 3](fill=0))
                     results_list[i - 1][0] = atol(res[0])
                     results_list[i - 1][1] = atol(res[1])
                     results_list[i - 1][2] = atol(res[2])

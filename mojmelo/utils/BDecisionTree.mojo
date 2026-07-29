@@ -11,7 +11,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
     var reg_alpha: Float32
     var gamma: Float32
     var n_bins: Int
-    var root: OptionalUnsafePointer[Node, MutAnyOrigin]
+    var root: OptionalUnsafePointer[Node, MutUntrackedOrigin]
 
     def __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0):
         self.min_samples_split = min_samples_split
@@ -49,7 +49,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    def _grow_tree(self, X: Matrix, G: Matrix, H: Matrix, indices: List[Scalar[DType.int]], depth: Int = 0) raises -> UnsafePointer[Node, MutAnyOrigin]:
+    def _grow_tree(self, X: Matrix, G: Matrix, H: Matrix, indices: List[Scalar[DType.int]], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
         var g = Matrix(len(indices), G.width, order=G.order)
         var h = Matrix(len(indices), H.width, order=H.order)
         for i, idx in enumerate(indices):
@@ -61,8 +61,8 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
             depth >= self.max_depth
             or len(indices) < self.min_samples_split
         ):
-            new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
-            return new_node.as_unsafe_any_origin()
+            new_node.unsafe_write(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
+            return new_node
 
         var feat_idxs = Matrix.rand_choice(X.width, X.width, False)
 
@@ -73,8 +73,8 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         best_feat, best_thresh, best_gain = _best_criteria(self.reg_lambda, self.reg_alpha, X, indices, g, h, feat_idxs, self.n_bins)
         if best_gain <= self.gamma:
             # The best gain is less than gamma
-            new_node.init_pointee_move(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
-            return new_node.as_unsafe_any_origin()
+            new_node.unsafe_write(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
+            return new_node
         
         # grow the children that result from the split
         var left_indices = List[Scalar[DType.int]]()
@@ -87,8 +87,8 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
 
         var left = self._grow_tree(X, G, H, left_indices, depth + 1)
         var right = self._grow_tree(X, G, H, right_indices, depth + 1)
-        new_node.init_pointee_move(Node(best_feat, best_thresh, left, right))
-        return new_node.as_unsafe_any_origin()
+        new_node.unsafe_write(Node(best_feat, best_thresh, left, right))
+        return new_node
 
 @always_inline
 def leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
@@ -187,7 +187,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     var feat_idx = max_gains.argmax()
     return Int(feat_idxs[feat_idx]), best_thresholds.data[feat_idx], max_gains.data[feat_idx]
 
-def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float32:
+def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -195,7 +195,7 @@ def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutAnyOrigin]) -> Float3
         return _traverse_tree(x, node[].left.value())
     return _traverse_tree(x, node[].right.value())
 
-def delTree(node: UnsafePointer[Node, MutAnyOrigin]):
+def delTree(node: UnsafePointer[Node, MutUntrackedOrigin]):
     if node[].left:
         delTree(node[].left.value())
     if node[].right:

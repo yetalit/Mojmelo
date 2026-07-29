@@ -7,7 +7,7 @@ from mojmelo.utils.libsvm.svm_model import svm_model
 from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
 from std.algorithm import parallelize
 import std.random as random
-from std.memory import memcpy
+from std.memory import unsafe_memcpy
 from std.sys import size_of
 
 struct SVC(CV, Copyable):
@@ -198,7 +198,7 @@ struct SVC(CV, Copyable):
 
         X_float64.free()
 
-        return Matrix(data=y_ptr.as_unsafe_any_origin(), height=X.height, width=1)
+        return Matrix(data=y_ptr, height=X.height, width=1)
 
     def decision_function(self, X: Matrix) -> List[List[Float64]]:
         """Evaluate the decision function for the samples in X.
@@ -224,7 +224,7 @@ struct SVC(CV, Copyable):
             x_list.append(svm_node(-1, 0))
             var result = svm_decision_function(self._model.value()[], x_list._data)
             dec_values[i] = List[Float64](unsafe_uninit_length=result[1])
-            dec_values[i]._data = result[0].value()
+            dec_values[i]._data = result[0]
             _ = x_list
         parallelize[p](X.height)
 
@@ -249,8 +249,8 @@ struct SVC(CV, Copyable):
             f.write_bytes(_model[].param.C.as_bytes())
             f.write_bytes(UInt64(_model[].param.nr_weight).as_bytes())
             if _model[].param.nr_weight:
-                f.write_bytes(Span(ptr=_model[].param.weight_label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].param.nr_weight))
-                f.write_bytes(Span(ptr=_model[].param.weight.value().bitcast[UInt8](), length=8*_model[].param.nr_weight))
+                f.write_bytes(Span(unsafe_ptr=_model[].param.weight_label.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].param.nr_weight))
+                f.write_bytes(Span(unsafe_ptr=_model[].param.weight.value().unsafe_bitcast[UInt8](), length=8*_model[].param.nr_weight))
             f.write_bytes(_model[].param.nu.as_bytes())
             f.write_bytes(UInt8(_model[].param.shrinking).as_bytes())
             f.write_bytes(UInt8(_model[].param.probability).as_bytes())
@@ -258,16 +258,16 @@ struct SVC(CV, Copyable):
             f.write_bytes(UInt64(_model[].nr_class).as_bytes())
             f.write_bytes(UInt64(_model[].l).as_bytes())
             f.write_bytes(UInt64(self._n_features).as_bytes())
-            f.write_bytes(Span(ptr=self.support_vectors().data.bitcast[UInt8](), length=4*_model[].l*self._n_features))
+            f.write_bytes(Span(unsafe_ptr=self.support_vectors().data.unsafe_bitcast[UInt8](), length=4*_model[].l*self._n_features))
             for i in range(_model[].nr_class-1):
-                f.write_bytes(Span(ptr=_model[].sv_coef.value()[i].value().bitcast[UInt8](), length=8*_model[].l))
-            f.write_bytes(Span(ptr=_model[].rho.value().bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+                f.write_bytes(Span(unsafe_ptr=_model[].sv_coef.value()[i].value().unsafe_bitcast[UInt8](), length=8*_model[].l))
+            f.write_bytes(Span(unsafe_ptr=_model[].rho.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
             if self.probability:
-                f.write_bytes(Span(ptr=_model[].probA.value().bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
-                f.write_bytes(Span(ptr=_model[].probB.value().bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
-            f.write_bytes(Span(ptr=_model[].sv_indices.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].l))
-            f.write_bytes(Span(ptr=_model[].label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
-            f.write_bytes(Span(ptr=_model[].nSV.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
+                f.write_bytes(Span(unsafe_ptr=_model[].probA.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+                f.write_bytes(Span(unsafe_ptr=_model[].probB.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+            f.write_bytes(Span(unsafe_ptr=_model[].sv_indices.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].l))
+            f.write_bytes(Span(unsafe_ptr=_model[].label.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
+            f.write_bytes(Span(unsafe_ptr=_model[].nSV.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -276,28 +276,28 @@ struct SVC(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var _model = alloc[svm_model](1)
             var svm_type = Int(f.read_bytes(1)[0])
             var kernel_type = Int(f.read_bytes(1)[0])
-            var degree = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var gamma = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var coef0 = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var cache_size = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var eps = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var C = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var nr_weight = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var degree = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var gamma = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var coef0 = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var cache_size = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var eps = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var C = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var nr_weight = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var weight_label = OptionalUnsafePointer[Int, MutUntrackedOrigin]()
             var weight = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
             if nr_weight:
                 weight_label = alloc[Int](nr_weight)
-                memcpy(dest=weight_label, src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().bitcast[Int](), count=nr_weight)
+                unsafe_memcpy(dest=weight_label.value(), src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().unsafe_bitcast[Int](), count=nr_weight)
                 weight = alloc[Float64](nr_weight)
-                memcpy(dest=weight, src=f.read_bytes(8*nr_weight).unsafe_ptr().bitcast[Float64](), count=nr_weight)
-            var nu = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
+                unsafe_memcpy(dest=weight.value(), src=f.read_bytes(8*nr_weight).unsafe_ptr().unsafe_bitcast[Float64](), count=nr_weight)
+            var nu = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
             var shrinking = Int(f.read_bytes(1)[0])
             var probability = Int(f.read_bytes(1)[0])
             var param = svm_parameter(
@@ -317,10 +317,10 @@ struct SVC(CV, Copyable):
                 shrinking = shrinking,
                 probability = probability)
             _model[].param = param^
-            var nr_class = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var l = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var _n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var X = Matrix(l, _n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*l*_n_features).unsafe_ptr())))
+            var nr_class = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var l = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var _n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var X = Matrix(l, _n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*l*_n_features).unsafe_ptr())))
             
             var X_float64 = X.cast_ptr[DType.float64]()
             model._x_list = List[List[svm_node]](capacity=X.height)
@@ -345,22 +345,22 @@ struct SVC(CV, Copyable):
             var sv_coef = alloc[OptionalUnsafePointer[Float64, MutUntrackedOrigin]](nr_class-1)
             for i in range(nr_class-1):
                 sv_coef[i] = alloc[Float64](l)
-                memcpy(dest=sv_coef[i], src=f.read_bytes(8*l).unsafe_ptr().bitcast[Float64](), count=l)
+                unsafe_memcpy(dest=sv_coef[i].value(), src=f.read_bytes(8*l).unsafe_ptr().unsafe_bitcast[Float64](), count=l)
             var rho = alloc[Float64]((nr_class*(nr_class-1))//2)
-            memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
+            unsafe_memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
             var probA = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
             var probB = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
             if probability:
                 probA = alloc[Float64]((nr_class*(nr_class-1))//2)
-                memcpy(dest=probA, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
+                unsafe_memcpy(dest=probA.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
                 probB = alloc[Float64]((nr_class*(nr_class-1))//2)
-                memcpy(dest=probB, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
+                unsafe_memcpy(dest=probB.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
             var sv_indices = alloc[Scalar[DType.int]](l)
-            memcpy(dest=sv_indices, src=f.read_bytes(size_of[DType.int]()*l).unsafe_ptr().bitcast[Scalar[DType.int]](), count=l)
+            unsafe_memcpy(dest=sv_indices, src=f.read_bytes(size_of[DType.int]()*l).unsafe_ptr().unsafe_bitcast[Scalar[DType.int]](), count=l)
             var label = alloc[Int](nr_class)
-            memcpy(dest=label, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().bitcast[Int](), count=nr_class)
+            unsafe_memcpy(dest=label, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
             var nSV = alloc[Int](nr_class)
-            memcpy(dest=nSV, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().bitcast[Int](), count=nr_class)
+            unsafe_memcpy(dest=nSV, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
             _model[].nr_class = nr_class
             _model[].l = l
             _model[].SV = model._x_ptr._data

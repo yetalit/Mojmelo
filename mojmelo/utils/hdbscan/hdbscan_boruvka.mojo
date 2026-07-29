@@ -3,7 +3,7 @@ from mojmelo.utils.Matrix import Matrix
 from .KDTreeBoruvka import KDTreeBoruvka, node_pair_lower_bound
 import std.math as math
 from std.algorithm import vectorize, parallelize
-from std.memory import memset
+from std.memory import unsafe_memset
 from std.sys.info import size_of
 
 struct UnionFind:
@@ -141,7 +141,7 @@ struct HDBSCANBoruvka:
                 next_id += 1
             self.component_of_point[i] = self.component_remap[c]
 
-        memset(self.component_remap.unsafe_ptr().bitcast[UInt8](), -1, self.n * size_of[DType.int]())
+        unsafe_memset(self.component_remap.unsafe_ptr().unsafe_bitcast[UInt8](), -1, self.n * size_of[DType.int]())
         self.num_components = Int(next_id)
 
         # --- 3. Propagate component labels up the node tree (bottom-up) ---
@@ -255,15 +255,15 @@ struct HDBSCANBoruvka:
 
     def boruvka_query(mut self) raises:
         # Reset per-point candidates
-        memset(self.candidate_point.unsafe_ptr().bitcast[UInt8](), -1, self.n * size_of[DType.int]())
-        memset(self.candidate_neighbor.unsafe_ptr().bitcast[UInt8](), -1, self.n * size_of[DType.int]())
+        unsafe_memset(self.candidate_point.unsafe_ptr().unsafe_bitcast[UInt8](), -1, self.n * size_of[DType.int]())
+        unsafe_memset(self.candidate_neighbor.unsafe_ptr().unsafe_bitcast[UInt8](), -1, self.n * size_of[DType.int]())
         Span[Float32, origin_of(self.candidate_dist)](
-            ptr=self.candidate_dist.unsafe_ptr(), length=self.n
+            unsafe_ptr=self.candidate_dist.unsafe_ptr(), length=self.n
         ).fill(math.inf[DType.float32]())
 
         # Reset per-component bounds (indexed by compacted component ID)
         Span[Float32, origin_of(self.component_bound)](
-            ptr=self.component_bound.unsafe_ptr(), length=self.n
+            unsafe_ptr=self.component_bound.unsafe_ptr(), length=self.n
         ).fill(math.inf[DType.float32]())
 
         # One task per point.  Each point holds a private heap_dist / heap_nbr
@@ -272,9 +272,9 @@ struct HDBSCANBoruvka:
         @parameter
         def query_point(i: Int):
             var comp = Int(self.component_of_point[i])
-            var heap_dist = self.candidate_dist.unsafe_ptr() + i
-            var heap_nbr  = self.candidate_neighbor.unsafe_ptr() + i
-            var comp_bnd  = self.component_bound.unsafe_ptr() + comp
+            var heap_dist = self.candidate_dist.unsafe_ptr().unsafe_offset(i)
+            var heap_nbr  = self.candidate_neighbor.unsafe_ptr().unsafe_offset(i)
+            var comp_bnd  = self.component_bound.unsafe_ptr().unsafe_offset(comp)
             try:
                 self._query_single(
                     0,

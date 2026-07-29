@@ -1,6 +1,6 @@
 # Based on hdbscan (https://github.com/scikit-learn-contrib/hdbscan) _hdbscan_tree.pyx by Leland McInnes.
 
-from std.memory import memset_zero
+from std.memory import unsafe_memset_zero
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 import std.math as math
@@ -269,7 +269,7 @@ def max_lambdas(tree: Dict[String, List[Scalar[DType.int]]], lambda_vals: List[F
             Span[
                 Scalar[DType.int],
                 origin_of(sorted_indices),
-            ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)))
+            ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)))
     for i, idx in enumerate(sorted_indices):
         sorted_parents[i] = tree['parent'][idx]
         sorted_lambdas[i] = lambda_vals[idx]
@@ -306,7 +306,7 @@ struct TreeUnionFind:
     @always_inline
     def __init__(out self, size: Int):
         self._data = alloc[Scalar[DType.int]](size * self.width)
-        memset_zero(self._data, size * self.width)
+        unsafe_memset_zero(self._data, size * self.width)
         self.size = size
         self.is_component = List[Bool](capacity=size)
         self.is_component.resize(size, True)
@@ -314,7 +314,7 @@ struct TreeUnionFind:
         var tmpPtr = self._data
 
         def v[simd_width: Int](idx: Int) {mut}:
-            tmpPtr.strided_store[width=simd_width](_arange.unsafe_ptr().load[width=simd_width](idx), self.width)
+            tmpPtr.strided_store[width=simd_width](_arange.unsafe_ptr().unsafe_load[width=simd_width](idx), self.width)
             tmpPtr += simd_width * self.width
         vectorize[simd_width](self.size, v)
 
@@ -534,13 +534,13 @@ def get_stability_scores(mut labels: List[Scalar[DType.int]], clusters: Set[Scal
             Span[
                 Scalar[DType.int],
                 origin_of(sorted_clusters),
-            ](ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)))
+            ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)))
     for n, c in enumerate(sorted_clusters):
         var n_ = Scalar[DType.int](n)
         var cluster_size = 0
 
         def v[simd_width: Int](idx: Int) {mut}:
-            cluster_size += labels.unsafe_ptr().load[width=simd_width](idx).eq(n_).reduce_bit_count()
+            cluster_size += labels.unsafe_ptr().unsafe_load[width=simd_width](idx).eq(n_).reduce_bit_count()
         vectorize[simd_width](len(labels), v)
         if isinf(max_lambda) or max_lambda == 0.0 or cluster_size == 0:
             result[n] = 1.0
@@ -635,7 +635,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Scalar[DType.int]]]
 
     def v1[simd_width: Int](idx: Int) {mut}:
         try:
-            indices.unsafe_ptr().store[width=simd_width](idx, cluster_tree['parent'].unsafe_ptr().load[width=simd_width](idx) - n_points)
+            indices.unsafe_ptr().unsafe_store[width=simd_width](idx, cluster_tree['parent'].unsafe_ptr().unsafe_load[width=simd_width](idx) - n_points)
         except e:
             print(e)
     vectorize[simd_width](len(indices), v1)
@@ -649,7 +649,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Scalar[DType.int]]]
 
     def v2[simd_width: Int](idx: Int) {mut}:
         try:
-            indices.unsafe_ptr().store[width=simd_width](idx, condensed_tree['parent'].unsafe_ptr().load[width=simd_width](idx) - n_points)
+            indices.unsafe_ptr().unsafe_store[width=simd_width](idx, condensed_tree['parent'].unsafe_ptr().unsafe_load[width=simd_width](idx) - n_points)
         except e:
             print(e)
     vectorize[simd_width](len(indices), v2)
@@ -662,18 +662,19 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Scalar[DType.int]]]
     # reverse order guarantees children are processed before parents
     for idx in range(len(cluster_tree['parent']) - 1, 0, -2):
         var parent = cluster_tree['parent'][idx]
-        var children = cluster_tree['child'][idx - 1 : idx + 1]
+        var children = List[Int](cluster_tree['child'][idx - 1 : idx + 1])
         var death = cluster_lambda_array[idx]
         var node_indices = List[Scalar[DType.int]](capacity=len(children))
         node_indices.resize(len(children), 0)
 
-        def v[simd_width: Int](idx: Int) {mut}:
-            node_indices.unsafe_ptr().store[width=simd_width](idx, children.unsafe_ptr().load[width=simd_width](idx) - n_points)
+        def v[simd_width: Int](i: Int) {mut}:
+            node_indices.unsafe_ptr().unsafe_store[width=simd_width](i, children.unsafe_ptr().unsafe_load[width=simd_width](i) - n_points)
         vectorize[simd_width](len(node_indices), v)
+
         var births = List[Float32](capacity=len(node_indices))
         births.resize(len(node_indices), 0)
-        for i, idx in enumerate(node_indices):
-            births[i] = max_births[idx]
+        for i, node in enumerate(node_indices):
+            births[i] = max_births[node]
 
         # propagate max density so only leaves can fail the persistence threshold
         max_births[parent - n_points] = max(max_births[parent - n_points], reduction.max(Span[Float32, origin_of(births)](ptr=births.unsafe_ptr(), length=len(births))))
@@ -686,8 +687,8 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Scalar[DType.int]]]
             leaf_indicator[parent - n_points] = True
         else:
             lambda_map[children[1 - sibling_idx]] = death
-        for idx in node_indices:
-            parent_map[idx] = parent
+        for i in node_indices:
+            parent_map[i] = parent
 
     # propagate and relabel for consecutive numbering
     var n_skipped = List[Scalar[DType.int]](capacity=len(parent_map))
@@ -696,8 +697,13 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Scalar[DType.int]]]
         parent_map[idx] = parent_map[parent - n_points]
     for idx, parent in enumerate(parent_map):
         n_skipped[idx] = Scalar[DType.int](1) if parent != Scalar[DType.int](idx) + n_points else 0
-        var n_skipped_selected = n_skipped[: Int(parent - n_points)]
-        parent_map[idx] = parent - reduction.sum(n_skipped_selected)
+
+    var cumulative_skipped = List[Int](capacity=len(n_skipped))
+    cumulative_skipped.resize(len(n_skipped), 0)
+    reduction.cumsum(Span(unsafe_ptr=cumulative_skipped._data, length=len(n_skipped)), Span(unsafe_ptr=n_skipped._data, length=len(n_skipped)))
+    for idx, parent in enumerate(parent_map):
+        offset = cumulative_skipped[parent - n_points - 1] if (parent - n_points) > 0 else 0
+        parent_map[idx] = parent - offset
 
     # apply changes
     var keep_mask = List[Bool](capacity=len(condensed_tree['parent']))
@@ -753,9 +759,10 @@ def get_clusters(tree: Dict[String, List[Scalar[DType.int]]], mut lambda_array: 
             Span[
                 Scalar[DType.int],
                 origin_of(node_list),
-            ](ptr=node_list.unsafe_ptr(), length=len(node_list)))
+            ](unsafe_ptr=node_list.unsafe_ptr(), length=len(node_list)))
     if not allow_single_cluster:
-        node_list = List[Scalar[DType.int]](node_list[:len(node_list)-1])
+        var tmp = List[Scalar[DType.int]](node_list[:len(node_list)-1])
+        node_list = tmp^
 
     var cluster_tree = Dict[String, List[Scalar[DType.int]]]()
     cluster_tree['parent'] = List[Scalar[DType.int]]()
@@ -792,7 +799,7 @@ def get_clusters(tree: Dict[String, List[Scalar[DType.int]]], mut lambda_array: 
         var max_value = -math.inf[DType.float32]()
 
         def v[simd_width: Int](idx: Int) {mut}:
-            var max_in_simd = (1.0 / lambda_array.unsafe_ptr().load[width=simd_width](idx)).reduce_max()
+            var max_in_simd = (1.0 / lambda_array.unsafe_ptr().unsafe_load[width=simd_width](idx)).reduce_max()
             if max_in_simd > max_value:
                 max_value = max_in_simd
         vectorize[Matrix.simd_width](len(lambda_array), v)

@@ -156,7 +156,7 @@ struct LogisticRegression(CV, Copyable):
         with open(_path, "w") as f:
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.weights.size).as_bytes())
-            f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(Span(unsafe_ptr=self.weights.data.unsafe_bitcast[UInt8](), length=4*self.weights.size))
             f.write_bytes(self.bias.as_bytes())
 
     @staticmethod
@@ -166,13 +166,13 @@ struct LogisticRegression(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var w_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_size).unsafe_ptr())))
-            model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+            var w_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_size).unsafe_ptr())))
+            model.bias = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:

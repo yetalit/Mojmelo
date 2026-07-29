@@ -1,4 +1,4 @@
-from std.memory import memcpy
+from std.memory import unsafe_memcpy
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
@@ -17,19 +17,19 @@ trait CV(ImplicitlyDeletable):
         ...
 
 
-comptime MODEL_IDS: InlineArray[String, 13] = ['',
-                                            'Linear Regression',
-                                            'Polynomial Regression',
-                                            'Logistic Regression',
-                                            'KNN',
-                                            'KMeans',
-                                            'SVM',
-                                            'GaussianNB',
-                                            'MultinomialNB',
-                                            'Decision Tree',
-                                            'Random Forest',
-                                            'GBDT',
-                                            'PCA'
+comptime MODEL_IDS: Array[String, 13] = ['',
+    'Linear Regression',
+    'Polynomial Regression',
+    'Logistic Regression',
+    'KNN',
+    'KMeans',
+    'SVM',
+    'GaussianNB',
+    'MultinomialNB',
+    'Decision Tree',
+    'Random Forest',
+    'GBDT',
+    'PCA'
                                             ]
 
 # ===-----------------------------------------------------------------------===#
@@ -51,7 +51,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
     @parameter
     @always_inline
     def cmpeq[
-        dtype: DType, simd_width: SIMDSize
+        dtype: DType, simd_width: SIMDLength
     ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
         DType.bool, simd_width
     ]:
@@ -63,7 +63,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
     @parameter
     @always_inline
     def cmp[
-        dtype: DType, simd_width: SIMDSize
+        dtype: DType, simd_width: SIMDLength
     ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
         DType.bool, simd_width
     ]:
@@ -401,11 +401,11 @@ def fill_indices_list(N: Int) raises -> List[Scalar[DType.int]]:
     return list^
 
 @always_inline
-def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]:
+def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutUntrackedOrigin], size: Int) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]:
     var ptr = alloc[Scalar[des]](size)
     if size < 262144:
 
-        def matrix_vectorize[simd_width: Int](idx: Int) {read}:
+        def matrix_vectorize[simd_width: Int](idx: Int) {imm}:
             ptr.store(idx, data.load[width=simd_width](idx).cast[des]())
         vectorize[width](size, matrix_vectorize)
     else:
@@ -425,18 +425,7 @@ def ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """
     var np = Python.import_module("numpy")
     var np_arr = np.empty(len(list), dtype='int')
-    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
-    return np_arr^
-
-def ids_to_numpy(list: List[Scalar[DType.int]]) raises -> PythonObject:
-    """Converts list of indices to numpy array.
-
-    Returns:
-        The numpy array.
-    """
-    var np = Python.import_module("numpy")
-    var np_arr = np.empty(len(list), dtype='int')
-    memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.bitcast[Scalar[DType.int]](), count=len(list))
+    unsafe_memcpy(dest=np_arr.__array_interface__['data'][0].unsafe_get_as_pointer[DType.int](), src=list._data.unsafe_bitcast[Scalar[DType.int]](), count=len(list))
     return np_arr^
 
 def cartesian_product(lists: List[List[String]]) -> List[List[String]]:
