@@ -2,7 +2,8 @@ import mojmelo.utils.sort as msort
 from .mojmelo_matmul import matmul
 from std.sys import simd_width_of, CompilationTarget
 from std.memory import unsafe_memcpy, unsafe_memcmp, unsafe_memset_zero
-from std.algorithm import vectorize, parallelize, reduction
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize, reduction
 import std.math as math
 import std.random as random
 from mojmelo.utils.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, fill_indices, fill_indices_list, cast
@@ -878,12 +879,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def cumsum(self) -> Matrix:
         var mat = Matrix(self.height, self.width, order= self.order)
-        reduction.cumsum(Span(ptr=mat.data, length=self.size), Span(ptr=self.data, length=self.size))
+        reduction.cumsum(Span(unsafe_ptr=mat.data, length=self.size), Span(unsafe_ptr=self.data, length=self.size))
         return mat^
 
     @always_inline
     def sum(self) raises -> Float32:
-        return reduction.sum(Span(ptr=self.data, length=self.size))
+        return reduction.sum(Span(unsafe_ptr=self.data, length=self.size))
 
     @always_inline
     def sum(self, axis: Int) raises -> Matrix:
@@ -950,11 +951,11 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def _var(self, correction: Bool = False) raises -> Float32:
-        return reduction.variance(Span(ptr=self.data, length=self.size), correction=Int(correction))
+        return reduction.variance(Span(unsafe_ptr=self.data, length=self.size), correction=Int(correction))
 
     @always_inline
     def _var(self, _mean: Float32, correction: Bool = False) raises -> Float32:
-        return reduction.variance(Span(ptr=self.data, length=self.size), mean_value=_mean, correction=Int(correction))
+        return reduction.variance(Span(unsafe_ptr=self.data, length=self.size), mean_value=_mean, correction=Int(correction))
 
     @always_inline
     def _var(self, axis: Int, correction: Bool = False) raises -> Matrix:
@@ -1285,7 +1286,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def min(self) raises -> Float32:
-        return reduction.min(Span(ptr=self.data, length=self.size))
+        return reduction.min(Span(unsafe_ptr=self.data, length=self.size))
 
     @always_inline
     def min(self, axis: Int) raises -> Matrix:
@@ -1320,7 +1321,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def max(self) raises -> Float32:
-        return reduction.max(Span(ptr=self.data, length=self.size))
+        return reduction.max(Span(unsafe_ptr=self.data, length=self.size))
 
     @always_inline
     def max(self, axis: Int) raises -> Matrix:

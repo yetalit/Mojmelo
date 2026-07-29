@@ -1,7 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.svd import svd
 from mojmelo.utils.utils import MODEL_IDS
-from std.algorithm import parallelize, vectorize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.python import Python
 
 struct PCA(Copyable):

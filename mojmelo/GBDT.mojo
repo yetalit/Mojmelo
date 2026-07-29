@@ -2,7 +2,7 @@ from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 
 struct GBDT(CV, Copyable):
 	"""Gradient Boosting with support for both classification and regression."""
@@ -182,7 +182,7 @@ struct GBDT(CV, Copyable):
 				var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
 				var node_list = List[UnsafePointer[Node, MutUntrackedOrigin]]()
 				var children_index_list = List[Tuple[Int, Int]]()
-				for i in range(node_size):
+				for _ in range(node_size):
 					var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
 					var threshold = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
 					var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])

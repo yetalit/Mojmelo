@@ -1,6 +1,7 @@
 # Modified version of YichengDWu's matmul.mojo (https://github.com/YichengDWu/matmul.mojo)
 
-from std.algorithm import vectorize, parallelize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.memory import stack_allocation
 from std.sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
 from std.utils import IndexList

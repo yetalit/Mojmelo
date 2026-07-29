@@ -1,7 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from std.collections import Set
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 
 struct DBSCAN:
     """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""

@@ -1,7 +1,7 @@
 from mojmelo.DecisionTree import DecisionTree, Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 import std.math as math
 import std.random as random
 
@@ -167,7 +167,7 @@ struct RandomForest(CV, Copyable):
                 var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
                 var node_list = List[UnsafePointer[Node, MutUntrackedOrigin]]()
                 var children_index_list = List[Tuple[Int, Int]]()
-                for i in range(node_size):
+                for _ in range(node_size):
                     var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
                     var threshold = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
                     var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])

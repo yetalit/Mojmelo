@@ -4,7 +4,8 @@ from std.memory import unsafe_memset_zero
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 import std.math as math
-from std.algorithm import reduction, vectorize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import reduction
 from std.utils.numerics import nan, isfinite, isinf
 from std.collections import Set
 from std.sys import CompilationTarget, simd_width_of
@@ -160,9 +161,9 @@ def condense_tree(hierarchy: Matrix, min_cluster_size: Int=10) raises -> Tuple[D
 
 def compute_stability(condensed_tree: Dict[String, List[Int]], lambda_vals: List[Float32]) raises -> Dict[Int, Float32]:
 
-    var largest_child = reduction.max(Span[Int, origin_of(condensed_tree['child'])](ptr=condensed_tree['child'].unsafe_ptr(), length=len(condensed_tree['child'])))
-    var smallest_cluster = reduction.min(Span[Int, origin_of(condensed_tree['parent'])](ptr=condensed_tree['parent'].unsafe_ptr(), length=len(condensed_tree['parent'])))
-    var num_clusters = (reduction.max(Span[Int, origin_of(condensed_tree['parent'])](ptr=condensed_tree['parent'].unsafe_ptr(), length=len(condensed_tree['parent']))) -
+    var largest_child = reduction.max(Span[Int, origin_of(condensed_tree['child'])](unsafe_ptr=condensed_tree['child'].unsafe_ptr(), length=len(condensed_tree['child'])))
+    var smallest_cluster = reduction.min(Span[Int, origin_of(condensed_tree['parent'])](unsafe_ptr=condensed_tree['parent'].unsafe_ptr(), length=len(condensed_tree['parent'])))
+    var num_clusters = (reduction.max(Span[Int, origin_of(condensed_tree['parent'])](unsafe_ptr=condensed_tree['parent'].unsafe_ptr(), length=len(condensed_tree['parent']))) -
                                    smallest_cluster + 1)
 
     var parents = condensed_tree['parent'].copy()
@@ -185,7 +186,7 @@ def compute_stability(condensed_tree: Dict[String, List[Int]], lambda_vals: List
             Span[
                 Int,
                 origin_of(sorted_indices),
-            ](ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)))
+            ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)))
     for i, idx in enumerate(sorted_indices):
         sorted_children[i] = condensed_tree['child'][idx]
         sorted_lambdas[i] = lambdas[idx]
@@ -226,7 +227,7 @@ def compute_stability(condensed_tree: Dict[String, List[Int]], lambda_vals: List
 
         result_arr[result_index] += (lambda_ - births[parent]) * Float32(child_size)
 
-    var ids = arange(smallest_cluster, reduction.max(Span[Int, origin_of(condensed_tree['parent'])](ptr=condensed_tree['parent'].unsafe_ptr(), length=len(condensed_tree['parent']))) + 1)
+    var ids = arange(smallest_cluster, reduction.max(Span[Int, origin_of(condensed_tree['parent'])](unsafe_ptr=condensed_tree['parent'].unsafe_ptr(), length=len(condensed_tree['parent']))) + 1)
     var result_pre_dict = Dict[Int, Float32]()
     for i in range(num_clusters):
         result_pre_dict[ids[i]] = result_arr[i]
@@ -251,7 +252,7 @@ def bfs_from_cluster_tree(tree: Dict[String, List[Int]], bfs_root: Int) raises -
 
 
 def max_lambdas(tree: Dict[String, List[Int]], lambda_vals: List[Float32]) raises -> List[Float32]:
-    var largest_parent = reduction.max(Span[Int, origin_of(tree['parent'])](ptr=tree['parent'].unsafe_ptr(), length=len(tree['parent'])))
+    var largest_parent = reduction.max(Span[Int, origin_of(tree['parent'])](unsafe_ptr=tree['parent'].unsafe_ptr(), length=len(tree['parent'])))
 
     var deaths = List[Float32](capacity=largest_parent + 1)
     deaths.resize(largest_parent + 1, 0)
@@ -406,11 +407,11 @@ def do_labelling(
     var child_array = tree['child'].copy()
     var parent_array = tree['parent'].copy()
 
-    var root_cluster = reduction.min(Span[Int, origin_of(parent_array)](ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
+    var root_cluster = reduction.min(Span[Int, origin_of(parent_array)](unsafe_ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
     var result = List[Int](capacity=root_cluster)
     result.resize(root_cluster, 0)
 
-    var union_find = TreeUnionFind(reduction.max(Span[Int, origin_of(parent_array)](ptr=parent_array.unsafe_ptr(), length=len(parent_array))) + 1)
+    var union_find = TreeUnionFind(reduction.max(Span[Int, origin_of(parent_array)](unsafe_ptr=parent_array.unsafe_ptr(), length=len(parent_array))) + 1)
 
     for n in range(len(parent_array)):
         var child = child_array[n]
@@ -463,7 +464,7 @@ def get_probabilities(tree: Dict[String, List[Int]], lambda_array: List[Float32]
 
     var result = List[Float32](capacity=len(labels))
     result.resize(len(labels), 0)
-    var root_cluster = reduction.min(Span[Int, origin_of(parent_array)](ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
+    var root_cluster = reduction.min(Span[Int, origin_of(parent_array)](unsafe_ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
 
     for n in range(len(parent_array)):
         var point = child_array[n]
@@ -491,7 +492,7 @@ def outlier_scores(tree: Dict[String, List[Int]], lambda_array: List[Float32]) r
     var parent_array = tree['parent'].copy()
 
     var deaths = max_lambdas(tree, lambda_array)
-    var root_cluster = reduction.min(Span[Int, origin_of(parent_array)](ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
+    var root_cluster = reduction.min(Span[Int, origin_of(parent_array)](unsafe_ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
     var result = List[Float32](capacity=root_cluster)
     result.resize(root_cluster, 0)
 
@@ -570,7 +571,7 @@ def get_cluster_tree_leaves(cluster_tree: Dict[String, List[Int]]) raises -> Lis
     var parent_array = cluster_tree['parent'].copy()
     if len(parent_array) == 0:
         return []
-    var root = reduction.min(Span[Int, origin_of(parent_array)](ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
+    var root = reduction.min(Span[Int, origin_of(parent_array)](unsafe_ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
     return recurse_leaf_dfs(cluster_tree, root)
 
 
@@ -578,7 +579,7 @@ def traverse_upwards(cluster_tree: Dict[String, List[Int]], lambda_array: List[F
     var parent_array = cluster_tree['parent'].copy()
     var children_array = cluster_tree['child'].copy()
 
-    var root = reduction.min(Span[Int, origin_of(parent_array)](ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
+    var root = reduction.min(Span[Int, origin_of(parent_array)](unsafe_ptr=parent_array.unsafe_ptr(), length=len(parent_array)))
     var parent = parent_array[children_array.index(leaf)]
     if parent == root:
         if allow_single_cluster:
@@ -677,8 +678,8 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Int]], mut lambda_a
             births[i] = max_births[node]
 
         # propagate max density so only leaves can fail the persistence threshold
-        max_births[parent - n_points] = max(max_births[parent - n_points], reduction.max(Span[Float32, origin_of(births)](ptr=births.unsafe_ptr(), length=len(births))))
-        if (reduction.min(Span[Float32, origin_of(births)](ptr=births.unsafe_ptr(), length=len(births))) - death) >= persistence_threshold:
+        max_births[parent - n_points] = max(max_births[parent - n_points], reduction.max(Span[Float32, origin_of(births)](unsafe_ptr=births.unsafe_ptr(), length=len(births))))
+        if (reduction.min(Span[Float32, origin_of(births)](unsafe_ptr=births.unsafe_ptr(), length=len(births))) - death) >= persistence_threshold:
             continue
 
         # sibling is the most persistent child
@@ -784,7 +785,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
                 max_child_val = tree['child'][i]
     var is_cluster = {cluster: True for cluster in node_list}
     var num_points = max_child_val + 1
-    var max_lambda = reduction.max(Span[Float32, origin_of(lambda_array)](ptr=lambda_array.unsafe_ptr(), length=len(lambda_array)))
+    var max_lambda = reduction.max(Span[Float32, origin_of(lambda_array)](unsafe_ptr=lambda_array.unsafe_ptr(), length=len(lambda_array)))
     var deaths = max_lambdas(tree, lambda_array)
 
     if max_cluster_size <= 0:
@@ -812,7 +813,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
                 if parent == node:
                     child_selection.append(cluster_tree['child'][i])
             var subtree = [stability[child] for child in child_selection]
-            var subtree_stability = reduction.sum(Span[Float32, origin_of(subtree)](ptr=subtree.unsafe_ptr(), length=len(subtree)))
+            var subtree_stability = reduction.sum(Span[Float32, origin_of(subtree)](unsafe_ptr=subtree.unsafe_ptr(), length=len(subtree)))
             _ = subtree
             if subtree_stability > stability[node] or cluster_sizes[node] > max_cluster_size or node_eps[node] > cluster_selection_epsilon_max:
                 is_cluster[node] = False
@@ -825,7 +826,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
         if cluster_selection_epsilon != 0.0 and len(cluster_tree['parent']) > 0:
             var eom_clusters = [c for c in is_cluster.copy() if is_cluster[c]]
             # first check if eom_clusters only has root node, which skips epsilon check.
-            if (len(eom_clusters) == 1 and eom_clusters[0] == reduction.min(Span[Int, origin_of(cluster_tree['parent'])](ptr=cluster_tree['parent'].unsafe_ptr(), length=len(cluster_tree['parent'])))):
+            if (len(eom_clusters) == 1 and eom_clusters[0] == reduction.min(Span[Int, origin_of(cluster_tree['parent'])](unsafe_ptr=cluster_tree['parent'].unsafe_ptr(), length=len(cluster_tree['parent'])))):
                 var selected_clusters = List[Int]()
                 if allow_single_cluster:
                     selected_clusters = eom_clusters^
@@ -847,7 +848,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
         if len(leaves) == 0:
             for c in is_cluster:
                 is_cluster[c] = False
-            is_cluster[reduction.min(Span[Int, origin_of(tree['parent'])](ptr=tree['parent'].unsafe_ptr(), length=len(tree['parent'])))] = True
+            is_cluster[reduction.min(Span[Int, origin_of(tree['parent'])](unsafe_ptr=tree['parent'].unsafe_ptr(), length=len(tree['parent'])))] = True
 
         if cluster_selection_epsilon != 0.0:
             selected_clusters = epsilon_search(leaves, cluster_tree, cluster_lambda_array, cluster_selection_epsilon, Int(allow_single_cluster))
@@ -869,7 +870,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
             Span[
                 Int,
                 origin_of(sorted_clusters),
-            ](ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)))
+            ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)))
     var cluster_map = {c: n for n, c in enumerate(sorted_clusters)}
     var reverse_cluster_map = {e.value: e.key for e in cluster_map.items()}
 

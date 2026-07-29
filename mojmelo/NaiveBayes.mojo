@@ -1,7 +1,7 @@
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, normal_distr, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of
 from std.memory import unsafe_memcpy
 

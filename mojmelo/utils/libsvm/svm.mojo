@@ -7,7 +7,7 @@ from .svm_problem import svm_problem
 from .svm_model import svm_model
 from std.sys import size_of
 import std.math as math
-from std.algorithm import parallelize, reduction
+from mojmelo.utils.algorithm import parallelize, reduction
 from mojmelo.utils.utils import fill_indices
 import std.random as random
 
@@ -2504,7 +2504,7 @@ def svm_predict_values(model: svm_model, x: UnsafePointer[svm_node, MutUntracked
             values[i] = sv_coef.value()[i] * k_function(x,model.SV.value()[i],model.param)
         parallelize[p](model.l)
         try:
-            sum = reduction.sum(Span[Float64, MutUntrackedOrigin](ptr=values, length=model.l))
+            sum = reduction.sum(Span(unsafe_ptr=values, length=model.l))
         except e:
             print('Error:', e)
         values.free()

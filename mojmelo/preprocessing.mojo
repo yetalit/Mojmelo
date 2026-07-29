@@ -1,6 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, cartesian_product
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import num_performance_cores
 from std.python import Python, PythonObject
 import std.time as time

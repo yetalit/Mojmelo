@@ -2,7 +2,8 @@ from std.memory import unsafe_memcpy
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
-from std.algorithm import parallelize, elementwise, vectorize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize, elementwise
 from std.gpu.host import DeviceContext
 from std.sys import simd_width_of
 from std.utils.coord import Coord

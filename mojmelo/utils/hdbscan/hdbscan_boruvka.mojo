@@ -2,7 +2,8 @@ from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.Matrix import Matrix
 from .KDTreeBoruvka import KDTreeBoruvka, node_pair_lower_bound
 import std.math as math
-from std.algorithm import vectorize, parallelize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.memory import unsafe_memset
 from std.sys.info import size_of
 
@@ -51,12 +52,12 @@ struct HDBSCANBoruvka:
     # Per-point candidate edge (indexed by point)
     var candidate_point: List[Int]
     var candidate_neighbor: List[Int]
-    var candidate_dist: List[Int]
+    var candidate_dist: List[Float32]
 
     # Per-component best bound — key for pruning in traversal
     # component_bound[c] = best mutual-reachability distance found so far
     # for any edge leaving component c this round.
-    var component_bound: List[Int]
+    var component_bound: List[Float32]
 
     var u_f: UnionFind
     # u_f_finds[i] = find(i) result after last update_components; used to
@@ -330,7 +331,7 @@ struct HDBSCANBoruvka:
             if cp == cq:
                 continue
 
-            var d = math.sqrt(Float32(self.candidate_dist[i]))
+            var d = math.sqrt(self.candidate_dist[i])
 
             self.edges[self.num_edges, 0] = Float32(i)
             self.edges[self.num_edges, 1] = Float32(q)

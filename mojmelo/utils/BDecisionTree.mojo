@@ -1,7 +1,7 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import findInterval, fill_indices_list
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 import std.math as math
 
 struct BDecisionTree(Copyable, ImplicitlyCopyable):

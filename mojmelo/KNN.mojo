@@ -2,7 +2,7 @@ from std.collections import Dict
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from mojmelo.utils.utils import CV, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 
 struct KNN(CV, Copyable):
     """Classifier implementing the k-nearest neighbors vote."""

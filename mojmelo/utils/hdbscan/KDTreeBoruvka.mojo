@@ -2,7 +2,8 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
 import std.math as math
-from std.algorithm import vectorize, parallelize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of
 from std.memory import unsafe_memset_zero
 

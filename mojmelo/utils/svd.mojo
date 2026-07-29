@@ -1,7 +1,8 @@
 import mojmelo.utils.sort as msort
 from .mojmelo_matmul import matmul
 from std.memory import unsafe_memcpy, unsafe_memset_zero
-from std.algorithm import vectorize, parallelize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import simd_width_of, CompilationTarget
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
