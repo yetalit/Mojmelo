@@ -1541,7 +1541,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             if len(freq) <= data:
                 for _ in range(data - len(freq) + 1):
                     freq.append(List[Int]())
-            for _ in range(weights.data[i]):
+            for _ in range(Int(weights.data[i])):
                 freq[data].append(i)
         return freq^
 

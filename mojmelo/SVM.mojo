@@ -320,26 +320,27 @@ struct SVC(CV, Copyable):
             var nr_class = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var l = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var _n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            var X = Matrix(l, _n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*l*_n_features).unsafe_ptr())))
-            
-            var X_float64 = X.cast_ptr[DType.float64]()
-            model._x_list = List[List[svm_node]](capacity=X.height)
-            model._x_list.resize(X.height, List[svm_node]())
-            model._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]](capacity=X.height)
-            model._x_ptr.resize(X.height, UnsafePointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
+            var X = f.read_bytes(4*l*_n_features)
+            var X_mat = Matrix(l, _n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X.unsafe_ptr())))
+            _ = X
+            var X_float64 = X_mat.cast_ptr[DType.float64]()
+            model._x_list = List[List[svm_node]](capacity=X_mat.height)
+            model._x_list.resize(X_mat.height, List[svm_node]())
+            model._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]](capacity=X_mat.height)
+            model._x_ptr.resize(X_mat.height, UnsafePointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
             @parameter
             def p(i: Int):
-                for c in range(X.width):
+                for c in range(X_mat.width):
                     var val: Float64
-                    if X.order == 'c':
-                        val = X_float64[(i * X.width) + c]
+                    if X_mat.order == 'c':
+                        val = X_float64[(i * X_mat.width) + c]
                     else:
-                        val = X_float64[(c * X.height) + i]
+                        val = X_float64[(c * X_mat.height) + i]
                     if val != 0.0:
                         model._x_list[i].append(svm_node(c+1, val))
                 model._x_list[i].append(svm_node(-1, 0))
                 model._x_ptr[i] = model._x_list[i]._data
-            parallelize[p](X.height)
+            parallelize[p](X_mat.height)
             X_float64.free()
 
             var sv_coef = alloc[OptionalUnsafePointer[Float64, MutUntrackedOrigin]](nr_class-1)

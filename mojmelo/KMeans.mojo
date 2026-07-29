@@ -189,8 +189,12 @@ struct KMeans(Copyable):
             var k = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             model.k = k
-            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
-            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
+            var centroids_ = f.read_bytes(4 * n_features)
+            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(centroids_.unsafe_ptr())))
+            _ = centroids_
+            var X_mean = f.read_bytes(4 * n_features)
+            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X_mean.unsafe_ptr())))
+            _ = X_mean
         return model^
 
     def centroids(self) raises -> Matrix:

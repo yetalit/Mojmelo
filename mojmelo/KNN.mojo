@@ -98,12 +98,16 @@ struct KNN(CV, Copyable):
             var search_depth = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            var X = Matrix(n_samples, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples * n_features).unsafe_ptr())))
-            var y_train = Matrix(n_samples, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_samples).unsafe_ptr())))
+            var X = f.read_bytes(4 * n_samples * n_features)
+            var X_mat = Matrix(n_samples, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X.unsafe_ptr())))
+            _ = X
+            var y_train = f.read_bytes(4 * n_samples)
+            var y_train_mat = Matrix(n_samples, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(y_train.unsafe_ptr())))
+            _ = y_train
             model.k = k
             model.metric = metric
             model.search_depth = search_depth
-            model.fit(X, y_train)
+            model.fit(X_mat, y_train_mat)
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:

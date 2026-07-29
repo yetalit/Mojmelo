@@ -141,7 +141,9 @@ struct LinearRegression(CV, Copyable):
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_size).unsafe_ptr())))
+            var weights = f.read_bytes(4 * w_size)
+            model.weights = Matrix(w_size, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())))
+            _ = weights
             model.bias = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
         return model^
 

@@ -179,8 +179,8 @@ struct Cache:
 
             # allocate new space
             var new = alloc[Float32](_len)
-            unsafe_memcpy(dest=new, src=h[].data.value(), count=h[]._len)
             if h[].data:
+                unsafe_memcpy(dest=new, src=h[].data.value(), count=h[]._len)
                 h[].data.value().free()
             h[].data = new
             self.size -= UInt(more)  # previous while loop guarantees size >= more and subtraction of size_t variable will not underflow

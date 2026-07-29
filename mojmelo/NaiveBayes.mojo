@@ -93,8 +93,12 @@ struct GaussianNB(Copyable):
             model._classes.resize(n_classes, 0)
             unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
             var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            model._mean = Matrix(n_classes, X_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*n_classes*X_width).unsafe_ptr())))
-            model._var = Matrix(n_classes, X_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*n_classes*X_width).unsafe_ptr())))
+            var _mean = f.read_bytes(4*n_classes*X_width)
+            model._mean = Matrix(n_classes, X_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_mean.unsafe_ptr())))
+            _ = _mean
+            var _var = f.read_bytes(4*n_classes*X_width)
+            model._var = Matrix(n_classes, X_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_var.unsafe_ptr())))
+            _ = _var
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
             unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
@@ -178,7 +182,9 @@ struct MultinomialNB(CV, Copyable):
             model._classes.resize(n_classes, 0)
             unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
             var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            model._class_probs = Matrix(n_classes, X_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(f.read_bytes(4*n_classes*X_width).unsafe_ptr())))
+            var _class_probs = f.read_bytes(4*n_classes*X_width)
+            model._class_probs = Matrix(n_classes, X_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_class_probs.unsafe_ptr())))
+            _ = _class_probs
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
             unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
