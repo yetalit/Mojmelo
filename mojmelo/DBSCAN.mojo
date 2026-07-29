@@ -34,7 +34,7 @@ struct DBSCAN:
         def p(i: Int):
             try:
                 var kd_results = KDTreeResultVector()
-                kdtree.r_nearest(Span(unsafe_ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
+                kdtree.r_nearest(Span(unsafe_ptr=X.data + i * X.width, length=X.width), self.eps, kd_results)
                 for idp in range(len(kd_results)):
                     neighborhoods[i].append(kd_results[idp].idx)
             except e:

@@ -1155,6 +1155,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var output = Matrix(1, 1)
         argn[False](self, output)
         var min_index = Int(output.data[0])
+        _ = output
         if self.order == 'c':
             return min_index
         return (min_index % self.height) * self.width + min_index // self.height
@@ -1194,6 +1195,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var output = Matrix(1, 1)
         argn[True](self, output)
         var max_index = Int(output.data[0])
+        _ = output
         if self.order == 'c':
             return max_index
         return (max_index % self.height) * self.width + max_index // self.height

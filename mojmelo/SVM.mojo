@@ -258,7 +258,9 @@ struct SVC(CV, Copyable):
             f.write_bytes(UInt64(_model[].nr_class).as_bytes())
             f.write_bytes(UInt64(_model[].l).as_bytes())
             f.write_bytes(UInt64(self._n_features).as_bytes())
-            f.write_bytes(Span(unsafe_ptr=self.support_vectors().data.unsafe_bitcast[UInt8](), length=4*_model[].l*self._n_features))
+            var X = self.support_vectors()
+            f.write_bytes(Span(unsafe_ptr=X.data.unsafe_bitcast[UInt8](), length=4*_model[].l*self._n_features))
+            _ = X
             for i in range(_model[].nr_class-1):
                 f.write_bytes(Span(unsafe_ptr=_model[].sv_coef.value()[i].value().unsafe_bitcast[UInt8](), length=8*_model[].l))
             f.write_bytes(Span(unsafe_ptr=_model[].rho.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))

@@ -106,16 +106,16 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             random.seed(42)
         self.root = None
 
-    def _moveinit_(mut self, mut take: Self):
-        self.criterion = take.criterion
-        self.loss_func = take.loss_func
-        self.min_samples_split = take.min_samples_split
-        self.max_depth = take.max_depth
-        self.n_feats = take.n_feats
-        self.root = take.root
-        take.criterion = ''
-        take.min_samples_split = take.max_depth = take.n_feats = 0
-        take.root = None
+    def _moveinit_(mut self, mut move: Self):
+        self.criterion = move.criterion
+        self.loss_func = move.loss_func
+        self.min_samples_split = move.min_samples_split
+        self.max_depth = move.max_depth
+        self.n_feats = move.n_feats
+        self.root = move.root
+        move.criterion = ''
+        move.min_samples_split = move.max_depth = move.n_feats = 0
+        move.root = None
 
     def __del__(deinit self):
         if self.root:
@@ -189,6 +189,10 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
                 left_indices.append(indices[i])
             else:
                 right_indices.append(indices[i])
+        # stop growing if no valid split improves the objective
+        if len(left_indices) == 0 or len(right_indices) == 0:
+            new_node.unsafe_write(Node(value = set_value(_y, weights, freq, self.criterion)))
+            return new_node
 
         var left = self._grow_tree(X, Y, left_indices, depth + 1)
         var right = self._grow_tree(X, Y, right_indices, depth + 1)

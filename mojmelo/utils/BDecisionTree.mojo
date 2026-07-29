@@ -84,6 +84,10 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
                 left_indices.append(indices[i])
             else:
                 right_indices.append(indices[i])
+        # stop growing if no valid split improves the objective
+        if len(left_indices) == 0 or len(right_indices) == 0:
+            new_node.unsafe_write(Node(value = leaf_score(self.reg_lambda, self.reg_alpha, g, h)))
+            return new_node
 
         var left = self._grow_tree(X, G, H, left_indices, depth + 1)
         var right = self._grow_tree(X, G, H, right_indices, depth + 1)
