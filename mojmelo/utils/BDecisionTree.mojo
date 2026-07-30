@@ -188,7 +188,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     parallelize[p](len(feat_idxs))
     
     var feat_idx = max_gains.argmax()
-    return feat_idxs[feat_idx], best_thresholds.data[feat_idx], max_gains.data[feat_idx]
+    return feat_idxs[feat_idx], best_thresholds[0, feat_idx], max_gains[0, feat_idx]
 
 def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():
