@@ -1785,4 +1785,4 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         writer.write(res + "]")
 
     def __str__(self) -> String:
-        return String.write(self)
+        return String(self)
