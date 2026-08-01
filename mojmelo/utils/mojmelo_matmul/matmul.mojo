@@ -77,12 +77,12 @@ struct Matrix[Type: DType]:
     def __getitem__(
         ref [_]self, i: Int, j: Int
     ) -> ref [origin_of(self)] Scalar[Self.Type]:
-        return (self.data + self.layout(i, j))[]
+        return (self.data.unsafe_offset(self.layout(i, j)))[]
 
     @always_inline("nodebug")
     def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self:
         return Matrix(
-            self.data + self.layout(i, j),
+            self.data.unsafe_offset(self.layout(i, j)),
             Layout((ir, jr), (self.layout.strides[0], self.layout.strides[1])),
         )
 
@@ -99,19 +99,19 @@ struct Matrix[Type: DType]:
 
     @always_inline("nodebug")
     def load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Self.Type, width]:
-        var ptr = self.data + self.layout(i, j)
+        var ptr = self.data.unsafe_offset(self.layout(i, j))
         comptime if dim == 0:
-            return ptr.strided_load[width=width](self.layout.strides[0])
+            return ptr.unsafe_strided_load[width=width](self.layout.strides[0])
         else:
-            return ptr.load[width=width]()
+            return ptr.unsafe_load[width=width]()
 
     @always_inline("nodebug")
     def store[width: Int, *, dim: Int](self, value: SIMD[Self.Type, width], i: Int, j: Int):
-        var ptr = self.data + self.layout(i, j)
+        var ptr = self.data.unsafe_offset(self.layout(i, j))
         comptime if dim == 0:
-            ptr.strided_store[width=width](value, self.layout.strides[0])
+            ptr.unsafe_strided_store[width=width](value, self.layout.strides[0])
         else:
-            ptr.store(value)
+            ptr.unsafe_store(value)
 
     def write_to[W: Writer](self, mut writer: W):
         writer.write("Matrix: ", String(self.data), ", Layout: ", self.layout, "\n")
@@ -133,20 +133,20 @@ def pack_A[
     @parameter
     def pack_panel(idx: Int):
         var i = idx * mr
-        var dst_ptr = Ac_buffer + i * Ac.shape[1]()
-        var src_ptr = Ac.data + i * Ac.stride[0]()
+        var dst_ptr = Ac_buffer.unsafe_offset(i * Ac.shape[1]())
+        var src_ptr = Ac.data.unsafe_offset(i * Ac.stride[0]())
         for _ in range(Ac.shape[1]()):
 
             def pack_col[width: Int](l: Int) {imm}:
-                (dst_ptr + l).store(
-                    (src_ptr + l * Ac.stride[0]()).strided_load[width=width](Ac.stride[0]()),
+                dst_ptr.unsafe_offset(l).unsafe_store(
+                    (src_ptr.unsafe_offset(l * Ac.stride[0]())).unsafe_strided_load[width=width](Ac.stride[0]()),
                 )
 
             vectorize[simd_width_of[Type]()](min(Ac.shape[0]() - i, mr), pack_col)
             for l in range(min(Ac.shape[0]() - i, mr), mr):
-                dst_ptr[l] = Scalar[Type](0)
-            dst_ptr = dst_ptr + mr
-            src_ptr = src_ptr + 1
+                dst_ptr[unsafe_offset=l] = Scalar[Type](0)
+            dst_ptr = dst_ptr.unsafe_offset(mr)
+            src_ptr = src_ptr.unsafe_offset(1)
 
     comptime if inner_parallel:
         for i in range(num_panels):
@@ -166,13 +166,13 @@ def pack_B[
 ](Bc_buffer: UnsafePointer[Scalar[Type], MutUntrackedOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
     var dst_ptr = Bc_buffer
     for i in range(0, Bc.shape[1](), nr):
-        var src_ptr = Bc.data + i
+        var src_ptr = Bc.data.unsafe_offset(i)
         for _ in range(Bc.shape[0]()):
 
             def pack_row[width: Int](l: Int) {imm}:
-                (dst_ptr + l).store[
+                dst_ptr.unsafe_offset(l).unsafe_store[
                     alignment = size_of[Type]() * simd_width_of[Type]()
-                ]((src_ptr + l).load[width=width]())
+                ](src_ptr.unsafe_offset(l).unsafe_load[width=width]())
 
             vectorize[
                 simd_width_of[Type](),
@@ -180,9 +180,9 @@ def pack_B[
             ](min(Bc.shape[1]() - i, nr), pack_row)
 
             for l in range(min(Bc.shape[1]() - i, nr), nr):
-                dst_ptr[l] = Scalar[Type](0)
-            dst_ptr = dst_ptr + nr
-            src_ptr = src_ptr + Bc.stride[0]()
+                dst_ptr[unsafe_offset=l] = Scalar[Type](0)
+            dst_ptr = dst_ptr.unsafe_offset(nr)
+            src_ptr = src_ptr.unsafe_offset(Bc.stride[0]())
 
     var Bc_layout = Layout(
         (Bc.shape[0](), roundup(Bc.shape[1](), nr)), (nr, 1)
@@ -213,21 +213,21 @@ def micro_kernel[
         comptime for i in range(mr):
             if i < Cr.shape[0]():
                 def load_col[width: Int](j: Int) {imm}:
-                    (cr_base + i * nr + j).store(
-                        (Cr_ptr + i * Cr.stride[0]() + j).load[width=width]()
+                    cr_base.unsafe_offset(i * nr + j).unsafe_store(
+                        Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_load[width=width]()
                     )
                 vectorize[simd_width](Cr.shape[1](), load_col)
     else:
         comptime for i in range(mr):
             comptime for j in range(0, nr, simd_width):
-                (cr_base + i * nr + j).store(
-                    (Cr_ptr + i * Cr.stride[0]() + j).load[width=simd_width]()
+                cr_base.unsafe_offset(i * nr + j).unsafe_store(
+                    Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_load[width=simd_width]()
                 )
 
     # Inner accumulation loop
     for _ in range(Ar.shape[1]()):
         comptime for j in range(0, nr, simd_width):
-            br[j // simd_width] = (Br_ptr + j).load[
+            br[j // simd_width] = Br_ptr.unsafe_offset(j).unsafe_load[
                 width=simd_width,
                 alignment = size_of[Type]() * simd_width_of[Type](),
             ]()
@@ -236,27 +236,27 @@ def micro_kernel[
             comptime for j in range(0, nr, simd_width):
                 comptime offset = i * nr + j
                 ar = SIMD[Type, size=simd_width](Ar_ptr[])
-                (cr_base + offset).store(
-                    ar.fma(br[j // simd_width], (cr_base + offset).load[width=simd_width]())
+                cr_base.unsafe_offset(offset).unsafe_store(
+                    ar.fma(br[j // simd_width], cr_base.unsafe_offset(offset).unsafe_load[width=simd_width]())
                 )
-            Ar_ptr += 1
+            Ar_ptr = Ar_ptr.unsafe_offset(1)
 
-        Br_ptr += nr
+        Br_ptr = Br_ptr.unsafe_offset(nr)
 
     # Store C tile back
     comptime if padding:
         comptime for i in range(mr):
             if i < Cr.shape[0]():
                 def store_row[width: Int](j: Int) {imm}:
-                    (Cr_ptr + i * Cr.stride[0]() + j).store(
-                        (cr_base + i * nr + j).load[width=width]()
+                    Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_store(
+                        cr_base.unsafe_offset(i * nr + j).unsafe_load[width=width]()
                     )
                 vectorize[simd_width](Cr.shape[1](), store_row)
     else:
         comptime for i in range(mr):
             comptime for j in range(0, nr, simd_width):
-                (Cr_ptr + i * Cr.stride[0]() + j).store(
-                    (cr_base + i * nr + j).load[width=simd_width]()
+                Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_store(
+                    cr_base.unsafe_offset(i * nr + j).unsafe_load[width=simd_width]()
                 )
 
 
@@ -269,14 +269,14 @@ def macro_kernel[
     @parameter
     def parallelize_ir(idx: Int):
         var ir = idx * mr
-        var Ar = Matrix(Ac.data + ir * Ac.shape[1](), (mr, Ac.shape[1]()))
+        var Ar = Matrix(Ac.data.unsafe_offset(ir * Ac.shape[1]()), (mr, Ac.shape[1]()))
         for jr in range(0, Bc.shape[1](), nr):
             var Cr = Cc.slice(
                 ir, jr,
                 min(Cc.shape[0]() - ir, mr),
                 min(Cc.shape[1]() - jr, nr),
             )
-            var Br = Matrix(Bc.data + jr * Bc.shape[0](), (Bc.shape[0](), nr))
+            var Br = Matrix(Bc.data.unsafe_offset(jr * Bc.shape[0]()), (Bc.shape[0](), nr))
             if Cr.shape[0]() == mr and Cr.shape[1]() == nr:
                 micro_kernel[mr, nr, False](Cr, Ar, Br)
             else:
@@ -306,7 +306,7 @@ def loop_n[
         var Bc = pack_B[kc, nr](Bc_buffer, B.slice(0, j, B.shape[0](), tile_n))
         var Cc = C.slice(0, j, C.shape[0](), tile_n)
         macro_kernel[mr, nr](Cc, A, Bc)
-        Bc_buffer.free()
+        Bc_buffer.unsafe_free()
 
     parallelize[process_tile](num_tiles, num_tiles)
 
@@ -332,7 +332,7 @@ def matmul_impl[
             var Bb = B.slice(p, 0, min(K - p, kc), N)
             loop_n[kc, mr, nr](nc, Cb, Ac, Bb)
 
-    Ac_buffer.free()
+    Ac_buffer.unsafe_free()
 
 
 @always_inline

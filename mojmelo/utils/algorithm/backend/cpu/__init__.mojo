@@ -12,7 +12,6 @@
 # ===----------------------------------------------------------------------=== #
 """Implements CPU algorithm backend utilities including reduction and parallelization."""
 
-from .elementwise import _elementwise_impl_cpu
 from .reduction import (
     _reduce_along_inner_dimension,
     _reduce_along_outer_dimension,

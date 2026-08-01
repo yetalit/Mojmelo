@@ -163,7 +163,7 @@ struct KDTreeNode(Copyable):
             var nfarther: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]
 
             var extra: Float32
-            var qval = sr.qv[self.cut_dim]
+            var qval = sr.qv[unsafe_offset=self.cut_dim]
             # value of the wall boundary on the cut dimension. 
             if qval < self.cut_val:
                 ncloser = self.left
@@ -188,7 +188,7 @@ struct KDTreeNode(Copyable):
         # have any point which is within 'sr.ballsize' to 'sr.qv'??
         var dis2: Float32 = 0.0
         for i in range(sr.dim):
-            dis2 += self.metric(dis_from_bnd(sr.qv[i],self.box[i].lower,self.box[i].upper))
+            dis2 += self.metric(dis_from_bnd(sr.qv[unsafe_offset=i],self.box[i].lower,self.box[i].upper))
             if dis2 > sr.ballsize:
                 return False
         return True
@@ -212,7 +212,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](i, k) - sr.qv[k])
+                    dis += self.metric(data[].load[1](i, k) - sr.qv[unsafe_offset=k])
                     if dis > ballsize:
                         early_exit=True
                         break
@@ -226,7 +226,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](indexofi, k) - sr.qv[k])
+                    dis += self.metric(data[].load[1](indexofi, k) - sr.qv[unsafe_offset=k])
                     if dis > ballsize:
                         early_exit= True 
                         break
@@ -270,7 +270,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](i, k) - sr.qv[k])
+                    dis += self.metric(data[].load[1](i, k) - sr.qv[unsafe_offset=k])
                     if dis > ballsize:
                         early_exit=True
                         break
@@ -289,7 +289,7 @@ struct KDTreeNode(Copyable):
                 early_exit = False
                 dis = 0.0
                 for k in range(dim):
-                    dis += self.metric(data[].load[1](indexofi, k) - sr.qv[k])
+                    dis += self.metric(data[].load[1](indexofi, k) - sr.qv[unsafe_offset=k])
                     if dis > ballsize:
                         early_exit= True
                         break
@@ -522,8 +522,6 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
         self.root.value()[].search(sr)
 
-        _ = qv
-
         if (Self.sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](unsafe_ptr= result._self.unsafe_ptr(), length= len(result)))
         
@@ -544,7 +542,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.nn = UInt(nn)
         self.root.value()[].search(sr)
 
-        buf.free()
+        buf.unsafe_free()
 
         if (Self.sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](unsafe_ptr= result._self.unsafe_ptr(), length= len(result)))
@@ -563,8 +561,6 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
         self.root.value()[].search(sr)
 
-        _ = qv
-
         if (Self.sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](unsafe_ptr= result._self.unsafe_ptr(), length= len(result)))
 
@@ -579,7 +575,6 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.ballsize = r2
         
         self.root.value()[].search(sr)
-        _ = qv
 
         return len(result)
 
@@ -601,7 +596,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.nn = 0
         self.root.value()[].search(sr)
 
-        buf.free()
+        buf.unsafe_free()
 
         if (Self.sort_results):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](unsafe_ptr= result._self.unsafe_ptr(), length= len(result)))
@@ -621,11 +616,11 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         sr.ballsize = r2
         sr.nn = 0
         self.root.value()[].search(sr)
-        buf.free()
+        buf.unsafe_free()
 
         return len(result)
 
-    def __del__(deinit self):
+    def __deinit__(deinit self):
         if self.root:
             delTree(self.root.value())
 
@@ -634,4 +629,4 @@ def delTree(node: UnsafePointer[KDTreeNode, MutUntrackedOrigin]):
         delTree(node[].left.value())
     if node[].right:
         delTree(node[].right.value())
-    node.free()
+    node.unsafe_free()

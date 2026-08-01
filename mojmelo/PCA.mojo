@@ -46,7 +46,7 @@ struct PCA(Copyable):
         def p(col: Int):
             var sum: Float32 = 0
             for row in range(n_rows):
-                sum += X.data.load(row * n_cols + col)
+                sum += X.data.unsafe_load(row * n_cols + col)
 
             self.mean.store[1](0, col, sum / Float32(n_rows))
         parallelize[p](n_cols)

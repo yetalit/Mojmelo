@@ -30,7 +30,7 @@ def _insertion_sort[
 
     for i in range(1, size):
         var value = array.unsafe_offset(i).unsafe_take_pointee()
-        var value_b = indices[i]
+        var value_b = indices[unsafe_offset=i]
         var j = i
 
         # Find the placement of the value in the array, shifting as we try to
@@ -40,11 +40,11 @@ def _insertion_sort[
             array.unsafe_offset(j).unsafe_write_move_from(
                 array.unsafe_offset(j - 1)
             )
-            indices[j] = indices[j - 1]
+            indices[unsafe_offset=j] = indices[unsafe_offset=j - 1]
             j -= 1
 
         array.unsafe_offset(j).unsafe_write(value^)
-        indices[j] = value_b
+        indices[unsafe_offset=j] = value_b
 
 
 # put everything thats "<" to the left of pivot
@@ -69,10 +69,10 @@ def _quicksort_partition_right[
         if left >= right:
             var pivot_pos = left - 1
             span.unsafe_swap_elements(pivot_pos, 0)
-            swap(indices[pivot_pos], indices[0])
+            swap(indices[unsafe_offset=pivot_pos], indices[unsafe_offset=0])
             return pivot_pos
         span.unsafe_swap_elements(left, right)
-        swap(indices[left], indices[right])
+        swap(indices[unsafe_offset=left], indices[unsafe_offset=right])
         left += 1
         right -= 1
 
@@ -98,10 +98,10 @@ def _quicksort_partition_left[
         if left >= right:
             var pivot_pos = left - 1
             span.unsafe_swap_elements(pivot_pos, 0)
-            swap(indices[pivot_pos], indices[0])
+            swap(indices[unsafe_offset=pivot_pos], indices[unsafe_offset=0])
             return pivot_pos
         span.unsafe_swap_elements(left, right)
-        swap(indices[left], indices[right])
+        swap(indices[unsafe_offset=left], indices[unsafe_offset=right])
         left += 1
         right -= 1
 
@@ -188,7 +188,7 @@ def _quicksort[
                     )
                 )
                 stack_b.append(
-                    interval_b + pivot + 1
+                    interval_b.unsafe_offset(pivot + 1)
                 )
             continue
 
@@ -201,7 +201,7 @@ def _quicksort[
                 )
             )
             stack_b.append(
-                interval_b + pivot + 1
+                interval_b.unsafe_offset(pivot + 1)
             )
 
         if pivot > 1:
@@ -254,7 +254,7 @@ def _sort2[
 ):
     if not cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
         span.unsafe_swap_elements(offset0, offset1)
-        swap(indices[offset0], indices[offset1])
+        swap(indices[unsafe_offset=offset0], indices[unsafe_offset=offset1])
 
 @always_inline
 def _sort3[
@@ -289,11 +289,11 @@ def _sort_partial_3[
     if cmp_fn(span.unsafe_get(offset0), span.unsafe_get(offset1)):
         return
     
-    swap(indices[offset0], indices[offset1])
+    swap(indices[unsafe_offset=offset0], indices[unsafe_offset=offset1])
     span.unsafe_swap_elements(offset0, offset1)
     if not cmp_fn(span.unsafe_get(offset1), span.unsafe_get(offset2)):
         span.unsafe_swap_elements(offset1, offset2)
-        swap(indices[offset1], indices[offset2])
+        swap(indices[unsafe_offset=offset1], indices[unsafe_offset=offset2])
 
 @always_inline
 def _small_sort[

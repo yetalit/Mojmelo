@@ -33,10 +33,10 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.width = width
         self.size = height * width
         if src == DType.float32:
-            self.data = data.bitcast[Float32]()
+            self.data = data.unsafe_bitcast[Float32]()
         else:
             self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size)
-            data.free()
+            data.unsafe_free()
         self.order = order.lower()
 
     # initialize by copying from UnsafePointer
@@ -59,7 +59,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.order = 'c'
         if self.size > 0:
             for row_i in range(len(def_input)):
-                unsafe_memcpy(dest=self.data + row_i * self.width, src=def_input[row_i].unsafe_ptr(), count=self.width)
+                unsafe_memcpy(dest=self.data.unsafe_offset(row_i * self.width), src=def_input[row_i].unsafe_ptr(), count=self.width)
 
     def __init__(out self, *, copy: Self):
         self.height = copy.height
@@ -86,7 +86,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             loc = (y * self.width) + x
         else:
             loc = (x * self.height) + y
-        return self.data.load[width=nelts](loc)
+        return self.data.unsafe_load[width=nelts](loc)
 
     @always_inline
     def store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts]):
@@ -95,7 +95,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             loc = (y * self.width) + x
         else:
             loc = (x * self.height) + y
-        return self.data.store(loc, val)
+        return self.data.unsafe_store(loc, val)
 
     # access an element
     @always_inline
@@ -108,7 +108,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             loc = (column * self.height) + row
         if loc > self.size - 1 or loc < 0:
             raise Error("Location is out of range!")
-        return self.data[loc]
+        return self.data[unsafe_offset=loc]
 
     # access a row
     @always_inline
@@ -117,14 +117,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if row >= self.height or row < 0:
             raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
-            return Matrix(1, self.width, self.data + (row * self.width), self.order)
+            return Matrix(1, self.width, self.data.unsafe_offset(row * self.width), self.order)
         var mat = Matrix(1, self.width, order= self.order)
-        var tmpPtr = self.data + row
+        var tmpPtr = self.data.unsafe_offset(row)
         var height = self.height
 
         def convert[simd_width: Int](idx: Int) {mut}:
-            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](height))
-            tmpPtr += simd_width * height
+            mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](height))
+            tmpPtr = tmpPtr.unsafe_offset(simd_width * height)
         vectorize[self.simd_width](mat.width, convert)
         return mat^
 
@@ -132,14 +132,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def __getitem__(self, row: Int, *, unsafe: Bool) -> Matrix:
         if self.order == 'c' or self.height == 1:
-            return Matrix(1, self.width, self.data + (row * self.width), self.order)
+            return Matrix(1, self.width, self.data.unsafe_offset(row * self.width), self.order)
         var mat = Matrix(1, self.width, order= self.order)
-        var tmpPtr = self.data + row
+        var tmpPtr = self.data.unsafe_offset(row)
         var height = self.height
 
         def convert[simd_width: Int](idx: Int) {mut}:
-            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](height))
-            tmpPtr += simd_width * height
+            mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](height))
+            tmpPtr = tmpPtr.unsafe_offset(simd_width * height)
         vectorize[self.simd_width](mat.width, convert)
         return mat^
 
@@ -149,14 +149,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
             raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
-            return Matrix(1, self.width - start_i, self.data + (row * self.width) + start_i, self.order)
+            return Matrix(1, self.width - start_i, self.data.unsafe_offset(row * self.width + start_i), self.order)
         var mat = Matrix(1, self.width - start_i, order= self.order)
-        var tmpPtr = self.data + row + (start_i * self.height)
+        var tmpPtr = self.data.unsafe_offset(row + start_i * self.height)
         var height = self.height
 
         def convert[simd_width: Int](idx: Int) {mut}:
-            mat.data.store(idx, tmpPtr.strided_load[width=simd_width](height))
-            tmpPtr += simd_width * height
+            mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](height))
+            tmpPtr = tmpPtr.unsafe_offset(simd_width * height)
         vectorize[self.simd_width](mat.width, convert)
         return mat^
 
@@ -168,30 +168,30 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
             var mat = Matrix(self.height, 1)
-            var tmpPtr = self.data + column
+            var tmpPtr = self.data.unsafe_offset(column)
             var width = self.width
-    
+
             def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](width))
-                tmpPtr += simd_width * width
+                mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](width))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * width)
             vectorize[self.simd_width](mat.height, convert)
             return mat^
-        return Matrix(self.height, 1, self.data + (column * self.height), self.order)
+        return Matrix(self.height, 1, self.data.unsafe_offset(column * self.height), self.order)
 
     # access a column (unsafe)
     @always_inline
     def __getitem__(self, row: String, column: Int, *, unsafe: Bool) -> Matrix:
         if self.order == 'c' and self.width > 1:
             var mat = Matrix(self.height, 1)
-            var tmpPtr = self.data + column
+            var tmpPtr = self.data.unsafe_offset(column)
             var width = self.width
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](width))
-                tmpPtr += simd_width * width
+                mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](width))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * width)
             vectorize[self.simd_width](mat.height, convert)
             return mat^
-        return Matrix(self.height, 1, self.data + (column * self.height), self.order)
+        return Matrix(self.height, 1, self.data.unsafe_offset(column * self.height), self.order)
 
     # access a column with offset
     @always_inline
@@ -200,15 +200,15 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
             var mat = Matrix(self.height - start_i, 1)
-            var tmpPtr = self.data + column + (start_i * self.width)
+            var tmpPtr = self.data.unsafe_offset(column + start_i * self.width)
             var width = self.width
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.store(idx, tmpPtr.strided_load[width=simd_width](width))
-                tmpPtr += simd_width * width
+                mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](width))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * width)
             vectorize[self.simd_width](mat.height, convert)
             return mat^
-        return Matrix(self.height - start_i, 1, self.data + (column * self.height) + start_i, self.order)
+        return Matrix(self.height - start_i, 1, self.data.unsafe_offset(column * self.height + start_i), self.order)
 
     # access given rows (by their indices)
     @always_inline
@@ -218,13 +218,13 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             @parameter
             def p(i: Int):
                 try:
-                    mat[i] = self[Int(rows.data[i])]
+                    mat[i] = self[Int(rows.data[unsafe_offset=i])]
                 except e:
                     print('Error:', e)
             parallelize[p](rows.size)
         else:
             for i in range(rows.size):
-                mat[i] = self[Int(rows.data[i])]
+                mat[i] = self[Int(rows.data[unsafe_offset=i])]
         return mat^
 
     # access given columns (by their indices)
@@ -235,13 +235,13 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             @parameter
             def p(i: Int):
                 try:
-                    mat[row, i] = self[row, Int(columns.data[i])]
+                    mat[row, i] = self[row, Int(columns.data[unsafe_offset=i])]
                 except e:
                     print('Error:', e)
             parallelize[p](columns.size)
         else:
             for i in range(columns.size):
-                mat[row, i] = self[row, Int(columns.data[i])]
+                mat[row, i] = self[row, Int(columns.data[unsafe_offset=i])]
         return mat^
 
     # access given rows (by their indices)
@@ -288,7 +288,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             loc = (column * self.height) + row
         if loc > self.size - 1:
             raise Error("Location is out of range!")
-        self.data[loc] = val
+        self.data[unsafe_offset=loc] = val
 
     # replace the given row
     @always_inline
@@ -296,28 +296,28 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if row >= self.height or row < 0:
             raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
-            unsafe_memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
+            unsafe_memcpy(dest=self.data.unsafe_offset(row * self.width), src=val.data, count=val.size)
         else:
-            var tmpPtr = self.data + row
+            var tmpPtr = self.data.unsafe_offset(row)
             var val_data = val.data
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.height)
-                tmpPtr += simd_width * self.height
+                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.height)
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.height)
             vectorize[self.simd_width](val.size, convert)
 
     # replace the given row (unsafe)
     @always_inline
     def __setitem__(mut self, row: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' or self.height == 1:
-            unsafe_memcpy(dest=self.data + (row * self.width), src=val.data, count=val.size)
+            unsafe_memcpy(dest=self.data.unsafe_offset(row * self.width), src=val.data, count=val.size)
         else:
-            var tmpPtr = self.data + row
+            var tmpPtr = self.data.unsafe_offset(row)
             var val_data = val.data
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.height)
-                tmpPtr += simd_width * self.height
+                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.height)
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.height)
             vectorize[self.simd_width](val.size, convert)
 
     # replace the given row with offset
@@ -326,14 +326,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
             raise Error("Index out of range!")
         if self.order == 'c' or self.height == 1:
-            unsafe_memcpy(dest=self.data + (row * self.width) + start_i, src=val.data, count=val.size)
+            unsafe_memcpy(dest=self.data.unsafe_offset(row * self.width + start_i), src=val.data, count=val.size)
         else:
-            var tmpPtr = self.data + row + (start_i * self.height)
+            var tmpPtr = self.data.unsafe_offset(row + start_i * self.height)
             var val_data = val.data
-    
+
             def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.height)
-                tmpPtr += simd_width * self.height
+                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.height)
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.height)
             vectorize[self.simd_width](val.size, convert)
 
     # replace the given column
@@ -342,29 +342,29 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if column >= self.width or column < 0:
             raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
-            var tmpPtr = self.data + column
+            var tmpPtr = self.data.unsafe_offset(column)
             var val_data = val.data
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.width)
-                tmpPtr += simd_width * self.width
+                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.width)
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.width)
             vectorize[self.simd_width](val.size, convert)
         else:
-            unsafe_memcpy(dest=self.data + (column * self.height), src=val.data, count=val.size)
+            unsafe_memcpy(dest=self.data.unsafe_offset(column * self.height), src=val.data, count=val.size)
 
     # replace the given column (unsafe)
     @always_inline
     def __setitem__(mut self, row: String, column: Int, val: Matrix, *, unsafe: Bool):
         if self.order == 'c' and self.width > 1:
-            var tmpPtr = self.data + column
+            var tmpPtr = self.data.unsafe_offset(column)
             var val_data = val.data
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.width)
-                tmpPtr += simd_width * self.width
+                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.width)
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.width)
             vectorize[self.simd_width](val.size, convert)
         else:
-            unsafe_memcpy(dest=self.data + (column * self.height), src=val.data, count=val.size)
+            unsafe_memcpy(dest=self.data.unsafe_offset(column * self.height), src=val.data, count=val.size)
 
     # replace the given column with offset
     @always_inline
@@ -372,15 +372,15 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
             raise Error("Index out of range!")
         if self.order == 'c' and self.width > 1:
-            var tmpPtr = self.data + column + (start_i * self.width)
+            var tmpPtr = self.data.unsafe_offset(column + start_i * self.width)
             var val_data = val.data
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.strided_store[width=simd_width](val_data.load[width=simd_width](idx), self.width)
-                tmpPtr += simd_width * self.width
+                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.width)
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.width)
             vectorize[self.simd_width](val.size, convert)
         else:
-            unsafe_memcpy(dest=self.data + (column * self.height) + start_i, src=val.data, count=val.size)
+            unsafe_memcpy(dest=self.data.unsafe_offset(column * self.height + start_i), src=val.data, count=val.size)
 
     @always_inline
     def load_columns(self, _range: Int) raises -> Matrix:
@@ -392,7 +392,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         else:
             @parameter
             def p(i: Int):
-                unsafe_memcpy(dest=mat.data + i * _range, src=self.data + i * self.width, count=_range)
+                unsafe_memcpy(dest=mat.data.unsafe_offset(i * _range), src=self.data.unsafe_offset(i * self.width), count=_range)
             parallelize[p](self.height)
         return mat^
 
@@ -406,7 +406,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         else:
             @parameter
             def p(i: Int):
-                unsafe_memcpy(dest=mat.data + i * _range, src=self.data + i * self.height, count=_range)
+                unsafe_memcpy(dest=mat.data.unsafe_offset(i * _range), src=self.data.unsafe_offset(i * self.height), count=_range)
             parallelize[p](self.width)
         return mat^
 
@@ -417,11 +417,11 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.height > 550000:
             @parameter
             def p(i: Int):
-                mat.data[i] = self.load[1](i, Int(columns.data[i]))
+                mat.data[unsafe_offset=i] = self.load[1](i, Int(columns.data[unsafe_offset=i]))
             parallelize[p](self.height)
         else:
             for i in range(self.height):
-                mat.data[i] = self[i, Int(columns.data[i])]
+                mat.data[unsafe_offset=i] = self[i, Int(columns.data[unsafe_offset=i])]
         return mat^
 
     # replace given columns per row
@@ -430,15 +430,15 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.height > 550000:
             @parameter
             def p(i: Int):
-                self.store[1](i, Int(columns.data[i]), rhs.data[i])
+                self.store[1](i, Int(columns.data[unsafe_offset=i]), rhs.data[unsafe_offset=i])
             parallelize[p](self.height)
         else:
             for i in range(self.height):
-                self[i, Int(columns.data[i])] = rhs.data[i]
+                self[i, Int(columns.data[unsafe_offset=i])] = rhs.data[unsafe_offset=i]
 
     @always_inline
-    def __del__(deinit self):
-        self.data.free()
+    def __deinit__(deinit self):
+        self.data.unsafe_free()
 
     @always_inline
     def __len__(self) -> Int:
@@ -504,21 +504,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def __add__(self, rhs: Self) raises -> Self:
         if self.height == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self + rhs.data[0]
+                return self + rhs.data[unsafe_offset=0]
             if self.width == 1:
-                return self.data[0] + rhs
+                return self.data[unsafe_offset=0] + rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[add](rhs)
             raise Error("Cannot add matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self + rhs.data[0]
+                return self + rhs.data[unsafe_offset=0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[add](rhs)
             raise Error("Cannot add matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
-                return self + rhs.data[0]
+                return self + rhs.data[unsafe_offset=0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[add](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot add matrices with different shapes!")
@@ -552,21 +552,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def __sub__(self, rhs: Self) raises -> Self:
         if self.height == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self - rhs.data[0]
+                return self - rhs.data[unsafe_offset=0]
             if self.width == 1:
-                return self.data[0] - rhs
+                return self.data[unsafe_offset=0] - rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[sub](rhs)
             raise Error("Cannot subtract matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self - rhs.data[0]
+                return self - rhs.data[unsafe_offset=0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[sub](rhs)
             raise Error("Cannot subtract matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
-                return self - rhs.data[0]
+                return self - rhs.data[unsafe_offset=0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[sub](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot subtract matrices with different shapes!")
@@ -600,21 +600,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def __truediv__(self, rhs: Self) raises -> Self:
         if self.height == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self / rhs.data[0]
+                return self / rhs.data[unsafe_offset=0]
             if self.width == 1:
-                return self.data[0] / rhs
+                return self.data[unsafe_offset=0] / rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[div](rhs)
             raise Error("Cannot divide matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self / rhs.data[0]
+                return self / rhs.data[unsafe_offset=0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[div](rhs)
             raise Error("Cannot divide matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
-                return self / rhs.data[0]
+                return self / rhs.data[unsafe_offset=0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[div](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot divide matrices with different shapes!")
@@ -652,7 +652,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.height == 1 and rhs.width == 1:
             # Dot product
             var mat = Self(1, 1)
-            mat.data[0] = self._elemwise_matrix[mul](rhs).sum()
+            mat.data[unsafe_offset=0] = self._elemwise_matrix[mul](rhs).sum()
             return mat^
         
         if self.height * self.width * rhs.width <= 4096:
@@ -662,9 +662,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 var rhsr = i % self.width
                 for j in range(rhsr * rhs.width, rhsr * rhs.width + rhs.width):
                     if rhsr != 0:
-                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[i] * rhs.data[j]
+                        mat.data[unsafe_offset=(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[unsafe_offset=i] * rhs.data[unsafe_offset=j]
                     else:
-                        mat.data[(Int(i / self.width) * mat.width) + (j % rhs.width)] = self.data[i] * rhs.data[j]
+                        mat.data[unsafe_offset=(Int(i / self.width) * mat.width) + (j % rhs.width)] = self.data[unsafe_offset=i] * rhs.data[unsafe_offset=j]
             return mat^
         var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
         var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
@@ -700,14 +700,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Self(self.height, self.width, order= self.order)
         if self.size < 262144:
             def math_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, pow(self.data.load[width=simd_width](idx), p))
+                mat.data.unsafe_store(idx, pow(self.data.unsafe_load[width=simd_width](idx), p))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, pow(self.data.load[width=self.simd_width](idx), p))
+                mat.data.unsafe_store(idx, pow(self.data.unsafe_load[width=self.simd_width](idx), p))
             parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
@@ -720,21 +720,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         # element-wise multiplication
         if self.height == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self * rhs.data[0]
+                return self * rhs.data[unsafe_offset=0]
             if self.width == 1:
-                return self.data[0] * rhs
+                return self.data[unsafe_offset=0] * rhs
             if self.width == rhs.width:
                 return self._broadcast_row(rhs.height, self.width, rhs.order)._elemwise_matrix[mul](rhs)
             raise Error("Cannot element-wise multiply matrices with different shapes!")
         if self.width == 1:
             if rhs.height == 1 and rhs.width == 1:
-                return self * rhs.data[0]
+                return self * rhs.data[unsafe_offset=0]
             if self.height == rhs.height:
                 return self._broadcast_column(self.height, rhs.width, rhs.order)._elemwise_matrix[mul](rhs)
             raise Error("Cannot element-wise multiply matrices with different shapes!")
         if rhs.height == 1:
             if rhs.width == 1:
-                return self * rhs.data[0]
+                return self * rhs.data[unsafe_offset=0]
             elif rhs.width == self.width:
                 return self._elemwise_matrix[mul](rhs._broadcast_row(self.height, self.width, self.order))
             raise Error("Cannot element-wise multiply matrices with different shapes!")
@@ -753,14 +753,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def convert[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true, _false))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true, _false))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true, _false))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true, _false))
             parallelize[vectorize_parallelize](n_vects)
         return mat^
 
@@ -768,14 +768,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def convert[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true.data.load[width=simd_width](idx), _false))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true.data.unsafe_load[width=simd_width](idx), _false))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true.data.load[width=self.simd_width](idx), _false))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true.data.unsafe_load[width=self.simd_width](idx), _false))
             parallelize[vectorize_parallelize](n_vects)
         return mat^
 
@@ -783,14 +783,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def convert[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true, _false.data.load[width=simd_width](idx)))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true, _false.data.unsafe_load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true, _false.data.load[width=self.simd_width](idx)))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true, _false.data.unsafe_load[width=self.simd_width](idx)))
             parallelize[vectorize_parallelize](n_vects)
         return mat^
 
@@ -799,14 +799,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def convert[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true.data.load[width=simd_width](idx), _false.data.load[width=simd_width](idx)))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=simd_width](idx).select(_true.data.unsafe_load[width=simd_width](idx), _false.data.unsafe_load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true.data.load[width=self.simd_width](idx), _false.data.load[width=self.simd_width](idx)))
+                mat.data.unsafe_store(idx, cmp.unsafe_ptr().unsafe_load[width=self.simd_width](idx).select(_true.data.unsafe_load[width=self.simd_width](idx), _false.data.unsafe_load[width=self.simd_width](idx)))
             parallelize[vectorize_parallelize](n_vects)
         return mat^
 
@@ -816,21 +816,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.size < 98304:
             for i in range(self.width):
                 var idx_col = i
-                var tmpPtr = self.data + idx_col
+                var tmpPtr = self.data.unsafe_offset(idx_col)
         
                 def convert[simd_width: Int](idx: Int) {mut}:
-                    mat.data.store(idx + idx_col * mat.width, tmpPtr.strided_load[width=simd_width](mat.height))
-                    tmpPtr += simd_width * mat.height
+                    mat.data.unsafe_store(idx + idx_col * mat.width, tmpPtr.unsafe_strided_load[width=simd_width](mat.height))
+                    tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.height)
                 vectorize[self.simd_width](self.height, convert)
         else:
             @parameter
             def p(i: Int):
                 var idx_col = i
-                var tmpPtr = self.data + idx_col
+                var tmpPtr = self.data.unsafe_offset(idx_col)
         
                 def pconvert[simd_width: Int](idx: Int) {mut}:
-                    mat.data.store(idx + idx_col * mat.width, tmpPtr.strided_load[width=simd_width](mat.height))
-                    tmpPtr += simd_width * mat.height
+                    mat.data.unsafe_store(idx + idx_col * mat.width, tmpPtr.unsafe_strided_load[width=simd_width](mat.height))
+                    tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.height)
                 vectorize[self.simd_width](self.height, pconvert)
             parallelize[p](self.width)
         return mat^
@@ -841,21 +841,21 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if self.size < 98304:
             for i in range(self.height):
                 var idx_row = i
-                var tmpPtr = self.data + idx_row
+                var tmpPtr = self.data.unsafe_offset(idx_row)
         
                 def convert[simd_width: Int](idx: Int) {mut}:
-                    mat.data.store(idx + idx_row * mat.height, tmpPtr.strided_load[width=simd_width](mat.width))
-                    tmpPtr += simd_width * mat.width
+                    mat.data.unsafe_store(idx + idx_row * mat.height, tmpPtr.unsafe_strided_load[width=simd_width](mat.width))
+                    tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.width)
                 vectorize[self.simd_width](self.width, convert)
         else:
             @parameter
             def p(i: Int):
                 var idx_row = i
-                var tmpPtr = self.data + idx_row
+                var tmpPtr = self.data.unsafe_offset(idx_row)
         
                 def pconvert[simd_width: Int](idx: Int) {mut}:
-                    mat.data.store(idx + idx_row * mat.height, tmpPtr.strided_load[width=simd_width](mat.width))
-                    tmpPtr += simd_width * mat.width
+                    mat.data.unsafe_store(idx + idx_row * mat.height, tmpPtr.unsafe_strided_load[width=simd_width](mat.width))
+                    tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.width)
                 vectorize[self.simd_width](self.width, pconvert)
             parallelize[p](self.height)
         return mat^
@@ -893,12 +893,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].sum()
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].sum()
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].sum()
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].sum()
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -906,12 +906,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].sum()
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True].sum()
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].sum()
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].sum()
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -938,12 +938,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(1, self.width, order= self.order)
         if self.width < 768:
             for i in range(self.width):
-                mat.data[i] = self['', i, unsafe=True].mean_slow()
+                mat.data[unsafe_offset=i] = self['', i, unsafe=True].mean_slow()
         else:
             @parameter
             def p0(i: Int):
                 try:
-                    mat.data[i] = self['', i, unsafe=True].mean_slow()
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].mean_slow()
                 except e:
                     print('Error:', e)
             parallelize[p0](self.width)
@@ -964,12 +964,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(correction=correction)
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True]._var(correction=correction)
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -977,12 +977,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True]._var(correction=correction)
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(correction=correction)
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True]._var(correction=correction)
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -995,12 +995,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True]._var(_mean.data[i], correction=correction)
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -1008,12 +1008,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True]._var(_mean.data[i], correction=correction)
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -1034,12 +1034,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std(correction=correction)
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].std(correction=correction)
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std(correction=correction)
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].std(correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -1047,12 +1047,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std(correction=correction)
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True].std(correction=correction)
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std(correction=correction)
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].std(correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -1065,12 +1065,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].std(_mean.data[unsafe_offset=i], correction=correction)
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std(_mean.data[i], correction=correction)
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].std(_mean.data[unsafe_offset=i], correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -1078,12 +1078,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True].std(_mean.data[unsafe_offset=i], correction=correction)
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std(_mean.data[i], correction=correction)
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].std(_mean.data[unsafe_offset=i], correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -1098,12 +1098,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].std_slow(_mean.data[unsafe_offset=i])
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].std_slow(_mean.data[i])
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].std_slow(_mean.data[unsafe_offset=i])
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -1111,12 +1111,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True].std_slow(_mean.data[unsafe_offset=i])
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].std_slow(_mean.data[i])
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].std_slow(_mean.data[unsafe_offset=i])
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -1127,14 +1127,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def math_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, abs(self.data.load[width=simd_width](idx)))
+                mat.data.unsafe_store(idx, abs(self.data.unsafe_load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, abs(self.data.load[width=self.simd_width](idx)))
+                mat.data.unsafe_store(idx, abs(self.data.unsafe_load[width=self.simd_width](idx)))
             parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 
@@ -1154,7 +1154,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def argmin(self) -> Int:
         var output = Matrix(1, 1)
         argn[False](self, output)
-        var min_index = Int(output.data[0])
+        var min_index = Int(output.data[unsafe_offset=0])
         _ = output
         if self.order == 'c':
             return min_index
@@ -1169,22 +1169,22 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             length = self.width
             if self.width < 512:
                 for i in range(self.width):
-                    vect[i] = self['', i, unsafe=True].argmin()
+                    vect[unsafe_offset=i] = self['', i, unsafe=True].argmin()
             else:
                 @parameter
                 def p0(i: Int):
-                    vect[i] = self['', i, unsafe=True].argmin()
+                    vect[unsafe_offset=i] = self['', i, unsafe=True].argmin()
                 parallelize[p0](self.width)
         elif axis == 1:
             vect = alloc[Int](self.height)
             length = self.height
             if self.height < 512:
                 for i in range(self.height):
-                    vect[i] = self[i, unsafe=True].argmin()
+                    vect[unsafe_offset=i] = self[i, unsafe=True].argmin()
             else:
                 @parameter
                 def p1(i: Int):
-                    vect[i] = self[i, unsafe=True].argmin()
+                    vect[unsafe_offset=i] = self[i, unsafe=True].argmin()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
         list._data = vect
@@ -1194,7 +1194,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def argmax(self) -> Int:
         var output = Matrix(1, 1)
         argn[True](self, output)
-        var max_index = Int(output.data[0])
+        var max_index = Int(output.data[unsafe_offset=0])
         _ = output
         if self.order == 'c':
             return max_index
@@ -1209,22 +1209,22 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             length = self.width
             if self.width < 512:
                 for i in range(self.width):
-                    vect[i] = self['', i, unsafe=True].argmax()
+                    vect[unsafe_offset=i] = self['', i, unsafe=True].argmax()
             else:
                 @parameter
                 def p0(i: Int):
-                    vect[i] = self['', i, unsafe=True].argmax()
+                    vect[unsafe_offset=i] = self['', i, unsafe=True].argmax()
                 parallelize[p0](self.width)
         elif axis == 1:
             vect = alloc[Int](self.height)
             length = self.height
             if self.height < 512:
                 for i in range(self.height):
-                    vect[i] = self[i, unsafe=True].argmax()
+                    vect[unsafe_offset=i] = self[i, unsafe=True].argmax()
             else:
                 @parameter
                 def p1(i: Int):
-                    vect[i] = self[i, unsafe=True].argmax()
+                    vect[unsafe_offset=i] = self[i, unsafe=True].argmax()
                 parallelize[p1](self.height)
         var list = List[Int](unsafe_uninit_length=length)
         list._data = vect
@@ -1236,22 +1236,22 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             var vect = alloc[Float32](self.width)
             if self.width < 512:
                 for i in range(self.width):
-                    vect[i] = Float32(self['', i, unsafe=True].argmax())
+                    vect[unsafe_offset=i] = Float32(self['', i, unsafe=True].argmax())
             else:
                 @parameter
                 def p0(i: Int):
-                    vect[i] = Float32(self['', i, unsafe=True].argmax())
+                    vect[unsafe_offset=i] = Float32(self['', i, unsafe=True].argmax())
                 parallelize[p0](self.width)
             return Matrix(vect, 1, self.width, self.order)
         else:
             var vect = alloc[Float32](self.height)
             if self.height < 512:
                 for i in range(self.height):
-                    vect[i] = Float32(self[i, unsafe=True].argmax())
+                    vect[unsafe_offset=i] = Float32(self[i, unsafe=True].argmax())
             else:
                 @parameter
                 def p1(i: Int):
-                    vect[i] = Float32(self[i, unsafe=True].argmax())
+                    vect[unsafe_offset=i] = Float32(self[i, unsafe=True].argmax())
                 parallelize[p1](self.height)
             return Matrix(vect, self.height, 1, self.order)
 
@@ -1261,9 +1261,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         @parameter
         def cmp_fn(a: Int, b: Int) -> Bool:
             comptime if ascending:
-                return self.data[a] < self.data[b]
+                return self.data[unsafe_offset=a] < self.data[unsafe_offset=b]
             else:
-                return self.data[a] > self.data[b]
+                return self.data[unsafe_offset=a] > self.data[unsafe_offset=b]
 
         sort[cmp_fn](
             Span[
@@ -1297,12 +1297,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].min()
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].min()
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].min()
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].min()
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -1310,12 +1310,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].min()
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True].min()
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].min()
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].min()
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -1332,12 +1332,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[i] = self['', i, unsafe=True].max()
+                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].max()
             else:
                 @parameter
                 def p0(i: Int):
                     try:
-                        mat.data[i] = self['', i, unsafe=True].max()
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].max()
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -1345,12 +1345,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[i] = self[i, unsafe=True].max()
+                    mat.data[unsafe_offset=i] = self[i, unsafe=True].max()
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        mat.data[i] = self[i, unsafe=True].max()
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].max()
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -1367,7 +1367,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def lu_factor(mut A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], N: Int) raises:
         for i in range(N):
-            piv[i] = i
+            piv[unsafe_offset=i] = i
 
         for k in range(N - 1):
             var max_row = k
@@ -1378,9 +1378,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             if k != max_row:
                 swap(A[k], A[max_row])
 
-                var temp = piv[k]
-                piv[k] = piv[max_row]
-                piv[max_row] = temp
+                var temp = piv[unsafe_offset=k]
+                piv[unsafe_offset=k] = piv[unsafe_offset=max_row]
+                piv[unsafe_offset=max_row] = temp
 
             # LU decomposition (Gaussian elimination)
             for i in range(k + 1, N):
@@ -1394,13 +1394,13 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
         # Forward substitution: solve L * y = P * b
         for i in range(N):
-            y.data[i] = b[piv[i], Mi]
+            y.data[unsafe_offset=i] = b[piv[unsafe_offset=i], Mi]
             for j in range(i):
-                y.data[i] -= A[i, j] * y.data[j]
+                y.data[unsafe_offset=i] -= A[i, j] * y.data[unsafe_offset=j]
 
         # Backward substitution: solve U * x = y
         for i in range(N - 1, -1, -1):
-            x[i, Mi] = y.data[i]
+            x[i, Mi] = y.data[unsafe_offset=i]
             for j in range(i + 1, N):
                 x[i, Mi] -= A[i, j] * x[j, Mi]
             x[i, Mi] /= A[i, i]
@@ -1429,7 +1429,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         else:
             Matrix.lu_solve(A, piv.as_unsafe_any_origin(), b, X, N, 0)
 
-        piv.free()
+        piv.unsafe_free()
 
         return X^
 
@@ -1445,8 +1445,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var tmpPtr = result.data
 
         def convert[simd_width: Int](idx: Int) {mut}:
-            tmpPtr.strided_store[width=simd_width](1.0, (n + 1))
-            tmpPtr += simd_width * (n + 1)
+            tmpPtr.unsafe_strided_store[width=simd_width](1.0, (n + 1))
+            tmpPtr = tmpPtr.unsafe_offset(simd_width * (n + 1))
         vectorize[result.simd_width](n, convert)
         return result^
 
@@ -1460,7 +1460,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             @parameter
             def p1(i: Int):
                 try:
-                    mat[i] = self.data[i] * rhs
+                    mat[i] = self.data[unsafe_offset=i] * rhs
                 except e:
                     print('Error:', e)
             parallelize[p1](mat.height)
@@ -1468,7 +1468,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             @parameter
             def p2(i: Int):
                 try:
-                    mat['', i] = self * rhs.data[i]
+                    mat['', i] = self * rhs.data[unsafe_offset=i]
                 except e:
                     print('Error:', e)
             parallelize[p2](mat.width)
@@ -1480,24 +1480,24 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height + rhs.height, self.width, order= self.order)
             if self.order == 'c' or self.height == 1:
                 unsafe_memcpy(dest=mat.data, src=self.data, count=self.size)
-                unsafe_memcpy(dest=mat.data + self.size, src=rhs.data, count=rhs.size)
+                unsafe_memcpy(dest=mat.data.unsafe_offset(self.size), src=rhs.data, count=rhs.size)
             else:
                 @parameter
                 def pf(i: Int):
-                    unsafe_memcpy(dest=mat.data + i * mat.height, src=self.data + i * self.height, count=self.height)
-                    unsafe_memcpy(dest=mat.data + i * mat.height + self.height, src=rhs.data + i * rhs.height, count=rhs.height)
+                    unsafe_memcpy(dest=mat.data.unsafe_offset(i * mat.height), src=self.data.unsafe_offset(i * self.height), count=self.height)
+                    unsafe_memcpy(dest=mat.data.unsafe_offset(i * mat.height + self.height), src=rhs.data.unsafe_offset(i * rhs.height), count=rhs.height)
                 parallelize[pf](self.width)
         elif axis == 1:
             mat = Matrix(self.height, self.width + rhs.width, order= self.order)
             if self.order == 'c' and self.width > 1:
                 @parameter
                 def pc(i: Int):
-                    unsafe_memcpy(dest=mat.data + i * mat.width, src=self.data + i * self.width, count=self.width)
-                    unsafe_memcpy(dest=mat.data + i * mat.width + self.width, src=rhs.data + i * rhs.width, count=rhs.width)
+                    unsafe_memcpy(dest=mat.data.unsafe_offset(i * mat.width), src=self.data.unsafe_offset(i * self.width), count=self.width)
+                    unsafe_memcpy(dest=mat.data.unsafe_offset(i * mat.width + self.width), src=rhs.data.unsafe_offset(i * rhs.width), count=rhs.width)
                 parallelize[pc](self.height)
             else:
                 unsafe_memcpy(dest=mat.data, src=self.data, count=self.size)
-                unsafe_memcpy(dest=mat.data + self.size, src=rhs.data, count=rhs.size)
+                unsafe_memcpy(dest=mat.data.unsafe_offset(self.size), src=rhs.data, count=rhs.size)
         return mat^
 
     @always_inline
@@ -1507,7 +1507,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         unsafe_memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
-            vect[Int(self.data[i])] += 1
+            vect[unsafe_offset=Int(self.data[unsafe_offset=i])] += 1
         var list = List[Int](unsafe_uninit_length=max_val + 1)
         list._data = vect
         return list^
@@ -1519,7 +1519,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         unsafe_memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
-            vect[Int(self.data[i])] += Int(weights.data[i])
+            vect[unsafe_offset=Int(self.data[unsafe_offset=i])] += Int(weights.data[unsafe_offset=i])
         var list = List[Int](unsafe_uninit_length=max_val + 1)
         list._data = vect
         return list^
@@ -1528,7 +1528,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def unique(self) -> List[List[Int]]:
         var freq = List[List[Int]]()
         for i in range(self.size):
-            var data = Int(self.data[i])
+            var data = Int(self.data[unsafe_offset=i])
             if len(freq) <= data:
                 for _ in range(data - len(freq) + 1):
                     freq.append(List[Int]())
@@ -1539,18 +1539,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def unique(self, weights: Matrix) -> List[List[Int]]:
         var freq = List[List[Int]]()
         for i in range(self.size):
-            var data = Int(self.data[i])
+            var data = Int(self.data[unsafe_offset=i])
             if len(freq) <= data:
                 for _ in range(data - len(freq) + 1):
                     freq.append(List[Int]())
-            for _ in range(Int(weights.data[i])):
+            for _ in range(Int(weights.data[unsafe_offset=i])):
                 freq[data].append(i)
         return freq^
 
     @always_inline
     def is_uniquef(self) -> Int:
         for i in range(1, self.size):
-            if self.data[i - 1] != self.data[i]:
+            if self.data[unsafe_offset=i - 1] != self.data[unsafe_offset=i]:
                 return 0
         return 1
 
@@ -1599,7 +1599,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             var indices = fill_indices(arang)
             for i in range(size):
                 var j = Int(random.random_ui64(UInt64(i), UInt64(arang - 1)))
-                indices[i], indices[j] = indices[j], indices[i]
+                indices[unsafe_offset=i], indices[unsafe_offset=j] = indices[unsafe_offset=j], indices[unsafe_offset=i]
             unsafe_memcpy(dest=result, src=indices, count=size)
         var list = List[Int](unsafe_uninit_length=size)
         list._data = result
@@ -1611,7 +1611,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var result = Matrix(1, num, order= order.lower())
         var jump = (stop - start) / Float32(num - 1)
         for i in range(num):
-            result.data[i] = start + Float32(i) * jump
+            result.data[unsafe_offset=i] = start + Float32(i) * jump
         return result^
 
     @staticmethod
@@ -1680,14 +1680,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
             def convert[simd_width: Int](idx: Int) {imm}:
-                result_ptr.store(idx, func(self.data.load[width=simd_width](idx), rhs))
+                result_ptr.unsafe_store(idx, func(self.data.unsafe_load[width=simd_width](idx), rhs))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                result_ptr.store(idx, func(self.data.load[width=self.simd_width](idx), rhs))
+                result_ptr.unsafe_store(idx, func(self.data.unsafe_load[width=self.simd_width](idx), rhs))
             parallelize[vectorize_parallelize](n_vects)
         var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
         result._data = result_ptr
@@ -1698,14 +1698,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var result_ptr = alloc[Scalar[DType.bool]](self.size)
         if self.size < 524288:
             def convert[simd_width: Int](idx: Int) {imm}:
-                result_ptr.store(idx, func(self.data.load[width=simd_width](idx), rhs.data.load(idx)))
+                result_ptr.unsafe_store(idx, func(self.data.unsafe_load[width=simd_width](idx), rhs.data.unsafe_load(idx)))
             vectorize[self.simd_width](self.size, convert)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                result_ptr.store(idx, func(self.data.load[width=self.simd_width](idx), rhs.data.load(idx)))
+                result_ptr.unsafe_store(idx, func(self.data.unsafe_load[width=self.simd_width](idx), rhs.data.unsafe_load(idx)))
             parallelize[vectorize_parallelize](n_vects)
         var result = List[Scalar[DType.bool]](unsafe_uninit_length=self.size)
         result._data = result_ptr
@@ -1716,14 +1716,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def scalar_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs))
+                mat.data.unsafe_store(idx, func[DType.float32, simd_width](self.data.unsafe_load[width=simd_width](idx), rhs))
             vectorize[self.simd_width](self.size, scalar_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def scalar_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs))
+                mat.data.unsafe_store(idx, func[DType.float32, self.simd_width](self.data.unsafe_load[width=self.simd_width](idx), rhs))
             parallelize[scalar_vectorize_parallelize](n_vects)
         return mat^
 
@@ -1732,14 +1732,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def matrix_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, func[DType.float32, simd_width](self.data.load[width=simd_width](idx), rhs.data.load[width=simd_width](idx)))
+                mat.data.unsafe_store(idx, func[DType.float32, simd_width](self.data.unsafe_load[width=simd_width](idx), rhs.data.unsafe_load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, matrix_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def matrix_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, func[DType.float32, self.simd_width](self.data.load[width=self.simd_width](idx), rhs.data.load[width=self.simd_width](idx)))
+                mat.data.unsafe_store(idx, func[DType.float32, self.simd_width](self.data.unsafe_load[width=self.simd_width](idx), rhs.data.unsafe_load[width=self.simd_width](idx)))
             parallelize[matrix_vectorize_parallelize](n_vects)
         return mat^
 
@@ -1748,14 +1748,14 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var mat = Matrix(self.height, self.width, order= self.order)
         if self.size < 262144:
             def math_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.store(idx, func(self.data.load[width=simd_width](idx)))
+                mat.data.unsafe_store(idx, func(self.data.unsafe_load[width=simd_width](idx)))
             vectorize[self.simd_width](self.size, math_vectorize)
         else:
             var n_vects = Int(math.ceil(self.size / self.simd_width))
             @parameter
             def math_vectorize_parallelize(i: Int):
                 var idx = i * self.simd_width
-                mat.data.store(idx, func(self.data.load[width=self.simd_width](idx)))
+                mat.data.unsafe_store(idx, func(self.data.unsafe_load[width=self.simd_width](idx)))
             parallelize[math_vectorize_parallelize](n_vects)
         return mat^
 

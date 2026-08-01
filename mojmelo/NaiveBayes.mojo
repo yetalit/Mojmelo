@@ -56,7 +56,7 @@ struct GaussianNB(Copyable):
         @parameter
         def p(i: Int):
             # return class with highest posterior probability
-            y_pred.data[i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
+            y_pred.data[unsafe_offset=i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
         parallelize[p](X.height)
         return y_pred^
 
@@ -151,7 +151,7 @@ struct MultinomialNB(CV, Copyable):
         @parameter
         def p(i: Int):
             # return class with highest posterior probability
-            y_pred.data[i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
+            y_pred.data[unsafe_offset=i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
         parallelize[p](X.height)
         return y_pred^
 

@@ -118,8 +118,8 @@ struct HDBSCANBoruvka:
                  q: Int) -> Float32:
         if self.alpha != 1.0:
             d2 /= (self.alpha * self.alpha)
-        return max(max(d2, self.tree[].core_dist[p]),
-                   self.tree[].core_dist[q])
+        return max(max(d2, self.tree[].core_dist[unsafe_offset=p]),
+                   self.tree[].core_dist[unsafe_offset=q])
 
     # ------------------------------------------------------------------ #
     #  Component + node label update (one call per Borůvka round)         #
@@ -187,7 +187,7 @@ struct HDBSCANBoruvka:
             return
 
         # --- Pruning case 2: node lower-bound can't beat current heap top ---
-        var xp = self.tree[].data + point_idx * self.dim
+        var xp = self.tree[].data.unsafe_offset(point_idx * self.dim)
         var lb2 = node_pair_lower_bound(
             xp,
             nd[].center._data,
@@ -197,10 +197,10 @@ struct HDBSCANBoruvka:
         )
         # Apply core distance floor: effective lb for mutual reachability
         var lb_mr = max(max(lb2, core_p), Float32(0.0))
-        if lb_mr >= heap_dist[0]:
+        if lb_mr >= heap_dist[unsafe_offset=0]:
             return
         # Also prune against the shared per-component bound
-        if lb_mr >= comp_bound[0]:
+        if lb_mr >= comp_bound[unsafe_offset=0]:
             return
 
         # --- Leaf: examine every point in the node ---
@@ -209,28 +209,28 @@ struct HDBSCANBoruvka:
                 var q = self.tree[].build_idx[i]
                 if self.component_of_point[q] == point_component:
                     continue
-                if self.tree[].core_dist[q] >= comp_bound[0]:
+                if self.tree[].core_dist[unsafe_offset=q] >= comp_bound[unsafe_offset=0]:
                     continue
 
-                var xq = self.tree[].data + q * self.dim
+                var xq = self.tree[].data.unsafe_offset(q * self.dim)
                 var d2: Float32 = 0.0
 
                 def v[simd_width: Int](k: Int) {mut}:
-                    var t = xp.load[width=simd_width](k) - xq.load[width=simd_width](k)
+                    var t = xp.unsafe_load[width=simd_width](k) - xq.unsafe_load[width=simd_width](k)
                     d2 += (t * t).reduce_add()
                 vectorize[Matrix.simd_width](self.dim, v)
 
                 var mr = self.mr_rdist(d2, point_idx, q)
 
-                if mr < heap_dist[0]:
-                    heap_dist[0] = mr
-                    heap_nbr[0]  = q
+                if mr < heap_dist[unsafe_offset=0]:
+                    heap_dist[unsafe_offset=0] = mr
+                    heap_nbr[unsafe_offset=0]  = q
                     # Also record query point so merge_components can read it
                     self.candidate_point[point_idx] = point_idx
                     # Tighten the shared component bound immediately so that
                     # other points in the same component benefit from this find.
-                    if mr < comp_bound[0]:
-                        comp_bound[0] = mr
+                    if mr < comp_bound[unsafe_offset=0]:
+                        comp_bound[unsafe_offset=0] = mr
             return
 
         # --- Internal node: recurse into closer child first ---
@@ -283,7 +283,7 @@ struct HDBSCANBoruvka:
                     comp,
                     UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(heap_dist)),
                     UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(heap_nbr)),
-                    self.tree[].core_dist[i],
+                    self.tree[].core_dist[unsafe_offset=i],
                     UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(comp_bnd))
                 )
             except e:

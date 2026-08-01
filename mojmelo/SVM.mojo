@@ -146,16 +146,16 @@ struct SVC(CV, Copyable):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
-                    val = X_float64[(i * X.width) + c]
+                    val = X_float64[unsafe_offset=(i * X.width) + c]
                 else:
-                    val = X_float64[(c * X.height) + i]
+                    val = X_float64[unsafe_offset=(c * X.height) + i]
                 if val != 0.0:
                     self._x_list[i].append(svm_node(c+1, val))
             self._x_list[i].append(svm_node(-1, 0))
             self._x_ptr[i] = self._x_list[i]._data
         parallelize[p](X.height)
 
-        X_float64.free()
+        X_float64.unsafe_free()
 
         var prob = svm_problem()
         prob.l = X.height
@@ -164,12 +164,12 @@ struct SVC(CV, Copyable):
 
         var check = svm_check_parameter(prob, param)
         if check != "":
-            prob.y.free()
+            prob.y.unsafe_free()
             raise Error(check)
 
         self._model = svm_train(prob, param)
 
-        prob.y.free()
+        prob.y.unsafe_free()
     
     def predict(self, X: Matrix) raises -> Matrix:
         """Perform classification on samples in X.
@@ -186,17 +186,17 @@ struct SVC(CV, Copyable):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
-                    val = X_float64[(i * X.width) + c]
+                    val = X_float64[unsafe_offset=(i * X.width) + c]
                 else:
-                    val = X_float64[(c * X.height) + i]
+                    val = X_float64[unsafe_offset=(c * X.height) + i]
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
-            y_ptr[i] = svm_predict(self._model.value()[], x_list._data)
+            y_ptr[unsafe_offset=i] = svm_predict(self._model.value()[], x_list._data)
             _ = x_list
         parallelize[p](X.height)
 
-        X_float64.free()
+        X_float64.unsafe_free()
 
         return Matrix(data=y_ptr, height=X.height, width=1)
 
@@ -216,9 +216,9 @@ struct SVC(CV, Copyable):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
-                    val = X_float64[(i * X.width) + c]
+                    val = X_float64[unsafe_offset=(i * X.width) + c]
                 else:
-                    val = X_float64[(c * X.height) + i]
+                    val = X_float64[unsafe_offset=(c * X.height) + i]
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
@@ -228,7 +228,7 @@ struct SVC(CV, Copyable):
             _ = x_list
         parallelize[p](X.height)
 
-        X_float64.free()
+        X_float64.unsafe_free()
 
         return dec_values^
 
@@ -262,7 +262,7 @@ struct SVC(CV, Copyable):
             f.write_bytes(Span(unsafe_ptr=X.data.unsafe_bitcast[UInt8](), length=4*_model[].l*self._n_features))
             _ = X
             for i in range(_model[].nr_class-1):
-                f.write_bytes(Span(unsafe_ptr=_model[].sv_coef.value()[i].value().unsafe_bitcast[UInt8](), length=8*_model[].l))
+                f.write_bytes(Span(unsafe_ptr=_model[].sv_coef.value()[unsafe_offset=i].value().unsafe_bitcast[UInt8](), length=8*_model[].l))
             f.write_bytes(Span(unsafe_ptr=_model[].rho.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
             if self.probability:
                 f.write_bytes(Span(unsafe_ptr=_model[].probA.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
@@ -335,20 +335,20 @@ struct SVC(CV, Copyable):
                 for c in range(X_mat.width):
                     var val: Float64
                     if X_mat.order == 'c':
-                        val = X_float64[(i * X_mat.width) + c]
+                        val = X_float64[unsafe_offset=(i * X_mat.width) + c]
                     else:
-                        val = X_float64[(c * X_mat.height) + i]
+                        val = X_float64[unsafe_offset=(c * X_mat.height) + i]
                     if val != 0.0:
                         model._x_list[i].append(svm_node(c+1, val))
                 model._x_list[i].append(svm_node(-1, 0))
                 model._x_ptr[i] = model._x_list[i]._data
             parallelize[p](X_mat.height)
-            X_float64.free()
+            X_float64.unsafe_free()
 
             var sv_coef = alloc[OptionalUnsafePointer[Float64, MutUntrackedOrigin]](nr_class-1)
             for i in range(nr_class-1):
-                sv_coef[i] = alloc[Float64](l)
-                unsafe_memcpy(dest=sv_coef[i].value(), src=f.read_bytes(8*l).unsafe_ptr().unsafe_bitcast[Float64](), count=l)
+                sv_coef[unsafe_offset=i] = alloc[Float64](l)
+                unsafe_memcpy(dest=sv_coef[unsafe_offset=i].value(), src=f.read_bytes(8*l).unsafe_ptr().unsafe_bitcast[Float64](), count=l)
             var rho = alloc[Float64]((nr_class*(nr_class-1))//2)
             unsafe_memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
             var probA = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
@@ -378,7 +378,7 @@ struct SVC(CV, Copyable):
             model._model = _model
         return model^
 
-    def __del__(deinit self):
+    def __deinit__(deinit self):
         if self._model:
             svm_free_and_destroy_model(self._model)
 
@@ -388,8 +388,8 @@ struct SVC(CV, Copyable):
         var support_vectors_ = Matrix.zeros(model[].l, self._n_features)
         for row in range(support_vectors_.height):
             var pointer = 0
-            while model[].SV.value()[row][pointer].index != -1:
-                support_vectors_[row, model[].SV.value()[row][pointer].index-1] = model[].SV.value()[row][pointer].value.cast[DType.float32]()
+            while model[].SV.value()[unsafe_offset=row][unsafe_offset=pointer].index != -1:
+                support_vectors_[row, model[].SV.value()[unsafe_offset=row][unsafe_offset=pointer].index-1] = model[].SV.value()[unsafe_offset=row][unsafe_offset=pointer].value.cast[DType.float32]()
                 pointer += 1
         return support_vectors_^
 

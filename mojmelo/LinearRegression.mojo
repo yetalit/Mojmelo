@@ -126,7 +126,7 @@ struct LinearRegression(CV, Copyable):
         with open(_path, "w") as f:
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.weights.size).as_bytes())
-            f.write_bytes(Span(unsafe_ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(Span(unsafe_ptr=self.weights.data.unsafe_bitcast[UInt8](), length=4*self.weights.size))
             f.write_bytes(self.bias.as_bytes())
 
     @staticmethod

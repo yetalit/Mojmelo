@@ -117,7 +117,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         move.min_samples_split = move.max_depth = move.n_feats = 0
         move.root = None
 
-    def __del__(deinit self):
+    def __deinit__(deinit self):
         if self.root:
             delTree(self.root.value())
 
@@ -143,7 +143,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         var y_predicted = Matrix(X.height, 1)
         @parameter
         def p(i: Int):
-            y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root.value())
+            y_predicted.data[unsafe_offset=i] = _traverse_tree(X.data.unsafe_offset(i * X.width), self.root.value())
         parallelize[p](X.height)
         return y_predicted^
 
@@ -151,9 +151,9 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         var _y = Matrix(len(indices), 1, order=Y.order)
         var weights = Matrix(len(indices), 1, order=Y.order) if Y.width == 2 else Matrix(0, 0)
         for i, idx in enumerate(indices):
-            _y.data[i] = Y.data[idx]
+            _y.data[unsafe_offset=i] = Y.data[unsafe_offset=idx]
             if Y.width == 2:
-                weights.data[i] = Y.data[idx + Y.height]
+                weights.data[unsafe_offset=i] = Y.data[unsafe_offset=idx + Y.height]
 
         var unique_targets: Int
         var freq = List[List[Int]]()
@@ -206,7 +206,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             var node_list = List[Node]()
             var children_index_list = List[Tuple[Int, Int]]()
-            var stack = [self.root.value()[].copy()]
+            var stack = List([self.root.value()[].copy()])
             while len(stack) > 0:
                 var node = stack.pop()
                 var children_index = (-1, -1)
@@ -286,7 +286,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
             try:
                 var column = Matrix(len(indices), 1)
                 for i in range(len(indices)):
-                    column.data[i] = X[indices[i], feat_idxs[idx]]
+                    column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
                 var right_histogram = histogram.copy()
@@ -295,26 +295,26 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                 var n_left: Float32 = 0.0
                 for step in range(1, len(indices)):
                     var prev = sorted_indices[step - 1]
-                    var c = Int(_y.data[prev])
+                    var c = Int(_y.data[unsafe_offset=prev])
                     if weights.size == 0:
                         n_left += 1
                         left_histogram[c] += 1
                         right_histogram[c] -= 1
                     else:
-                        var weight = Int(weights.data[prev])
+                        var weight = Int(weights.data[unsafe_offset=prev])
                         n_left += Float32(weight)
                         left_histogram[c] += weight
                         right_histogram[c] -= weight
 
-                    if column.data[step] == column.data[step - 1]:
+                    if column.data[unsafe_offset=step] == column.data[unsafe_offset=step - 1]:
                         continue
 
                     var n_right = total_samples - n_left
                     var child_loss = (n_left / total_samples) * c_precompute(n_left, left_histogram) + (n_right / total_samples) * c_precompute(n_right, right_histogram)
                     var ig = parent_loss - child_loss
-                    if ig > max_gains.data[idx]:
-                        max_gains.data[idx] = ig
-                        best_thresholds.data[idx] = (column.data[step] + column.data[step - 1]) / 2.0
+                    if ig > max_gains.data[unsafe_offset=idx]:
+                        max_gains.data[unsafe_offset=idx] = ig
+                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=step] + column.data[unsafe_offset=step - 1]) / 2.0
             except e:
                 print('Error:', e)
         parallelize[p_c](len(feat_idxs))
@@ -326,7 +326,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
             try:
                 var column = Matrix(len(indices), 1)
                 for i in range(len(indices)):
-                    column.data[i] = X[indices[i], feat_idxs[idx]]
+                    column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
                 var sorted_indices = indices_to_sort.copy()
                 column.argsort_inplace(sorted_indices)
                 var left_sum: Float32 = 0.0
@@ -334,26 +334,26 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                 var n_left: Float32 = 0.0
                 for step in range(1, len(indices)):
                     var prev = sorted_indices[step - 1]
-                    var yi = _y.data[prev]
+                    var yi = _y.data[unsafe_offset=prev]
                     if weights.size == 0:
                         n_left += 1
                         left_sum += yi
                         left_sum_sq += yi * yi
                     else:
-                        var weight = weights.data[prev]
+                        var weight = weights.data[unsafe_offset=prev]
                         n_left += weight
                         left_sum += yi * weight
                         left_sum_sq += yi * yi * weight
 
-                    if column.data[step] == column.data[step - 1]:
+                    if column.data[unsafe_offset=step] == column.data[unsafe_offset=step - 1]:
                         continue
 
                     var n_right = total_samples - n_left
                     var child_loss = (n_left / total_samples) * r_precompute(n_left, left_sum, left_sum_sq) + (n_right / total_samples) * r_precompute(n_right, sum_total - left_sum, sum_sq_total - left_sum_sq)
                     var ig = parent_loss - child_loss
-                    if ig > max_gains.data[idx]:
-                        max_gains.data[idx] = ig
-                        best_thresholds.data[idx] = (column.data[step] + column.data[step - 1]) / 2.0
+                    if ig > max_gains.data[unsafe_offset=idx]:
+                        max_gains.data[unsafe_offset=idx] = ig
+                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=step] + column.data[unsafe_offset=step - 1]) / 2.0
             except e:
                 print('Error:', e)
         parallelize[p_r](len(feat_idxs))
@@ -361,11 +361,11 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
     var feat_idx = max_gains.argmax()
     return feat_idxs[feat_idx], best_thresholds[0, feat_idx]
 
-def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
+def _traverse_tree(x: UnsafePointer[Float32, MutUntrackedOrigin], node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
-    if x.data[node[].feature] <= node[].threshold:
+    if x[unsafe_offset=node[].feature] <= node[].threshold:
         return _traverse_tree(x, node[].left.value())
     return _traverse_tree(x, node[].right.value())
 
@@ -374,4 +374,4 @@ def delTree(node: UnsafePointer[Node, MutUntrackedOrigin]):
         delTree(node[].left.value())
     if node[].right:
         delTree(node[].right.value())
-    node.free()
+    node.unsafe_free()

@@ -34,7 +34,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         take.reg_lambda = take.reg_alpha = take.gamma = 0.0
         take.root = None
 
-    def __del__(deinit self):
+    def __deinit__(deinit self):
         if self.root:
             delTree(self.root.value())
 
@@ -45,7 +45,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var y_predicted = Matrix(X.height, 1)
         @parameter
         def p(i: Int):
-            y_predicted.data[i] = _traverse_tree(X[i, unsafe=True], self.root.value())
+            y_predicted.data[unsafe_offset=i] = _traverse_tree(X[i, unsafe=True], self.root.value())
         parallelize[p](X.height)
         return y_predicted^
 
@@ -53,8 +53,8 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var g = Matrix(len(indices), G.width, order=G.order)
         var h = Matrix(len(indices), H.width, order=H.order)
         for i, idx in enumerate(indices):
-            g.data[i] = G.data[idx]
-            h.data[i] = H.data[idx]
+            g.data[unsafe_offset=i] = G.data[unsafe_offset=idx]
+            h.data[unsafe_offset=i] = H.data[unsafe_offset=idx]
         var new_node = alloc[Node](1)
         # stopping criteria
         if (
@@ -127,7 +127,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
         try:
             var column = Matrix(len(indices), 1)
             for i in range(len(indices)):
-                column.data[i] = X[indices[i], feat_idxs[idx]]
+                column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
             if n_bins < 2 or len(column) < n_bins:
                 var sorted_indices = indices_to_sort.copy()
                 column.argsort_inplace(sorted_indices)
@@ -137,17 +137,17 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
 
                 for step in range(1, len(indices)):
                     var prev = sorted_indices[step - 1]
-                    left_g_sum += g.data[prev]
-                    left_h_sum += h.data[prev]
+                    left_g_sum += g.data[unsafe_offset=prev]
+                    left_h_sum += h.data[unsafe_offset=prev]
 
-                    if column.data[step] == column.data[step - 1]:
+                    if column.data[unsafe_offset=step] == column.data[unsafe_offset=step - 1]:
                         continue  # skip redundant thresholds
 
                     var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                     var ig = parent_loss - child_loss
-                    if ig > max_gains.data[idx]:
-                        max_gains.data[idx] = ig
-                        best_thresholds.data[idx] = (column.data[step] + column.data[step - 1]) / 2.0  # midpoint
+                    if ig > max_gains.data[unsafe_offset=idx]:
+                        max_gains.data[unsafe_offset=idx] = ig
+                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=step] + column.data[unsafe_offset=step - 1]) / 2.0  # midpoint
             else:
                 var start = column.min()
                 var end = column.max()
@@ -155,16 +155,16 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
                     var bins = Matrix.linspace(start, end, n_bins+1)
                     var intervals = List[Tuple[Float32, Float32]]()
                     for bin_i in range(1, len(bins)):
-                        intervals.append((bins.data[bin_i-1], bins.data[bin_i]))
+                        intervals.append((bins.data[unsafe_offset=bin_i-1], bins.data[unsafe_offset=bin_i]))
 
                     var g_per_interval = Matrix.zeros(len(column), len(intervals))
                     var h_per_interval = Matrix.zeros(len(column), len(intervals))
                     @parameter
                     def find_interval(i: Int):
                         try:
-                            var interval = findInterval(intervals, column.data[i])
-                            g_per_interval[i, interval] = g.data[i]
-                            h_per_interval[i, interval] = h.data[i]
+                            var interval = findInterval(intervals, column.data[unsafe_offset=i])
+                            g_per_interval[i, interval] = g.data[unsafe_offset=i]
+                            h_per_interval[i, interval] = h.data[unsafe_offset=i]
                         except e:
                             print('Error:', e)
                     parallelize[find_interval](len(column))
@@ -175,14 +175,14 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
                     var left_h_sum: Float32 = 0.0
 
                     for step in range(len(intervals)-1):
-                        left_g_sum += g_sum.data[step]
-                        left_h_sum += h_sum.data[step]
+                        left_g_sum += g_sum.data[unsafe_offset=step]
+                        left_h_sum += h_sum.data[unsafe_offset=step]
 
                         var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                         var ig = parent_loss - child_loss
-                        if ig > max_gains.data[idx]:
-                            max_gains.data[idx] = ig
-                            best_thresholds.data[idx] = bins.data[step+1]
+                        if ig > max_gains.data[unsafe_offset=idx]:
+                            max_gains.data[unsafe_offset=idx] = ig
+                            best_thresholds.data[unsafe_offset=idx] = bins.data[unsafe_offset=step+1]
         except e:
             print('Error:', e)
     parallelize[p](len(feat_idxs))
@@ -194,7 +194,7 @@ def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> 
     if node[].is_leaf_node():
         return node[].value
 
-    if x.data[node[].feature] <= node[].threshold:
+    if x.data[unsafe_offset=node[].feature] <= node[].threshold:
         return _traverse_tree(x, node[].left.value())
     return _traverse_tree(x, node[].right.value())
 
@@ -203,4 +203,4 @@ def delTree(node: UnsafePointer[Node, MutUntrackedOrigin]):
         delTree(node[].left.value())
     if node[].right:
         delTree(node[].right.value())
-    node.free()
+    node.unsafe_free()

@@ -25,7 +25,7 @@ def bfs_from_hierarchy(hierarchy: Matrix, bfs_root: Int) raises -> List[Int]:
     var max_node = 2 * dim
     var num_points = max_node - dim + 1
 
-    var to_process = [bfs_root]
+    var to_process = List([bfs_root])
     var result = List[Int]()
     var visited = Dict[Int, Bool]()
     visited[bfs_root] = True
@@ -238,7 +238,7 @@ def compute_stability(condensed_tree: Dict[String, List[Int]], lambda_vals: List
 def bfs_from_cluster_tree(tree: Dict[String, List[Int]], bfs_root: Int) raises -> List[Int]:
 
     var result = List[Int]()
-    var to_process = [bfs_root]
+    var to_process = List([bfs_root])
 
     while len(to_process) > 0:
         result.extend(to_process.copy())
@@ -315,29 +315,29 @@ struct TreeUnionFind:
         var tmpPtr = self._data
 
         def v[simd_width: Int](idx: Int) {mut}:
-            tmpPtr.strided_store[width=simd_width](_arange.unsafe_ptr().unsafe_load[width=simd_width](idx), self.width)
-            tmpPtr += simd_width * self.width
+            tmpPtr.unsafe_strided_store[width=simd_width](_arange.unsafe_ptr().unsafe_load[width=simd_width](idx), self.width)
+            tmpPtr = tmpPtr.unsafe_offset(simd_width * self.width)
         vectorize[simd_width](self.size, v)
 
     def union_(mut self, x: Int, y: Int):
         var x_root = self.find(x)
         var y_root = self.find(y)
 
-        if self._data[x_root * self.width + 1] < self._data[y_root * self.width + 1]:
-            self._data[x_root * self.width] = y_root
-        elif self._data[x_root * self.width + 1] > self._data[y_root * self.width + 1]:
-            self._data[y_root * self.width] = x_root
+        if self._data[unsafe_offset=x_root * self.width + 1] < self._data[unsafe_offset=y_root * self.width + 1]:
+            self._data[unsafe_offset=x_root * self.width] = y_root
+        elif self._data[unsafe_offset=x_root * self.width + 1] > self._data[unsafe_offset=y_root * self.width + 1]:
+            self._data[unsafe_offset=y_root * self.width] = x_root
         else:
-            self._data[y_root * self.width] = x_root
-            self._data[x_root * self.width + 1] += 1
+            self._data[unsafe_offset=y_root * self.width] = x_root
+            self._data[unsafe_offset=x_root * self.width + 1] += 1
 
         return
 
     def find(mut self, x: Int) -> Int:
-        if self._data[x * self.width] != x:
-            self._data[x * self.width] = self.find(self._data[x * self.width])
+        if self._data[unsafe_offset=x * self.width] != x:
+            self._data[unsafe_offset=x * self.width] = self.find(self._data[unsafe_offset=x * self.width])
             self.is_component[x] = False
-        return self._data[x * self.width]
+        return self._data[unsafe_offset=x * self.width]
 
     def components(self) -> List[Int]:
         var args = List[Int]()
@@ -347,8 +347,8 @@ struct TreeUnionFind:
         return args^
 
     @always_inline
-    def __del__(deinit self):
-        self._data.free()
+    def __deinit__(deinit self):
+        self._data.unsafe_free()
 
 def labelling_at_cut(
         linkage: Matrix,

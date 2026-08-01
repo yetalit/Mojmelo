@@ -12,7 +12,7 @@ def key(idx: Int,
         data: UnsafePointer[Float32, MutUntrackedOrigin],
         dim: Int,
         split_dim: Int) -> Float32:
-    return data[idx * dim + split_dim]
+    return data[unsafe_offset=idx * dim + split_dim]
 
 @always_inline
 def nth_element(
@@ -24,7 +24,7 @@ def nth_element(
     dim: Int,
     split_dim: Int):
     for i in range((Int(last) - Int(first))//size_of[DType.int]()):
-        proj[i] = key(first[i], data, dim, split_dim)
+        proj[unsafe_offset=i] = key(first[unsafe_offset=i], data, dim, split_dim)
 
     while (Int(last) - Int(first))//size_of[DType.int]() > 1:
         var _len = (Int(last) - Int(first))//size_of[DType.int]()
@@ -35,34 +35,34 @@ def nth_element(
         var c = _len - 1
 
         var pivot_i: Int
-        if proj[a] < proj[b]:
-            pivot_i = b if proj[b] < proj[c] else (c if proj[a] < proj[c] else a)
+        if proj[unsafe_offset=a] < proj[unsafe_offset=b]:
+            pivot_i = b if proj[unsafe_offset=b] < proj[unsafe_offset=c] else (c if proj[unsafe_offset=a] < proj[unsafe_offset=c] else a)
         else:
-            pivot_i = a if proj[a] < proj[c] else (c if proj[b] < proj[c] else b)
-        swap(first[pivot_i], first[_len - 1])
-        swap(proj[pivot_i],  proj[_len - 1])
+            pivot_i = a if proj[unsafe_offset=a] < proj[unsafe_offset=c] else (c if proj[unsafe_offset=b] < proj[unsafe_offset=c] else b)
+        swap(first[unsafe_offset=pivot_i], first[unsafe_offset=_len - 1])
+        swap(proj[unsafe_offset=pivot_i],  proj[unsafe_offset=_len - 1])
 
-        var pivot_val = proj[_len - 1]
-        var pivot_idx = first[_len - 1]
+        var pivot_val = proj[unsafe_offset=_len - 1]
+        var pivot_idx = first[unsafe_offset=_len - 1]
 
         var store = 0
         for i in range(_len - 1):
-            if proj[i] < pivot_val or
-               (proj[i] == pivot_val and first[i] < pivot_idx):
-                swap(first[i], first[store])
-                swap(proj[i],  proj[store])
+            if proj[unsafe_offset=i] < pivot_val or
+               (proj[unsafe_offset=i] == pivot_val and first[unsafe_offset=i] < pivot_idx):
+                swap(first[unsafe_offset=i], first[unsafe_offset=store])
+                swap(proj[unsafe_offset=i],  proj[unsafe_offset=store])
                 store += 1
 
-        swap(first[store], first[_len - 1])
-        swap(proj[store],  proj[_len - 1])
+        swap(first[unsafe_offset=store], first[unsafe_offset=_len - 1])
+        swap(proj[unsafe_offset=store],  proj[unsafe_offset=_len - 1])
 
-        if first + store == nth:
+        if first.unsafe_offset(store) == nth:
             return
-        elif first + store < nth:
-            first += store + 1
-            proj += store + 1
+        elif first.unsafe_offset(store) < nth:
+            first = first.unsafe_offset(store + 1)
+            proj = proj.unsafe_offset(store + 1)
         else:
-            last = first + store
+            last = first.unsafe_offset(store)
 
 @always_inline
 def node_pair_lower_bound(
@@ -75,7 +75,7 @@ def node_pair_lower_bound(
     var dist2: Float32 = 0.0
 
     def v[simd_width: Int](k: Int) {mut}:
-        var t = center1.load[width=simd_width](k) - center2.load[width=simd_width](k)
+        var t = center1.unsafe_load[width=simd_width](k) - center2.unsafe_load[width=simd_width](k)
         dist2 += (t * t).reduce_add()
 
     vectorize[Matrix.simd_width](dim, v)
@@ -141,11 +141,11 @@ struct KDTreeBoruvka:
             try:
                 var kd_results = KDTreeResultVector()
                 self.kdtree.n_nearest(
-                    Span(unsafe_ptr=self.data + p * self.dim, length=self.dim),
+                    Span(unsafe_ptr=self.data.unsafe_offset(p * self.dim), length=self.dim),
                     k,
                     kd_results
                 )
-                self.core_dist[p] = kd_results[min_samples].dis
+                self.core_dist[unsafe_offset=p] = kd_results[min_samples].dis
             except e:
                 print('Error:', e)
 
@@ -154,9 +154,9 @@ struct KDTreeBoruvka:
         self.build_node(0, 0, self.n)
 
     @always_inline
-    def __del__(deinit self):
-        self.core_dist.free()
-        self._center_arena.free()
+    def __deinit__(deinit self):
+        self.core_dist.unsafe_free()
+        self._center_arena.unsafe_free()
 
     @always_inline
     def left(self, i: Int) -> Int:
@@ -179,9 +179,9 @@ struct KDTreeBoruvka:
         mx.resize(self.dim, -math.inf[DType.float32]())
 
         for i in range(start, end):
-            var p = self.data + self.build_idx[i] * self.dim
+            var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
             for d in range(self.dim):
-                var v = p[d]
+                var v = p[unsafe_offset=d]
                 if v < mn[d]: mn[d] = v
                 if v > mx[d]: mx[d] = v
 
@@ -203,26 +203,26 @@ struct KDTreeBoruvka:
         var count = Float32(end - start)
 
         # Point this node's center at its pre-allocated slot in the arena
-        var cptr = self._center_arena + node * self.dim
+        var cptr = self._center_arena.unsafe_offset(node * self.dim)
         nd[].center = CenterPtr(cptr)
 
         for i in range(start, end):
-            var p = self.data + self.build_idx[i] * self.dim
+            var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
 
             def v1[simd_width: Int](k: Int) {imm}:
-                cptr.store(k, cptr.load[width=simd_width](k) + p.load[width=simd_width](k))
+                cptr.unsafe_store(k, cptr.unsafe_load[width=simd_width](k) + p.unsafe_load[width=simd_width](k))
             vectorize[Matrix.simd_width](self.dim, v1)
 
         for d in range(self.dim):
-            cptr[d] /= count
+            cptr[unsafe_offset=d] /= count
 
         var maxd: Float32 = 0.0
         for i in range(start, end):
-            var p = self.data + self.build_idx[i] * self.dim
+            var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
             var d2: Float32 = 0.0
 
             def v2[simd_width: Int](k: Int) {mut}:
-                var t = p.load[width=simd_width](k) - cptr.load[width=simd_width](k)
+                var t = p.unsafe_load[width=simd_width](k) - cptr.unsafe_load[width=simd_width](k)
                 d2 += (t * t).reduce_add()
             vectorize[Matrix.simd_width](self.dim, v2)
             if d2 > maxd:

@@ -62,10 +62,10 @@ struct GBDT(CV, Copyable):
 		self.score_start = 0.0
 		self.num_class = 0
 
-	def __del__(deinit self):
+	def __deinit__(deinit self):
 		for i in range(self.n_trees):
-			(self.trees + i).unsafe_deinit_pointee()
-		self.trees.free()
+			self.trees.unsafe_offset(i).unsafe_deinit_pointee()
+		self.trees.unsafe_free()
 
 	def fit(mut self, X: Matrix, y: Matrix) raises:
 		"""Fit the gradient boosting model."""
@@ -91,9 +91,9 @@ struct GBDT(CV, Copyable):
 					var h = self.loss_h(score)
 					var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, reg_alpha = self.reg_alpha, gamma = self.gamma, n_bins=self.n_bins)
 					tree.fit(X_F, g=g['', k], h=h['', k])
-					(self.trees + t_i * self.num_class + k).unsafe_write(tree)
-					self.trees[t_i * self.num_class + k]._moveinit_(tree)
-					score['', k] += self.learning_rate * self.trees[t_i * self.num_class + k].predict(X)
+					(self.trees.unsafe_offset(t_i * self.num_class + k)).unsafe_write(tree)
+					self.trees[unsafe_offset=t_i * self.num_class + k]._moveinit_(tree)
+					score['', k] += self.learning_rate * self.trees[unsafe_offset=t_i * self.num_class + k].predict(X)
 				except e:
 					print('Error:', e)
 			parallelize[p](self.num_class)
@@ -111,7 +111,7 @@ struct GBDT(CV, Copyable):
 			@parameter
 			def per_tree(i: Int):
 				try:
-					score['', i] = self.learning_rate * self.trees[i * self.num_class + k].predict(X)
+					score['', i] = self.learning_rate * self.trees[unsafe_offset=i * self.num_class + k].predict(X)
 				except e:
 					print('Error:', e)
 			parallelize[per_tree](self.n_trees)
@@ -140,7 +140,7 @@ struct GBDT(CV, Copyable):
 			for t_i in range(self.n_trees * self.num_class):
 				var node_list = List[Node]()
 				var children_index_list = List[Tuple[Int, Int]]()
-				var stack = [self.trees[t_i].root.value()[].copy()]
+				var stack = List([self.trees[unsafe_offset=t_i].root.value()[].copy()])
 				while len(stack) > 0:
 					var node = stack.pop()
 					var children_index = (-1, -1)
@@ -198,8 +198,8 @@ struct GBDT(CV, Copyable):
 						node_list[i][].left = node_list[children_index_list[i][0]]
 					if children_index_list[i][1] != -1:
 						node_list[i][].right = node_list[children_index_list[i][1]]
-				(model.trees + t_i).unsafe_write(tree)
-				model.trees[t_i]._moveinit_(tree)
+				model.trees.unsafe_offset(t_i).unsafe_write(tree)
+				model.trees[unsafe_offset=t_i]._moveinit_(tree)
 		return model^
 
 	def __init__(out self, params: Dict[String, String]) raises:

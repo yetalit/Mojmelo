@@ -29,12 +29,12 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
         else:
             if norms.height < 768:
                 for i in range(norms.height):
-                    norms.data[i] = data[i].norm()
+                    norms.data[unsafe_offset=i] = data[i].norm()
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        norms.data[i] = data[i].norm()
+                        norms.data[unsafe_offset=i] = data[i].norm()
                     except e:
                         print('Error:', e)
                 parallelize[p1](norms.height)
@@ -42,8 +42,8 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
     @parameter
     def p2(i: Int):
         try:
-            if norms.data[i] != 0.0:
-                z[i] = data[i] / norms.data[i]
+            if norms.data[unsafe_offset=i] != 0.0:
+                z[i] = data[i] / norms.data[unsafe_offset=i]
             else:
                 z[i].fill_zero()
         except e:
@@ -201,7 +201,7 @@ struct LabelEncoder:
                 self.str_to_index[str_] = latest_index
                 self.index_to_str[latest_index] = str_
                 latest_index += 1
-            y_encoded.data[i] = Float32(self.str_to_index[str_])
+            y_encoded.data[unsafe_offset=i] = Float32(self.str_to_index[str_])
         return y_encoded^
 
     def transform(self, y: PythonObject) raises -> Matrix:
@@ -215,7 +215,7 @@ struct LabelEncoder:
         """
         var y_encoded = Matrix(len(y), 1)
         for i in range(len(y)):
-            y_encoded.data[i] = Float32(self.str_to_index[String(y[i])])
+            y_encoded.data[unsafe_offset=i] = Float32(self.str_to_index[String(y[i])])
         return y_encoded^
 
     def inverse_transform(self, y: Matrix) raises -> PythonObject:
@@ -230,7 +230,7 @@ struct LabelEncoder:
         var np = Python.import_module("numpy")
         var np_arr = np.empty(len(y), dtype='object')
         for i in range(len(y)):
-            np_arr[i] = self.index_to_str[Int(y.data[i])]
+            np_arr[i] = self.index_to_str[Int(y.data[unsafe_offset=i])]
         return np_arr^
 
 def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matrix, Matrix) thin raises -> Float32, n_splits: Int = 5) raises -> Float32:
@@ -299,7 +299,7 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
             var score = KFold(model, X, y, scoring, cv)
             if neg_score:
                 score *= -1
-            scores.data[i] = score
+            scores.data[unsafe_offset=i] = score
     else:
         var n_workers = n_jobs
         if n_workers == -1:
@@ -316,14 +316,14 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
                 var score = KFold(model, X, y, scoring, cv)
                 if neg_score:
                     score *= -1
-                scores.data[i] = score
+                scores.data[unsafe_offset=i] = score
             except e:
                 print('Error:', e)
         parallelize[p](len(combinations), n_workers)
     var best_score = scores.max()
     var best = -1
     for i in range(len(scores)):
-        if scores.data[i] == best_score:
+        if scores.data[unsafe_offset=i] == best_score:
             best = i
             break
     var best_params = params[best].copy()

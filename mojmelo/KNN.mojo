@@ -43,7 +43,7 @@ struct KNN(CV, Copyable):
         @parameter
         def p(i: Int):
             try:
-                y_pred.data[i] = self._predict(X[i])
+                y_pred.data[unsafe_offset=i] = self._predict(X[i])
             except e:
                 print('Error:', e)
         parallelize[p](X.height)
@@ -55,9 +55,9 @@ struct KNN(CV, Copyable):
         self.kdtree.n_nearest(Span(unsafe_ptr=x.data, length=x.size), self.search_depth * self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[Int, Int]()
-        var most_common = Int(self.y_train.data[kd_results[0].idx])
+        var most_common = Int(self.y_train.data[unsafe_offset=kd_results[0].idx])
         for i in range(self.k):
-            var label = Int(self.y_train.data[kd_results[i].idx])
+            var label = Int(self.y_train.data[unsafe_offset=kd_results[i].idx])
             if label in k_neighbor_votes:
                 k_neighbor_votes[label] += 1
             else:

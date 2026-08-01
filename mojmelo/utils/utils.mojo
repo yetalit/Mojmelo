@@ -3,10 +3,8 @@ import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
 from std.algorithm import vectorize
-from mojmelo.utils.algorithm import parallelize, elementwise
-from std.gpu.host import DeviceContext
+from mojmelo.utils.algorithm import parallelize
 from std.sys import simd_width_of
-from std.utils.coord import Coord
 
 # Cross Validation trait
 trait CV(ImplicitlyDeletable):
@@ -31,7 +29,7 @@ comptime MODEL_IDS: Array[String, 13] = ['',
     'Random Forest',
     'GBDT',
     'PCA'
-                                            ]
+                                        ]
 
 # ===-----------------------------------------------------------------------===#
 # argn
@@ -79,8 +77,8 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
     for i in range(start, end):
         var input_offset = i * input_stride
         var output_offset = i * output_stride
-        var input_dim_ptr = input.data + input_offset
-        var output_dim_ptr = output.data + output_offset
+        var input_dim_ptr = input.data.unsafe_offset(input_offset)
+        var output_dim_ptr = output.data.unsafe_offset(output_offset)
         var global_val: Float32
 
         # initialize limits
@@ -94,14 +92,14 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
         if axis_size < simd_width:
             global_values = global_val
         else:
-            global_values = input_dim_ptr.load[width=simd_width]()
+            global_values = input_dim_ptr.unsafe_load[width=simd_width]()
 
         # iterate over values evenly divisible by simd_width
         var indices = math.iota[DType.float32, simd_width]()
         var global_indices = indices
         var last_simd_index = math.align_down(axis_size, simd_width)
         for j in range(simd_width, last_simd_index, simd_width):
-            var curr_values = input_dim_ptr.load[width=simd_width](j)
+            var curr_values = input_dim_ptr.unsafe_load[width=simd_width](j)
             indices += Float32(simd_width)
 
             var mask = cmpeq(curr_values, global_values)
@@ -117,7 +115,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
         var idx = Float32(0)
         var found_min: Bool = False
         for j in range(last_simd_index, axis_size, 1):
-            var elem = input_dim_ptr.load(j)
+            var elem = input_dim_ptr.unsafe_load(j)
             if cmp(global_val, elem):
                 global_val = elem
                 idx = Float32(j)
@@ -218,21 +216,21 @@ def sign(z: Matrix) -> Matrix:
     var mat = Matrix(z.height, z.width, order= z.order)
     if mat.size < 147456:
         for i in range(mat.size):
-            if z.data[i] > 0.0:
-                mat.data[i] = 1.0
-            elif z.data[i] < 0.0:
-                mat.data[i] = -1.0
+            if z.data[unsafe_offset=i] > 0.0:
+                mat.data[unsafe_offset=i] = 1.0
+            elif z.data[unsafe_offset=i] < 0.0:
+                mat.data[unsafe_offset=i] = -1.0
             else:
-                mat.data[i] = 0.0
+                mat.data[unsafe_offset=i] = 0.0
     else:
         @parameter
         def p(i: Int):
-            if z.data[i] > 0.0:
-                mat.data[i] = 1.0
-            elif z.data[i] < 0.0:
-                mat.data[i] = -1.0
+            if z.data[unsafe_offset=i] > 0.0:
+                mat.data[unsafe_offset=i] = 1.0
+            elif z.data[unsafe_offset=i] < 0.0:
+                mat.data[unsafe_offset=i] = -1.0
             else:
-                mat.data[i] = 0.0
+                mat.data[unsafe_offset=i] = 0.0
         parallelize[p](mat.size)
     return mat^
 
@@ -273,7 +271,7 @@ def accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
     var y_pred_data = y_pred.data
 
     def compare[simd_width: Int](idx: Int) {mut}:
-        correct_count += y_data.load[width=simd_width](idx).eq(y_pred_data.load[width=simd_width](idx)).reduce_bit_count()
+        correct_count += y_data.unsafe_load[width=simd_width](idx).eq(y_pred_data.unsafe_load[width=simd_width](idx)).reduce_bit_count()
     vectorize[y_pred.simd_width](len(y), compare)
     return Float32(correct_count) / Float32(len(y))
 
@@ -381,13 +379,11 @@ def fill_indices(N: Int) raises -> UnsafePointer[Int, MutUntrackedOrigin]:
         The pointer to indices.
     """
     var indices = alloc[Int](N)
-    @parameter
-    def fill_indices_iota[width: Int, alignment: Int = 1](offset: Coord):
-        indices.store(offset[0].value(), math.iota[DType.int, width](Int(offset[0].value())))
 
-    elementwise[fill_indices_iota, simd_width_of[DType.int](), target="cpu"](
-        N, DeviceContext(api="cpu")
-    )
+    def fill_indices_iota[width: Int](idx: Int) {imm}:
+        indices.unsafe_store(idx, math.iota[DType.int, width](idx))
+
+    vectorize[simd_width_of[DType.int]()](N, fill_indices_iota)
     return indices
 
 @always_inline
@@ -407,14 +403,14 @@ def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], Mu
     if size < 262144:
 
         def matrix_vectorize[simd_width: Int](idx: Int) {imm}:
-            ptr.store(idx, data.load[width=simd_width](idx).cast[des]())
+            ptr.unsafe_store(idx, data.unsafe_load[width=simd_width](idx).cast[des]())
         vectorize[width](size, matrix_vectorize)
     else:
         var n_vects = Int(math.ceil(size / width))
         @parameter
         def matrix_vectorize_parallelize(i: Int):
             var idx = i * width
-            ptr.store(idx, data.load[width=width](idx).cast[des]())
+            ptr.unsafe_store(idx, data.unsafe_load[width=width](idx).cast[des]())
         parallelize[matrix_vectorize_parallelize](n_vects)
     return ptr
 
@@ -442,6 +438,6 @@ def cartesian_product(lists: List[List[String]]) -> List[List[String]]:
     # Create the Cartesian product
     for item in first:
         for prod in rest_product:
-            result.append([item] + prod.copy())
+            result.append(List([item]) + prod.copy())
 
     return result^
