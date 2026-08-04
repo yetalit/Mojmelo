@@ -17,13 +17,13 @@ from std.os import abort
 from std.utils.index import IndexList
 
 from std.runtime.asyncrt import TaskGroup
-from .runtime.asyncrt import parallelism_level
+from std.runtime.asyncrt import parallelism_level
 from .runtime import tracing
 from .runtime.tracing import Trace, TraceLevel
 
 from std.utils.numerics import FlushDenormals
 
-from std.gpu.host import DeviceContext
+from .device_context import DeviceContext
 
 # ===-----------------------------------------------------------------------===#
 # Parallelize
@@ -35,7 +35,7 @@ def sync_parallelize[
     origins: OriginSet,
     //,
     func: def(Int) raises capturing[origins] -> None,
-](num_work_items: Int, ctx: Optional[DeviceContext] = None):
+](num_work_items: Int):
     """Executes func(0) ... func(num_work_items-1) as parallel sub-tasks,
     and returns when all are complete.
 
@@ -48,7 +48,6 @@ def sync_parallelize[
 
     Args:
         num_work_items: Number of parallel tasks.
-        ctx: Optional CPU DeviceContext to execute the tasks on.
     """
 
     # The try/except here is required to satisfy the non-raising
@@ -61,13 +60,13 @@ def sync_parallelize[
         except e:
             abort(String(e))
 
-    sync_parallelize(func_unified, num_work_items, ctx)
+    sync_parallelize(func_unified, num_work_items)
 
 
 @always_inline
 def sync_parallelize[
     FuncType: def(Int) -> None,
-](func: FuncType, num_work_items: Int, ctx: Optional[DeviceContext] = None):
+](func: FuncType, num_work_items: Int):
     """Executes func(0) ... func(num_work_items-1) as parallel sub-tasks,
     and returns when all are complete.
 
@@ -77,7 +76,6 @@ def sync_parallelize[
     Args:
         func: The closure carrying the captured state of the body function.
         num_work_items: Number of parallel tasks.
-        ctx: The CPU DeviceContext to enqueue the work on.
     """
     # We have no tasks, so do nothing.
     if num_work_items <= 0:
@@ -106,7 +104,7 @@ def sync_parallelize[
         return
 
     try:
-        var cpu_ctx = ctx.or_else(DeviceContext(api="cpu"))
+        var cpu_ctx = DeviceContext(api="cpu")
         cpu_ctx.enqueue_cpu_range(func_wrapped, count=num_work_items)
         cpu_ctx.synchronize()
     except e:
@@ -116,7 +114,7 @@ def sync_parallelize[
 @always_inline
 def parallelize[
     origins: OriginSet, //, func: def(Int) capturing[origins] -> None
-](num_work_items: Int, ctx: Optional[DeviceContext] = None):
+](num_work_items: Int):
     """Executes func(0) ... func(num_work_items-1) as sub-tasks in parallel, and
     returns when all are complete.
 
@@ -126,19 +124,18 @@ def parallelize[
 
     Args:
         num_work_items: Number of parallel tasks.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
 
     def func_unified(i: Int):
         func(i)
 
-    _parallelize_impl(func_unified, num_work_items, parallelism_level(ctx), ctx)
+    _parallelize_impl(func_unified, num_work_items, parallelism_level())
 
 
 @always_inline
 def parallelize[
     origins: OriginSet, //, func: def(Int) capturing[origins] -> None
-](num_work_items: Int, num_workers: Int, ctx: Optional[DeviceContext] = None):
+](num_work_items: Int, num_workers: Int):
     """Executes func(0) ... func(num_work_items-1) as sub-tasks in parallel, and
     returns when all are complete.
 
@@ -149,19 +146,18 @@ def parallelize[
     Args:
         num_work_items: Number of parallel tasks.
         num_workers: The number of workers to use for execution.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
 
     def func_unified(i: Int):
         func(i)
 
-    _parallelize_impl(func_unified, num_work_items, num_workers, ctx)
+    _parallelize_impl(func_unified, num_work_items, num_workers)
 
 
 @always_inline
 def parallelize[
     FuncType: def(Int) -> None,
-](func: FuncType, num_work_items: Int, ctx: Optional[DeviceContext] = None):
+](func: FuncType, num_work_items: Int):
     """Executes func(0) ... func(num_work_items-1) as sub-tasks in parallel, and
     returns when all are complete.
 
@@ -171,9 +167,8 @@ def parallelize[
     Args:
         func: The closure carrying the captured state of the body function.
         num_work_items: Number of parallel tasks.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
-    _parallelize_impl(func, num_work_items, parallelism_level(ctx), ctx)
+    _parallelize_impl(func, num_work_items, parallelism_level())
 
 
 @always_inline
@@ -183,7 +178,6 @@ def parallelize[
     func: FuncType,
     num_work_items: Int,
     num_workers: Int,
-    ctx: Optional[DeviceContext] = None,
 ):
     """Executes func(0) ... func(num_work_items-1) as sub-tasks in parallel, and
     returns when all are complete.
@@ -195,9 +189,8 @@ def parallelize[
         func: The closure carrying the captured state of the body function.
         num_work_items: Number of parallel tasks.
         num_workers: The number of workers to use for execution.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
-    _parallelize_impl(func, num_work_items, num_workers, ctx)
+    _parallelize_impl(func, num_work_items, num_workers)
 
 
 @always_inline
@@ -207,7 +200,6 @@ def _parallelize_impl[
     func: FuncType,
     num_work_items: Int,
     num_workers: Int,
-    ctx: Optional[DeviceContext] = None,
 ):
     """Distributes work items across workers by coalescing consecutive items
     into chunks and executing them in parallel via `sync_parallelize`.
@@ -219,7 +211,6 @@ def _parallelize_impl[
         func: The closure carrying the captured state of the body function.
         num_work_items: Number of parallel tasks.
         num_workers: The number of workers to use for execution.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
     assert num_workers > 0, "Number of workers must be positive"
     # Calculate how many items are picked up by each worker.
@@ -237,7 +228,7 @@ def _parallelize_impl[
         for i in range(chunk_size + Int(thread_idx < extra_items)):
             func(start_idx + i)
 
-    sync_parallelize(coarse_grained_func, num_workers, ctx)
+    sync_parallelize(coarse_grained_func, num_workers)
 
 
 # ===-----------------------------------------------------------------------===#
@@ -249,7 +240,6 @@ def _parallelize_impl[
 def _get_num_workers(
     problem_size: Int,
     grain_size: Int = 32768,
-    ctx: Optional[DeviceContext] = None,
 ) -> Int:
     """Returns a number of workers to run in parallel for given problem_size,
     accounting for the available worker threads of the current runtime.
@@ -257,7 +247,6 @@ def _get_num_workers(
     Args:
         problem_size: The number of parallel tasks.
         grain_size: Minimum number of elements to warrant an additional thread.
-        ctx: The context to execute the work on.
 
     Returns:
         The number of workers to run in parallel.
@@ -265,7 +254,7 @@ def _get_num_workers(
     # default grain_size copied from https://github.com/pytorch/pytorch/blob/20dfce591ce88bc957ffcd0c8dc7d5f7611a4a3b/aten/src/ATen/TensorIterator.h#L86
     # Ensure at least one worker is always returned to avoid division by zero.
     return max(
-        1, min(parallelism_level(ctx), ceildiv(problem_size, grain_size))
+        1, min(parallelism_level(), ceildiv(problem_size, grain_size))
     )
 
 
@@ -280,7 +269,6 @@ def parallelize_over_rows[
     shape: IndexList,
     axis: Int,
     grain_size: Int,
-    ctx: Optional[DeviceContext] = None,
 ):
     """Parallelize func over non-axis dims of shape.
 
@@ -291,13 +279,12 @@ def parallelize_over_rows[
         shape: Shape to parallelize over.
         axis: Rows are slices along the axis dimension of shape.
         grain_size: The minimum number of elements to warrant using an additional thread.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
 
     def func_unified(start: Int, end: Int):
         func(start, end)
 
-    parallelize_over_rows(func_unified, shape, axis, grain_size, ctx)
+    parallelize_over_rows(func_unified, shape, axis, grain_size)
 
 
 def parallelize_over_rows[
@@ -307,7 +294,6 @@ def parallelize_over_rows[
     shape: IndexList,
     axis: Int,
     grain_size: Int,
-    ctx: Optional[DeviceContext] = None,
 ):
     """Parallelize func over non-axis dims of shape.
 
@@ -319,7 +305,6 @@ def parallelize_over_rows[
         shape: Shape to parallelize over.
         axis: Rows are slices along the axis dimension of shape.
         grain_size: The minimum number of elements to warrant using an additional thread.
-        ctx: Optional CPU DeviceContext to execute the work on.
     """
     # If we know we will have no work, return early
     if shape[axis] == 0:
@@ -330,7 +315,7 @@ def parallelize_over_rows[
 
     var num_workers = min(
         num_rows,
-        _get_num_workers(total_size, grain_size, ctx),
+        _get_num_workers(total_size, grain_size),
     )
     var chunk_size = ceildiv(num_rows, num_workers)
 
@@ -343,4 +328,4 @@ def parallelize_over_rows[
 
         func(start_row, end_row)
 
-    sync_parallelize(task_func, num_workers, ctx)
+    sync_parallelize(task_func, num_workers)

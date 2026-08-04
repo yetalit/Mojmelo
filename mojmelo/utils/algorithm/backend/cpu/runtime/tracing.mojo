@@ -19,15 +19,7 @@ from std.ffi import external_call
 from std.sys import stderr
 from std.sys.defines import get_defined_int, is_defined
 
-import std.gpu.host._tracing as gpu_tracing
 import std.logger.logger as logger
-from std.gpu.host import DeviceContext
-from std.gpu.host._tracing import Color
-from std.gpu.host._tracing import _end_range as _end_gpu_range
-from std.gpu.host._tracing import _is_enabled as _gpu_is_enabled
-from std.gpu.host._tracing import _is_enabled_details as _gpu_is_enabled_details
-from std.gpu.host._tracing import _mark as _mark_gpu
-from std.gpu.host._tracing import _start_range as _start_gpu_range
 
 from std.utils import IndexList, Variant
 from std.os import abort
@@ -36,35 +28,48 @@ comptime log = logger.Logger[logger.Level.INFO](fd=stderr, prefix="[OP] ")
 """Logger instance for operation tracing with INFO level and [OP] prefix."""
 
 
-def get_safe_task_id(ctx: DeviceContext) -> OptionalReg[Int]:
-    """Safely extract task_id from DeviceContext, returning None if null/invalid.
+@fieldwise_init
+struct Color(Intable, TrivialRegisterPassable):
+    var _value: Int
 
-    Args:
-        ctx: The device context to extract the task ID from.
+    comptime FORMAT = 1  # ARGB
+    comptime MODULAR_PURPLE = Self(0xB5BAF5)
+    comptime BLUE = Self(0x0000FF)
+    comptime GREEN = Self(0x008000)
+    comptime ORANGE = Self(0xFFA500)
+    comptime PURPLE = Self(0x800080)
+    comptime RED = Self(0xFF0000)
+    comptime WHITE = Self(0xFFFFFF)
+    comptime YELLOW = Self(0xFFFF00)
 
-    Returns:
-        An OptionalReg containing the task ID if valid, None otherwise.
-    """
-    try:
-        return OptionalReg(Int(ctx.id()))
-    except:
-        return None
+    def __init__(out self, colorname: StaticString):
+        """Initialize Color from a StaticString color name.
 
+        Args:
+            colorname: The name of the color to use.
+        """
+        if colorname == "modular_purple":
+            self = Color.MODULAR_PURPLE
+        elif colorname == "blue":
+            self = Color.BLUE
+        elif colorname == "green":
+            self = Color.GREEN
+        elif colorname == "orange":
+            self = Color.ORANGE
+        elif colorname == "purple":
+            self = Color.PURPLE
+        elif colorname == "red":
+            self = Color.RED
+        elif colorname == "white":
+            self = Color.WHITE
+        elif colorname == "yellow":
+            self = Color.YELLOW
+        else:
+            # Default to MODULAR_PURPLE for unknown color names
+            self = Color.MODULAR_PURPLE
 
-def get_safe_task_id(ctx: Optional[DeviceContext]) -> OptionalReg[Int]:
-    """Safely extract task_id from an optional `DeviceContext`, returning
-    `None` if the context is absent or invalid.
-
-    Args:
-        ctx: The optional device context to extract the task ID from.
-
-    Returns:
-        An `OptionalReg` containing the task ID if `ctx` is set and the
-        underlying handle is valid, `None` otherwise.
-    """
-    if not ctx:
-        return None
-    return get_safe_task_id(ctx.value())
+    def __int__(self) -> Int:
+        return self._value
 
 
 def _build_info_asyncrt_max_profiling_level() -> OptionalReg[Int]:
@@ -246,30 +251,6 @@ def is_profiling_disabled[type: TraceCategory, level: TraceLevel]() -> Bool:
 
 
 @always_inline
-def _is_gpu_profiler_enabled[type: TraceCategory, level: TraceLevel]() -> Bool:
-    """Returns True if the e2e kernel profiling is enabled. Note that we always
-    prefer to use llcl profiling if they are enabled."""
-    return (
-        is_profiling_disabled[type, level]()
-        and level <= TraceLevel.OP
-        and _gpu_is_enabled()
-    )
-
-
-@always_inline
-def _is_gpu_profiler_detailed_enabled[
-    type: TraceCategory, level: TraceLevel
-]() -> Bool:
-    """Returns True if the e2e detailed kernel profiling is enabled. Note that
-    we always prefer to use llcl profiling if they are enabled."""
-    return (
-        is_profiling_disabled[type, level]()
-        and level <= TraceLevel.OP
-        and _gpu_is_enabled_details()
-    )
-
-
-@always_inline
 def _is_op_logging_enabled[level: TraceLevel]() -> Bool:
     comptime if logger.DEFAULT_LEVEL == logger.Level.NOTSET:
         return False
@@ -303,17 +284,12 @@ def _get_enabled_tracing_systems[level: TraceLevel]() -> List[String]:
         A list of strings naming the tracing systems that are enabled.
         Possible values: "AsyncRT", "GPU", "Tracy", "Op Logging".
     """
-    enabled_systems = List[String]()
+    var enabled_systems = List[String]()
 
     # Check AsyncRT profiling
-    if (asyncrt_level := _build_info_asyncrt_max_profiling_level()) and (
-        asyncrt_level.value() > 0
-    ):
+    var asyncrt_level = _build_info_asyncrt_max_profiling_level()
+    if asyncrt_level and asyncrt_level.value() > 0:
         enabled_systems.append("AsyncRT")
-
-    # Check GPU profiling
-    if _gpu_is_enabled():
-        enabled_systems.append("GPU")
 
     # Check Tracy profiling
     if _is_tracy_enabled():
@@ -438,7 +414,7 @@ struct Trace[
         ), "the AsyncRT profiler only supports `StaticString` names"
 
         # Validate that only one tracing system is enabled
-        enabled_systems = _get_enabled_tracing_systems[Self.level]()
+        var enabled_systems = _get_enabled_tracing_systems[Self.level]()
         debug_assert(
             len(enabled_systems) <= 1,
             "only one tracing system should be enabled at a time, got: ",
@@ -448,15 +424,7 @@ struct Trace[
         # Always initialize the tracy context to zero: it's set in __enter__.
         self._tracy_ctx = 0
 
-        comptime if _is_gpu_profiler_enabled[Self.category, Self.level]():
-            self._name_value = _name_value^
-
-            comptime if _gpu_is_enabled_details():
-                self.detail = detail
-            else:
-                self.detail = ""
-            self.int_payload = None
-        elif (
+        comptime if (
             is_profiling_enabled[Self.category, Self.level]()
             or _is_op_logging_enabled[Self.level]()
         ):
@@ -576,36 +544,11 @@ struct Trace[
 
         # Start a Tracy zone if the bridge is available.
         if _is_tracy_enabled():
-            name_str = self.name()
-            color_val = UInt32(Int(self.color.value())) if self.color else 0
+            var name_str = self.name()
+            var color_val = UInt32(Int(self.color.value())) if self.color else 0
             self._tracy_ctx = external_call[
                 "KGEN_CompilerRT_TracyZoneBegin", UInt64
             ](name_str.unsafe_ptr(), name_str.byte_length(), color_val)
-            return
-
-        comptime if _is_gpu_profiler_enabled[Self.category, Self.level]():
-            comptime if _gpu_is_enabled_details():
-                # Convert to String since nvtx range APIs copy messages anyway.
-                # TODO(KERN-1052): optimize by exposing explicit string
-                # registration.
-                self.event_id = Int(
-                    _start_gpu_range(
-                        message=String(
-                            self.name(),
-                            (String("/", self.detail) if self.detail else ""),
-                        ),
-                        category=Int(Self.category),
-                        color=self.color,
-                    )
-                )
-            else:
-                self.event_id = Int(
-                    _start_gpu_range(
-                        message=self.name(),
-                        category=Int(Self.category),
-                        color=self.color,
-                    )
-                )
             return
 
         comptime if is_profiling_disabled[Self.category, Self.level]():
@@ -680,13 +623,6 @@ struct Trace[
             )
             return
 
-        comptime if _is_gpu_profiler_enabled[Self.category, Self.level]():
-            try:
-                _end_gpu_range(gpu_tracing.RangeID(self.event_id))
-            except:
-                abort("GPU tracing failure")
-            return
-
         comptime if is_profiling_disabled[Self.category, Self.level]():
             return
         if self.event_id == 0:
@@ -697,25 +633,6 @@ struct Trace[
         external_call[
             "KGEN_CompilerRT_TimeTraceProfilerSetCurrentId", NoneType
         ](0)
-
-    @always_inline
-    def mark(self) raises:
-        """Marks the tracer with the info at the specific point of time.
-
-        This creates a point event in the trace timeline rather than a range.
-
-        Raises:
-            If the operation fails.
-        """
-
-        comptime if _is_gpu_profiler_enabled[Self.category, Self.level]():
-            var message = self.name()
-
-            comptime if _gpu_is_enabled_details():
-                if self.detail:
-                    message += String("/", self.detail)
-
-            _mark_gpu(message=message)
 
     @always_inline
     def name(self) -> String:
@@ -737,7 +654,6 @@ struct Trace[
 
         comptime if (
             is_profiling_enabled[Self.category, Self.level]()
-            or _is_gpu_profiler_detailed_enabled[Self.category, Self.level]()
         ):
             return detail_fn()
         else:

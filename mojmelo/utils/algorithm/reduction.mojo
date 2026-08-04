@@ -21,16 +21,12 @@ from mojmelo.utils.algorithm import sync_parallelize
 from mojmelo.utils.algorithm.functional import _get_num_workers
 from std.bit import log2_floor
 from std.math.math import max as _max, min as _min
-from std.gpu.host import DeviceContext
-from std.gpu.host.info import is_cpu, is_valid_target
 
-from .backend.cpu.runtime.tracing import Trace, TraceLevel, get_safe_task_id, trace_arg
+from .backend.cpu.runtime.tracing import Trace, TraceLevel, trace_arg
 
 from std.utils.index import IndexList, StaticTuple
 from std.utils.coord import Coord, coord_to_index_list
 from std.sys.info import has_apple_gpu_accelerator
-
-from std._plugin import CurrentPlugin
 
 # Import CPU implementations.
 from .backend.cpu.reduction import _reduce_generator_cpu
@@ -63,7 +59,6 @@ def _reduce_generator[
 ](
     shape: Coord,
     init: StaticTuple[Scalar[init_type], num_reductions],
-    context: Optional[DeviceContext] = None,
 ) raises:
     """Reduce the given tensor using the given reduction function. The
     num_reductions parameter enables callers to execute fused reductions. The
@@ -82,10 +77,7 @@ def _reduce_generator[
     Args:
         shape: The shape of the tensor we are reducing.
         init: The value to start the reduction from.
-        context: The pointer to DeviceContext.
     """
-    comptime assert is_valid_target[target](), "unsupported target"
-
     # The plugin hook only accepts an `IndexList`, and the empty-dimension
     # check below needs runtime indexing that a `Coord` does not support, so
     # materialize an `IndexList` view of the shape once.
@@ -95,25 +87,14 @@ def _reduce_generator[
         if shape_index_list[i] == 0:
             return
 
-    comptime if is_cpu[target]():
-        _reduce_generator_cpu[
-            num_reductions,
-            init_type,
-            input_0_fn,
-            output_0_fn,
-            reduce_function,
-            reduce_dim=reduce_dim,
-        ](shape, init)
-    elif CurrentPlugin.reduce_generator_fn:
-        # The plugin hook takes `reduce_dim` as a runtime argument; feed it the
-        # compile-time value.
-        return comptime (CurrentPlugin.reduce_generator_fn.value())[
-            num_reductions,
-            init_type,
-            input_0_fn,
-            output_0_fn,
-            reduce_function,
-        ](shape_index_list, init, reduce_dim)
+    _reduce_generator_cpu[
+        num_reductions,
+        init_type,
+        input_0_fn,
+        output_0_fn,
+        reduce_function,
+        reduce_dim=reduce_dim,
+    ](shape, init)
 
 
 @always_inline
@@ -132,7 +113,7 @@ def _reduce_generator_wrapper[
     target: StaticString = "cpu",
     *,
     reduce_dim: Int,
-](shape: Coord, init: Scalar, context: Optional[DeviceContext] = None,) raises:
+](shape: Coord, init: Scalar,) raises:
     @always_inline
     @parameter
     def input_fn_wrapper[
@@ -165,7 +146,7 @@ def _reduce_generator_wrapper[
         reduce_fn,
         target=target,
         reduce_dim=reduce_dim,
-    ](shape, init, context)
+    ](shape, init)
 
 
 @always_inline
@@ -183,7 +164,7 @@ def _reduce_generator[
     target: StaticString = "cpu",
     *,
     reduce_dim: Int,
-](shape: Coord, init: Scalar, context: Optional[DeviceContext] = None,) raises:
+](shape: Coord, init: Scalar,) raises:
     """Reduce the given tensor using the given reduction function.
 
     Constraints:
@@ -199,7 +180,6 @@ def _reduce_generator[
     Args:
         shape: The shape of the tensor we are reducing.
         init: The value to start the reduction from.
-        context: The pointer to DeviceContext.
     """
 
     comptime num_reductions = 1
@@ -233,7 +213,7 @@ def _reduce_generator[
         reduce_fn_wrapper,
         target,
         reduce_dim=reduce_dim,
-    ](shape, init_wrapped, context)
+    ](shape, init_wrapped)
 
 
 # ===-----------------------------------------------------------------------===#
@@ -254,7 +234,7 @@ def max[
     target: StaticString = "cpu",
     *,
     reduce_dim: Int,
-](input_shape: Coord, context: Optional[DeviceContext] = None,) raises:
+](input_shape: Coord,) raises:
     """Computes the max across the input and output shape.
 
     This performs the max computation on the domain specified by `input_shape`,
@@ -270,7 +250,6 @@ def max[
 
     Args:
         input_shape: The input shape.
-        context: The pointer to DeviceContext.
 
     Raises:
         If the operation fails.
@@ -303,7 +282,7 @@ def max[
         reduce_impl,
         target=target,
         reduce_dim=reduce_dim,
-    ](input_shape, Scalar[dtype].MIN, context=context)
+    ](input_shape, Scalar[dtype].MIN)
 
 
 @always_inline
@@ -319,7 +298,7 @@ def min[
     target: StaticString = "cpu",
     *,
     reduce_dim: Int,
-](input_shape: Coord, context: Optional[DeviceContext] = None,) raises:
+](input_shape: Coord,) raises:
     """Computes the min across the input and output shape.
 
     This performs the min computation on the domain specified by `input_shape`,
@@ -335,7 +314,6 @@ def min[
 
     Args:
         input_shape: The input shape.
-        context: The pointer to DeviceContext.
 
     Raises:
         If the operation fails.
@@ -368,7 +346,7 @@ def min[
         reduce_impl,
         target=target,
         reduce_dim=reduce_dim,
-    ](input_shape, Scalar[dtype].MAX, context=context)
+    ](input_shape, Scalar[dtype].MAX)
 
 
 @always_inline
@@ -384,7 +362,7 @@ def sum[
     target: StaticString = "cpu",
     *,
     reduce_dim: Int,
-](input_shape: Coord, context: Optional[DeviceContext] = None,) raises:
+](input_shape: Coord,) raises:
     """Computes the sum across the input and output shape.
 
     This performs the sum computation on the domain specified by `input_shape`,
@@ -400,7 +378,6 @@ def sum[
 
     Args:
         input_shape: The input shape.
-        context: The pointer to DeviceContext.
 
     Raises:
         If the operation fails.
@@ -433,7 +410,7 @@ def sum[
         reduce_impl,
         target=target,
         reduce_dim=reduce_dim,
-    ](input_shape, Scalar[dtype](0), context=context)
+    ](input_shape, Scalar[dtype](0))
 
 
 @always_inline
@@ -449,7 +426,7 @@ def product[
     target: StaticString = "cpu",
     *,
     reduce_dim: Int,
-](input_shape: Coord, context: Optional[DeviceContext] = None,) raises:
+](input_shape: Coord,) raises:
     """Computes the product across the input and output shape.
     This performs the product computation on the domain specified by `input_shape`,
     loading the inputs using the `input_fn`. The results are stored using
@@ -464,7 +441,6 @@ def product[
 
     Args:
         input_shape: The input shape.
-        context: The pointer to DeviceContext.
 
     Raises:
         If the operation fails.
@@ -497,7 +473,7 @@ def product[
         reduce_impl,
         target=target,
         reduce_dim=reduce_dim,
-    ](input_shape, Scalar[dtype](1), context=context)
+    ](input_shape, Scalar[dtype](1))
 
 
 @always_inline
@@ -516,7 +492,6 @@ def mean[
 ](
     input_shape: Coord,
     output_shape: type_of(input_shape),
-    context: Optional[DeviceContext] = None,
 ) raises:
     """Computes the mean across the input and output shape.
 
@@ -534,7 +509,6 @@ def mean[
     Args:
         input_shape: The input shape.
         output_shape: The output shape.
-        context: The pointer to DeviceContext.
 
     Raises:
         If the operation fails.
@@ -562,7 +536,7 @@ def mean[
     with Trace[TraceLevel.OP, target=target](
         "mean",
         Trace[TraceLevel.OP]._get_detail_str[description_fn](),
-        task_id=get_safe_task_id(context),
+        task_id=None,
     ):
 
         @always_inline
@@ -606,8 +580,7 @@ def mean[
                 reduce_dim=reduce_dim,
             ](
                 input_shape,
-                init=Scalar[dtype](0),
-                context=context,
+                init=Scalar[dtype](0)
             )
 
         else:
@@ -633,8 +606,7 @@ def mean[
                 reduce_dim=reduce_dim,
             ](
                 input_shape,
-                init=Scalar[dtype](0),
-                context=context,
+                init=Scalar[dtype](0)
             )
 
 
