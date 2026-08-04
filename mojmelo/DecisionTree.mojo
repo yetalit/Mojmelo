@@ -7,12 +7,12 @@ import std.random as random
 struct Node(Copyable):
     var feature: Int
     var threshold: Float32
-    var left: OptionalUnsafePointer[Node, MutUntrackedOrigin]
-    var right: OptionalUnsafePointer[Node, MutUntrackedOrigin]
+    var left: OptionalPointer[Node, MutUntrackedOrigin]
+    var right: OptionalPointer[Node, MutUntrackedOrigin]
     var value: Float32
 
     def __init__(
-        out self, feature: Int = -1, threshold: Float32 = 0.0, left: OptionalUnsafePointer[Node, MutUntrackedOrigin] = None, right: OptionalUnsafePointer[Node, MutUntrackedOrigin] = None, value: Float32 = math.inf[DType.float32]()
+        out self, feature: Int = -1, threshold: Float32 = 0.0, left: OptionalPointer[Node, MutUntrackedOrigin] = None, right: OptionalPointer[Node, MutUntrackedOrigin] = None, value: Float32 = math.inf[DType.float32]()
     ):
         self.feature = feature
         self.threshold = threshold
@@ -45,7 +45,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
     """The maximum depth of the tree."""
     var n_feats: Int
     """The number of features to consider when looking for the best split."""
-    var root: OptionalUnsafePointer[Node, MutUntrackedOrigin]
+    var root: OptionalPointer[Node, MutUntrackedOrigin]
     comptime MODEL_ID = 9
     
     def __init__(out self, criterion: String = 'gini', min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42):
@@ -147,7 +147,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    def _grow_tree(self, X: Matrix, Y: Matrix, indices: List[Int], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
+    def _grow_tree(self, X: Matrix, Y: Matrix, indices: List[Int], depth: Int = 0) raises -> Pointer[Node, MutUntrackedOrigin]:
         var _y = Matrix(len(indices), 1, order=Y.order)
         var weights = Matrix(len(indices), 1, order=Y.order) if Y.width == 2 else Matrix(0, 0)
         for i, idx in enumerate(indices):
@@ -238,7 +238,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            var node_list = List[UnsafePointer[Node, MutUntrackedOrigin]]()
+            var node_list = List[Pointer[Node, MutUntrackedOrigin]]()
             var children_index_list = List[Tuple[Int, Int]]()
             for _ in range(node_size):
                 var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
@@ -361,7 +361,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
     var feat_idx = max_gains.argmax()
     return feat_idxs[feat_idx], best_thresholds[0, feat_idx]
 
-def _traverse_tree(x: UnsafePointer[Float32, MutUntrackedOrigin], node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
+def _traverse_tree(x: Pointer[Float32, MutUntrackedOrigin], node: Pointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -369,7 +369,7 @@ def _traverse_tree(x: UnsafePointer[Float32, MutUntrackedOrigin], node: UnsafePo
         return _traverse_tree(x, node[].left.value())
     return _traverse_tree(x, node[].right.value())
 
-def delTree(node: UnsafePointer[Node, MutUntrackedOrigin]):
+def delTree(node: Pointer[Node, MutUntrackedOrigin]):
     if node[].left:
         delTree(node[].left.value())
     if node[].right:

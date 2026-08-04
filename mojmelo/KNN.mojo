@@ -99,10 +99,10 @@ struct KNN(CV, Copyable):
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var X = f.read_bytes(4 * n_samples * n_features)
-            var X_mat = Matrix(n_samples, n_features, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X.unsafe_ptr())))
+            var X_mat = Matrix(n_samples, n_features, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X.unsafe_ptr())))
             _ = X
             var y_train = f.read_bytes(4 * n_samples)
-            var y_train_mat = Matrix(n_samples, 1, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(y_train.unsafe_ptr())))
+            var y_train_mat = Matrix(n_samples, 1, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(y_train.unsafe_ptr())))
             _ = y_train
             model.k = k
             model.metric = metric

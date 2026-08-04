@@ -7,7 +7,7 @@ from mojmelo.utils.algorithm import parallelize
 from std.sys import simd_width_of
 
 # Cross Validation trait
-trait CV(ImplicitlyDeletable):
+trait CV(Deinitable):
     def __init__(out self, params: Dict[String, String]) raises:
         ...
     def fit(mut self, X: Matrix, y: Matrix) raises:
@@ -372,7 +372,7 @@ def findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
     return -1  # not found
 
 @always_inline
-def fill_indices(N: Int) raises -> UnsafePointer[Int, MutUntrackedOrigin]:
+def fill_indices(N: Int) raises -> Pointer[Int, MutUntrackedOrigin]:
     """Generates indices from 0 to N.
 
     Returns:
@@ -398,7 +398,7 @@ def fill_indices_list(N: Int) raises -> List[Int]:
     return list^
 
 @always_inline
-def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutUntrackedOrigin], size: Int) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]:
+def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntrackedOrigin], size: Int) -> Pointer[Scalar[des], MutUntrackedOrigin]:
     var ptr = alloc[Scalar[des]](size)
     if size < 262144:
 

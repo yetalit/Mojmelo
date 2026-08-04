@@ -52,7 +52,7 @@ struct Layout(TrivialRegisterPassable, Copyable, Writable):
 
 
 struct Matrix[Type: DType]:
-    var data: UnsafePointer[Scalar[Self.Type], MutUntrackedOrigin]
+    var data: Pointer[Scalar[Self.Type], MutUntrackedOrigin]
     var layout: Layout
 
     def __init__(out self, shape: Tuple[Int, Int]):
@@ -61,14 +61,14 @@ struct Matrix[Type: DType]:
 
     @always_inline("nodebug")
     def __init__(
-        out self, data: UnsafePointer[Scalar[Self.Type], MutUntrackedOrigin], var layout: Layout
+        out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], var layout: Layout
     ):
         self.data = data
         self.layout = layout
 
     @always_inline("nodebug")
     def __init__(
-        out self, data: UnsafePointer[Scalar[Self.Type], MutUntrackedOrigin], shape: Tuple[Int, Int]
+        out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], shape: Tuple[Int, Int]
     ):
         self.data = data
         self.layout = Layout(shape)
@@ -125,7 +125,7 @@ struct Matrix[Type: DType]:
 def pack_A[
     Type: DType, //, mr: Int, inner_parallel: Bool = False
 ](
-    Ac_buffer: UnsafePointer[Scalar[Type], MutUntrackedOrigin],
+    Ac_buffer: Pointer[Scalar[Type], MutUntrackedOrigin],
     Ac: Matrix[Type],
 ) -> Matrix[Type]:
     var num_panels = (Ac.shape[0]() + mr - 1) // mr
@@ -163,7 +163,7 @@ def pack_A[
 @always_inline
 def pack_B[
     Type: DType, //, kc: Int, nr: Int
-](Bc_buffer: UnsafePointer[Scalar[Type], MutUntrackedOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
+](Bc_buffer: Pointer[Scalar[Type], MutUntrackedOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
     var dst_ptr = Bc_buffer
     for i in range(0, Bc.shape[1](), nr):
         var src_ptr = Bc.data.unsafe_offset(i)
@@ -235,7 +235,7 @@ def micro_kernel[
         comptime for i in range(mr):
             comptime for j in range(0, nr, simd_width):
                 comptime offset = i * nr + j
-                ar = SIMD[Type, size=simd_width](Ar_ptr[])
+                ar = SIMD[Type, length=simd_width](Ar_ptr[])
                 cr_base.unsafe_offset(offset).unsafe_store(
                     ar.fma(br[j // simd_width], cr_base.unsafe_offset(offset).unsafe_load[width=simd_width]())
                 )

@@ -47,7 +47,7 @@ struct RandomForest(CV, Copyable):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var trees: UnsafePointer[DecisionTree, MutUntrackedOrigin]
+    var trees: Pointer[DecisionTree, MutUntrackedOrigin]
     comptime MODEL_ID = 10
     comptime criterion_ids: List[String] = ['entropy', 'gini', 'mse']
 
@@ -58,7 +58,7 @@ struct RandomForest(CV, Copyable):
         self.n_feats = n_feats
         self.criterion = criterion.lower()
         random.seed(random_state)
-        self.trees = UnsafePointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()
+        self.trees = Pointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()
 
     def __deinit__(deinit self):
         for i in range(self.n_trees):
@@ -165,7 +165,7 @@ struct RandomForest(CV, Copyable):
             for t_i in range(model.n_trees):
                 var tree = DecisionTree()
                 var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-                var node_list = List[UnsafePointer[Node, MutUntrackedOrigin]]()
+                var node_list = List[Pointer[Node, MutUntrackedOrigin]]()
                 var children_index_list = List[Tuple[Int, Int]]()
                 for _ in range(node_size):
                     var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
@@ -212,4 +212,4 @@ struct RandomForest(CV, Copyable):
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed(42)
-        self.trees = UnsafePointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()
+        self.trees = Pointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()

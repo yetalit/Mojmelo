@@ -11,7 +11,7 @@ from mojmelo.utils.utils import fill_indices_list
 comptime EPS = 1e-13
 comptime simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
 
-def eigensystem(A: UnsafePointer[Float64, MutUntrackedOrigin], eig: UnsafePointer[Float64, MutUntrackedOrigin], V: UnsafePointer[Float64, MutUntrackedOrigin], n: Int):
+def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, MutUntrackedOrigin], V: Pointer[Float64, MutUntrackedOrigin], n: Int):
     unsafe_memcpy(dest=V, src=A, count=n*n)
 
     var e = alloc[Float64](n)
@@ -147,7 +147,7 @@ def eigensystem(A: UnsafePointer[Float64, MutUntrackedOrigin], eig: UnsafePointe
 
     e.unsafe_free()
 
-def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: UnsafePointer[Float64, MutUntrackedOrigin]) raises:
+def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: Pointer[Float64, MutUntrackedOrigin]) raises:
     var eig = alloc[Float64](n)
     unsafe_memset_zero(eig, n)
     var V_full = alloc[Float64](n*n)
@@ -161,7 +161,7 @@ def svd_thin(m: Int, n: Int, k: Int, S: UnsafePointer[Float64, MutUntrackedOrigi
         return a > b
 
     msort.sort[cmp_fn](
-        Span(unsafe_ptr=eig, length=n), UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
+        Span(unsafe_ptr=eig, length=n), Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
     )
 
     var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
@@ -199,7 +199,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     return Matrix(S, 1, A.width), V^
 
 @always_inline
-def C_transpose(A: Matrix, A64: UnsafePointer[Float64, MutUntrackedOrigin]) -> UnsafePointer[Float64, MutUntrackedOrigin]:
+def C_transpose(A: Matrix, A64: Pointer[Float64, MutUntrackedOrigin]) -> Pointer[Float64, MutUntrackedOrigin]:
     var AT = alloc[Float64](A.size)
     var height = A.height
     var width = A.width

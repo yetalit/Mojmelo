@@ -11,7 +11,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
     var reg_alpha: Float32
     var gamma: Float32
     var n_bins: Int
-    var root: OptionalUnsafePointer[Node, MutUntrackedOrigin]
+    var root: OptionalPointer[Node, MutUntrackedOrigin]
 
     def __init__(out self, min_samples_split: Int = 10, max_depth: Int = 3, reg_lambda: Float32 = 1.0, reg_alpha: Float32 = 0.0, gamma: Float32 = 0.0, n_bins: Int = 0):
         self.min_samples_split = min_samples_split
@@ -49,7 +49,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         parallelize[p](X.height)
         return y_predicted^
 
-    def _grow_tree(self, X: Matrix, G: Matrix, H: Matrix, indices: List[Int], depth: Int = 0) raises -> UnsafePointer[Node, MutUntrackedOrigin]:
+    def _grow_tree(self, X: Matrix, G: Matrix, H: Matrix, indices: List[Int], depth: Int = 0) raises -> Pointer[Node, MutUntrackedOrigin]:
         var g = Matrix(len(indices), G.width, order=G.order)
         var h = Matrix(len(indices), H.width, order=H.order)
         for i, idx in enumerate(indices):
@@ -190,7 +190,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     var feat_idx = max_gains.argmax()
     return feat_idxs[feat_idx], best_thresholds[0, feat_idx], max_gains[0, feat_idx]
 
-def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> Float32:
+def _traverse_tree(x: Matrix, node: Pointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
@@ -198,7 +198,7 @@ def _traverse_tree(x: Matrix, node: UnsafePointer[Node, MutUntrackedOrigin]) -> 
         return _traverse_tree(x, node[].left.value())
     return _traverse_tree(x, node[].right.value())
 
-def delTree(node: UnsafePointer[Node, MutUntrackedOrigin]):
+def delTree(node: Pointer[Node, MutUntrackedOrigin]):
     if node[].left:
         delTree(node[].left.value())
     if node[].right:

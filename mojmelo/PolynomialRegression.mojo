@@ -175,7 +175,7 @@ struct PolyRegression(CV, Copyable):
             var degree = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             model.degree = degree
             var weights = f.read_bytes(4 * w_height * degree)
-            model.weights = Matrix(w_height, degree, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())), order='f')
+            model.weights = Matrix(w_height, degree, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())), order='f')
             _ = weights
             model.bias = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
         return model^

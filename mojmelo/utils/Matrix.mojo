@@ -17,7 +17,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     """The number of columns."""
     var size: Int
     """The total size."""
-    var data: UnsafePointer[Float32, MutUntrackedOrigin]
+    var data: Pointer[Float32, MutUntrackedOrigin]
     """The pointer to the underlying data."""
     var order: String
     """The order of matrix:
@@ -26,9 +26,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     """
     comptime simd_width: Int = 4 * simd_width_of[DType.float32]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float32]()
 
-    # initialize from UnsafePointer
+    # initialize from Pointer
     @always_inline
-    def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = 'c'):
+    def __init__[src: DType = DType.float32](out self, data: Pointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
@@ -39,9 +39,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             data.unsafe_free()
         self.order = order.lower()
 
-    # initialize by copying from UnsafePointer
+    # initialize by copying from Pointer
     @always_inline
-    def __init__(out self, height: Int, width: Int, data: OptionalUnsafePointer[Float32, MutUntrackedOrigin] = None, order: String = 'c'):
+    def __init__(out self, height: Int, width: Int, data: OptionalPointer[Float32, MutUntrackedOrigin] = None, order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
@@ -77,7 +77,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.order = move.order
         #move.height = move.width = move.size = 0
         #move.order = ''
-        #move.data = UnsafePointer[Float32, MutAnyOrigin]()
+        #move.data = Pointer[Float32, MutAnyOrigin]()
 
     @always_inline
     def load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]:
@@ -1162,7 +1162,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def argmin(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int, MutUntrackedOrigin].unsafe_dangling()
+        var vect = Pointer[Int, MutUntrackedOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
             vect = alloc[Int](self.width)
@@ -1202,7 +1202,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def argmax(self, axis: Int) -> List[Int]:
-        var vect = UnsafePointer[Int, MutUntrackedOrigin].unsafe_dangling()
+        var vect = Pointer[Int, MutUntrackedOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
             vect = alloc[Int](self.width)
@@ -1283,7 +1283,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 return a > b
 
         msort.sort[cmp_fn](
-            Span(unsafe_ptr=self.data, length=self.size), UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
+            Span(unsafe_ptr=self.data, length=self.size), Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
         )
 
     @always_inline
@@ -1365,7 +1365,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @staticmethod
     @always_inline
-    def lu_factor(mut A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], N: Int) raises:
+    def lu_factor(mut A: Matrix, piv: Pointer[Int, MutAnyOrigin], N: Int) raises:
         for i in range(N):
             piv[unsafe_offset=i] = i
 
@@ -1389,7 +1389,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @staticmethod
     @always_inline
-    def lu_solve(A: Matrix, piv: UnsafePointer[Int, MutAnyOrigin], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
+    def lu_solve(A: Matrix, piv: Pointer[Int, MutAnyOrigin], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
         var y = Matrix(1, N)
 
         # Forward substitution: solve L * y = P * b
@@ -1630,7 +1630,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         except:
             width = height
             height = 1
-        var mat = Matrix(height, width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(py=np_arr_f.__array_interface__['data'][0].__index__())), order)
+        var mat = Matrix(height, width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(py=np_arr_f.__array_interface__['data'][0].__index__())), order)
         _ = np_arr_f.__array_interface__['data'][0].__index__()
         return mat^
 
@@ -1672,7 +1672,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
-    def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]:
+    def cast_ptr[des: DType](self) -> Pointer[Scalar[des], MutUntrackedOrigin]:
         return cast[src=DType.float32, des=des, width=self.simd_width](self.data, self.size)
 
     @always_inline

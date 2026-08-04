@@ -299,7 +299,7 @@ def max_lambdas(tree: Dict[String, List[Int]], lambda_vals: List[Float32]) raise
 
 
 struct TreeUnionFind:
-    var _data: UnsafePointer[Int, MutUntrackedOrigin]
+    var _data: Pointer[Int, MutUntrackedOrigin]
     var size: Int
     comptime width = 2
     var is_component: List[Bool]

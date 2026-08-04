@@ -100,22 +100,22 @@ struct KDTreeResultVector(Copyable, Sized):
         return self.max_value()
 
 struct SearchRecord:
-    var qv: UnsafePointer[Float32, MutUntrackedOrigin]
+    var qv: Pointer[Float32, MutUntrackedOrigin]
     var dim: Int
     var rearrange: Bool
     var nn: UInt
     var ballsize: Float32
     var centeridx: Int
     var correltime: Int
-    var result: UnsafePointer[KDTreeResultVector, MutUntrackedOrigin]
-    var data: UnsafePointer[Matrix, MutUntrackedOrigin]
-    var ind: UnsafePointer[List[Int], MutUntrackedOrigin]
+    var result: Pointer[KDTreeResultVector, MutUntrackedOrigin]
+    var data: Pointer[Matrix, MutUntrackedOrigin]
+    var ind: Pointer[List[Int], MutUntrackedOrigin]
 
     def __init__(out self, qv_in: Span[Float32, MutUntrackedOrigin], tree_in: KDTree, result_in: KDTreeResultVector):  
         self.qv = qv_in.unsafe_ptr()
-        self.result = UnsafePointer[KDTreeResultVector, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=result_in)))
-        self.data = UnsafePointer[Matrix, MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=tree_in._data)))
-        self.ind = UnsafePointer[List[Int], MutUntrackedOrigin](unsafe_from_address=Int(UnsafePointer(to=tree_in.ind)))
+        self.result = Pointer[KDTreeResultVector, MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=result_in)))
+        self.data = Pointer[Matrix, MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=tree_in._data)))
+        self.ind = Pointer[List[Int], MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=tree_in.ind)))
         self.dim = tree_in.dim
         self.rearrange = tree_in.rearrange
         self.ballsize = math.inf[DType.float32]() 
@@ -138,8 +138,8 @@ struct KDTreeNode(Copyable):
     var l: Int # extents in index array for searching
     var u: Int
     var box: List[interval] # [min,max] of the box enclosing all points
-    var left: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]
-    var right: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]
+    var left: OptionalPointer[KDTreeNode, MutUntrackedOrigin]
+    var right: OptionalPointer[KDTreeNode, MutUntrackedOrigin]
     var metric: def(Float32) thin -> Float32
 
     def __init__(out self, dim: Int, metric: def(Float32) thin -> Float32):
@@ -159,8 +159,8 @@ struct KDTreeNode(Copyable):
             else:
                 self.process_terminal_node(sr)
         else:
-            var ncloser: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]
-            var nfarther: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]
+            var ncloser: OptionalPointer[KDTreeNode, MutUntrackedOrigin]
+            var nfarther: OptionalPointer[KDTreeNode, MutUntrackedOrigin]
 
             var extra: Float32
             var qval = sr.qv[unsafe_offset=self.cut_dim]
@@ -307,7 +307,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
     var _data: Matrix
     var N: Int   # number of data points
     var dim: Int
-    var root: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin] # the root pointer
+    var root: OptionalPointer[KDTreeNode, MutUntrackedOrigin] # the root pointer
     var ind: List[Int]
     # the index for the tree leaves.  Data in a leaf with bounds [l,u] are
     # in  'the_data[ind[l],*] to the_data[ind[u],*]
@@ -344,13 +344,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         self.ind = move.ind^
         self.metric = move.metric
         #move.N = move.dim = 0
-        #move.root = UnsafePointer[KDTreeNode, MutAnyOrigin]()
+        #move.root = Pointer[KDTreeNode, MutAnyOrigin]()
 
     def build_tree(mut self) raises: # builds the tree.  Used upon construction
         self.ind = fill_indices_list(self.N)
         self.root = self.build_tree_for_range(0, self.N-1, None)
 
-    def build_tree_for_range(mut self, l: Int, u: Int, parent: OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]) raises -> OptionalUnsafePointer[KDTreeNode, MutUntrackedOrigin]:
+    def build_tree_for_range(mut self, l: Int, u: Int, parent: OptionalPointer[KDTreeNode, MutUntrackedOrigin]) raises -> OptionalPointer[KDTreeNode, MutUntrackedOrigin]:
         # recursive function to build 
         var node = alloc[KDTreeNode](1)
         node.unsafe_write(KDTreeNode(self.dim, self.metric))
@@ -624,7 +624,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         if self.root:
             delTree(self.root.value())
 
-def delTree(node: UnsafePointer[KDTreeNode, MutUntrackedOrigin]):
+def delTree(node: Pointer[KDTreeNode, MutUntrackedOrigin]):
     if node[].left:
         delTree(node[].left.value())
     if node[].right:

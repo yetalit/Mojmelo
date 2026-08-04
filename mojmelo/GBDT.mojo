@@ -29,7 +29,7 @@ struct GBDT(CV, Copyable):
 	"""Minimum loss reduction required to make a further partition on a leaf node of the tree."""
 	var n_bins: Int
 	"""Generates histogram boundaries as possible threshold values when n_bins >= 2 instead of all possible values."""
-	var trees: UnsafePointer[BDecisionTree, MutUntrackedOrigin]
+	var trees: Pointer[BDecisionTree, MutUntrackedOrigin]
 	var score_start: Float32
 	var num_class: Int
 	comptime MODEL_ID = 11
@@ -58,7 +58,7 @@ struct GBDT(CV, Copyable):
 		self.reg_alpha = reg_alpha
 		self.gamma = gamma
 		self.n_bins = n_bins
-		self.trees = UnsafePointer[BDecisionTree, MutUntrackedOrigin].unsafe_dangling()
+		self.trees = Pointer[BDecisionTree, MutUntrackedOrigin].unsafe_dangling()
 		self.score_start = 0.0
 		self.num_class = 0
 
@@ -180,7 +180,7 @@ struct GBDT(CV, Copyable):
 			for t_i in range(model.n_trees * model.num_class):
 				var tree = BDecisionTree()
 				var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-				var node_list = List[UnsafePointer[Node, MutUntrackedOrigin]]()
+				var node_list = List[Pointer[Node, MutUntrackedOrigin]]()
 				var children_index_list = List[Tuple[Int, Int]]()
 				for _ in range(node_size):
 					var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
@@ -245,6 +245,6 @@ struct GBDT(CV, Copyable):
 			self.n_bins = atol(String(params['n_bins']))
 		else:
 			self.n_bins = 0
-		self.trees = UnsafePointer[BDecisionTree, MutUntrackedOrigin].unsafe_dangling()
+		self.trees = Pointer[BDecisionTree, MutUntrackedOrigin].unsafe_dangling()
 		self.score_start = 0.0
 		self.num_class = 0

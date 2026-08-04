@@ -9,18 +9,18 @@ from std.memory import unsafe_memset_zero
 
 @always_inline
 def key(idx: Int,
-        data: UnsafePointer[Float32, MutUntrackedOrigin],
+        data: Pointer[Float32, MutUntrackedOrigin],
         dim: Int,
         split_dim: Int) -> Float32:
     return data[unsafe_offset=idx * dim + split_dim]
 
 @always_inline
 def nth_element(
-    var first: UnsafePointer[Int, MutUntrackedOrigin],
-    nth: UnsafePointer[Int, MutUntrackedOrigin],
-    var last: UnsafePointer[Int, MutUntrackedOrigin],
-    var proj: UnsafePointer[Float32, MutUntrackedOrigin],
-    data: UnsafePointer[Float32, MutUntrackedOrigin],
+    var first: Pointer[Int, MutUntrackedOrigin],
+    nth: Pointer[Int, MutUntrackedOrigin],
+    var last: Pointer[Int, MutUntrackedOrigin],
+    var proj: Pointer[Float32, MutUntrackedOrigin],
+    data: Pointer[Float32, MutUntrackedOrigin],
     dim: Int,
     split_dim: Int):
     for i in range((Int(last) - Int(first))//size_of[DType.int]()):
@@ -66,8 +66,8 @@ def nth_element(
 
 @always_inline
 def node_pair_lower_bound(
-    var center1: UnsafePointer[Float32, MutUntrackedOrigin],
-    var center2: UnsafePointer[Float32, MutUntrackedOrigin],
+    var center1: Pointer[Float32, MutUntrackedOrigin],
+    var center2: Pointer[Float32, MutUntrackedOrigin],
     r1: Float32,
     r2: Float32,
     dim: Int
@@ -90,7 +90,7 @@ def node_pair_lower_bound(
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
 @fieldwise_init
 struct CenterPtr(TrivialRegisterPassable):
-    var _data: UnsafePointer[Float32, MutUntrackedOrigin]
+    var _data: Pointer[Float32, MutUntrackedOrigin]
 
 
 @fieldwise_init
@@ -103,17 +103,17 @@ struct NodeData(Copyable):
 
 
 struct KDTreeBoruvka:
-    var data: UnsafePointer[Float32, MutUntrackedOrigin]
+    var data: Pointer[Float32, MutUntrackedOrigin]
     var kdtree: KDTree[sort_results=True]
     var n: Int
     var dim: Int
     var leaf_size: Int
     var nodes: List[NodeData]
-    var core_dist: UnsafePointer[Float32, MutUntrackedOrigin]
+    var core_dist: Pointer[Float32, MutUntrackedOrigin]
     var build_idx: List[Int]
     var proj_buf: List[Float32]
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
-    var _center_arena: UnsafePointer[Float32, MutUntrackedOrigin]
+    var _center_arena: Pointer[Float32, MutUntrackedOrigin]
 
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:

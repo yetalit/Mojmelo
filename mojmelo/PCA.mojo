@@ -116,15 +116,15 @@ struct PCA(Copyable):
             var n_components = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var components_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var components = f.read_bytes(4*n_components*components_width)
-            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(components.unsafe_ptr())))
+            model.components = Matrix(n_components, components_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(components.unsafe_ptr())))
             _ = components
             model.components_T = model.components.T()
             var _mean = f.read_bytes(4*components_width)
-            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_mean.unsafe_ptr())))
+            model.mean = Matrix(1, components_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_mean.unsafe_ptr())))
             _ = _mean
             model.whiten = Bool(f.read_bytes(1)[0])
             if model.whiten:
                 var whiten_ = f.read_bytes(4*n_components)
-                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(whiten_.unsafe_ptr())))
+                model.whiten_ = Matrix(1, n_components, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(whiten_.unsafe_ptr())))
                 _ = whiten_
         return model^

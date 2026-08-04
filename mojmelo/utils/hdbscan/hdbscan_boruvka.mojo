@@ -42,7 +42,7 @@ struct UnionFind:
 
 
 struct HDBSCANBoruvka:
-    var tree: UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin]
+    var tree: Pointer[KDTreeBoruvka, MutUntrackedOrigin]
     var n: Int
     var dim: Int
     var min_samples: Int
@@ -75,7 +75,7 @@ struct HDBSCANBoruvka:
 
     @always_inline
     def __init__(out self,
-                 t: UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin],
+                 t: Pointer[KDTreeBoruvka, MutUntrackedOrigin],
                  min_samples: Int = 5,
                  alpha: Float32 = 1.0) raises:
         self.tree = t
@@ -149,7 +149,7 @@ struct HDBSCANBoruvka:
         # A node gets a definite component label only when ALL points below
         # it belong to the same component.  -1 means "mixed / unknown".
         for ni in range(len(self.tree[].nodes) - 1, -1, -1):
-            var nd = UnsafePointer(to=self.tree[].nodes[ni])
+            var nd = Pointer(to=self.tree[].nodes[ni])
 
             if nd[].is_leaf:
                 var start = nd[].idx_start
@@ -176,11 +176,11 @@ struct HDBSCANBoruvka:
                       node: Int,
                       point_idx: Int,
                       point_component: Int,
-                      heap_dist: UnsafePointer[Float32, MutUntrackedOrigin],
-                      heap_nbr: UnsafePointer[Int, MutUntrackedOrigin],
+                      heap_dist: Pointer[Float32, MutUntrackedOrigin],
+                      heap_nbr: Pointer[Int, MutUntrackedOrigin],
                       core_p: Float32,
-                      comp_bound: UnsafePointer[Float32, MutUntrackedOrigin]) raises:
-        var nd = UnsafePointer(to=self.tree[].nodes[node])
+                      comp_bound: Pointer[Float32, MutUntrackedOrigin]) raises:
+        var nd = Pointer(to=self.tree[].nodes[node])
 
         # --- Pruning case 1: node is entirely one component (same as query) ---
         if self.component_of_node[node] == point_component:
@@ -236,8 +236,8 @@ struct HDBSCANBoruvka:
         # --- Internal node: recurse into closer child first ---
         var l = self.tree[].left(node)
         var r = self.tree[].right(node)
-        var ndl = UnsafePointer(to=self.tree[].nodes[l])
-        var ndr = UnsafePointer(to=self.tree[].nodes[r])
+        var ndl = Pointer(to=self.tree[].nodes[l])
+        var ndr = Pointer(to=self.tree[].nodes[r])
 
         var lb2l = node_pair_lower_bound(xp, ndl[].center._data, 0.0, ndl[].radius, self.dim)
         var lb2r = node_pair_lower_bound(xp, ndr[].center._data, 0.0, ndr[].radius, self.dim)
@@ -281,10 +281,10 @@ struct HDBSCANBoruvka:
                     0,
                     i,
                     comp,
-                    UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(heap_dist)),
-                    UnsafePointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(heap_nbr)),
+                    Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(heap_dist)),
+                    Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(heap_nbr)),
                     self.tree[].core_dist[unsafe_offset=i],
-                    UnsafePointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(comp_bnd))
+                    Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(comp_bnd))
                 )
             except e:
                 print('Error:', e)
