@@ -6,13 +6,13 @@ from std.python import Python
 import std.os as os
 
 def main() raises:
-    gbdtc_test = Python.import_module("load_breast_cancer")
-    data = gbdtc_test.get_data() # X, y
-    X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[1]).T(), test_size=0.2, random_state=1234)
-    gbdtc = GBDT(criterion='log', n_trees = 10, max_depth = 6, learning_rate = 1.0)
+    var gbdtc_test = Python.import_module("load_breast_cancer")
+    var data = gbdtc_test.get_data() # X, y
+    var X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[1]).T(), test_size=0.2, random_state=1234)
+    var gbdtc = GBDT(criterion='log', n_trees = 10, max_depth = 6, learning_rate = 1.0)
     gbdtc.fit(X_train, y_train)
     gbdtc.save('gbdtc')
     gbdtc = GBDT.load('gbdtc')
-    y_pred = gbdtc.predict(X_test)
+    var y_pred = gbdtc.predict(X_test)
     print("GBDT classification accuracy:", accuracy_score(y_test, y_pred))
     os.remove('gbdtc.mjml')

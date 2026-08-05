@@ -5,7 +5,7 @@ from mojmelo.utils.Matrix import Matrix
 def main() raises:
     print('--Normalize--')
     # https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.normalize.html
-    X = Matrix([[-2, 1, 2], [-1, 0, 1]])
+    var X = Matrix([[-2, 1, 2], [-1, 0, 1]])
     print(normalize(X, norm="l1")[0])
     print(normalize(X, norm="l2")[0])
     print('--StandardScaler--')

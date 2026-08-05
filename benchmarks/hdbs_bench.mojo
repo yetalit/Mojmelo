@@ -8,43 +8,43 @@ import std.time as time
 
 def main() raises:
     random.seed()
-    GLOBAL_SEED = random.random_si64(0, 1_000_000)
+    var GLOBAL_SEED = random.random_si64(0, 1_000_000)
 
-    hdbs_bench = Python.import_module("hdbs_bench")
-    data = Matrix.from_numpy(hdbs_bench.prepare_data(GLOBAL_SEED)[0]) # X
+    var hdbs_bench = Python.import_module("hdbs_bench")
+    var data = Matrix.from_numpy(hdbs_bench.prepare_data(GLOBAL_SEED)[0]) # X
 
-    WARMUP = 2
-    RUNS = 5
-    labels = List[Scalar[DType.int]]()
+    var WARMUP = 2
+    var RUNS = 5
+    var labels = List[Scalar[DType.int]]()
     # warm-up
     for _ in range(WARMUP):
-        hdbs = HDBSCAN()
+        var hdbs = HDBSCAN()
         labels = hdbs.fit_predict(data)
 
     var times: List[Float64] = []
 
     # timed runs
     for _ in range(RUNS):
-        hdbs = HDBSCAN()
+        var hdbs = HDBSCAN()
 
-        t0 = time.perf_counter()
+        var t0 = time.perf_counter()
         keep(hdbs.fit(data))
-        t1 = time.perf_counter()
+        var t1 = time.perf_counter()
 
         times.append(t1 - t0)
 
-    fit_sum = 0.0
+    var fit_sum = 0.0
 
     for i in range(RUNS):
         fit_sum += times[i]
 
-    fit_mean = fit_sum / Float64(RUNS)
+    var fit_mean = fit_sum / Float64(RUNS)
 
-    fit_var = 0.0
+    var fit_var = 0.0
 
     for i in range(RUNS):
         fit_var += (times[i] - fit_mean) ** 2
 
-    fit_std = (fit_var / Float64(RUNS)) ** 0.5
+    var fit_std = (fit_var / Float64(RUNS)) ** 0.5
 
     hdbs_bench.run_benchmark(GLOBAL_SEED, fit_mean, fit_std, ids_to_numpy(labels))

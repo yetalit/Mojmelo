@@ -139,27 +139,24 @@ def main() raises:
         var B = Matrix.random(4096, 512)
         for i in range(NUM_ITER):
             var start = time.perf_counter_ns()
-            var C = A * B
+            keep(A * B)
             var finish = time.perf_counter_ns()
-            keep(C)
             if i != 0:
                 results[0] += Int(finish - start) // (NUM_ITER - 1)
         A = Matrix.random(4096, 4096)
         B = Matrix.random(4096, 4096)
         for i in range(NUM_ITER):
             var start = time.perf_counter_ns()
-            var C = A * B
+            keep(A * B)
             var finish = time.perf_counter_ns()
-            keep(C)
             if i != 0:
                 results[1] += Int(finish - start) // (NUM_ITER - 1)
         A = Matrix.random(4096, 512)
         B = Matrix.random(512, 4096)
         for i in range(NUM_ITER):
             var start = time.perf_counter_ns()
-            var C = A * B
+            keep(A * B)
             var finish = time.perf_counter_ns()
-            keep(C)
             if i != 0:
                 results[2] += Int(finish - start) // (NUM_ITER - 1)
         if command != '9':

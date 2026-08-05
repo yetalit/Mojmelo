@@ -6,13 +6,13 @@ from std.python import Python
 import std.os as os
 
 def main() raises:
-    rfc_test = Python.import_module("load_breast_cancer")
-    data = rfc_test.get_data() # X, y
-    X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[1]).T(), test_size=0.2, random_state=1234)
-    rfc = RandomForest(criterion='entropy', n_trees=5, max_depth=10)
+    var rfc_test = Python.import_module("load_breast_cancer")
+    var data = rfc_test.get_data() # X, y
+    var X_train, X_test, y_train, y_test = train_test_split(Matrix.from_numpy(data[0]), Matrix.from_numpy(data[1]).T(), test_size=0.2, random_state=1234)
+    var rfc = RandomForest(criterion='entropy', n_trees=5, max_depth=10)
     rfc.fit(X_train, y_train)
     rfc.save('rfc')
     rfc = RandomForest.load('rfc')
-    y_pred = rfc.predict(X_test)
+    var y_pred = rfc.predict(X_test)
     print("RandomForest classification accuracy:", accuracy_score(y_test, y_pred))
     os.remove('rfc.mjml')
