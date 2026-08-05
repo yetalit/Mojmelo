@@ -49,8 +49,7 @@ struct KMeans(Copyable):
         """Compute cluster centers and cluster index for each sample."""
         # Mean centering
         self.X_mean = Matrix.zeros(1, X.width)
-        var n_rows = X.height
-        var n_cols = X.width
+        var n_rows, n_cols = X.height, X.width
         @parameter
         def p(col: Int):
             var sum: Float32 = 0

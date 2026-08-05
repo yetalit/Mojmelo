@@ -1,6 +1,6 @@
 import mojmelo.utils.sort as msort
 from .mojmelo_matmul import matmul
-from std.memory import unsafe_memcpy, unsafe_memset_zero
+from std.memory import unsafe_memcpy, unsafe_memset_zero, Layout
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 from std.sys import simd_width_of, CompilationTarget
@@ -14,13 +14,13 @@ comptime simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is
 def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, MutUntrackedOrigin], V: Pointer[Float64, MutUntrackedOrigin], n: Int):
     unsafe_memcpy(dest=V, src=A, count=n*n)
 
-    var e = alloc[Float64](n)
+    var e = alloc(Layout[Float64](count=n)).unsafe_leak()
     unsafe_memset_zero(e, n)
 
     # --- Householder reduction to tridiagonal ---
     for i in range(n - 1, 0, -1):
         var l = i - 1
-        var scale = 0.0; h = 0.0
+        var scale = var h = 0.0
         if l > 0:
             for k in range(l+1):
                 scale += abs(V[unsafe_offset=k * n + i])
@@ -102,7 +102,7 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
                 r = -r
             g = eig[unsafe_offset=m] - eig[unsafe_offset=l] + e[unsafe_offset=l] / (g + r)
 
-            var s = 1.0; c = 1.0; p = 0.0
+            var s, c, p = 1.0, 1.0, 0.0
             for i in range(m - 1, l-1, -1):
                 var f = s * e[unsafe_offset=i]
                 var b = c * e[unsafe_offset=i]
@@ -148,9 +148,9 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
     e.unsafe_free()
 
 def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: Pointer[Float64, MutUntrackedOrigin]) raises:
-    var eig = alloc[Float64](n)
+    var eig = alloc(Layout[Float64](count=n)).unsafe_leak()
     unsafe_memset_zero(eig, n)
-    var V_full = alloc[Float64](n*n)
+    var V_full = alloc(Layout[Float64](count=n*n)).unsafe_leak()
 
     eigensystem(ATA, eig, V_full, n)
 
@@ -184,7 +184,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var A64 = A.cast_ptr[DType.float64]()
     var A64T = C_transpose(A, A64)
 
-    var S = alloc[Float64](A.width)
+    var S = alloc(Layout[Float64](count=A.width)).unsafe_leak()
     var V = Matrix(0, 0)
 
     var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
@@ -200,7 +200,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
 
 @always_inline
 def C_transpose(A: Matrix, A64: Pointer[Float64, MutUntrackedOrigin]) -> Pointer[Float64, MutUntrackedOrigin]:
-    var AT = alloc[Float64](A.size)
+    var AT = alloc(Layout[Float64](count=A.size)).unsafe_leak()
     var height = A.height
     var width = A.width
     if A.size < 98304:

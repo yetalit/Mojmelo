@@ -1,7 +1,7 @@
 import mojmelo.utils.sort as msort
 from .mojmelo_matmul import matmul
 from std.sys import simd_width_of, CompilationTarget
-from std.memory import unsafe_memcpy, unsafe_memcmp, unsafe_memset_zero
+from std.memory import unsafe_memcpy, unsafe_memcmp, unsafe_memset_zero, Layout
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize, reduction
 import std.math as math
@@ -45,7 +45,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.height = height
         self.width = width
         self.size = height * width
-        self.data = alloc[Float32](self.size)
+        self.data = alloc(Layout[Float32](count=self.size)).unsafe_leak()
         self.order = order.lower()
         if data:
             unsafe_memcpy(dest=self.data, src=data.value(), count=self.size)
@@ -55,7 +55,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.height = len(def_input)
         self.width = len(def_input[0]) if self.height > 0 else 0
         self.size = self.height * self.width
-        self.data = alloc[Float32](self.size)
+        self.data = alloc(Layout[Float32](count=self.size)).unsafe_leak()
         self.order = 'c'
         if self.size > 0:
             for row_i in range(len(def_input)):
@@ -65,7 +65,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         self.height = copy.height
         self.width = copy.width
         self.size = copy.size
-        self.data = alloc[Float32](self.size)
+        self.data = alloc(Layout[Float32](count=self.size)).unsafe_leak()
         self.order = copy.order
         unsafe_memcpy(dest=self.data, src=copy.data, count=self.size)
 
@@ -869,7 +869,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return self.F_transpose()
 
     def asorder(self, order: String) -> Matrix:
-        _order = order.lower()
+        var _order = order.lower()
         if _order == self.order:
             return self
         var mat = self.T().reshape(self.height, self.width)
@@ -1165,7 +1165,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var vect = Pointer[Int, MutUntrackedOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
-            vect = alloc[Int](self.width)
+            vect = alloc(Layout[Int](count=self.width)).unsafe_leak()
             length = self.width
             if self.width < 512:
                 for i in range(self.width):
@@ -1176,7 +1176,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                     vect[unsafe_offset=i] = self['', i, unsafe=True].argmin()
                 parallelize[p0](self.width)
         elif axis == 1:
-            vect = alloc[Int](self.height)
+            vect = alloc(Layout[Int](count=self.height)).unsafe_leak()
             length = self.height
             if self.height < 512:
                 for i in range(self.height):
@@ -1205,7 +1205,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var vect = Pointer[Int, MutUntrackedOrigin].unsafe_dangling()
         var length = 0
         if axis == 0:
-            vect = alloc[Int](self.width)
+            vect = alloc(Layout[Int](count=self.width)).unsafe_leak()
             length = self.width
             if self.width < 512:
                 for i in range(self.width):
@@ -1216,7 +1216,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                     vect[unsafe_offset=i] = self['', i, unsafe=True].argmax()
                 parallelize[p0](self.width)
         elif axis == 1:
-            vect = alloc[Int](self.height)
+            vect = alloc(Layout[Int](count=self.height)).unsafe_leak()
             length = self.height
             if self.height < 512:
                 for i in range(self.height):
@@ -1233,7 +1233,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def argmax_f(self, axis: Int) -> Matrix:
         if axis == 0:
-            var vect = alloc[Float32](self.width)
+            var vect = alloc(Layout[Float32](count=self.width)).unsafe_leak()
             if self.width < 512:
                 for i in range(self.width):
                     vect[unsafe_offset=i] = Float32(self['', i, unsafe=True].argmax())
@@ -1244,7 +1244,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 parallelize[p0](self.width)
             return Matrix(vect, 1, self.width, self.order)
         else:
-            var vect = alloc[Float32](self.height)
+            var vect = alloc(Layout[Float32](count=self.height)).unsafe_leak()
             if self.height < 512:
                 for i in range(self.height):
                     vect[unsafe_offset=i] = Float32(self[i, unsafe=True].argmax())
@@ -1415,7 +1415,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         var N = A.height
         var M = b.width
         var X = Matrix(N, M, order=A.order)
-        var piv = alloc[Int](N)
+        var piv = alloc(Layout[Int](count=N)).unsafe_leak()
 
         Matrix.lu_factor(A, piv.as_unsafe_any_origin(), N)
         if M > 1:
@@ -1503,7 +1503,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def bincount(self) raises -> List[Int]:
         var max_val = Int(self.max())
-        var vect = alloc[Int](max_val + 1)
+        var vect = alloc(Layout[Int](count=max_val + 1)).unsafe_leak()
         unsafe_memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
@@ -1515,7 +1515,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def bincount(self, weights: Matrix) raises -> List[Int]:
         var max_val = Int(self.max())
-        var vect = alloc[Int](max_val + 1)
+        var vect = alloc(Layout[Int](count=max_val + 1)).unsafe_leak()
         unsafe_memset_zero(vect, max_val + 1)
 
         for i in range(self.size):
@@ -1592,7 +1592,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = True) raises -> List[Int]:
         if seed:
             random.seed()
-        var result = alloc[Int](size)
+        var result = alloc(Layout[Int](count=size)).unsafe_leak()
         if replace:
             random.randint(result, size, 0, arang - 1)
         else:
@@ -1677,7 +1677,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def _elemwise_scalar_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[DType.bool, width]](self, rhs: Float32) -> List[Scalar[DType.bool]]:
-        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        var result_ptr = alloc(Layout[Scalar[DType.bool]](count=self.size)).unsafe_leak()
         if self.size < 524288:
             def convert[simd_width: Int](idx: Int) {imm}:
                 result_ptr.unsafe_store(idx, func(self.data.unsafe_load[width=simd_width](idx), rhs))
@@ -1695,7 +1695,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def _elemwise_matrix_cmp[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[DType.bool, width]](self, rhs: Self) -> List[Scalar[DType.bool]]:
-        var result_ptr = alloc[Scalar[DType.bool]](self.size)
+        var result_ptr = alloc(Layout[Scalar[DType.bool]](count=self.size)).unsafe_leak()
         if self.size < 524288:
             def convert[simd_width: Int](idx: Int) {imm}:
                 result_ptr.unsafe_store(idx, func(self.data.unsafe_load[width=simd_width](idx), rhs.data.unsafe_load(idx)))

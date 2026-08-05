@@ -1,6 +1,6 @@
 # Based on hdbscan (https://github.com/scikit-learn-contrib/hdbscan) _hdbscan_tree.pyx by Leland McInnes.
 
-from std.memory import unsafe_memset_zero
+from std.memory import unsafe_memset_zero, Layout
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 import std.math as math
@@ -306,7 +306,7 @@ struct TreeUnionFind:
 
     @always_inline
     def __init__(out self, size: Int):
-        self._data = alloc[Int](size * self.width)
+        self._data = alloc(Layout[Int](count=size * self.width)).unsafe_leak()
         unsafe_memset_zero(self._data, size * self.width)
         self.size = size
         self.is_component = List[Bool](capacity=size)
@@ -446,8 +446,8 @@ def do_labelling(
                 result[n] = -1
         else:
             if match_reference_implementation:
-                point_lambda = lambda_array[child_array.index(n)]
-                cluster_lambda = lambda_array[child_array.index(cluster)]
+                var point_lambda = lambda_array[child_array.index(n)]
+                var cluster_lambda = lambda_array[child_array.index(cluster)]
                 if point_lambda > cluster_lambda:
                     result[n] = cluster_label_map[cluster]
                 else:
@@ -481,7 +481,7 @@ def get_probabilities(tree: Dict[String, List[Int]], lambda_array: List[Float32]
         if max_lambda == 0.0 or not isfinite(lambda_array[n]):
             result[point] = 1.0
         else:
-            lambda_ = min(lambda_array[n], max_lambda)
+            var lambda_ = min(lambda_array[n], max_lambda)
             result[point] = lambda_ / max_lambda
 
     return result^
@@ -506,12 +506,12 @@ def outlier_scores(tree: Dict[String, List[Int]], lambda_array: List[Float32]) r
             deaths[parent] = deaths[cluster]
 
     for n in range(len(parent_array)):
-        point = child_array[n]
+        var point = child_array[n]
         if point >= root_cluster:
             continue
 
-        cluster = parent_array[n]
-        lambda_max = deaths[cluster]
+        var cluster = parent_array[n]
+        var lambda_max = deaths[cluster]
 
 
         if lambda_max == 0.0 or not isfinite(lambda_array[n]):
@@ -602,7 +602,7 @@ def epsilon_search(leaves: Set[Int], cluster_tree: Dict[String, List[Int]], lamb
         var eps = 1/lambda_array[cluster_tree['child'].index(leaf)]
         if eps < cluster_selection_epsilon:
             if leaf not in processed:
-                epsilon_child = traverse_upwards(cluster_tree, lambda_array, cluster_selection_epsilon, leaf, allow_single_cluster)
+                var epsilon_child = traverse_upwards(cluster_tree, lambda_array, cluster_selection_epsilon, leaf, allow_single_cluster)
                 selected_clusters.append(epsilon_child)
 
                 for sub_node in bfs_from_cluster_tree(cluster_tree, epsilon_child):
@@ -703,7 +703,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Int]], mut lambda_a
     cumulative_skipped.resize(len(n_skipped), 0)
     reduction.cumsum(Span(unsafe_ptr=cumulative_skipped._data, length=len(n_skipped)), Span(unsafe_ptr=n_skipped._data, length=len(n_skipped)))
     for idx, parent in enumerate(parent_map):
-        offset = cumulative_skipped[parent - n_points - 1] if (parent - n_points) > 0 else 0
+        var offset = cumulative_skipped[parent - n_points - 1] if (parent - n_points) > 0 else 0
         parent_map[idx] = parent - offset
 
     # apply changes
@@ -769,7 +769,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
     cluster_tree['parent'] = List[Int]()
     cluster_tree['child'] = List[Int]()
     cluster_tree['child_size'] = List[Int]()
-    cluster_lambda_array = List[Float32]()
+    var cluster_lambda_array = List[Float32]()
     var max_child_val = -2
     var size_sum = 0
     for i, size in enumerate(tree['child_size']):
@@ -850,6 +850,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
                 is_cluster[c] = False
             is_cluster[reduction.min(Span[Int, origin_of(tree['parent'])](unsafe_ptr=tree['parent'].unsafe_ptr(), length=len(tree['parent'])))] = True
 
+        var selected_clusters: Set[Int]
         if cluster_selection_epsilon != 0.0:
             selected_clusters = epsilon_search(leaves, cluster_tree, cluster_lambda_array, cluster_selection_epsilon, Int(allow_single_cluster))
         else:
@@ -878,6 +879,6 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
                           Int(allow_single_cluster), cluster_selection_epsilon,
                           Int(match_reference_implementation))
     var probs = get_probabilities(tree, lambda_array, reverse_cluster_map, labels, deaths)
-    stabilities = get_stability_scores(labels, clusters, stability, max_lambda)
+    var stabilities = get_stability_scores(labels, clusters, stability, max_lambda)
 
     return labels^, probs^, stabilities^

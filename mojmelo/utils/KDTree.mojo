@@ -2,6 +2,7 @@
 
 from mojmelo.utils.Matrix import Matrix
 import std.math as math
+from std.memory import Layout
 from mojmelo.utils.utils import fill_indices_list
 
 @always_inline
@@ -69,8 +70,7 @@ struct KDTreeResultVector(Copyable, Sized):
     def pop_heap(mut self):
         self._self.swap_elements(0, len(self) - 1)
 
-        var parent = 0
-        var size = 0
+        var parent = var size = 0
         while True:
             var left_child = 2 * parent + 1
             var right_child = 2 * parent + 2
@@ -351,18 +351,18 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         self.root = self.build_tree_for_range(0, self.N-1, None)
 
     def build_tree_for_range(mut self, l: Int, u: Int, parent: OptionalPointer[KDTreeNode, MutUntrackedOrigin]) raises -> OptionalPointer[KDTreeNode, MutUntrackedOrigin]:
-        # recursive function to build 
-        var node = alloc[KDTreeNode](1)
+        # recursive function to build
+        var node = alloc(Layout[KDTreeNode](count=1)).unsafe_leak()
         node.unsafe_write(KDTreeNode(self.dim, self.metric))
-        # the newly created node. 
+        # the newly created node.
 
         if u<l:
-            return None # no data in this node. 
+            return None # no data in this node.
       
         if (u-l) <= self.bucketsize:
-            # create a terminal node. 
+            # create a terminal node.
 
-            # always compute true bounding box for terminal node. 
+            # always compute true bounding box for terminal node.
             for i in range(self.dim):
                 self.spread_in_coordinate(i,l,u,node[].box[i])
     
@@ -377,7 +377,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             # if parent == NULL, then this is the root node, and
             # we compute for all dimensions.
             # Otherwise, we copy the bounding box from the parent for
-            # all coordinates except for the parent's cut dimension.  
+            # all coordinates except for the parent's cut dimension.
             # That, we recompute ourself.
             var c = -1
             var maxspread: Float32 = 0.0
@@ -527,7 +527,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
         
     def n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int,
                         mut result: KDTreeResultVector) raises:
-        var buf = alloc[Float32](self.dim)
+        var buf = alloc(Layout[Float32](count=self.dim)).unsafe_leak()
         var qv = Span(unsafe_ptr=buf, length=self.dim) #  query vector
         result._self.clear()
 
@@ -567,7 +567,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
     def r_count(self, qv: Span[Float32, MutUntrackedOrigin], r2: Float32) raises -> Int:
         # search for all within a ball of a certain radius
         var result = KDTreeResultVector()
-        sr = SearchRecord(qv,self,result)
+        var sr = SearchRecord(qv,self,result)
 
         sr.centeridx = -1
         sr.correltime = 0
@@ -580,7 +580,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
 
     def r_nearest_around_point(self, idxin: Int, correltime: Int, r2: Float32,
                         mut result: KDTreeResultVector) raises:
-        var buf = alloc[Float32](self.dim)
+        var buf = alloc(Layout[Float32](count=self.dim)).unsafe_leak()
         var qv = Span(unsafe_ptr=buf, length=self.dim) #  query vector
 
         result._self.clear()
@@ -602,7 +602,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             sort[KDTreeResult.__le__](Span[KDTreeResult, origin_of(result._self)](unsafe_ptr= result._self.unsafe_ptr(), length= len(result)))
 
     def r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) raises -> Int:
-        var buf = alloc[Float32](self.dim)
+        var buf = alloc(Layout[Float32](count=self.dim)).unsafe_leak()
         var qv = Span(unsafe_ptr=buf, length=self.dim) #  query vector
 
         for i in range(self.dim):

@@ -1,6 +1,6 @@
 # Re-implementation of libsvm, a library for support vector machines by Chih-Chung Chang and Chih-Jen Lin (https://www.csie.ntu.edu.tw/~cjlin/libsvm/) with some modifications.
 
-from std.memory import unsafe_memcpy, unsafe_memset_zero, unsafe_memset
+from std.memory import unsafe_memcpy, unsafe_memset_zero, unsafe_memset, Layout
 from .svm_node import svm_node
 from .svm_parameter import svm_parameter
 from .svm_problem import svm_problem
@@ -132,7 +132,7 @@ struct Cache:
     def __init__(out self, l_: Int, size_: UInt):
         self.l = l_
         self.size = (size_ - UInt(self.l * size_of[head_t]())) // 4
-        self.head = alloc[head_t](self.l)
+        self.head = alloc(Layout[head_t](count=self.l)).unsafe_leak()
         unsafe_memset_zero(self.head.value(), self.l) # initialized to 0
         self.size = max(self.size, UInt(2) * UInt(self.l))  # cache must be large enough for two columns
         self.lru_head = head_t()
@@ -178,7 +178,7 @@ struct Cache:
                 old[]._len = 0
 
             # allocate new space
-            var new = alloc[Float32](_len)
+            var new = alloc(Layout[Float32](count=_len)).unsafe_leak()
             if h[].data:
                 unsafe_memcpy(dest=new, src=h[].data.value(), count=h[]._len)
                 h[].data.value().unsafe_free()
@@ -416,11 +416,11 @@ struct Solver:
         self.l = l
         self.QD = Pointer[Float64, MutUntrackedOrigin].unsafe_dangling()
         self.QD = Q.get_QD()
-        self.p = alloc[Float64](self.l)
+        self.p = alloc(Layout[Float64](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.p, src=p_.value(), count=self.l)
-        self.y = alloc[Int8](self.l)
+        self.y = alloc(Layout[Int8](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.y, src=y_.value(), count=self.l)
-        self.alpha = alloc[Float64](self.l)
+        self.alpha = alloc(Layout[Float64](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
@@ -428,7 +428,7 @@ struct Solver:
         self.unshrink = False
 
         # initialize alpha_status
-        self.alpha_status = alloc[Int8](self.l)
+        self.alpha_status = alloc(Layout[Int8](count=self.l)).unsafe_leak()
         for i in range(self.l):
             if self.alpha[unsafe_offset=i] >= (self.Cp if self.y[unsafe_offset=i] > 0 else self.Cn):
                 self.alpha_status[unsafe_offset=i] = self.UPPER_BOUND
@@ -441,14 +441,14 @@ struct Solver:
         try:
             self.active_set = fill_indices(self.l)
         except:
-            self.active_set = alloc[Int](self.l)
+            self.active_set = alloc(Layout[Int](count=self.l)).unsafe_leak()
             for i in range(self.l):
                 self.active_set[unsafe_offset=i] = i
         self.active_size = self.l
 
         # initialize gradient
-        self.G = alloc[Float64](self.l)
-        self.G_bar = alloc[Float64](self.l)
+        self.G = alloc(Layout[Float64](count=self.l)).unsafe_leak()
+        self.G_bar = alloc(Layout[Float64](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.G, src=self.p, count=self.l)
         unsafe_memset_zero(self.G_bar, self.l)
 
@@ -890,11 +890,11 @@ struct Solver_NU:
         self.l = l
         self.QD = Pointer[Float64, MutUntrackedOrigin].unsafe_dangling()
         self.QD = Q.get_QD()
-        self.p = alloc[Float64](self.l)
+        self.p = alloc(Layout[Float64](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.p, src=p_.value(), count=self.l)
-        self.y = alloc[Int8](self.l)
+        self.y = alloc(Layout[Int8](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.y, src=y_.value(), count=self.l)
-        self.alpha = alloc[Float64](self.l)
+        self.alpha = alloc(Layout[Float64](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.alpha, src=alpha_, count=self.l)
         self.Cp = Cp
         self.Cn = Cn
@@ -902,7 +902,7 @@ struct Solver_NU:
         self.unshrink = False
 
         # initialize alpha_status
-        self.alpha_status = alloc[Int8](self.l)
+        self.alpha_status = alloc(Layout[Int8](count=self.l)).unsafe_leak()
         for i in range(self.l):
             if self.alpha[unsafe_offset=i] >= (self.Cp if self.y[unsafe_offset=i] > 0 else self.Cn):
                 self.alpha_status[unsafe_offset=i] = self.UPPER_BOUND
@@ -915,14 +915,14 @@ struct Solver_NU:
         try:
             self.active_set = fill_indices(self.l)
         except:
-            self.active_set = alloc[Int](self.l)
+            self.active_set = alloc(Layout[Int](count=self.l)).unsafe_leak()
             for i in range(self.l):
                 self.active_set[unsafe_offset=i] = i
         self.active_size = self.l
 
         # initialize gradient
-        self.G = alloc[Float64](self.l)
-        self.G_bar = alloc[Float64](self.l)
+        self.G = alloc(Layout[Float64](count=self.l)).unsafe_leak()
+        self.G_bar = alloc(Layout[Float64](count=self.l)).unsafe_leak()
         unsafe_memcpy(dest=self.G, src=self.p, count=self.l)
         unsafe_memset_zero(self.G_bar, self.l)
 
@@ -1295,12 +1295,12 @@ struct SVC_Q(QMatrix):
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter, y_: OptionalPointer[Int8, MutUntrackedOrigin]):
         # Kernel
-        var x = alloc[Pointer[svm_node, MutUntrackedOrigin]](prob.l)
+        var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=prob.l)).unsafe_leak()
         unsafe_memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: Pointer[Float64, MutUntrackedOrigin]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = alloc[Float64](prob.l)
+            x_square = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
             for i in range(prob.l):
                 x_square[unsafe_offset=i] = dot(x[unsafe_offset=i], x[unsafe_offset=i])
         else:
@@ -1321,12 +1321,12 @@ struct SVC_Q(QMatrix):
         else:
             self.kernel_function = kernel_linear
         ##
-        self.y = alloc[Int8](prob.l)
+        self.y = alloc(Layout[Int8](count=prob.l)).unsafe_leak()
         unsafe_memcpy(dest=self.y, src=y_.value(), count=prob.l)
 
         self.cache = Cache(prob.l, UInt(Int(param.cache_size*(1<<20))))
 
-        self.QD = alloc[Float64](prob.l)
+        self.QD = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
         for i in range(prob.l):
             self.QD[unsafe_offset=i] = self.kernel_function(self._self, i,i)
 
@@ -1372,12 +1372,12 @@ struct ONE_CLASS_Q(QMatrix):
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
-        var x = alloc[Pointer[svm_node, MutUntrackedOrigin]](prob.l)
+        var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=prob.l)).unsafe_leak()
         unsafe_memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: Pointer[Float64, MutUntrackedOrigin]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = alloc[Float64](prob.l)
+            x_square = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
             for i in range(prob.l):
                 x_square[unsafe_offset=i] = dot(x[unsafe_offset=i], x[unsafe_offset=i])
         else:
@@ -1400,7 +1400,7 @@ struct ONE_CLASS_Q(QMatrix):
         ##
         self.cache = Cache(prob.l, UInt(Int(param.cache_size*(1<<20))))
 
-        self.QD = alloc[Float64](prob.l)
+        self.QD = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
         for i in range(prob.l):
             self.QD[unsafe_offset=i] = self.kernel_function(self._self, i,i)
 
@@ -1447,12 +1447,12 @@ struct SVR_Q(QMatrix):
     @always_inline
     def __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
-        var x = alloc[Pointer[svm_node, MutUntrackedOrigin]](prob.l)
+        var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=prob.l)).unsafe_leak()
         unsafe_memcpy(dest=x, src=prob.x, count=prob.l)
 
         var x_square: Pointer[Float64, MutUntrackedOrigin]
         if param.kernel_type == svm_parameter.RBF:
-            x_square = alloc[Float64](prob.l)
+            x_square = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
             for i in range(prob.l):
                 x_square[unsafe_offset=i] = dot(x[unsafe_offset=i], x[unsafe_offset=i])
         else:
@@ -1475,9 +1475,9 @@ struct SVR_Q(QMatrix):
         ##
         self.l = prob.l
         self.cache = Cache(self.l, UInt(Int(param.cache_size*(1<<20))))
-        self.QD = alloc[Float64](2*self.l)
-        self.sign = alloc[Int8](2*self.l)
-        self.index = alloc[Int](2*self.l)
+        self.QD = alloc(Layout[Float64](count=2*self.l)).unsafe_leak()
+        self.sign = alloc(Layout[Int8](count=2*self.l)).unsafe_leak()
+        self.index = alloc(Layout[Int](count=2*self.l)).unsafe_leak()
         for k in range(self.l):
             self.sign[unsafe_offset=k] = 1
             self.sign[unsafe_offset=k+self.l] = -1
@@ -1485,7 +1485,7 @@ struct SVR_Q(QMatrix):
             self.index[unsafe_offset=k+self.l] = k
             self.QD[unsafe_offset=k] = self.kernel_function(self._self, k,k)
             self.QD[unsafe_offset=k+self.l] = self.QD[unsafe_offset=k]
-        self.buffer: Array[OptionalPointer[Float32, MutUntrackedOrigin], 2] = [alloc[Float32](2*self.l), alloc[Float32](2*self.l)]
+        self.buffer: Array[OptionalPointer[Float32, MutUntrackedOrigin], 2] = [alloc(Layout[Float32](count=2*self.l)).unsafe_leak(), alloc(Layout[Float32](count=2*self.l)).unsafe_leak()]
         self.next_buffer = 0
 
     def swap_index(self, i: Int, j: Int):
@@ -1532,8 +1532,8 @@ def solve_c_svc(
     prob: svm_problem, param: svm_parameter,
     alpha: Pointer[Float64, MutUntrackedOrigin], mut si: SolutionInfo, Cp: Float64, Cn: Float64):
     var l = prob.l
-    var minus_ones = alloc[Float64](l)
-    var y = alloc[Int8](l)
+    var minus_ones = alloc(Layout[Float64](count=l)).unsafe_leak()
+    var y = alloc(Layout[Int8](count=l)).unsafe_leak()
 
     unsafe_memset_zero(alpha, l)
     for i in range(l):
@@ -1564,7 +1564,7 @@ def solve_nu_svc(
     var l = prob.l
     var nu = param.nu
 
-    var y = alloc[Int8](l)
+    var y = alloc(Layout[Int8](count=l)).unsafe_leak()
 
     for i in range(l):
         if prob.y[unsafe_offset=i]>0:
@@ -1583,7 +1583,7 @@ def solve_nu_svc(
             alpha[unsafe_offset=i] = min(1.0,sum_neg)
             sum_neg -= alpha[unsafe_offset=i]
 
-    var zeros = alloc[Float64](l)
+    var zeros = alloc(Layout[Float64](count=l)).unsafe_leak()
     unsafe_memset_zero(zeros, l)
 
     var s = Solver_NU()
@@ -1607,8 +1607,8 @@ def solve_one_class(
     prob: svm_problem, param: svm_parameter,
     alpha: Pointer[Float64, MutUntrackedOrigin], mut si: SolutionInfo):
     var l = prob.l
-    var zeros = alloc[Float64](l)
-    var ones = alloc[Int8](l)
+    var zeros = alloc(Layout[Float64](count=l)).unsafe_leak()
+    var ones = alloc(Layout[Int8](count=l)).unsafe_leak()
 
     var n = Int(param.nu*Float64(prob.l))	# # of alpha's at upper bound
 
@@ -1633,9 +1633,9 @@ def solve_epsilon_svr(
     prob: svm_problem, param: svm_parameter,
     alpha: Pointer[Float64, MutUntrackedOrigin], mut si: SolutionInfo):
     var l = prob.l
-    var alpha2 = alloc[Float64](2*l)
-    var linear_term = alloc[Float64](2*l)
-    var y = alloc[Int8](2*l)
+    var alpha2 = alloc(Layout[Float64](count=2*l)).unsafe_leak()
+    var linear_term = alloc(Layout[Float64](count=2*l)).unsafe_leak()
+    var y = alloc(Layout[Int8](count=2*l)).unsafe_leak()
 
     for i in range(l):
         alpha2[unsafe_offset=i] = 0
@@ -1665,9 +1665,9 @@ def solve_nu_svr(
     alpha: Pointer[Float64, MutUntrackedOrigin], mut si: SolutionInfo):
     var l = prob.l
     var C = param.C
-    var alpha2 = alloc[Float64](2*l)
-    var linear_term = alloc[Float64](2*l)
-    var y = alloc[Int8](2*l)
+    var alpha2 = alloc(Layout[Float64](count=2*l)).unsafe_leak()
+    var linear_term = alloc(Layout[Float64](count=2*l)).unsafe_leak()
+    var y = alloc(Layout[Int8](count=2*l)).unsafe_leak()
 
     var sum = C * param.nu * Float64(l) / 2
     for i in range(l):
@@ -1703,7 +1703,7 @@ struct decision_function(RegisterPassable, Copyable):
 def svm_train_one(
     prob: svm_problem, param: svm_parameter,
     Cp: Float64, Cn: Float64) -> decision_function:
-    var alpha = alloc[Float64](prob.l)
+    var alpha = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
     var si = SolutionInfo()
     if param.svm_type == svm_parameter.C_SVC:
         solve_c_svc(prob,param,alpha,si,Cp,Cn)
@@ -1751,9 +1751,10 @@ def sigmoid_train(
     var eps=1e-5
     var hiTarget=(prior1+1.0)/(prior1+2.0)
     var loTarget=1/(prior0+2.0)
-    var t= alloc[Float64](l)
-    var fApB: Float64; p: Float64; q: Float64; h11: Float64; h22: Float64; h21: Float64; g1: Float64; g2: Float64; det: Float64; dA: Float64; dB: Float64; gd: Float64; stepsize: Float64
-    var newA: Float64; newB: Float64; newf: Float64; d1: Float64; d2: Float64
+    var t= alloc(Layout[Float64](count=l)).unsafe_leak()
+    var fApB: Float64; var p: Float64; var q: Float64; var h11: Float64; var h22: Float64; var h21: Float64
+    var g1: Float64; var g2: Float64; var det: Float64; var dA: Float64; var dB: Float64; var gd: Float64
+    var stepsize: Float64; var newA: Float64; var newB: Float64; var newf: Float64; var d1: Float64; var d2: Float64
     var iter: Int
 
     # Initial Point and Initial Fun Value
@@ -1848,14 +1849,14 @@ def sigmoid_predict(decision_value: Float64, A: Float64, B: Float64) -> Float64:
 # Method 2 from the multiclass_prob paper by Wu, Lin, and Weng to predict probabilities
 def multiclass_probability(k: Int, r: Pointer[Pointer[Float64, MutUntrackedOrigin], MutUntrackedOrigin], p: Pointer[Float64, MutUntrackedOrigin]):
     var max_iter=max(100,k)
-    var Q=alloc[Pointer[Float64, MutUntrackedOrigin]](k)
-    var Qp=alloc[Float64](k)
+    var Q=alloc(Layout[Pointer[Float64, MutUntrackedOrigin]](count=k)).unsafe_leak()
+    var Qp=alloc(Layout[Float64](count=k)).unsafe_leak()
     var pQp: Float64
     var eps=0.005/Float64(k)
 
     for t in range(k):
         p[unsafe_offset=t]=1.0/Float64(k)  # Valid if k = 1
-        Q[unsafe_offset=t]=alloc[Float64](k)
+        Q[unsafe_offset=t]=alloc(Layout[Float64](count=k)).unsafe_leak()
         Q[unsafe_offset=t][unsafe_offset=t]=0
         for j in range(t):
             Q[unsafe_offset=t][unsafe_offset=t]+=r[unsafe_offset=j][unsafe_offset=t]*r[unsafe_offset=j][unsafe_offset=t]
@@ -1905,13 +1906,13 @@ def svm_binary_svc_probability(
     Cp: Float64, Cn: Float64, mut probA: Float64, mut probB: Float64):
     var nr_fold = 5
     var perm: Pointer[Int, MutUntrackedOrigin]
-    var dec_values = alloc[Float64](prob.l)
+    var dec_values = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
 
     # random shuffle
     try:
         perm = fill_indices(prob.l)
     except:
-        perm = alloc[Int](prob.l)
+        perm = alloc(Layout[Int](count=prob.l)).unsafe_leak()
         for i in range(prob.l):
             perm[unsafe_offset=i]=i
 
@@ -1926,8 +1927,8 @@ def svm_binary_svc_probability(
         var subprob = svm_problem()
 
         subprob.l = prob.l-(end-begin)
-        subprob.x = alloc[Pointer[svm_node, MutUntrackedOrigin]](subprob.l)
-        subprob.y = alloc[Float64](subprob.l)
+        subprob.x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=subprob.l)).unsafe_leak()
+        subprob.y = alloc(Layout[Float64](count=subprob.l)).unsafe_leak()
 
         for j in range(begin):
             subprob.x[unsafe_offset=k] = prob.x[unsafe_offset=perm[unsafe_offset=j]]
@@ -1960,8 +1961,8 @@ def svm_binary_svc_probability(
             subparam.probability=0
             subparam.C=1.0
             subparam.nr_weight=2
-            subparam.weight_label = alloc[Int](2)
-            subparam.weight = alloc[Float64](2)
+            subparam.weight_label = alloc(Layout[Int](count=2)).unsafe_leak()
+            subparam.weight = alloc(Layout[Float64](count=2)).unsafe_leak()
             subparam.weight_label.value()[unsafe_offset=0]=+1
             subparam.weight_label.value()[unsafe_offset=1]=-1
             subparam.weight.value()[unsafe_offset=0]=Cp
@@ -2001,8 +2002,8 @@ def predict_one_class_probability(model: svm_model, dec_value: Float64) -> Float
 
 # Get parameters for one-class SVM probability estimates
 def svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_marks: OptionalPointer[Float64, MutUntrackedOrigin]) -> Int:
-    var dec_values = alloc[Float64](prob.l)
-    var pred_results = alloc[Float64](prob.l)
+    var dec_values = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
+    var pred_results = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
     var ret = 0
     var nr_marks = 10
 
@@ -2028,7 +2029,7 @@ def svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_
         ret = -1
     else:
         # Binning by density
-        var tmp_marks = alloc[Float64](nr_marks+1)
+        var tmp_marks = alloc(Layout[Float64](count=nr_marks+1)).unsafe_leak()
         var mid = nr_marks//2
         for i in range(mid):
             tmp_marks[unsafe_offset=i] = dec_values[unsafe_offset=i*neg_counter//mid]
@@ -2047,7 +2048,7 @@ def svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_
 # Return parameter of a Laplace distribution
 def svm_svr_probability(prob: svm_problem, param: svm_parameter) -> Float64:
     var nr_fold = 5
-    var ymv = alloc[Float64](prob.l)
+    var ymv = alloc(Layout[Float64](count=prob.l)).unsafe_leak()
     var mae = 0.0
 
     var newparam = param.copy()
@@ -2076,9 +2077,9 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
     var l = prob.l
     var max_nr_class = 16
     var nr_class = 0
-    var label = alloc[Int](max_nr_class)
-    var count = alloc[Int](max_nr_class)
-    var data_label = alloc[Int](l)
+    var label = alloc(Layout[Int](count=max_nr_class)).unsafe_leak()
+    var count = alloc(Layout[Int](count=max_nr_class)).unsafe_leak()
+    var data_label = alloc(Layout[Int](count=l)).unsafe_leak()
 
     for i in range(l):
         var this_label = Int(prob.y[unsafe_offset=i])
@@ -2092,11 +2093,11 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
         data_label[unsafe_offset=i] = j
         if j == nr_class:
             if nr_class == max_nr_class:
-                var new = alloc[Int](max_nr_class*2)
+                var new = alloc(Layout[Int](count=max_nr_class*2)).unsafe_leak()
                 unsafe_memcpy(dest=new, src=label, count=max_nr_class)
                 label.unsafe_free()
                 label = new
-                new = alloc[Int](max_nr_class*2)
+                new = alloc(Layout[Int](count=max_nr_class*2)).unsafe_leak()
                 unsafe_memcpy(dest=new, src=count, count=max_nr_class)
                 count.unsafe_free()
                 count = new
@@ -2118,7 +2119,7 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
             else:
                 data_label[unsafe_offset=i] = 0
 
-    var start = alloc[Int](nr_class)
+    var start = alloc(Layout[Int](count=nr_class)).unsafe_leak()
     start[unsafe_offset=0] = 0
     for i in range(1,nr_class):
         start[unsafe_offset=i] = start[unsafe_offset=i-1]+count[unsafe_offset=i-1]
@@ -2139,7 +2140,7 @@ def svm_group_classes(prob: svm_problem, mut nr_class_ret: Int, mut label_ret: O
 # Interface functions
 #
 def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_model, MutUntrackedOrigin]:
-    var model = alloc[svm_model](1)
+    var model = alloc(Layout[svm_model](count=1)).unsafe_leak()
     model[].param = param.copy()
     model[].free_sv = 0
 
@@ -2151,10 +2152,10 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
         model[].probA = OptionalPointer[Float64, MutUntrackedOrigin]()
         model[].probB = OptionalPointer[Float64, MutUntrackedOrigin]()
         model[].prob_density_marks = OptionalPointer[Float64, MutUntrackedOrigin]()
-        model[].sv_coef = alloc[OptionalPointer[Float64, MutUntrackedOrigin]](1)
+        model[].sv_coef = alloc(Layout[OptionalPointer[Float64, MutUntrackedOrigin]](count=1)).unsafe_leak()
 
         var f = svm_train_one(prob,param,0,0)
-        model[].rho = alloc[Float64](1)
+        model[].rho = alloc(Layout[Float64](count=1)).unsafe_leak()
         model[].rho.value()[unsafe_offset=0] = f.rho
 
         var nSV = 0
@@ -2162,9 +2163,9 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
             if abs(f.alpha.value()[unsafe_offset=i]) > 0:
                 nSV += 1
         model[].l = nSV
-        model[].SV = alloc[Pointer[svm_node, MutUntrackedOrigin]](nSV)
-        model[].sv_coef.value()[unsafe_offset=0] = alloc[Float64](nSV)
-        model[].sv_indices = alloc[Int](nSV)
+        model[].SV = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=nSV)).unsafe_leak()
+        model[].sv_coef.value()[unsafe_offset=0] = alloc(Layout[Float64](count=nSV)).unsafe_leak()
+        model[].sv_indices = alloc(Layout[Int](count=nSV)).unsafe_leak()
         var j = 0
         for i in range(prob.l):
             if abs(f.alpha.value()[unsafe_offset=i]) > 0:
@@ -2174,11 +2175,11 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
                 j += 1
 
         if param.probability and (param.svm_type == svm_parameter.EPSILON_SVR or param.svm_type == svm_parameter.NU_SVR):
-            model[].probA = alloc[Float64](1)
+            model[].probA = alloc(Layout[Float64](count=1)).unsafe_leak()
             model[].probA.value()[unsafe_offset=0] = svm_svr_probability(prob,param)
         elif param.probability and param.svm_type == svm_parameter.ONE_CLASS:
             var nr_marks = 10
-            var prob_density_marks = alloc[Float64](nr_marks)
+            var prob_density_marks = alloc(Layout[Float64](count=nr_marks)).unsafe_leak()
 
             if svm_one_class_probability(prob,model[],prob_density_marks) == 0:
                 model[].prob_density_marks = prob_density_marks
@@ -2193,17 +2194,17 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
         var label = OptionalPointer[Int, MutUntrackedOrigin]()
         var start = OptionalPointer[Int, MutUntrackedOrigin]()
         var count = OptionalPointer[Int, MutUntrackedOrigin]()
-        var perm = alloc[Int](l)
+        var perm = alloc(Layout[Int](count=l)).unsafe_leak()
 
         # group training data of the same class
         svm_group_classes(prob,nr_class,label,start,count,perm)
 
-        var x = alloc[Pointer[svm_node, MutUntrackedOrigin]](l)
+        var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=l)).unsafe_leak()
         for i in range(l):
             x[unsafe_offset=i] = prob.x[unsafe_offset=perm[unsafe_offset=i]]
 
         # calculate weighted C
-        var weighted_C = alloc[Float64](nr_class)
+        var weighted_C = alloc(Layout[Float64](count=nr_class)).unsafe_leak()
         for i in range(nr_class):
             weighted_C[unsafe_offset=i] = param.C
         for i in range(param.nr_weight):
@@ -2219,15 +2220,15 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
 
         # train k*(k-1)/2 models
 
-        var nonzero = alloc[Bool](l)
+        var nonzero = alloc(Layout[Bool](count=l)).unsafe_leak()
         unsafe_memset_zero(nonzero, l)
-        var f = alloc[decision_function](nr_class*(nr_class-1)//2)
+        var f = alloc(Layout[decision_function](count=nr_class*(nr_class-1)//2)).unsafe_leak()
 
         var probA = OptionalPointer[Float64, MutUntrackedOrigin]()
         var probB = OptionalPointer[Float64, MutUntrackedOrigin]()
         if param.probability:
-            probA = alloc[Float64](nr_class*(nr_class-1)//2)
-            probB = alloc[Float64](nr_class*(nr_class-1)//2)
+            probA = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
+            probB = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
 
         var p = 0
         for i in range(nr_class):
@@ -2238,8 +2239,8 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
                 var ci = count.value()[unsafe_offset=i]
                 var cj = count.value()[unsafe_offset=j]
                 sub_prob.l = ci+cj
-                sub_prob.x = alloc[Pointer[svm_node, MutUntrackedOrigin]](sub_prob.l)
-                sub_prob.y = alloc[Float64](sub_prob.l)
+                sub_prob.x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=sub_prob.l)).unsafe_leak()
+                sub_prob.y = alloc(Layout[Float64](count=sub_prob.l)).unsafe_leak()
 
                 for k in range(ci):
                     sub_prob.x[unsafe_offset=k] = x[unsafe_offset=si+k]
@@ -2267,17 +2268,17 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
 
         model[].nr_class = nr_class
 
-        model[].label = alloc[Int](nr_class)
+        model[].label = alloc(Layout[Int](count=nr_class)).unsafe_leak()
         for i in range(nr_class):
             model[].label.value()[unsafe_offset=i] = label.value()[unsafe_offset=i]
 
-        model[].rho = alloc[Float64](nr_class*(nr_class-1)//2)
+        model[].rho = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
         for i in range(nr_class*(nr_class-1)//2):
             model[].rho.value()[unsafe_offset=i] = f[unsafe_offset=i].rho
 
         if param.probability:
-            model[].probA = alloc[Float64](nr_class*(nr_class-1)//2)
-            model[].probB = alloc[Float64](nr_class*(nr_class-1)//2)
+            model[].probA = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
+            model[].probB = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
             for i in range(nr_class*(nr_class-1)//2):
                 model[].probA.value()[unsafe_offset=i] = probA.value()[unsafe_offset=i]
                 model[].probB.value()[unsafe_offset=i] = probB.value()[unsafe_offset=i]
@@ -2288,8 +2289,8 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
         model[].prob_density_marks=OptionalPointer[Float64, MutUntrackedOrigin]()	# for one-class SVM probabilistic outputs only
 
         var total_sv = 0
-        var nz_count = alloc[Int](nr_class)
-        model[].nSV = alloc[Int](nr_class)
+        var nz_count = alloc(Layout[Int](count=nr_class)).unsafe_leak()
+        model[].nSV = alloc(Layout[Int](count=nr_class)).unsafe_leak()
         for i in range(nr_class):
             var nSV = 0
             for j in range(count.value()[unsafe_offset=i]):
@@ -2301,8 +2302,8 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
             nz_count[unsafe_offset=i] = nSV
 
         model[].l = total_sv
-        model[].SV = alloc[Pointer[svm_node, MutUntrackedOrigin]](total_sv)
-        model[].sv_indices = alloc[Int](total_sv)
+        model[].SV = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=total_sv)).unsafe_leak()
+        model[].sv_indices = alloc(Layout[Int](count=total_sv)).unsafe_leak()
         p = 0
         for i in range(l):
             if nonzero[unsafe_offset=i]:
@@ -2310,14 +2311,14 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
                 model[].sv_indices.value()[unsafe_offset=p] = perm[unsafe_offset=i] + 1
                 p += 1
 
-        var nz_start = alloc[Int](nr_class)
+        var nz_start = alloc(Layout[Int](count=nr_class)).unsafe_leak()
         nz_start[unsafe_offset=0] = 0
         for i in range(1, nr_class):
             nz_start[unsafe_offset=i] = nz_start[unsafe_offset=i-1]+nz_count[unsafe_offset=i-1]
 
-        model[].sv_coef = alloc[OptionalPointer[Float64, MutUntrackedOrigin]](nr_class-1)
+        model[].sv_coef = alloc(Layout[OptionalPointer[Float64, MutUntrackedOrigin]](count=nr_class-1)).unsafe_leak()
         for i in range(nr_class-1):
-            model[].sv_coef.value()[unsafe_offset=i] = alloc[Float64](total_sv)
+            model[].sv_coef.value()[unsafe_offset=i] = alloc(Layout[Float64](count=total_sv)).unsafe_leak()
 
         p = 0
         for i in range(nr_class):
@@ -2364,9 +2365,9 @@ def svm_train(prob: svm_problem, param: svm_parameter) -> OptionalPointer[svm_mo
 
 # Stratified cross validation
 def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: Int, target: OptionalPointer[Float64, MutUntrackedOrigin]):
-    var fold_start = alloc[Int](nr_fold+1)
+    var fold_start = alloc(Layout[Int](count=nr_fold+1)).unsafe_leak()
     var l = prob.l
-    var perm = alloc[Int](l)
+    var perm = alloc(Layout[Int](count=l)).unsafe_leak()
     var nr_class = 0
     if nr_fold > l:
         print("WARNING: # folds ("+ String(nr_fold) +") > # data ("+ String(l) +"). Will use # folds = # data instead (i.e., leave-one-out cross validation)\n")
@@ -2381,8 +2382,8 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
         svm_group_classes(prob,nr_class,label,start,count,perm)
 
         # random shuffle and then data grouped by fold using the array perm
-        var fold_count = alloc[Int](nr_fold)
-        var index = alloc[Int](l)
+        var fold_count = alloc(Layout[Int](count=nr_fold)).unsafe_leak()
+        var index = alloc(Layout[Int](count=l)).unsafe_leak()
         unsafe_memcpy(dest=index, src=perm, count=l)
         for c in range(nr_class):
             for i in range(count.value()[unsafe_offset=c] - 1, 0, -1):
@@ -2417,7 +2418,7 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
         try:
             perm = fill_indices(l)
         except:
-            perm = alloc[Int](l)
+            perm = alloc(Layout[Int](count=l)).unsafe_leak()
             for i in range(l):
                 perm[unsafe_offset=i]=i
         for i in range(l - 1, 0, -1):
@@ -2434,8 +2435,8 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
         var subprob = svm_problem()
 
         subprob.l = l-(end-begin)
-        subprob.x = alloc[Pointer[svm_node, MutUntrackedOrigin]](subprob.l)
-        subprob.y = alloc[Float64](subprob.l)
+        subprob.x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=subprob.l)).unsafe_leak()
+        subprob.y = alloc(Layout[Float64](count=subprob.l)).unsafe_leak()
 
         for j in range(begin):
             subprob.x[unsafe_offset=k] = prob.x[unsafe_offset=perm[unsafe_offset=j]]
@@ -2449,7 +2450,7 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
 
         var submodel = svm_train(subprob,param)
         if param.probability and (param.svm_type == svm_parameter.C_SVC or param.svm_type == svm_parameter.NU_SVC):
-            var prob_estimates = alloc[Float64](svm_get_nr_class(submodel.value()[]))
+            var prob_estimates = alloc(Layout[Float64](count=svm_get_nr_class(submodel.value()[]))).unsafe_leak()
             for j in range(begin, end):
                 target.value()[unsafe_offset=perm[unsafe_offset=j]] = svm_predict_probability(submodel.value()[],prob.x[unsafe_offset=perm[unsafe_offset=j]],prob_estimates)
             prob_estimates.unsafe_free()
@@ -2496,7 +2497,7 @@ def svm_predict_values(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin
         var sv_coef = model.sv_coef.value()[unsafe_offset=0]
         var sum = 0.0
 
-        var values = alloc[Float64](model.l)
+        var values = alloc(Layout[Float64](count=model.l)).unsafe_leak()
         @parameter
         def p(i: Int):
             values[unsafe_offset=i] = sv_coef.value()[unsafe_offset=i] * k_function(x,model.SV.value()[unsafe_offset=i],model.param)
@@ -2519,19 +2520,19 @@ def svm_predict_values(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin
         var nr_class = model.nr_class
         var l = model.l
 
-        var kvalue = alloc[Float64](l)
+        var kvalue = alloc(Layout[Float64](count=l)).unsafe_leak()
 
         @parameter
         def pv(i: Int):
             kvalue[unsafe_offset=i] = k_function(x,model.SV.value()[unsafe_offset=i],model.param)
         parallelize[pv](l)
 
-        var start = alloc[Int](nr_class)
+        var start = alloc(Layout[Int](count=nr_class)).unsafe_leak()
         start[unsafe_offset=0] = 0
         for i in range(1, nr_class):
             start[unsafe_offset=i] = start[unsafe_offset=i-1]+model.nSV.value()[unsafe_offset=i-1]
 
-        var vote = alloc[Int](nr_class)
+        var vote = alloc(Layout[Int](count=nr_class)).unsafe_leak()
         for i in range(nr_class):
             vote[unsafe_offset=i] = 0
 
@@ -2573,9 +2574,9 @@ def svm_predict(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin]) -> F
     var nr_class = model.nr_class
     var dec_values: Pointer[Float64, MutUntrackedOrigin]
     if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
-        dec_values = alloc[Float64](1)
+        dec_values = alloc(Layout[Float64](count=1)).unsafe_leak()
     else:
-        dec_values = alloc[Float64](nr_class*(nr_class-1)//2)
+        dec_values = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
     var pred_result = svm_predict_values(model, x, dec_values)
     dec_values.unsafe_free()
     return pred_result
@@ -2583,13 +2584,13 @@ def svm_predict(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin]) -> F
 def svm_predict_probability(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin], prob_estimates: Pointer[Float64, MutUntrackedOrigin]) -> Float64:
     if (model.param.svm_type == svm_parameter.C_SVC or model.param.svm_type == svm_parameter.NU_SVC) and model.probA and model.probB:
         var nr_class = model.nr_class
-        var dec_values = alloc[Float64](nr_class*(nr_class-1)//2)
+        var dec_values = alloc(Layout[Float64](count=nr_class*(nr_class-1)//2)).unsafe_leak()
         _ = svm_predict_values(model, x, dec_values)
 
         var min_prob=1e-7
-        var pairwise_prob=alloc[Pointer[Float64, MutUntrackedOrigin]](nr_class)
+        var pairwise_prob=alloc(Layout[Pointer[Float64, MutUntrackedOrigin]](count=nr_class)).unsafe_leak()
         for i in range(nr_class):
-            pairwise_prob[unsafe_offset=i]=alloc[Float64](nr_class)
+            pairwise_prob[unsafe_offset=i]=alloc(Layout[Float64](count=nr_class)).unsafe_leak()
         var k=0
         for i in range(nr_class):
             for j in range(i+1, nr_class):
@@ -2628,7 +2629,7 @@ def svm_decision_function(model: svm_model, x: Pointer[svm_node, MutUntrackedOri
         l = 1
     else:
         l = nr_class*(nr_class-1)//2
-    dec_values = alloc[Float64](l)
+    dec_values = alloc(Layout[Float64](count=l)).unsafe_leak()
     _ = svm_predict_values(model, x, dec_values)
     return dec_values, l
 
@@ -2733,8 +2734,8 @@ def svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
         var l = prob.l
         var max_nr_class = 16
         var nr_class = 0
-        var label = alloc[Int](max_nr_class)
-        var count = alloc[Int](max_nr_class)
+        var label = alloc(Layout[Int](count=max_nr_class)).unsafe_leak()
+        var count = alloc(Layout[Int](count=max_nr_class)).unsafe_leak()
 
         for i in range(l):
             var this_label = Int(prob.y[unsafe_offset=i])
@@ -2746,11 +2747,11 @@ def svm_check_parameter(prob: svm_problem, param: svm_parameter) -> String:
                 j += 1
             if j == nr_class:
                 if nr_class == max_nr_class:
-                    var new = alloc[Int](max_nr_class*2)
+                    var new = alloc(Layout[Int](count=max_nr_class*2)).unsafe_leak()
                     unsafe_memcpy(dest=new, src=label, count=max_nr_class)
                     label.unsafe_free()
                     label = new
-                    new = alloc[Int](max_nr_class*2)
+                    new = alloc(Layout[Int](count=max_nr_class*2)).unsafe_leak()
                     unsafe_memcpy(dest=new, src=count, count=max_nr_class)
                     count.unsafe_free()
                     count = new

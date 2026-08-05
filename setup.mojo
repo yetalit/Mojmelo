@@ -93,10 +93,8 @@ def initialize(cache_l1_size: Int, cache_l1_associativity: Int, cache_l2_size: I
 
 def main() raises:
     if len(argv()) == 1:
-        var cache_l1_size = 0
-        var cache_l2_size = 0
-        var cache_l1_associativity = 0
-        var cache_l2_associativity = 0
+        var cache_l1_size = var cache_l2_size = 0
+        var cache_l1_associativity = var cache_l2_associativity = 0
         if CompilationTarget.is_linux():
             with open("/sys/devices/system/cpu/cpu0/cache/index0/size", "r") as f:
                 var txt = f.read()
@@ -186,13 +184,13 @@ def main() raises:
 
             var votes = List[Int]()
             for i in range(3):
-                var min = results_list[0][i]
-                var m_index = 0
+                var _min = results_list[0][i]
+                var index = 0
                 for j in range(9):
-                    if results_list[j][i] < min:
-                        min = results_list[j][i]
-                        m_index = j
-                votes.append(m_index)
+                    if results_list[j][i] < _min:
+                        _min = results_list[j][i]
+                        index = j
+                votes.append(index)
 
             var code: String
             with open("./param" + String(Counter[Int](votes).most_common(1)[0]._value + 1), "r") as f:

@@ -53,8 +53,7 @@ def mst_linkage_core_vector(
         in_tree[current_node] = 1
         var current_node_core_distance = core_distances[current_node]
         var new_distance = Float32.MAX_FINITE
-        var source_node = 0
-        var new_node = 0
+        var source_node = var new_node = 0
 
         for j in range(dim):
             if in_tree[j]:

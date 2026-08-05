@@ -2,7 +2,7 @@
 
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from std.memory import stack_allocation
+from std.memory import stack_allocation, Layout
 from std.sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
 from std.utils import IndexList
 import std.random as random
@@ -26,7 +26,7 @@ def intsqrt[n: Int]() -> Int:
         y = (n // x + x) // 2
     return x
 
-struct Layout(TrivialRegisterPassable, Copyable, Writable):
+struct MatLayout(TrivialRegisterPassable, Copyable, Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 
@@ -53,15 +53,15 @@ struct Layout(TrivialRegisterPassable, Copyable, Writable):
 
 struct Matrix[Type: DType]:
     var data: Pointer[Scalar[Self.Type], MutUntrackedOrigin]
-    var layout: Layout
+    var layout: MatLayout
 
     def __init__(out self, shape: Tuple[Int, Int]):
-        self.data = alloc[Scalar[Self.Type]](shape[0] * shape[1])
-        self.layout = Layout(shape)
+        self.data = alloc(Layout[Scalar[Self.Type]](count=shape[0] * shape[1])).unsafe_leak()
+        self.layout = MatLayout(shape)
 
     @always_inline("nodebug")
     def __init__(
-        out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], var layout: Layout
+        out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], var layout: MatLayout
     ):
         self.data = data
         self.layout = layout
@@ -71,7 +71,7 @@ struct Matrix[Type: DType]:
         out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], shape: Tuple[Int, Int]
     ):
         self.data = data
-        self.layout = Layout(shape)
+        self.layout = MatLayout(shape)
 
     @always_inline("nodebug")
     def __getitem__(
@@ -83,7 +83,7 @@ struct Matrix[Type: DType]:
     def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self:
         return Matrix(
             self.data.unsafe_offset(self.layout(i, j)),
-            Layout((ir, jr), (self.layout.strides[0], self.layout.strides[1])),
+            MatLayout((ir, jr), (self.layout.strides[0], self.layout.strides[1])),
         )
 
     @always_inline("nodebug")
@@ -154,7 +154,7 @@ def pack_A[
     else:
         parallelize[pack_panel](num_panels, num_performance_cores())
 
-    var Ac_layout = Layout(
+    var Ac_layout = MatLayout(
         (roundup(Ac.shape[0](), mr), Ac.shape[1]()), (1, mr)
     )
     return Matrix(Ac_buffer, Ac_layout)
@@ -184,7 +184,7 @@ def pack_B[
             dst_ptr = dst_ptr.unsafe_offset(nr)
             src_ptr = src_ptr.unsafe_offset(Bc.stride[0]())
 
-    var Bc_layout = Layout(
+    var Bc_layout = MatLayout(
         (Bc.shape[0](), roundup(Bc.shape[1](), nr)), (nr, 1)
     )
     return Matrix[Type](Bc_buffer, Bc_layout)
@@ -302,7 +302,7 @@ def loop_n[
         var j = tile_idx * nc_actual
         var tile_n = min(N - j, nc_actual)
 
-        var Bc_buffer = alloc[Scalar[Type]](kc * nc_actual * size_of[Type](), alignment=64)
+        var Bc_buffer = alloc(Layout[Scalar[Type]](count=kc * nc_actual * size_of[Type](), alignment=64)).unsafe_leak()
         var Bc = pack_B[kc, nr](Bc_buffer, B.slice(0, j, B.shape[0](), tile_n))
         var Cc = C.slice(0, j, C.shape[0](), tile_n)
         macro_kernel[mr, nr](Cc, A, Bc)
@@ -319,7 +319,7 @@ def matmul_impl[
     var N = C.shape[1]()
     var K = A.shape[1]()
 
-    var Ac_buffer = alloc[Scalar[Type]](mc * kc * size_of[Type](), alignment=64)
+    var Ac_buffer = alloc(Layout[Scalar[Type]](count=mc * kc * size_of[Type](), alignment=64)).unsafe_leak()
 
     for i in range(0, M, mc):
         var Cb = C.slice(i, 0, min(M - i, mc), N)

@@ -2,6 +2,7 @@ from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import findInterval, fill_indices_list
 from mojmelo.utils.algorithm import parallelize
+from std.memory import Layout
 import std.math as math
 
 struct BDecisionTree(Copyable, ImplicitlyCopyable):
@@ -55,7 +56,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         for i, idx in enumerate(indices):
             g.data[unsafe_offset=i] = G.data[unsafe_offset=idx]
             h.data[unsafe_offset=i] = H.data[unsafe_offset=idx]
-        var new_node = alloc[Node](1)
+        var new_node = alloc(Layout[Node](count=1)).unsafe_leak()
         # stopping criteria
         if (
             depth >= self.max_depth
@@ -132,8 +133,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
                 var sorted_indices = indices_to_sort.copy()
                 column.argsort_inplace(sorted_indices)
 
-                var left_g_sum: Float32 = 0.0
-                var left_h_sum: Float32 = 0.0
+                var left_g_sum = var left_h_sum = Float32(0)
 
                 for step in range(1, len(indices)):
                     var prev = sorted_indices[step - 1]
@@ -171,8 +171,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
                     var g_sum = g_per_interval.sum(axis=0)
                     var h_sum = h_per_interval.sum(axis=0)
                     
-                    var left_g_sum: Float32 = 0.0
-                    var left_h_sum: Float32 = 0.0
+                    var left_g_sum = var left_h_sum = Float32(0)
 
                     for step in range(len(intervals)-1):
                         left_g_sum += g_sum.data[unsafe_offset=step]

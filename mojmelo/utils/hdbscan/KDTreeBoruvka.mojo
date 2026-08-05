@@ -5,7 +5,7 @@ import std.math as math
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of
-from std.memory import unsafe_memset_zero
+from std.memory import unsafe_memset_zero, Layout
 
 @always_inline
 def key(idx: Int,
@@ -126,10 +126,10 @@ struct KDTreeBoruvka:
 
         # One allocation for all node centers; upper bound on node count is 2n+1.
         var max_nodes = 2 * self.n + 1
-        self._center_arena = alloc[Float32](max_nodes * self.dim)
+        self._center_arena = alloc(Layout[Float32](count=max_nodes * self.dim)).unsafe_leak()
         unsafe_memset_zero(self._center_arena, max_nodes * self.dim)
 
-        self.core_dist = alloc[Float32](self.n)
+        self.core_dist = alloc(Layout[Float32](count=self.n)).unsafe_leak()
         self.build_idx = fill_indices_list(self.n)
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)

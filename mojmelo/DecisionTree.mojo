@@ -330,9 +330,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                     column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
                 var sorted_indices = indices_to_sort.copy()
                 column.argsort_inplace(sorted_indices)
-                var left_sum: Float32 = 0.0
-                var left_sum_sq: Float32 = 0.0
-                var n_left: Float32 = 0.0
+                var left_sum = var left_sum_sq = var n_left = Float32(0)
                 for step in range(1, len(indices)):
                     var prev = sorted_indices[step - 1]
                     var yi = _y.data[unsafe_offset=prev]
