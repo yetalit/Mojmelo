@@ -46,7 +46,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         var y_predicted = Matrix(X.height, 1)
         @parameter
         def p(i: Int):
-            y_predicted.data[unsafe_offset=i] = _traverse_tree(X[i, unsafe=True], self.root.value())
+            y_predicted.data[unsafe_offset=i] = _traverse_tree(X.data.unsafe_offset(i * X.width), self.root.value())
         parallelize[p](X.height)
         return y_predicted^
 
@@ -189,11 +189,11 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     var feat_idx = max_gains.argmax()
     return feat_idxs[feat_idx], best_thresholds[0, feat_idx], max_gains[0, feat_idx]
 
-def _traverse_tree(x: Matrix, node: Pointer[Node, MutUntrackedOrigin]) -> Float32:
+def _traverse_tree(x: Pointer[Float32, MutUntrackedOrigin], node: Pointer[Node, MutUntrackedOrigin]) -> Float32:
     if node[].is_leaf_node():
         return node[].value
 
-    if x.data[unsafe_offset=node[].feature] <= node[].threshold:
+    if x[unsafe_offset=node[].feature] <= node[].threshold:
         return _traverse_tree(x, node[].left.value())
     return _traverse_tree(x, node[].right.value())
 
