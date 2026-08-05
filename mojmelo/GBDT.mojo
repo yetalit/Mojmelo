@@ -3,6 +3,7 @@ from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
+from std.memory import Layout
 
 struct GBDT(CV, Copyable):
 	"""Gradient Boosting with support for both classification and regression."""
@@ -74,11 +75,11 @@ struct GBDT(CV, Copyable):
 		if self.criterion == 'softmax':
 			self.num_class = len(y.unique())
 			self.score_start = 0.0
-			self.trees = alloc[BDecisionTree](self.n_trees * self.num_class)
+			self.trees = alloc(Layout[BDecisionTree](count=self.n_trees * self.num_class)).unsafe_leak()
 			score = Matrix.zeros(X.height, self.num_class)
 		else:
 			self.num_class = 1
-			self.trees = alloc[BDecisionTree](self.n_trees)
+			self.trees = alloc(Layout[BDecisionTree](count=self.n_trees)).unsafe_leak()
 			self.score_start = y.mean()
 			score = Matrix.full(X.height, 1, self.score_start)
 
@@ -176,7 +177,7 @@ struct GBDT(CV, Copyable):
 			model.score_start = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
 			model.n_trees = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
 			model.num_class = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-			model.trees = alloc[BDecisionTree](model.n_trees * model.num_class)
+			model.trees = alloc(Layout[BDecisionTree](count=model.n_trees * model.num_class)).unsafe_leak()
 			for t_i in range(model.n_trees * model.num_class):
 				var tree = BDecisionTree()
 				var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
@@ -188,7 +189,7 @@ struct GBDT(CV, Copyable):
 					var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
 					var right = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
 					var value = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
-					var node = alloc[Node](1)
+					var node = alloc(Layout[Node](count=1)).unsafe_leak()
 					node.unsafe_write(Node(feature=feature, threshold=threshold, value=value))
 					node_list.append(node)
 					children_index_list.append((left, right))

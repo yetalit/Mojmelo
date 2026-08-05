@@ -2,6 +2,7 @@ from mojmelo.DecisionTree import DecisionTree, Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
+from std.memory import Layout
 import std.math as math
 import std.random as random
 
@@ -67,7 +68,7 @@ struct RandomForest(CV, Copyable):
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Build a forest of trees from the training set."""
-        self.trees = alloc[DecisionTree](self.n_trees)
+        self.trees = alloc(Layout[DecisionTree](count=self.n_trees)).unsafe_leak()
         var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
         if self.n_feats < 1:
@@ -85,7 +86,7 @@ struct RandomForest(CV, Copyable):
                 criterion = self.criterion
             )
             try:
-                X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
+                var X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
                 tree.fit_weighted(X_samp, y_samp_with_weights)
             except e:
                 print('Error:', e)
@@ -161,7 +162,7 @@ struct RandomForest(CV, Copyable):
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
             model.n_trees = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
-            model.trees = alloc[DecisionTree](model.n_trees)
+            model.trees = alloc(Layout[DecisionTree](count=model.n_trees)).unsafe_leak()
             for t_i in range(model.n_trees):
                 var tree = DecisionTree()
                 var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
@@ -173,7 +174,7 @@ struct RandomForest(CV, Copyable):
                     var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
                     var right = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
                     var value = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
-                    var node = alloc[Node](1)
+                    var node = alloc(Layout[Node](count=1)).unsafe_leak()
                     node.unsafe_write(Node(feature=feature, threshold=threshold, value=value))
                     node_list.append(node)
                     children_index_list.append((left, right))

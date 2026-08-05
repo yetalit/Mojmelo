@@ -2,6 +2,7 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, fill_indices_list, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 import std.math as math
+from std.memory import Layout
 import std.random as random
 
 struct Node(Copyable):
@@ -163,7 +164,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             freq = _y.unique() if Y.width == 1 else _y.unique(weights)
             unique_targets = len(freq)
 
-        var new_node = alloc[Node](1)
+        var new_node = alloc(Layout[Node](count=1)).unsafe_leak()
         # stopping criteria
         if (
             depth >= self.max_depth
@@ -246,7 +247,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
                 var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
                 var right = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
                 var value = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
-                var node = alloc[Node](1)
+                var node = alloc(Layout[Node](count=1)).unsafe_leak()
                 node.unsafe_write(Node(feature=feature, threshold=threshold, value=value))
                 node_list.append(node)
                 children_index_list.append((left, right))

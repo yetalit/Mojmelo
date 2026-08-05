@@ -53,8 +53,8 @@ struct PCA(Copyable):
 
         var S: Matrix
         if self.lapack:
-            numpy_linalg = Python.import_module('numpy.linalg')
-            USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
+            var numpy_linalg = Python.import_module('numpy.linalg')
+            var USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
             S = Matrix.from_numpy(USVt[1])
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:

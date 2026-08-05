@@ -258,7 +258,7 @@ def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matr
         var train_ids = List[Int](ids[end_of_test:]) + List[Int](ids[:start_of_test])
         model.fit(X[train_ids], y[train_ids])
         var test_ids = List[Int](ids[start_of_test:end_of_test])
-        y_pred = model.predict(X[test_ids])
+        var y_pred = model.predict(X[test_ids])
         mean_score += scoring(y[test_ids], y_pred) / Float32(n_splits)
         start_of_test += test_count
     return mean_score

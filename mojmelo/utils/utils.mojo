@@ -1,4 +1,4 @@
-from std.memory import unsafe_memcpy
+from std.memory import unsafe_memcpy, Layout
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
@@ -378,7 +378,7 @@ def fill_indices(N: Int) raises -> Pointer[Int, MutUntrackedOrigin]:
     Returns:
         The pointer to indices.
     """
-    var indices = alloc[Int](N)
+    var indices = alloc(Layout[Int](count=N)).unsafe_leak()
 
     def fill_indices_iota[width: Int](idx: Int) {imm}:
         indices.unsafe_store(idx, math.iota[DType.int, width](idx))
@@ -399,7 +399,7 @@ def fill_indices_list(N: Int) raises -> List[Int]:
 
 @always_inline
 def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntrackedOrigin], size: Int) -> Pointer[Scalar[des], MutUntrackedOrigin]:
-    var ptr = alloc[Scalar[des]](size)
+    var ptr = alloc(Layout[Scalar[des]](count=size)).unsafe_leak()
     if size < 262144:
 
         def matrix_vectorize[simd_width: Int](idx: Int) {imm}:

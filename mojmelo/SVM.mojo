@@ -7,7 +7,7 @@ from mojmelo.utils.libsvm.svm_model import svm_model
 from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
 from mojmelo.utils.algorithm import parallelize
 import std.random as random
-from std.memory import unsafe_memcpy
+from std.memory import unsafe_memcpy, Layout
 from std.sys import size_of
 
 struct SVC(CV, Copyable):
@@ -178,7 +178,7 @@ struct SVC(CV, Copyable):
             The predicted classes.
         """
         var X_float64 = X.cast_ptr[DType.float64]()
-        var y_ptr = alloc[Float64](X.height)
+        var y_ptr = alloc(Layout[Float64](count=X.height)).unsafe_leak()
 
         @parameter
         def p(i: Int):
@@ -282,7 +282,7 @@ struct SVC(CV, Copyable):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var _model = alloc[svm_model](1)
+            var _model = alloc(Layout[svm_model](count=1)).unsafe_leak()
             var svm_type = Int(f.read_bytes(1)[0])
             var kernel_type = Int(f.read_bytes(1)[0])
             var degree = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
@@ -295,9 +295,9 @@ struct SVC(CV, Copyable):
             var weight_label = OptionalPointer[Int, MutUntrackedOrigin]()
             var weight = OptionalPointer[Float64, MutUntrackedOrigin]()
             if nr_weight:
-                weight_label = alloc[Int](nr_weight)
+                weight_label = alloc(Layout[Int](count=nr_weight)).unsafe_leak()
                 unsafe_memcpy(dest=weight_label.value(), src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().unsafe_bitcast[Int](), count=nr_weight)
-                weight = alloc[Float64](nr_weight)
+                weight = alloc(Layout[Float64](count=nr_weight)).unsafe_leak()
                 unsafe_memcpy(dest=weight.value(), src=f.read_bytes(8*nr_weight).unsafe_ptr().unsafe_bitcast[Float64](), count=nr_weight)
             var nu = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
             var shrinking = Int(f.read_bytes(1)[0])
@@ -345,24 +345,24 @@ struct SVC(CV, Copyable):
             parallelize[p](X_mat.height)
             X_float64.unsafe_free()
 
-            var sv_coef = alloc[OptionalPointer[Float64, MutUntrackedOrigin]](nr_class-1)
+            var sv_coef = alloc(Layout[OptionalPointer[Float64, MutUntrackedOrigin]](count=nr_class-1)).unsafe_leak()
             for i in range(nr_class-1):
-                sv_coef[unsafe_offset=i] = alloc[Float64](l)
+                sv_coef[unsafe_offset=i] = alloc(Layout[Float64](count=l)).unsafe_leak()
                 unsafe_memcpy(dest=sv_coef[unsafe_offset=i].value(), src=f.read_bytes(8*l).unsafe_ptr().unsafe_bitcast[Float64](), count=l)
-            var rho = alloc[Float64]((nr_class*(nr_class-1))//2)
+            var rho = alloc(Layout[Float64](count=(nr_class*(nr_class-1))//2)).unsafe_leak()
             unsafe_memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
             var probA = OptionalPointer[Float64, MutUntrackedOrigin]()
             var probB = OptionalPointer[Float64, MutUntrackedOrigin]()
             if probability:
-                probA = alloc[Float64]((nr_class*(nr_class-1))//2)
+                probA = alloc(Layout[Float64](count=(nr_class*(nr_class-1))//2)).unsafe_leak()
                 unsafe_memcpy(dest=probA.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-                probB = alloc[Float64]((nr_class*(nr_class-1))//2)
+                probB = alloc(Layout[Float64](count=(nr_class*(nr_class-1))//2)).unsafe_leak()
                 unsafe_memcpy(dest=probB.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-            var sv_indices = alloc[Int](l)
+            var sv_indices = alloc(Layout[Int](count=l)).unsafe_leak()
             unsafe_memcpy(dest=sv_indices, src=f.read_bytes(size_of[DType.int]()*l).unsafe_ptr().unsafe_bitcast[Scalar[DType.int]](), count=l)
-            var label = alloc[Int](nr_class)
+            var label = alloc(Layout[Int](count=nr_class)).unsafe_leak()
             unsafe_memcpy(dest=label, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
-            var nSV = alloc[Int](nr_class)
+            var nSV = alloc(Layout[Int](count=nr_class)).unsafe_leak()
             unsafe_memcpy(dest=nSV, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
             _model[].nr_class = nr_class
             _model[].l = l
