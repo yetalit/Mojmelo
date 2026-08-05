@@ -128,6 +128,74 @@ You may also want to use the utility codes written for this project:
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import *
 ```
+Here is an example code demonstrating a common training process:
+```mojo
+from mojmelo.KNN import KNN
+from mojmelo.utils.Matrix import Matrix
+from mojmelo.preprocessing import train_test_split, GridSearchCV, LabelEncoder
+from mojmelo.utils.utils import accuracy_score
+from std.python import Python
+import std.os as os
+
+def main() raises:
+    # Load the Iris dataset from scikit-learn using the Python interoperability API.
+    var iris = Python.import_module("sklearn.datasets").load_iris()
+
+    # Create a LabelEncoder instance.
+    # This converts class labels into integer values that the model can work with.
+    var le = LabelEncoder()
+
+    # Convert the NumPy feature array into a native Matrix.
+    var X = Matrix.from_numpy(iris.data)
+    # Encode the target labels into integer values.
+    var y = le.fit_transform(iris.target)
+
+    # Define the hyperparameter values to test.
+    # Here we evaluate KNN with k = 3, 5, and 7.
+    var params = Dict[String, List[String]]()
+    params["k"] = ["3", "5", "7"]
+    # Find the best hyperparameters using grid search.
+    # - accuracy_score is the evaluation metric.
+    # - cv=4 performs 4-fold cross-validation.
+    # - n_jobs=-1 uses all available CPU cores.
+    #
+    # GridSearchCV returns the best hyperparameters and their score. [0] contains the best parameters.
+    var best_params = GridSearchCV[KNN](
+        X,
+        y,
+        params,
+        accuracy_score,
+        cv=4,
+        n_jobs=-1,
+    )[0].copy()
+    print("Tuned parameters:", best_params)
+
+    # Split the dataset into training and testing sets.
+    var X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=1234,
+    )
+
+    # Create a KNN model using the best hyperparameters found above.
+    var knn = KNN(best_params)
+    # Train the model using the training data.
+    knn.fit(X_train, y_train)
+    # Save the trained model to disk.
+    knn.save("knn")
+
+    # Load the saved model back from disk.
+    knn = KNN.load("knn")
+    # Predict the labels for the test samples.
+    var y_pred = knn.predict(X_test)
+    # Compare the predictions with the expected labels.
+    print("KNN classification accuracy:", accuracy_score(y_test, y_pred))
+
+    # Remove the saved model file created by this example.
+    os.remove("knn.mjml")
+```
+More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob/main/tests) folder.
 
 ## Benchmarks (AMD Zen 4)
 
@@ -135,23 +203,23 @@ from mojmelo.utils.utils import *
 
 | Model          | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |----------------|-----------------|----------------|--------------|
-| sklearn KMeans | 0.2716 ± 0.0012 |       -        | 0.9389       |
-| mojmelo KMeans | 0.1870 ± 0.0052 | 0.8821         | 0.9389       |
+| sklearn KMeans | 0.2766 ± 0.0054 |       -        | 0.9390       |
+| mojmelo KMeans | 0.2201 ± 0.0089 | 0.8822         | 0.9389       |
 
 [`HDBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/hdbs_bench.mojo) (algorithm='boruvka_kdtree')
 
 | Model            | Fit Time (s)    | ARI vs sklearn | ARI vs fast_hdbscan | ARI vs truth |
 |------------------|-----------------|----------------|---------------------|--------------|
-| skl-contrib HDBS | 1.2308 ± 0.0075 |       -        |          -          | 0.9975       |
-| fast hdbscan     | 0.2493 ± 0.0046 |       -        |          -          | 0.9978       |
-| mojmelo HDBS     | 0.2055 ± 0.0016 | 0.9902         | 0.9978              | 0.9919       |
+| skl-contrib HDBS | 1.1947 ± 0.0133 |       -        |          -          | 0.9984       |
+| fast hdbscan     | 0.2994 ± 0.0043 |       -        |          -          | 0.9984       |
+| mojmelo HDBS     | 0.2041 ± 0.0060 | 0.9887         | 0.9984              | 0.9901       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
 | Model       | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |-------------|-----------------|----------------|--------------|
-| sklearn DBS | 1.1434 ± 0.0055 |       -        | 0.8566       |
-| mojmelo DBS | 0.4028 ± 0.0038 | 0.9996         | 0.8566       |
+| sklearn DBS | 1.0625 ± 0.0020 |       -        | 0.8605       |
+| mojmelo DBS | 0.4817 ± 0.0035 | 1.0000         | 0.8605       |
 
 [`KNN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/knn_bench.mojo) (algorithm='kd_tree')
 
