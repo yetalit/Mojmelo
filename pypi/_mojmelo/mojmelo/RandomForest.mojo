@@ -1,23 +1,24 @@
 from mojmelo.DecisionTree import DecisionTree, Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
+from std.memory import Layout
 import std.math as math
 import std.random as random
 
 @always_inline
 def bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
     var idxs = Matrix.rand_choice(X.height, X.height, True, seed = False)
-    var unique_idxs = List[Scalar[DType.int]]()
+    var unique_idxs = List[Int]()
     var freqs = Matrix.zeros(X.height, 1)
     for idx in idxs:
-        freqs.data[idx] += 1
-        if freqs.data[idx] == 1:
+        freqs.data[unsafe_offset=idx] += 1
+        if freqs.data[unsafe_offset=idx] == 1:
             unique_idxs.append(idx)
     var y_with_weights = Matrix(len(unique_idxs), 2, order='f')
     for i in range(len(unique_idxs)):
-        y_with_weights[i, 0] = y.data[unique_idxs[i]]
-        y_with_weights[i, 1] = freqs.data[unique_idxs[i]]
+        y_with_weights[i, 0] = y.data[unsafe_offset=unique_idxs[i]]
+        y_with_weights[i, 1] = freqs.data[unsafe_offset=unique_idxs[i]]
     return X[unique_idxs], y_with_weights^
 
 def _predict(y: Matrix, criterion: String) raises -> Float32:
@@ -47,7 +48,7 @@ struct RandomForest(CV, Copyable):
     For classification -> 'entropy', 'gini';
     For regression -> 'mse'.
     """
-    var trees: UnsafePointer[DecisionTree, MutAnyOrigin]
+    var trees: Pointer[DecisionTree, MutUntrackedOrigin]
     comptime MODEL_ID = 10
     comptime criterion_ids: List[String] = ['entropy', 'gini', 'mse']
 
@@ -58,16 +59,16 @@ struct RandomForest(CV, Copyable):
         self.n_feats = n_feats
         self.criterion = criterion.lower()
         random.seed(random_state)
-        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin].unsafe_dangling()
+        self.trees = Pointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()
 
-    def __del__(deinit self):
+    def __deinit__(deinit self):
         for i in range(self.n_trees):
-            (self.trees + i).destroy_pointee()
-        self.trees.free()
+            self.trees.unsafe_offset(i).unsafe_deinit_pointee()
+        self.trees.unsafe_free()
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Build a forest of trees from the training set."""
-        self.trees = alloc[DecisionTree](self.n_trees).as_unsafe_any_origin()
+        self.trees = alloc(Layout[DecisionTree](count=self.n_trees)).unsafe_leak()
         var _y = y if y.width == 1 else y.reshape(y.size, 1)
         var n_feats = self.n_feats
         if self.n_feats < 1:
@@ -85,12 +86,12 @@ struct RandomForest(CV, Copyable):
                 criterion = self.criterion
             )
             try:
-                X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
+                var X_samp, y_samp_with_weights = bootstrap_sample(X, _y)
                 tree.fit_weighted(X_samp, y_samp_with_weights)
             except e:
                 print('Error:', e)
-            (self.trees + i).init_pointee_move(tree)
-            self.trees[i]._moveinit_(tree)
+            self.trees.unsafe_offset(i).unsafe_write(tree)
+            self.trees[unsafe_offset=i]._moveinit_(tree)
         parallelize[p](self.n_trees)
 
     def predict(self, X: Matrix) raises -> Matrix:
@@ -103,7 +104,7 @@ struct RandomForest(CV, Copyable):
         @parameter
         def predict_per_tree(i: Int):
             try:
-                tree_preds['', i] = self.trees[i].predict(X)
+                tree_preds['', i] = self.trees[unsafe_offset=i].predict(X)
             except e:
                 print('Error:', e)
         parallelize[predict_per_tree](self.n_trees)
@@ -112,7 +113,7 @@ struct RandomForest(CV, Copyable):
         @parameter
         def predict_per_sample(i: Int):
             try:
-                y_predicted.data[i] = _predict(tree_preds[i], self.criterion)
+                y_predicted.data[unsafe_offset=i] = _predict(tree_preds[i], self.criterion)
             except e:
                 print('Error:', e)
         parallelize[predict_per_sample](tree_preds.height)
@@ -128,7 +129,7 @@ struct RandomForest(CV, Copyable):
             for t_i in range(self.n_trees):
                 var node_list = List[Node]()
                 var children_index_list = List[Tuple[Int, Int]]()
-                var stack = [self.trees[t_i].root.value()[].copy()]
+                var stack = List([self.trees[unsafe_offset=t_i].root.value()[].copy()])
                 while len(stack) > 0:
                     var node = stack.pop()
                     var children_index = (-1, -1)
@@ -155,27 +156,27 @@ struct RandomForest(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
-            model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.trees = alloc[DecisionTree](model.n_trees).as_unsafe_any_origin()
+            model.n_trees = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            model.trees = alloc(Layout[DecisionTree](count=model.n_trees)).unsafe_leak()
             for t_i in range(model.n_trees):
                 var tree = DecisionTree()
-                var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                var node_list = List[UnsafePointer[Node, MutAnyOrigin]]()
+                var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                var node_list = List[Pointer[Node, MutUntrackedOrigin]]()
                 var children_index_list = List[Tuple[Int, Int]]()
-                for i in range(node_size):
-                    var feature = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                    var threshold = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-                    var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                    var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-                    var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-                    var node = alloc[Node](1)
-                    node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
-                    node_list.append(node.as_unsafe_any_origin())
+                for _ in range(node_size):
+                    var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                    var threshold = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+                    var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                    var right = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+                    var value = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+                    var node = alloc(Layout[Node](count=1)).unsafe_leak()
+                    node.unsafe_write(Node(feature=feature, threshold=threshold, value=value))
+                    node_list.append(node)
                     children_index_list.append((left, right))
                 tree.root = node_list[0]
                 for i in range(node_size):
@@ -183,8 +184,8 @@ struct RandomForest(CV, Copyable):
                         node_list[i][].left = node_list[children_index_list[i][0]]
                     if children_index_list[i][1] != -1:
                         node_list[i][].right = node_list[children_index_list[i][1]]
-                (model.trees + t_i).init_pointee_move(tree)
-                model.trees[t_i]._moveinit_(tree)
+                model.trees.unsafe_offset(t_i).unsafe_write(tree)
+                model.trees[unsafe_offset=t_i]._moveinit_(tree)
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
@@ -212,4 +213,4 @@ struct RandomForest(CV, Copyable):
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed(42)
-        self.trees = UnsafePointer[DecisionTree, MutAnyOrigin].unsafe_dangling()
+        self.trees = Pointer[DecisionTree, MutUntrackedOrigin].unsafe_dangling()

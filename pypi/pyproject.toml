@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mojmelo"
-version = "0.1.4"
+version = "0.1.5"
 
-dependencies = ["mojo-compiler==1.0.0b2"]
+dependencies = ["mojo-compiler>=1.0.0"]
 
 [project.scripts]
 mojmelo-setup = "_mojmelo.setup:main"

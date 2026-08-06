@@ -2,28 +2,29 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
 import std.math as math
-from std.algorithm import vectorize, parallelize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of
-from std.memory import memset_zero
+from std.memory import unsafe_memset_zero, Layout
 
 @always_inline
-def key(idx: Scalar[DType.int],
-        data: UnsafePointer[Float32, MutAnyOrigin],
-        dim: Scalar[DType.int],
-        split_dim: Scalar[DType.int]) -> Float32:
-    return data[idx * dim + split_dim]
+def key(idx: Int,
+        data: Pointer[Float32, MutUntrackedOrigin],
+        dim: Int,
+        split_dim: Int) -> Float32:
+    return data[unsafe_offset=idx * dim + split_dim]
 
 @always_inline
 def nth_element(
-    var first: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
-    nth: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
-    var last: UnsafePointer[Scalar[DType.int], MutUntrackedOrigin],
-    var proj: UnsafePointer[Float32, MutUntrackedOrigin],
-    data: UnsafePointer[Float32, MutAnyOrigin],
-    dim: Scalar[DType.int],
-    split_dim: Scalar[DType.int]):
+    var first: Pointer[Int, MutUntrackedOrigin],
+    nth: Pointer[Int, MutUntrackedOrigin],
+    var last: Pointer[Int, MutUntrackedOrigin],
+    var proj: Pointer[Float32, MutUntrackedOrigin],
+    data: Pointer[Float32, MutUntrackedOrigin],
+    dim: Int,
+    split_dim: Int):
     for i in range((Int(last) - Int(first))//size_of[DType.int]()):
-        proj[i] = key(first[i], data, dim, split_dim)
+        proj[unsafe_offset=i] = key(first[unsafe_offset=i], data, dim, split_dim)
 
     while (Int(last) - Int(first))//size_of[DType.int]() > 1:
         var _len = (Int(last) - Int(first))//size_of[DType.int]()
@@ -34,39 +35,39 @@ def nth_element(
         var c = _len - 1
 
         var pivot_i: Int
-        if proj[a] < proj[b]:
-            pivot_i = b if proj[b] < proj[c] else (c if proj[a] < proj[c] else a)
+        if proj[unsafe_offset=a] < proj[unsafe_offset=b]:
+            pivot_i = b if proj[unsafe_offset=b] < proj[unsafe_offset=c] else (c if proj[unsafe_offset=a] < proj[unsafe_offset=c] else a)
         else:
-            pivot_i = a if proj[a] < proj[c] else (c if proj[b] < proj[c] else b)
-        swap(first[pivot_i], first[_len - 1])
-        swap(proj[pivot_i],  proj[_len - 1])
+            pivot_i = a if proj[unsafe_offset=a] < proj[unsafe_offset=c] else (c if proj[unsafe_offset=b] < proj[unsafe_offset=c] else b)
+        swap(first[unsafe_offset=pivot_i], first[unsafe_offset=_len - 1])
+        swap(proj[unsafe_offset=pivot_i],  proj[unsafe_offset=_len - 1])
 
-        var pivot_val = proj[_len - 1]
-        var pivot_idx = first[_len - 1]
+        var pivot_val = proj[unsafe_offset=_len - 1]
+        var pivot_idx = first[unsafe_offset=_len - 1]
 
         var store = 0
         for i in range(_len - 1):
-            if proj[i] < pivot_val or
-               (proj[i] == pivot_val and first[i] < pivot_idx):
-                swap(first[i], first[store])
-                swap(proj[i],  proj[store])
+            if proj[unsafe_offset=i] < pivot_val or
+               (proj[unsafe_offset=i] == pivot_val and first[unsafe_offset=i] < pivot_idx):
+                swap(first[unsafe_offset=i], first[unsafe_offset=store])
+                swap(proj[unsafe_offset=i],  proj[unsafe_offset=store])
                 store += 1
 
-        swap(first[store], first[_len - 1])
-        swap(proj[store],  proj[_len - 1])
+        swap(first[unsafe_offset=store], first[unsafe_offset=_len - 1])
+        swap(proj[unsafe_offset=store],  proj[unsafe_offset=_len - 1])
 
-        if first + store == nth:
+        if first.unsafe_offset(store) == nth:
             return
-        elif first + store < nth:
-            first += store + 1
-            proj += store + 1
+        elif first.unsafe_offset(store) < nth:
+            first = first.unsafe_offset(store + 1)
+            proj = proj.unsafe_offset(store + 1)
         else:
-            last = first + store
+            last = first.unsafe_offset(store)
 
 @always_inline
 def node_pair_lower_bound(
-    var center1: UnsafePointer[Float32, MutAnyOrigin],
-    var center2: UnsafePointer[Float32, MutAnyOrigin],
+    var center1: Pointer[Float32, MutUntrackedOrigin],
+    var center2: Pointer[Float32, MutUntrackedOrigin],
     r1: Float32,
     r2: Float32,
     dim: Int
@@ -74,7 +75,7 @@ def node_pair_lower_bound(
     var dist2: Float32 = 0.0
 
     def v[simd_width: Int](k: Int) {mut}:
-        var t = center1.load[width=simd_width](k) - center2.load[width=simd_width](k)
+        var t = center1.unsafe_load[width=simd_width](k) - center2.unsafe_load[width=simd_width](k)
         dist2 += (t * t).reduce_add()
 
     vectorize[Matrix.simd_width](dim, v)
@@ -89,7 +90,7 @@ def node_pair_lower_bound(
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
 @fieldwise_init
 struct CenterPtr(TrivialRegisterPassable):
-    var _data: UnsafePointer[Float32, MutAnyOrigin]
+    var _data: Pointer[Float32, MutUntrackedOrigin]
 
 
 @fieldwise_init
@@ -102,17 +103,17 @@ struct NodeData(Copyable):
 
 
 struct KDTreeBoruvka:
-    var data: UnsafePointer[Float32, MutAnyOrigin]
+    var data: Pointer[Float32, MutUntrackedOrigin]
     var kdtree: KDTree[sort_results=True]
     var n: Int
     var dim: Int
     var leaf_size: Int
     var nodes: List[NodeData]
-    var core_dist: UnsafePointer[Float32, MutAnyOrigin]
-    var build_idx: List[Scalar[DType.int]]
+    var core_dist: Pointer[Float32, MutUntrackedOrigin]
+    var build_idx: List[Int]
     var proj_buf: List[Float32]
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
-    var _center_arena: UnsafePointer[Float32, MutAnyOrigin]
+    var _center_arena: Pointer[Float32, MutUntrackedOrigin]
 
     @always_inline
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
@@ -125,10 +126,10 @@ struct KDTreeBoruvka:
 
         # One allocation for all node centers; upper bound on node count is 2n+1.
         var max_nodes = 2 * self.n + 1
-        self._center_arena = alloc[Float32](max_nodes * self.dim).as_unsafe_any_origin()
-        memset_zero(self._center_arena, max_nodes * self.dim)
+        self._center_arena = alloc(Layout[Float32](count=max_nodes * self.dim)).unsafe_leak()
+        unsafe_memset_zero(self._center_arena, max_nodes * self.dim)
 
-        self.core_dist = alloc[Float32](self.n).as_unsafe_any_origin()
+        self.core_dist = alloc(Layout[Float32](count=self.n)).unsafe_leak()
         self.build_idx = fill_indices_list(self.n)
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
@@ -140,11 +141,11 @@ struct KDTreeBoruvka:
             try:
                 var kd_results = KDTreeResultVector()
                 self.kdtree.n_nearest(
-                    Span(ptr=self.data + p * self.dim, length=self.dim),
+                    Span(unsafe_ptr=self.data.unsafe_offset(p * self.dim), length=self.dim),
                     k,
                     kd_results
                 )
-                self.core_dist[p] = kd_results[min_samples].dis
+                self.core_dist[unsafe_offset=p] = kd_results[min_samples].dis
             except e:
                 print('Error:', e)
 
@@ -153,9 +154,9 @@ struct KDTreeBoruvka:
         self.build_node(0, 0, self.n)
 
     @always_inline
-    def __del__(deinit self):
-        self.core_dist.free()
-        self._center_arena.free()
+    def __deinit__(deinit self):
+        self.core_dist.unsafe_free()
+        self._center_arena.unsafe_free()
 
     @always_inline
     def left(self, i: Int) -> Int:
@@ -171,57 +172,57 @@ struct KDTreeBoruvka:
             self.nodes.resize(i + 1, NodeData(True, 0, 0, 0.0, CenterPtr(self._center_arena)))
 
     # Fused single O(n) pass: finds min/max across ALL dims simultaneously.
-    def choose_split_dim(self, start: Int, end: Int) -> Scalar[DType.int]:
+    def choose_split_dim(self, start: Int, end: Int) -> Int:
         var mn = List[Float32](capacity=self.dim)
         var mx = List[Float32](capacity=self.dim)
         mn.resize(self.dim,  math.inf[DType.float32]())
         mx.resize(self.dim, -math.inf[DType.float32]())
 
         for i in range(start, end):
-            var p = self.data + Int(self.build_idx[i]) * self.dim
+            var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
             for d in range(self.dim):
-                var v = p[d]
+                var v = p[unsafe_offset=d]
                 if v < mn[d]: mn[d] = v
                 if v > mx[d]: mx[d] = v
 
-        var best: Scalar[DType.int] = 0
+        var best = 0
         var best_spread: Float32 = -1.0
         for d in range(self.dim):
             var s = mx[d] - mn[d]
             if s > best_spread:
                 best_spread = s
-                best = Scalar[DType.int](d)
+                best = d
         return best
 
     def build_node(mut self, node: Int, start: Int, end: Int):
         self.ensure_node(node)
-        var nd = self.nodes._data + node
+        var nd = self.nodes._data.unsafe_offset(node)
         nd[].idx_start = start
         nd[].idx_end = end
 
         var count = Float32(end - start)
 
         # Point this node's center at its pre-allocated slot in the arena
-        var cptr = self._center_arena + node * self.dim
+        var cptr = self._center_arena.unsafe_offset(node * self.dim)
         nd[].center = CenterPtr(cptr)
 
         for i in range(start, end):
-            var p = self.data + Int(self.build_idx[i]) * self.dim
+            var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
 
-            def v1[simd_width: Int](k: Int) {read}:
-                cptr.store(k, cptr.load[width=simd_width](k) + p.load[width=simd_width](k))
+            def v1[simd_width: Int](k: Int) {imm}:
+                cptr.unsafe_store(k, cptr.unsafe_load[width=simd_width](k) + p.unsafe_load[width=simd_width](k))
             vectorize[Matrix.simd_width](self.dim, v1)
 
         for d in range(self.dim):
-            cptr[d] /= count
+            cptr[unsafe_offset=d] /= count
 
         var maxd: Float32 = 0.0
         for i in range(start, end):
-            var p = self.data + Int(self.build_idx[i]) * self.dim
+            var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
             var d2: Float32 = 0.0
 
             def v2[simd_width: Int](k: Int) {mut}:
-                var t = p.load[width=simd_width](k) - cptr.load[width=simd_width](k)
+                var t = p.unsafe_load[width=simd_width](k) - cptr.unsafe_load[width=simd_width](k)
                 d2 += (t * t).reduce_add()
             vectorize[Matrix.simd_width](self.dim, v2)
             if d2 > maxd:
@@ -229,7 +230,7 @@ struct KDTreeBoruvka:
 
         nd[].radius = math.sqrt(maxd)
 
-        if Int(count) <= self.leaf_size:
+        if end - start <= self.leaf_size:
             nd[].is_leaf = True
             return
 
@@ -239,12 +240,12 @@ struct KDTreeBoruvka:
         var mid = (start + end) // 2
 
         nth_element(
-            self.build_idx._data + start,
-            self.build_idx._data + mid,
-            self.build_idx._data + end,
-            self.proj_buf._data + start,
+            self.build_idx._data.unsafe_offset(start),
+            self.build_idx._data.unsafe_offset(mid),
+            self.build_idx._data.unsafe_offset(end),
+            self.proj_buf._data.unsafe_offset(start),
             self.data,
-            Scalar[DType.int](self.dim),
+            self.dim,
             split_dim
         )
 

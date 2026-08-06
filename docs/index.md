@@ -120,16 +120,16 @@ Note: If CPU cache details are available by the OS, benchmarking parts of the se
 ## Usage
 
 Importing models is straightforward:
-```mojo 
+```python 
 from mojmelo.LinearRegression import LinearRegression
 ```
 You may also want to use the utility codes written for this project:
-```mojo 
+```python 
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import *
 ```
 Here is an example code demonstrating a common training process:
-```mojo
+```python
 from mojmelo.KNN import KNN
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split, GridSearchCV, LabelEncoder

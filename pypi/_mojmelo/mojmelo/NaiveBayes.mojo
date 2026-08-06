@@ -1,9 +1,9 @@
 import std.math as math
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, normal_distr, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of
-from std.memory import memcpy
+from std.memory import unsafe_memcpy
 
 struct GaussianNB(Copyable):
     """Gaussian Naive Bayes (GaussianNB)."""
@@ -56,7 +56,7 @@ struct GaussianNB(Copyable):
         @parameter
         def p(i: Int):
             # return class with highest posterior probability
-            y_pred.data[i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
+            y_pred.data[unsafe_offset=i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
         parallelize[p](X.height)
         return y_pred^
 
@@ -71,11 +71,11 @@ struct GaussianNB(Copyable):
         with open(_path, "w") as f:
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(len(self._classes)).as_bytes())
-            f.write_bytes(Span(ptr=self._classes._data.bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(Span(unsafe_ptr=self._classes._data.unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
             f.write_bytes(UInt64(self._mean.width).as_bytes())
-            f.write_bytes(Span(ptr=self._mean.data.bitcast[UInt8](), length=4*self._mean.size))
-            f.write_bytes(Span(ptr=self._var.data.bitcast[UInt8](), length=4*self._var.size))
-            f.write_bytes(Span(ptr=self._priors._data.bitcast[UInt8](), length=4*len(self._priors)))
+            f.write_bytes(Span(unsafe_ptr=self._mean.data.unsafe_bitcast[UInt8](), length=4*self._mean.size))
+            f.write_bytes(Span(unsafe_ptr=self._var.data.unsafe_bitcast[UInt8](), length=4*self._var.size))
+            f.write_bytes(Span(unsafe_ptr=self._priors._data.unsafe_bitcast[UInt8](), length=4*len(self._priors)))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -84,20 +84,24 @@ struct GaussianNB(Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var n_classes = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var n_classes = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)
-            memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().bitcast[Int](), count=n_classes)
-            var X_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model._mean = Matrix(n_classes, X_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_classes*X_width).unsafe_ptr())))
-            model._var = Matrix(n_classes, X_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_classes*X_width).unsafe_ptr())))
+            unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
+            var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var _mean = f.read_bytes(4*n_classes*X_width)
+            model._mean = Matrix(n_classes, X_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_mean.unsafe_ptr())))
+            _ = _mean
+            var _var = f.read_bytes(4*n_classes*X_width)
+            model._var = Matrix(n_classes, X_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_var.unsafe_ptr())))
+            _ = _var
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
-            memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().bitcast[Float32](), count=n_classes)
+            unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
         return model^
 
 struct MultinomialNB(CV, Copyable):
@@ -147,7 +151,7 @@ struct MultinomialNB(CV, Copyable):
         @parameter
         def p(i: Int):
             # return class with highest posterior probability
-            y_pred.data[i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
+            y_pred.data[unsafe_offset=i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
         parallelize[p](X.height)
         return y_pred^
 
@@ -157,10 +161,10 @@ struct MultinomialNB(CV, Copyable):
         with open(_path, "w") as f:
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(len(self._classes)).as_bytes())
-            f.write_bytes(Span(ptr=self._classes._data.bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(Span(unsafe_ptr=self._classes._data.unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
             f.write_bytes(UInt64(self._class_probs.width).as_bytes())
-            f.write_bytes(Span(ptr=self._class_probs.data.bitcast[UInt8](), length=4*self._class_probs.size))
-            f.write_bytes(Span(ptr=self._priors._data.bitcast[UInt8](), length=4*len(self._priors)))
+            f.write_bytes(Span(unsafe_ptr=self._class_probs.data.unsafe_bitcast[UInt8](), length=4*self._class_probs.size))
+            f.write_bytes(Span(unsafe_ptr=self._priors._data.unsafe_bitcast[UInt8](), length=4*len(self._priors)))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -169,19 +173,21 @@ struct MultinomialNB(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var n_classes = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var n_classes = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)
-            memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().bitcast[Int](), count=n_classes)
-            var X_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model._class_probs = Matrix(n_classes, X_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_classes*X_width).unsafe_ptr())))
+            unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
+            var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var _class_probs = f.read_bytes(4*n_classes*X_width)
+            model._class_probs = Matrix(n_classes, X_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_class_probs.unsafe_ptr())))
+            _ = _class_probs
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
-            memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().bitcast[Float32](), count=n_classes)
+            unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:

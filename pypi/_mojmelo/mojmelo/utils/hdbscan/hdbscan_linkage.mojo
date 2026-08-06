@@ -8,26 +8,26 @@ import std.math as math
 def mst_linkage_core(distance_matrix: Matrix) raises -> Matrix:
     var result = Matrix.zeros(distance_matrix.height - 1, 3)
     var node_labels = arange(0, distance_matrix.height)
-    var current_node: Scalar[DType.int] = 0
+    var current_node = 0
     var current_distances = Matrix(1, distance_matrix.height)
     current_distances.fill(math.inf[DType.float32]())
     var current_labels = node_labels.copy()
     for i in range(1, len(node_labels)):
         var label_filter = List[Int]()
-        var current_labels_new = List[Scalar[DType.int]]()
+        var current_labels_new = List[Int]()
         for idx, label in enumerate(current_labels):
             if label != current_node:
                 label_filter.append(idx)
                 current_labels_new.append(label)
         current_labels = current_labels_new^
         var left = current_distances['', label_filter]
-        var right = distance_matrix[Int(current_node)][current_labels]
+        var right = distance_matrix[current_node][current_labels]
         current_distances = left.where(left.ele_lt(right), left, right)
 
         var new_node_index = current_distances.argmin()
         var new_node = current_labels[new_node_index]
-        result[i - 1, 0] = current_node.cast[DType.float32]()
-        result[i - 1, 1] = new_node.cast[DType.float32]()
+        result[i - 1, 0] = Float32(current_node)
+        result[i - 1, 1] = Float32(new_node)
         result[i - 1, 2] = current_distances[0, new_node_index]
         current_node = new_node
 
@@ -53,8 +53,7 @@ def mst_linkage_core_vector(
         in_tree[current_node] = 1
         var current_node_core_distance = core_distances[current_node]
         var new_distance = Float32.MAX_FINITE
-        var source_node = 0
-        var new_node = 0
+        var source_node = var new_node = 0
 
         for j in range(dim):
             if in_tree[j]:
@@ -109,19 +108,19 @@ def mst_linkage_core_vector(
 
 struct UnionFind:
 
-    var parent: List[Scalar[DType.int]]
-    var size: List[Scalar[DType.int]]
-    var next_label: Scalar[DType.int]
+    var parent: List[Int]
+    var size: List[Int]
+    var next_label: Int
 
     def __init__(out self, N: Int):
-        self.parent = List[Scalar[DType.int]](capacity=2 * N - 1)
+        self.parent = List[Int](capacity=2 * N - 1)
         self.parent.resize(2 * N - 1, -1)
-        self.next_label = Scalar[DType.int](N)
-        self.size = List[Scalar[DType.int]](capacity=2*N-1)
+        self.next_label = N
+        self.size = List[Int](capacity=2*N-1)
         self.size.resize(N, 1)
         self.size.resize(2*N-1, 0)
 
-    def union(mut self, m: Scalar[DType.int], n: Scalar[DType.int]):
+    def union(mut self, m: Int, n: Int):
         self.parent[m] = self.next_label
         self.parent[n] = self.next_label
 
@@ -130,7 +129,7 @@ struct UnionFind:
         self.size[self.next_label] = self.size[m] + self.size[n]
         self.next_label += 1
 
-    def fast_find(mut self, var n: Scalar[DType.int]) -> Scalar[DType.int]:
+    def fast_find(mut self, var n: Int) -> Int:
         var root = n
 
         # find root
@@ -154,8 +153,8 @@ def label(L: Matrix) raises -> Matrix:
     var out = 0
 
     for index in range(L.height):
-        var a = L[index, 0].cast[DType.int]()
-        var b = L[index, 1].cast[DType.int]()
+        var a = Int(L[index, 0])
+        var b = Int(L[index, 1])
         var delta = L[index, 2]
 
         var aa = U.fast_find(a)
@@ -164,10 +163,10 @@ def label(L: Matrix) raises -> Matrix:
         if aa == bb:
             continue
 
-        result[out, 0] = aa.cast[DType.float32]()
-        result[out, 1] = bb.cast[DType.float32]()
+        result[out, 0] = Float32(aa)
+        result[out, 1] = Float32(bb)
         result[out, 2] = delta
-        result[out, 3] = (U.size[aa] + U.size[bb]).cast[DType.float32]()
+        result[out, 3] = Float32(U.size[aa] + U.size[bb])
 
         U.union(aa, bb)
         out += 1

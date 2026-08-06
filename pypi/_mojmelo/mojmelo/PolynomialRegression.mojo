@@ -72,7 +72,7 @@ struct PolyRegression(CV, Copyable):
         # gradient descent
         for _ in range(self.n_iters):
             if self.batch_size > 0:
-                var ids: List[Scalar[DType.int]]
+                var ids: List[Int]
                 if self.random_state != -1:
                     ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
                 else:
@@ -81,7 +81,7 @@ struct PolyRegression(CV, Copyable):
                 var cost: Float32 = 0.0
                 # Iterate over mini-batches
                 for start_idx in range(0, X.height, self.batch_size):
-                    var batch_indices = List[Scalar[DType.int]](ids[start_idx:start_idx + self.batch_size])
+                    var batch_indices = List[Int](ids[start_idx:start_idx + self.batch_size])
                     
                     var X_batch = X[batch_indices]
                     var X_poly_batch = List[Matrix]()
@@ -157,7 +157,7 @@ struct PolyRegression(CV, Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.weights.height).as_bytes())
             f.write_bytes(UInt32(self.degree).as_bytes())
-            f.write_bytes(Span(ptr=self.weights.data.bitcast[UInt8](), length=4*self.weights.size))
+            f.write_bytes(Span(unsafe_ptr=self.weights.data.unsafe_bitcast[UInt8](), length=4*self.weights.size))
             f.write_bytes(self.bias.as_bytes())
 
     @staticmethod
@@ -167,15 +167,17 @@ struct PolyRegression(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var w_height = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var degree = Int(f.read_bytes(4).unsafe_ptr().bitcast[UInt32]()[])
+            var w_height = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var degree = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             model.degree = degree
-            model.weights = Matrix(w_height, degree, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * w_height * degree).unsafe_ptr())), order='f')
-            model.bias = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
+            var weights = f.read_bytes(4 * w_height * degree)
+            model.weights = Matrix(w_height, degree, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())), order='f')
+            _ = weights
+            model.bias = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:

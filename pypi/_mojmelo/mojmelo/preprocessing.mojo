@@ -1,6 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, cartesian_product
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 from std.sys import num_performance_cores
 from std.python import Python, PythonObject
 import std.time as time
@@ -29,12 +29,12 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
         else:
             if norms.height < 768:
                 for i in range(norms.height):
-                    norms.data[i] = data[i].norm()
+                    norms.data[unsafe_offset=i] = data[i].norm()
             else:
                 @parameter
                 def p1(i: Int):
                     try:
-                        norms.data[i] = data[i].norm()
+                        norms.data[unsafe_offset=i] = data[i].norm()
                     except e:
                         print('Error:', e)
                 parallelize[p1](norms.height)
@@ -42,8 +42,8 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
     @parameter
     def p2(i: Int):
         try:
-            if norms.data[i] != 0.0:
-                z[i] = data[i] / norms.data[i]
+            if norms.data[unsafe_offset=i] != 0.0:
+                z[i] = data[i] / norms.data[unsafe_offset=i]
             else:
                 z[i].fill_zero()
         except e:
@@ -157,8 +157,8 @@ def train_test_split(X: Matrix, y: Matrix, *, test_size: Float32 = 0.5, train_si
     var test_ratio = test_size if train_size <= 0.0 else 1.0 - train_size
     var ids = Matrix.rand_choice(X.height, X.height, False)
     var split_i = Int(Float32(X.height) - (test_ratio * Float32(X.height)))
-    var split_train = List[Scalar[DType.int]](ids[:split_i])
-    var split_test = List[Scalar[DType.int]](ids[split_i:])
+    var split_train = List[Int](ids[:split_i])
+    var split_test = List[Int](ids[split_i:])
     return X[split_train], X[split_test], y[split_train], y[split_test]
 
 def train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Float32 = 0.5, train_size: Float32 = 0.0) raises -> Tuple[Matrix, Matrix, Matrix, Matrix]:
@@ -167,8 +167,8 @@ def train_test_split(X: Matrix, y: Matrix, *, random_state: Int, test_size: Floa
     random.seed(random_state)
     var ids = Matrix.rand_choice(X.height, X.height, False, seed = False)
     var split_i = Int(Float32(X.height) - (test_ratio * Float32(X.height)))
-    var split_train = List[Scalar[DType.int]](ids[:split_i])
-    var split_test = List[Scalar[DType.int]](ids[split_i:])
+    var split_train = List[Int](ids[:split_i])
+    var split_test = List[Int](ids[split_i:])
     return X[split_train], X[split_test], y[split_train], y[split_test]
 
 struct LabelEncoder:
@@ -201,7 +201,7 @@ struct LabelEncoder:
                 self.str_to_index[str_] = latest_index
                 self.index_to_str[latest_index] = str_
                 latest_index += 1
-            y_encoded.data[i] = Float32(self.str_to_index[str_])
+            y_encoded.data[unsafe_offset=i] = Float32(self.str_to_index[str_])
         return y_encoded^
 
     def transform(self, y: PythonObject) raises -> Matrix:
@@ -215,7 +215,7 @@ struct LabelEncoder:
         """
         var y_encoded = Matrix(len(y), 1)
         for i in range(len(y)):
-            y_encoded.data[i] = Float32(self.str_to_index[String(y[i])])
+            y_encoded.data[unsafe_offset=i] = Float32(self.str_to_index[String(y[i])])
         return y_encoded^
 
     def inverse_transform(self, y: Matrix) raises -> PythonObject:
@@ -230,7 +230,7 @@ struct LabelEncoder:
         var np = Python.import_module("numpy")
         var np_arr = np.empty(len(y), dtype='object')
         for i in range(len(y)):
-            np_arr[i] = self.index_to_str[Int(y.data[i])]
+            np_arr[i] = self.index_to_str[Int(y.data[unsafe_offset=i])]
         return np_arr^
 
 def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matrix, Matrix) thin raises -> Float32, n_splits: Int = 5) raises -> Float32:
@@ -255,10 +255,10 @@ def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matr
     var mean_score: Float32 = 0.0
     for _ in range(n_splits):
         var end_of_test = min(start_of_test + test_count, X.height)
-        var train_ids = List[Scalar[DType.int]](ids[end_of_test:]) + List[Scalar[DType.int]](ids[:start_of_test])
+        var train_ids = List[Int](ids[end_of_test:]) + List[Int](ids[:start_of_test])
         model.fit(X[train_ids], y[train_ids])
-        var test_ids = List[Scalar[DType.int]](ids[start_of_test:end_of_test])
-        y_pred = model.predict(X[test_ids])
+        var test_ids = List[Int](ids[start_of_test:end_of_test])
+        var y_pred = model.predict(X[test_ids])
         mean_score += scoring(y[test_ids], y_pred) / Float32(n_splits)
         start_of_test += test_count
     return mean_score
@@ -299,7 +299,7 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
             var score = KFold(model, X, y, scoring, cv)
             if neg_score:
                 score *= -1
-            scores.data[i] = score
+            scores.data[unsafe_offset=i] = score
     else:
         var n_workers = n_jobs
         if n_workers == -1:
@@ -316,14 +316,14 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
                 var score = KFold(model, X, y, scoring, cv)
                 if neg_score:
                     score *= -1
-                scores.data[i] = score
+                scores.data[unsafe_offset=i] = score
             except e:
                 print('Error:', e)
         parallelize[p](len(combinations), n_workers)
     var best_score = scores.max()
     var best = -1
     for i in range(len(scores)):
-        if scores.data[i] == best_score:
+        if scores.data[unsafe_offset=i] == best_score:
             best = i
             break
     var best_params = params[best].copy()

@@ -1,7 +1,8 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.svd import svd
 from mojmelo.utils.utils import MODEL_IDS
-from std.algorithm import parallelize, vectorize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 from std.python import Python
 
 struct PCA(Copyable):
@@ -39,21 +40,20 @@ struct PCA(Copyable):
         """Fit the model."""
         # Mean centering
         self.mean = Matrix.zeros(1, X.width)
-        var n_rows = X.height
-        var n_cols = X.width
+        var n_rows, n_cols = X.height, X.width
         @parameter
         def p(col: Int):
             var sum: Float32 = 0
             for row in range(n_rows):
-                sum += X.data.load(row * n_cols + col)
+                sum += X.data.unsafe_load(row * n_cols + col)
 
             self.mean.store[1](0, col, sum / Float32(n_rows))
         parallelize[p](n_cols)
 
         var S: Matrix
         if self.lapack:
-            numpy_linalg = Python.import_module('numpy.linalg')
-            USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
+            var numpy_linalg = Python.import_module('numpy.linalg')
+            var USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
             S = Matrix.from_numpy(USVt[1])
             self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
         else:
@@ -95,11 +95,11 @@ struct PCA(Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.n_components).as_bytes())
             f.write_bytes(UInt64(self.components.width).as_bytes())
-            f.write_bytes(Span(ptr=self.components.data.bitcast[UInt8](), length=4*self.components.size))
-            f.write_bytes(Span(ptr=self.mean.data.bitcast[UInt8](), length=4*self.mean.size))
+            f.write_bytes(Span(unsafe_ptr=self.components.data.unsafe_bitcast[UInt8](), length=4*self.components.size))
+            f.write_bytes(Span(unsafe_ptr=self.mean.data.unsafe_bitcast[UInt8](), length=4*self.mean.size))
             f.write_bytes(UInt8(self.whiten).as_bytes())
             if self.whiten:
-                f.write_bytes(Span(ptr=self.whiten_.data.bitcast[UInt8](), length=4*self.whiten_.size))
+                f.write_bytes(Span(unsafe_ptr=self.whiten_.data.unsafe_bitcast[UInt8](), length=4*self.whiten_.size))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -108,16 +108,22 @@ struct PCA(Copyable):
         var model = Self(0)
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var n_components = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var components_width = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            model.components = Matrix(n_components, components_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components*components_width).unsafe_ptr())))
+            var n_components = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var components_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var components = f.read_bytes(4*n_components*components_width)
+            model.components = Matrix(n_components, components_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(components.unsafe_ptr())))
+            _ = components
             model.components_T = model.components.T()
-            model.mean = Matrix(1, components_width, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*components_width).unsafe_ptr())))
+            var _mean = f.read_bytes(4*components_width)
+            model.mean = Matrix(1, components_width, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(_mean.unsafe_ptr())))
+            _ = _mean
             model.whiten = Bool(f.read_bytes(1)[0])
             if model.whiten:
-                model.whiten_ = Matrix(1, n_components, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*n_components).unsafe_ptr())))
+                var whiten_ = f.read_bytes(4*n_components)
+                model.whiten_ = Matrix(1, n_components, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(whiten_.unsafe_ptr())))
+                _ = whiten_
         return model^
