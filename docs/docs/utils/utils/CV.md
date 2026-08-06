@@ -4,14 +4,14 @@ Mojo trait
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self: _Self, params: Dict[String, String])
+fn def __init__(out self, params: Dict[String, String])
 ```
 
 **Args:**
@@ -28,7 +28,7 @@ fn def __init__(out self: _Self, params: Dict[String, String])
 ### `fit`
 
 ```mojo
-fn def fit(mut self: _Self, X: Matrix, y: Matrix)
+fn def fit(mut self, X: Matrix, y: Matrix)
 ```
 
 **Args:**
@@ -42,7 +42,7 @@ fn def fit(mut self: _Self, X: Matrix, y: Matrix)
 ### `predict`
 
 ```mojo
-fn def predict(mut self: _Self, X: Matrix) -> Matrix
+fn def predict(mut self, X: Matrix) -> Matrix
 ```
 
 **Args:**

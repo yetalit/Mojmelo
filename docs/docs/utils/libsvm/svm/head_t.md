@@ -9,13 +9,13 @@ struct head_t
 
 ## Fields
 
-- **prev** (`Optional[UnsafePointer[head_t, MutAnyOrigin]]`)
-- **next** (`Optional[UnsafePointer[head_t, MutAnyOrigin]]`)
-- **data** (`Optional[UnsafePointer[Float32, MutUntrackedOrigin]]`)
+- **prev** (`Optional[Pointer[head_t, MutUntrackedOrigin]]`)
+- **next** (`Optional[Pointer[head_t, MutUntrackedOrigin]]`)
+- **data** (`Optional[Pointer[Float32, MutUntrackedOrigin]]`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`
+`AnyType`, `Deinitable`, `Movable`, `RegisterPassable`
 
 ## Methods
 

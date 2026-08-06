@@ -19,7 +19,7 @@ Naive Bayes classifier for multinomial models.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 

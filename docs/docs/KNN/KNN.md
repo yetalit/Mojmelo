@@ -24,14 +24,14 @@ Classifier implementing the k-nearest neighbors vote.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, k: Int = 3, metric: String = "euc", search_depth: Int = 1)
+fn def __init__(out self, k: Int = Int(3), metric: String = "euc", search_depth: Int = Int(1))
 ```
 
 **Args:**
@@ -81,7 +81,7 @@ Fit the k-nearest neighbors classifier from the training dataset.
 ### `predict`
 
 ```mojo
-fn def predict(mut self, X: Matrix) -> Matrix
+fn def predict(self, X: Matrix) -> Matrix
 ```
 
 Predict the class indices for the provided data.

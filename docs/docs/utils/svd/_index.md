@@ -5,7 +5,7 @@ Mojo module
 ## Aliases
 
 - `EPS = 1.0E-13`
-- `simd_width = (4 * simd_width_of[DType.float64]()) if CompilationTarget.is_apple_silicon() else (2 * simd_width_of[DType.float64]())`
+- `simd_width = (Int(4) * simd_width_of[DType.float64]()) if CompilationTarget.is_apple_silicon() else (Int(2) * simd_width_of[DType.float64]())`
 
 ## Functions
 

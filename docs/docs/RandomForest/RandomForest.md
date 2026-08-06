@@ -21,18 +21,18 @@ A random forest supporting both classification and regression.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
 - **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **trees** (`UnsafePointer[DecisionTree, MutAnyOrigin]`)
+- **trees** (`Pointer[DecisionTree, MutUntrackedOrigin]`)
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, n_trees: Int = 10, min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, criterion: String = "gini", random_state: Int = 42)
+fn def __init__(out self, n_trees: Int = Int(10), min_samples_split: Int = Int(2), max_depth: Int = Int(100), n_feats: Int = Int(-1), criterion: String = "gini", random_state: Int = Int(42))
 ```
 
 **Args:**
@@ -64,10 +64,10 @@ fn def __init__(out self, params: Dict[String, String])
 
 **Raises:**
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**

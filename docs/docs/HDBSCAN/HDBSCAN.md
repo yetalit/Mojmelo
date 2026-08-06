@@ -31,14 +31,14 @@ Cluster data using hierarchical density-based clustering.
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, min_samples: Int = 5, min_cluster_size: Int = 5, cluster_selection_method: String = "eom", alpha: Float32 = 1, cluster_selection_epsilon: Float32 = Float32("0"), cluster_selection_epsilon_max: Float32 = inf[DType.float32](), cluster_selection_persistence: Float32 = Float32("0"), max_cluster_size: Int = 0, allow_single_cluster: Bool = False, match_reference_implementation: Bool = False, search_depth: Int = 1)
+fn def __init__(out self, min_samples: Int = Int(5), min_cluster_size: Int = Int(5), cluster_selection_method: String = "eom", alpha: Float32 = 1, cluster_selection_epsilon: Float32 = Float32("0"), cluster_selection_epsilon_max: Float32 = inf[DType.float32](), cluster_selection_persistence: Float32 = Float32("0"), max_cluster_size: Int = Int(0), allow_single_cluster: Bool = False, match_reference_implementation: Bool = False, search_depth: Int = Int(1))
 ```
 
 **Args:**

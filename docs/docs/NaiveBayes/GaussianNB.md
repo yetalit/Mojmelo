@@ -19,7 +19,7 @@ Gaussian Naive Bayes (GaussianNB).
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 

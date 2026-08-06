@@ -3,7 +3,7 @@ Mojo function
 # `cast`
 
 ```mojo
-fn def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src], MutAnyOrigin], size: Int) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]
+fn def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntrackedOrigin], size: Int) -> Pointer[Scalar[des], MutUntrackedOrigin]
 ```
 
 **Parameters:**
@@ -14,10 +14,10 @@ fn def cast[src: DType, des: DType, width: Int](data: UnsafePointer[Scalar[src],
 
 **Args:**
 
-- **data** (`UnsafePointer[Scalar[src], MutAnyOrigin]`)
+- **data** (`Pointer[Scalar[src], MutUntrackedOrigin]`)
 - **size** (`Int`)
 
 **Returns:**
 
-`UnsafePointer[Scalar[des], MutUntrackedOrigin]`
+`Pointer[Scalar[des], MutUntrackedOrigin]`
 

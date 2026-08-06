@@ -18,14 +18,14 @@ A density based clustering method that expands clusters from samples that have m
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, eps: Float32 = 1, min_samples: Int = 5, metric: String = "euc")
+fn def __init__(out self, eps: Float32 = 1, min_samples: Int = Int(5), metric: String = "euc")
 ```
 
 **Args:**

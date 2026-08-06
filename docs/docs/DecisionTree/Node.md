@@ -11,28 +11,28 @@ struct Node
 
 - **feature** (`Int`)
 - **threshold** (`Float32`)
-- **left** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
-- **right** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
+- **left** (`Optional[Pointer[Node, MutUntrackedOrigin]]`)
+- **right** (`Optional[Pointer[Node, MutUntrackedOrigin]]`)
 - **value** (`Float32`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, feature: Int = -1, threshold: Float32 = 0, left: Optional[UnsafePointer[Self, MutAnyOrigin]] = None, right: Optional[UnsafePointer[Self, MutAnyOrigin]] = None, value: Float32 = inf[DType.float32]())
+fn def __init__(out self, feature: Int = Int(-1), threshold: Float32 = 0, left: Optional[Pointer[Self, MutUntrackedOrigin]] = None, right: Optional[Pointer[Self, MutUntrackedOrigin]] = None, value: Float32 = inf[DType.float32]())
 ```
 
 **Args:**
 
 - **feature** (`Int`)
 - **threshold** (`Float32`)
-- **left** (`Optional[UnsafePointer[Self, MutAnyOrigin]]`)
-- **right** (`Optional[UnsafePointer[Self, MutAnyOrigin]]`)
+- **left** (`Optional[Pointer[Self, MutUntrackedOrigin]]`)
+- **right** (`Optional[Pointer[Self, MutUntrackedOrigin]]`)
 - **value** (`Float32`)
 - **self** (`Self`)
 

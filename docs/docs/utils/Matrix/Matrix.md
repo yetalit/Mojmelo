@@ -11,26 +11,26 @@ Native matrix data structure.
 
 ## Aliases
 
-- `simd_width = (4 * simd_width_of[DType.float32]()) if CompilationTarget.is_apple_silicon() else (2 * simd_width_of[DType.float32]())`
+- `simd_width = (Int(4) * simd_width_of[DType.float32]()) if CompilationTarget.is_apple_silicon() else (Int(2) * simd_width_of[DType.float32]())`
 
 ## Fields
 
 - **height** (`Int`): The number of rows.
 - **width** (`Int`): The number of columns.
 - **size** (`Int`): The total size.
-- **data** (`UnsafePointer[Float32, MutAnyOrigin]`): The pointer to the underlying data.
+- **data** (`Pointer[Float32, MutUntrackedOrigin]`): The pointer to the underlying data.
 - **order** (`String`): The order of matrix: Row-major -> 'c'; Column-major -> 'f'.
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`, `Sized`, `Writable`
+`AnyType`, `Copyable`, `Deinitable`, `ImplicitlyCopyable`, `Movable`, `Sized`, `Writable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar[src], MutAnyOrigin], height: Int, width: Int, order: String = "c")
+fn def __init__[src: DType = DType.float32](out self, data: Pointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = "c")
 ```
 
 **Parameters:**
@@ -39,7 +39,7 @@ fn def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar
 
 **Args:**
 
-- **data** (`UnsafePointer[Scalar[src], MutAnyOrigin]`)
+- **data** (`Pointer[Scalar[src], MutUntrackedOrigin]`)
 - **height** (`Int`)
 - **width** (`Int`)
 - **order** (`String`)
@@ -50,14 +50,14 @@ fn def __init__[src: DType = DType.float32](out self, data: UnsafePointer[Scalar
 `Self`
 
 ```mojo
-fn def __init__(out self, height: Int, width: Int, data: Optional[UnsafePointer[Float32, MutAnyOrigin]] = None, order: String = "c")
+fn def __init__(out self, height: Int, width: Int, data: Optional[Pointer[Float32, MutUntrackedOrigin]] = None, order: String = "c")
 ```
 
 **Args:**
 
 - **height** (`Int`)
 - **width** (`Int`)
-- **data** (`Optional[UnsafePointer[Float32, MutAnyOrigin]]`)
+- **data** (`Optional[Pointer[Float32, MutUntrackedOrigin]]`)
 - **order** (`String`)
 - **self** (`Self`)
 
@@ -94,22 +94,22 @@ fn def __init__(out self, *, copy: Self)
 `Self`
 
 ```mojo
-fn def __init__(out self, *, deinit take: Self)
+fn def __init__(out self, *, deinit move: Self)
 ```
 
 **Args:**
 
-- **take** (`Self`)
+- **move** (`Self`)
 - **self** (`Self`)
 
 **Returns:**
 
 `Self`
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**
@@ -273,37 +273,6 @@ fn def __getitem__(self, rows: List[Int]) -> Self
 
 - **self** (`Self`)
 - **rows** (`List[Int]`)
-
-**Returns:**
-
-`Self`
-
-**Raises:**
-
-```mojo
-fn def __getitem__(self, rows: List[Int]) -> Self
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **rows** (`List[Int]`)
-
-**Returns:**
-
-`Self`
-
-**Raises:**
-
-```mojo
-fn def __getitem__(self, row: String, columns: List[Int]) -> Self
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **row** (`String`)
-- **columns** (`List[Int]`)
 
 **Returns:**
 
@@ -1653,13 +1622,13 @@ fn def reshape(self, height: Int, width: Int) -> Self
 
 ```mojo
 @staticmethod
-fn def lu_factor(mut A, piv: UnsafePointer[Int, MutAnyOrigin], N: Int)
+fn def lu_factor(mut A, piv: Pointer[Int, MutAnyOrigin], N: Int)
 ```
 
 **Args:**
 
 - **A** (`Self`)
-- **piv** (`UnsafePointer[Int, MutAnyOrigin]`)
+- **piv** (`Pointer[Int, MutAnyOrigin]`)
 - **N** (`Int`)
 
 **Raises:**
@@ -1668,13 +1637,13 @@ fn def lu_factor(mut A, piv: UnsafePointer[Int, MutAnyOrigin], N: Int)
 
 ```mojo
 @staticmethod
-fn def lu_solve(A, piv: UnsafePointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: Int, Mi: Int)
+fn def lu_solve(A, piv: Pointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: Int, Mi: Int)
 ```
 
 **Args:**
 
 - **A** (`Self`)
-- **piv** (`UnsafePointer[Int, MutAnyOrigin]`)
+- **piv** (`Pointer[Int, MutAnyOrigin]`)
 - **b** (`Self`)
 - **x** (`Self`)
 - **N** (`Int`)
@@ -2026,7 +1995,7 @@ Converts the matrix to a numpy array.
 ### `cast_ptr`
 
 ```mojo
-fn def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutUntrackedOrigin]
+fn def cast_ptr[des: DType](self) -> Pointer[Scalar[des], MutUntrackedOrigin]
 ```
 
 **Parameters:**
@@ -2039,7 +2008,7 @@ fn def cast_ptr[des: DType](self) -> UnsafePointer[Scalar[des], MutUntrackedOrig
 
 **Returns:**
 
-`UnsafePointer[Scalar[des], MutUntrackedOrigin]`
+`Pointer[Scalar[des], MutUntrackedOrigin]`
 
 ### `write_to`
 

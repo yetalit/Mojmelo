@@ -12,18 +12,18 @@ struct svm_model
 - **param** (`svm_parameter`)
 - **nr_class** (`Int`)
 - **l** (`Int`)
-- **SV** (`Optional[UnsafePointer[UnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]]`)
-- **sv_coef** (`Optional[UnsafePointer[Optional[UnsafePointer[Float64, MutUntrackedOrigin]], MutUntrackedOrigin]]`)
-- **rho** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
-- **probA** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
-- **probB** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
-- **prob_density_marks** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
-- **sv_indices** (`Optional[UnsafePointer[Int, MutUntrackedOrigin]]`)
-- **label** (`Optional[UnsafePointer[Int, MutUntrackedOrigin]]`)
-- **nSV** (`Optional[UnsafePointer[Int, MutUntrackedOrigin]]`)
+- **SV** (`Optional[Pointer[Pointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]]`)
+- **sv_coef** (`Optional[Pointer[Optional[Pointer[Float64, MutUntrackedOrigin]], MutUntrackedOrigin]]`)
+- **rho** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
+- **probA** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
+- **probB** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
+- **prob_density_marks** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
+- **sv_indices** (`Optional[Pointer[Int, MutUntrackedOrigin]]`)
+- **label** (`Optional[Pointer[Int, MutUntrackedOrigin]]`)
+- **nSV** (`Optional[Pointer[Int, MutUntrackedOrigin]]`)
 - **free_sv** (`Int`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 

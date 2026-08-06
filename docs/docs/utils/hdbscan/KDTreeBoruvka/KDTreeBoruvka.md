@@ -9,19 +9,19 @@ struct KDTreeBoruvka
 
 ## Fields
 
-- **data** (`UnsafePointer[Float32, MutAnyOrigin]`)
+- **data** (`Pointer[Float32, MutUntrackedOrigin]`)
 - **kdtree** (`KDTree[True]`)
 - **n** (`Int`)
 - **dim** (`Int`)
 - **leaf_size** (`Int`)
 - **nodes** (`List[NodeData]`)
-- **core_dist** (`UnsafePointer[Float32, MutAnyOrigin]`)
+- **core_dist** (`Pointer[Float32, MutUntrackedOrigin]`)
 - **build_idx** (`List[Int]`)
 - **proj_buf** (`List[Float32]`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
@@ -45,10 +45,10 @@ fn def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search
 
 **Raises:**
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**

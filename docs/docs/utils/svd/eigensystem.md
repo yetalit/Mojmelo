@@ -3,13 +3,13 @@ Mojo function
 # `eigensystem`
 
 ```mojo
-fn def eigensystem(A: UnsafePointer[Float64, MutAnyOrigin], eig: UnsafePointer[Float64, MutUntrackedOrigin], V: UnsafePointer[Float64, MutUntrackedOrigin], n: Int)
+fn def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, MutUntrackedOrigin], V: Pointer[Float64, MutUntrackedOrigin], n: Int)
 ```
 
 **Args:**
 
-- **A** (`UnsafePointer[Float64, MutAnyOrigin]`)
-- **eig** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
-- **V** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **A** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **eig** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **V** (`Pointer[Float64, MutUntrackedOrigin]`)
 - **n** (`Int`)
 

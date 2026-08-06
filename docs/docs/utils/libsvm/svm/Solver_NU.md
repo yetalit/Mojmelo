@@ -17,23 +17,23 @@ struct Solver_NU
 
 - **si** (`SolutionInfo`)
 - **active_size** (`Int`)
-- **y** (`UnsafePointer[Int8, MutUntrackedOrigin]`)
-- **G** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
-- **alpha_status** (`UnsafePointer[Int8, MutUntrackedOrigin]`)
-- **alpha** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
-- **QD** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **y** (`Pointer[Int8, MutUntrackedOrigin]`)
+- **G** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **alpha_status** (`Pointer[Int8, MutUntrackedOrigin]`)
+- **alpha** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **QD** (`Pointer[Float64, MutUntrackedOrigin]`)
 - **eps** (`Float64`)
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
-- **p** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
-- **active_set** (`UnsafePointer[Int, MutUntrackedOrigin]`)
-- **G_bar** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **p** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **active_set** (`Pointer[Int, MutUntrackedOrigin]`)
+- **G_bar** (`Pointer[Float64, MutUntrackedOrigin]`)
 - **l** (`Int`)
 - **unshrink** (`Bool`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
@@ -157,7 +157,7 @@ fn def reconstruct_gradient[QM: QMatrix](self, mut Q: QM)
 ### `Solve`
 
 ```mojo
-fn def Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[UnsafePointer[Float64, MutUntrackedOrigin]], y_: Optional[UnsafePointer[Int8, MutUntrackedOrigin]], alpha_: UnsafePointer[Float64, MutUntrackedOrigin], Cp: Float64, Cn: Float64, eps: Float64, si: SolutionInfo, shrinking: Int)
+fn def Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[Pointer[Float64, MutUntrackedOrigin]], y_: Optional[Pointer[Int8, MutUntrackedOrigin]], alpha_: Pointer[Float64, MutUntrackedOrigin], Cp: Float64, Cn: Float64, eps: Float64, si: SolutionInfo, shrinking: Int)
 ```
 
 **Parameters:**
@@ -169,9 +169,9 @@ fn def Solve[QM: QMatrix](mut self, l: Int, mut Q: QM, p_: Optional[UnsafePointe
 - **self** (`Self`)
 - **l** (`Int`)
 - **Q** (`QM`)
-- **p_** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
-- **y_** (`Optional[UnsafePointer[Int8, MutUntrackedOrigin]]`)
-- **alpha_** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **p_** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
+- **y_** (`Optional[Pointer[Int8, MutUntrackedOrigin]]`)
+- **alpha_** (`Pointer[Float64, MutUntrackedOrigin]`)
 - **Cp** (`Float64`)
 - **Cn** (`Float64`)
 - **eps** (`Float64`)

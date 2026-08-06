@@ -1,20 +1,20 @@
 Mojo struct
 
-# `Layout`
+# `MatLayout`
 
 ```mojo
 @register_passable_trivial
-struct Layout
+struct MatLayout
 ```
 
 ## Fields
 
-- **shape** (`IndexList[2]`)
-- **strides** (`IndexList[2]`)
+- **shape** (`IndexList[Int(2)]`)
+- **strides** (`IndexList[Int(2)]`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`, `Writable`
+`AnyType`, `Copyable`, `Deinitable`, `ImplicitlyCopyable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`, `Writable`
 
 ## Methods
 

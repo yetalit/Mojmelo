@@ -13,6 +13,7 @@ Mojo package
 
 ## Packages
 
+- [`algorithm`](algorithm/_index.md)
 - [`hdbscan`](hdbscan/_index.md)
 - [`libsvm`](libsvm/_index.md)
 - [`mojmelo_matmul`](mojmelo_matmul/_index.md)

@@ -16,26 +16,26 @@ struct KDTreeNode
 - **l** (`Int`)
 - **u** (`Int`)
 - **box** (`List[interval]`)
-- **left** (`Optional[UnsafePointer[KDTreeNode, MutAnyOrigin]]`)
-- **right** (`Optional[UnsafePointer[KDTreeNode, MutAnyOrigin]]`)
-- **metric** (`def(Float32) -> Float32`)
+- **left** (`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`)
+- **right** (`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`)
+- **metric** (`def(Float32) thin -> Float32`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, dim: Int, metric: def(Float32) -> Float32)
+fn def __init__(out self, dim: Int, metric: def(Float32) thin -> Float32)
 ```
 
 **Args:**
 
 - **dim** (`Int`)
-- **metric** (`def(Float32) -> Float32`)
+- **metric** (`def(Float32) thin -> Float32`)
 - **self** (`Self`)
 
 **Returns:**

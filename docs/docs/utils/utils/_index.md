@@ -4,7 +4,7 @@ Mojo module
 
 ## Aliases
 
-- `MODEL_IDS = InlineArray(String(""), String("Linear Regression"), String("Polynomial Regression"), String("Logistic Regression"), String("KNN"), String("KMeans"), String("SVM"), String("GaussianNB"), String("MultinomialNB"), String("Decision Tree"), String("Random Forest"), String("GBDT"), String("PCA"), __list_literal__=NoneType(None))`
+- `MODEL_IDS = Array[__literal_size__=Int(13)](String(""), String("Linear Regression"), String("Polynomial Regression"), String("Logistic Regression"), String("KNN"), String("KMeans"), String("SVM"), String("GaussianNB"), String("MultinomialNB"), String("Decision Tree"), String("Random Forest"), String("GBDT"), String("PCA"), __list_literal__=NoneType(None))`
 
 ## Traits
 

@@ -28,14 +28,14 @@ K-Means clustering.
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, k: Int = 5, init: String = "kmeans++", n_centroid_init: Int = 1, max_iters: Int = 100, converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = 0)
+fn def __init__(out self, k: Int = Int(5), init: String = "kmeans++", n_centroid_init: Int = Int(1), max_iters: Int = Int(100), converge: String = "centroid", tol: Float32 = 1.0E-4, random_state: Int = Int(0))
 ```
 
 **Args:**

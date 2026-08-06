@@ -3,7 +3,7 @@ Mojo function
 # `svm_train`
 
 ```mojo
-fn def svm_train(prob: svm_problem, param: svm_parameter) -> Optional[UnsafePointer[svm_model, MutUntrackedOrigin]]
+fn def svm_train(prob: svm_problem, param: svm_parameter) -> Optional[Pointer[svm_model, MutUntrackedOrigin]]
 ```
 
 **Args:**
@@ -13,5 +13,5 @@ fn def svm_train(prob: svm_problem, param: svm_parameter) -> Optional[UnsafePoin
 
 **Returns:**
 
-`Optional[UnsafePointer[svm_model, MutUntrackedOrigin]]`
+`Optional[Pointer[svm_model, MutUntrackedOrigin]]`
 

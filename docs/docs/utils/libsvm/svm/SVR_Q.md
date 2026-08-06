@@ -11,16 +11,16 @@ struct SVR_Q
 
 - **l** (`Int`)
 - **cache** (`Cache`)
-- **sign** (`UnsafePointer[Int8, MutUntrackedOrigin]`)
-- **index** (`UnsafePointer[Int, MutUntrackedOrigin]`)
+- **sign** (`Pointer[Int8, MutUntrackedOrigin]`)
+- **index** (`Pointer[Int, MutUntrackedOrigin]`)
 - **next_buffer** (`Int`)
-- **buffer** (`InlineArray[Optional[UnsafePointer[Float32, MutUntrackedOrigin]], 2]`)
-- **QD** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
-- **kernel_function** (`def(kernel_params, Int, Int) -> Float64`)
+- **buffer** (`Array[Optional[Pointer[Float32, MutUntrackedOrigin]], Int(2)]`)
+- **QD** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **kernel_function** (`def(kernel_params, Int, Int) thin -> Float64`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`, `QMatrix`
+`AnyType`, `Deinitable`, `Movable`, `QMatrix`
 
 ## Methods
 
@@ -40,10 +40,10 @@ fn def __init__(out self, prob: svm_problem, param: svm_parameter)
 
 `Self`
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**
@@ -65,7 +65,7 @@ fn def swap_index(self, i: Int, j: Int)
 ### `get_Q`
 
 ```mojo
-fn def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutUntrackedOrigin]
+fn def get_Q(mut self, i: Int, _len: Int) -> Pointer[Float32, MutUntrackedOrigin]
 ```
 
 **Args:**
@@ -76,12 +76,12 @@ fn def get_Q(mut self, i: Int, _len: Int) -> UnsafePointer[Float32, MutUntracked
 
 **Returns:**
 
-`UnsafePointer[Float32, MutUntrackedOrigin]`
+`Pointer[Float32, MutUntrackedOrigin]`
 
 ### `get_QD`
 
 ```mojo
-fn def get_QD(self) -> UnsafePointer[Float64, MutUntrackedOrigin]
+fn def get_QD(self) -> Pointer[Float64, MutUntrackedOrigin]
 ```
 
 **Args:**
@@ -90,6 +90,6 @@ fn def get_QD(self) -> UnsafePointer[Float64, MutUntrackedOrigin]
 
 **Returns:**
 
-`UnsafePointer[Float64, MutUntrackedOrigin]`
+`Pointer[Float64, MutUntrackedOrigin]`
 
 

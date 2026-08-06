@@ -18,7 +18,7 @@ struct TreeUnionFind
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
@@ -37,10 +37,10 @@ fn def __init__(out self, size: Int)
 
 `Self`
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**

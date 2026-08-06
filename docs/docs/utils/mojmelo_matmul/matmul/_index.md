@@ -4,7 +4,7 @@ Mojo module
 
 ## Structs
 
-- [`Layout`](Layout.md)
+- [`MatLayout`](MatLayout.md)
 - [`Matrix`](Matrix.md)
 
 ## Functions

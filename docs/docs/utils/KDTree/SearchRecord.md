@@ -9,32 +9,32 @@ struct SearchRecord
 
 ## Fields
 
-- **qv** (`UnsafePointer[Float32, MutAnyOrigin]`)
+- **qv** (`Pointer[Float32, MutUntrackedOrigin]`)
 - **dim** (`Int`)
 - **rearrange** (`Bool`)
 - **nn** (`UInt`)
 - **ballsize** (`Float32`)
 - **centeridx** (`Int`)
 - **correltime** (`Int`)
-- **result** (`UnsafePointer[KDTreeResultVector, MutAnyOrigin]`)
-- **data** (`UnsafePointer[Matrix, MutAnyOrigin]`)
-- **ind** (`UnsafePointer[List[Int], MutAnyOrigin]`)
+- **result** (`Pointer[KDTreeResultVector, MutUntrackedOrigin]`)
+- **data** (`Pointer[Matrix, MutUntrackedOrigin]`)
+- **ind** (`Pointer[List[Int], MutUntrackedOrigin]`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, qv_in: Span[Float32, MutAnyOrigin], mut tree_in: KDTree, mut result_in: KDTreeResultVector)
+fn def __init__(out self, qv_in: Span[Float32, MutUntrackedOrigin], tree_in: KDTree, result_in: KDTreeResultVector)
 ```
 
 **Args:**
 
-- **qv_in** (`Span[Float32, MutAnyOrigin]`)
+- **qv_in** (`Span[Float32, MutUntrackedOrigin]`)
 - **tree_in** (`KDTree`)
 - **result_in** (`KDTreeResultVector`)
 - **self** (`Self`)

@@ -13,12 +13,12 @@ struct Matrix[Type: DType]
 
 ## Fields
 
-- **data** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
-- **layout** (`Layout`)
+- **data** (`Pointer[Scalar[Type], MutUntrackedOrigin]`)
+- **layout** (`MatLayout`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
@@ -38,13 +38,13 @@ fn def __init__(out self, shape: Tuple[Int, Int])
 `Self`
 
 ```mojo
-fn def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var layout: Layout)
+fn def __init__(out self, data: Pointer[Scalar[Type], MutUntrackedOrigin], var layout: MatLayout)
 ```
 
 **Args:**
 
-- **data** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
-- **layout** (`Layout`)
+- **data** (`Pointer[Scalar[Type], MutUntrackedOrigin]`)
+- **layout** (`MatLayout`)
 - **self** (`Self`)
 
 **Returns:**
@@ -52,12 +52,12 @@ fn def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], var l
 `Self`
 
 ```mojo
-fn def __init__(out self, data: UnsafePointer[Scalar[Type], MutAnyOrigin], shape: Tuple[Int, Int])
+fn def __init__(out self, data: Pointer[Scalar[Type], MutUntrackedOrigin], shape: Tuple[Int, Int])
 ```
 
 **Args:**
 
-- **data** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
+- **data** (`Pointer[Scalar[Type], MutUntrackedOrigin]`)
 - **shape** (`Tuple[Int, Int]`)
 - **self** (`Self`)
 

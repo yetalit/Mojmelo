@@ -3,10 +3,10 @@ Mojo function
 # `delTree`
 
 ```mojo
-fn def delTree(node: UnsafePointer[KDTreeNode, MutAnyOrigin])
+fn def delTree(node: Pointer[KDTreeNode, MutUntrackedOrigin])
 ```
 
 **Args:**
 
-- **node** (`UnsafePointer[KDTreeNode, MutAnyOrigin]`)
+- **node** (`Pointer[KDTreeNode, MutUntrackedOrigin]`)
 

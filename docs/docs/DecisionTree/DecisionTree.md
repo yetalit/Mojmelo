@@ -16,24 +16,24 @@ A decision tree supporting both classification and regression.
 ## Fields
 
 - **criterion** (`String`): The function to measure the quality of a split: For classification -> 'entropy', 'gini'; For regression -> 'mse'.
-- **loss_func** (`def(Matrix, Matrix, Float32) raises -> Float32`)
-- **c_func** (`def(Float32, List[Int]) raises -> Float32`)
-- **r_func** (`def(Float32, Float32, Float32) raises -> Float32`)
+- **loss_func** (`def(Matrix, Matrix, Float32) raises thin -> Float32`)
+- **c_func** (`def(Float32, List[Int]) raises thin -> Float32`)
+- **r_func** (`def(Float32, Float32, Float32) raises thin -> Float32`)
 - **min_samples_split** (`Int`): The minimum number of samples required to split an internal node.
 - **max_depth** (`Int`): The maximum depth of the tree.
 - **n_feats** (`Int`): The number of features to consider when looking for the best split.
-- **root** (`Optional[UnsafePointer[Node, MutAnyOrigin]]`)
+- **root** (`Optional[Pointer[Node, MutUntrackedOrigin]]`)
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `ImplicitlyCopyable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, criterion: String = "gini", min_samples_split: Int = 2, max_depth: Int = 100, n_feats: Int = -1, random_state: Int = 42)
+fn def __init__(out self, criterion: String = "gini", min_samples_split: Int = Int(2), max_depth: Int = Int(100), n_feats: Int = Int(-1), random_state: Int = Int(42))
 ```
 
 **Args:**
@@ -64,10 +64,10 @@ fn def __init__(out self, params: Dict[String, String])
 
 **Raises:**
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**

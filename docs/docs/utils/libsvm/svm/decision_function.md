@@ -9,10 +9,10 @@ struct decision_function
 
 ## Fields
 
-- **alpha** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
+- **alpha** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
 - **rho** (`Float64`)
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`
+`AnyType`, `Copyable`, `Deinitable`, `Movable`, `RegisterPassable`
 

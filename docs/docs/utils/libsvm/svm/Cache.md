@@ -11,12 +11,12 @@ struct Cache
 
 - **l** (`Int`)
 - **size** (`UInt`)
-- **head** (`Optional[UnsafePointer[head_t, MutUntrackedOrigin]]`)
+- **head** (`Optional[Pointer[head_t, MutUntrackedOrigin]]`)
 - **lru_head** (`head_t`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
@@ -36,10 +36,10 @@ fn def __init__(out self, l_: Int, size_: UInt)
 
 `Self`
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**
@@ -49,36 +49,36 @@ fn def __del__(deinit self)
 ### `lru_delete`
 
 ```mojo
-fn def lru_delete(self, h: UnsafePointer[head_t, MutAnyOrigin])
+fn def lru_delete(self, h: Pointer[head_t, MutUntrackedOrigin])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **h** (`UnsafePointer[head_t, MutAnyOrigin]`)
+- **h** (`Pointer[head_t, MutUntrackedOrigin]`)
 
 ### `lru_insert`
 
 ```mojo
-fn def lru_insert(mut self, h: UnsafePointer[head_t, MutUntrackedOrigin])
+fn def lru_insert(mut self, h: Pointer[head_t, MutUntrackedOrigin])
 ```
 
 **Args:**
 
 - **self** (`Self`)
-- **h** (`UnsafePointer[head_t, MutUntrackedOrigin]`)
+- **h** (`Pointer[head_t, MutUntrackedOrigin]`)
 
 ### `get_data`
 
 ```mojo
-fn def get_data(mut self, index: Int, data: Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutUntrackedOrigin]], MutAnyOrigin]], var _len: Int) -> Int
+fn def get_data(mut self, index: Int, data: Pointer[Optional[Pointer[Float32, MutUntrackedOrigin]], MutUntrackedOrigin], var _len: Int) -> Int
 ```
 
 **Args:**
 
 - **self** (`Self`)
 - **index** (`Int`)
-- **data** (`Optional[UnsafePointer[Optional[UnsafePointer[Float32, MutUntrackedOrigin]], MutAnyOrigin]]`)
+- **data** (`Pointer[Optional[Pointer[Float32, MutUntrackedOrigin]], MutUntrackedOrigin]`)
 - **_len** (`Int`)
 
 **Returns:**

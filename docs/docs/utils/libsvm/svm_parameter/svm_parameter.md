@@ -9,16 +9,16 @@ struct svm_parameter
 
 ## Aliases
 
-- `C_SVC = 0`
-- `NU_SVC = 1`
-- `ONE_CLASS = 2`
-- `EPSILON_SVR = 3`
-- `NU_SVR = 4`
-- `LINEAR = 0`
-- `POLY = 1`
-- `RBF = 2`
-- `SIGMOID = 3`
-- `PRECOMPUTED = 4`
+- `C_SVC = Int(0)`
+- `NU_SVC = Int(1)`
+- `ONE_CLASS = Int(2)`
+- `EPSILON_SVR = Int(3)`
+- `NU_SVR = Int(4)`
+- `LINEAR = Int(0)`
+- `POLY = Int(1)`
+- `RBF = Int(2)`
+- `SIGMOID = Int(3)`
+- `PRECOMPUTED = Int(4)`
 
 ## Fields
 
@@ -31,8 +31,8 @@ struct svm_parameter
 - **eps** (`Float64`)
 - **C** (`Float64`)
 - **nr_weight** (`Int`)
-- **weight_label** (`Optional[UnsafePointer[Int, MutUntrackedOrigin]]`)
-- **weight** (`Optional[UnsafePointer[Float64, MutUntrackedOrigin]]`)
+- **weight_label** (`Optional[Pointer[Int, MutUntrackedOrigin]]`)
+- **weight** (`Optional[Pointer[Float64, MutUntrackedOrigin]]`)
 - **nu** (`Float64`)
 - **p** (`Float64`)
 - **shrinking** (`Int`)
@@ -40,5 +40,5 @@ struct svm_parameter
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `Copyable`, `Deinitable`, `Movable`
 

@@ -9,7 +9,7 @@ struct HDBSCANBoruvka
 
 ## Fields
 
-- **tree** (`UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin]`)
+- **tree** (`Pointer[KDTreeBoruvka, MutUntrackedOrigin]`)
 - **n** (`Int`)
 - **dim** (`Int`)
 - **min_samples** (`Int`)
@@ -29,19 +29,19 @@ struct HDBSCANBoruvka
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`
+`AnyType`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, t: UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin], min_samples: Int = 5, alpha: Float32 = 1)
+fn def __init__(out self, t: Pointer[KDTreeBoruvka, MutUntrackedOrigin], min_samples: Int = Int(5), alpha: Float32 = 1)
 ```
 
 **Args:**
 
-- **t** (`UnsafePointer[KDTreeBoruvka, MutUntrackedOrigin]`)
+- **t** (`Pointer[KDTreeBoruvka, MutUntrackedOrigin]`)
 - **min_samples** (`Int`)
 - **alpha** (`Float32`)
 - **self** (`Self`)

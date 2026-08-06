@@ -53,7 +53,7 @@ If you are not familiar with Mojo projects, you can get started here: https://mo
 
 ### Prerequisites
 
-* mojo-compiler 1.0.0b2
+* mojo-compiler 1.0.0 or later
 
 Optionally, bellow Python packages can be installed for a better usability and to run tests:
 1. Numpy
@@ -120,11 +120,11 @@ Note: If CPU cache details are available by the OS, benchmarking parts of the se
 ## Usage
 
 Importing models is straightforward:
-```python 
+```mojo 
 from mojmelo.LinearRegression import LinearRegression
 ```
 You may also want to use the utility codes written for this project:
-```python 
+```mojo 
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import *
 ```
@@ -156,7 +156,6 @@ def main() raises:
     params["k"] = ["3", "5", "7"]
     # Find the best hyperparameters using grid search.
     # - accuracy_score is the evaluation metric.
-    # - cv=4 performs 4-fold cross-validation.
     # - n_jobs=-1 uses all available CPU cores.
     #
     # GridSearchCV returns the best hyperparameters and their score. [0] contains the best parameters.

@@ -3,13 +3,13 @@ Mojo function
 # `solve_epsilon_svr`
 
 ```mojo
-fn def solve_epsilon_svr(prob: svm_problem, param: svm_parameter, alpha: UnsafePointer[Float64, MutUntrackedOrigin], mut si: SolutionInfo)
+fn def solve_epsilon_svr(prob: svm_problem, param: svm_parameter, alpha: Pointer[Float64, MutUntrackedOrigin], mut si: SolutionInfo)
 ```
 
 **Args:**
 
 - **prob** (`svm_problem`)
 - **param** (`svm_parameter`)
-- **alpha** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
+- **alpha** (`Pointer[Float64, MutUntrackedOrigin]`)
 - **si** (`SolutionInfo`)
 

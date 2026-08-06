@@ -28,14 +28,14 @@ A Gradient Descent based polynomial regression with mse as the loss function.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = 0, random_state: Int = -1)
+fn def __init__(out self, degree: Int = Int(2), learning_rate: Float32 = 0.01, n_iters: Int = Int(1000), reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = 0, batch_size: Int = Int(0), random_state: Int = Int(-1))
 ```
 
 **Args:**

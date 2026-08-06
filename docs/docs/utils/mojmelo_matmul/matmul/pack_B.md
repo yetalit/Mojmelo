@@ -3,7 +3,7 @@ Mojo function
 # `pack_B`
 
 ```mojo
-fn def pack_B[Type: DType, //, kc: Int, nr: Int](Bc_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin], Bc: Matrix[Type]) -> Matrix[Type]
+fn def pack_B[Type: DType, //, kc: Int, nr: Int](Bc_buffer: Pointer[Scalar[Type], MutUntrackedOrigin], Bc: Matrix[Type]) -> Matrix[Type]
 ```
 
 **Parameters:**
@@ -14,7 +14,7 @@ fn def pack_B[Type: DType, //, kc: Int, nr: Int](Bc_buffer: UnsafePointer[Scalar
 
 **Args:**
 
-- **Bc_buffer** (`UnsafePointer[Scalar[Type], MutAnyOrigin]`)
+- **Bc_buffer** (`Pointer[Scalar[Type], MutUntrackedOrigin]`)
 - **Bc** (`Matrix[Type]`)
 
 **Returns:**

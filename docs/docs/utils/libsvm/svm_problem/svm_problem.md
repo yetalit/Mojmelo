@@ -10,12 +10,12 @@ struct svm_problem
 ## Fields
 
 - **l** (`Int`)
-- **y** (`UnsafePointer[Float64, MutUntrackedOrigin]`)
-- **x** (`UnsafePointer[UnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]`)
+- **y** (`Pointer[Float64, MutUntrackedOrigin]`)
+- **x** (`Pointer[Pointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]`)
 
 ## Implemented traits
 
-`AnyType`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`
+`AnyType`, `Deinitable`, `Movable`, `RegisterPassable`
 
 ## Methods
 

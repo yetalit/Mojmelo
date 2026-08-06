@@ -3,7 +3,7 @@ Mojo function
 # `KFold`
 
 ```mojo
-fn def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matrix, Matrix) raises -> Float32, n_splits: Int = 5) -> Float32
+fn def KFold[m_type: CV](mut model: m_type, X: Matrix, y: Matrix, scoring: def(Matrix, Matrix) raises thin -> Float32, n_splits: Int = Int(5)) -> Float32
 ```
 
 K-Fold cross-validator.
@@ -17,7 +17,7 @@ K-Fold cross-validator.
 - **model** (`m_type`): Model.
 - **X** (`Matrix`): Samples.
 - **y** (`Matrix`): Targets.
-- **scoring** (`def(Matrix, Matrix) raises -> Float32`): Scoring function.
+- **scoring** (`def(Matrix, Matrix) raises thin -> Float32`): Scoring function.
 - **n_splits** (`Int`): Number of folds.
 
 **Returns:**

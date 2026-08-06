@@ -28,14 +28,14 @@ Support Vector Classification.
 
 ## Implemented traits
 
-`AnyType`, `CV`, `Copyable`, `ImplicitlyDeletable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 = 0, kernel: String = "rbf", degree: Int = 2, coef0: Float64 = 0, cache_size: Float64 = Float64("200"), tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1)
+fn def __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 = 0, kernel: String = "rbf", degree: Int = Int(2), coef0: Float64 = 0, cache_size: Float64 = Float64("200"), tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = Int(-1))
 ```
 
 **Args:**
@@ -58,7 +58,7 @@ fn def __init__(out self, gamma: String = "scale", C: Float64 = 0, nu: Float64 =
 `Self`
 
 ```mojo
-fn def __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, kernel: String = "rbf", degree: Int = 2, coef0: Float64 = 0, cache_size: Float64 = Float64("200"), tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1)
+fn def __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, kernel: String = "rbf", degree: Int = Int(2), coef0: Float64 = 0, cache_size: Float64 = Float64("200"), tol: Float64 = 0.001, shrinking: Bool = True, probability: Bool = False, random_state: Int = Int(-1))
 ```
 
 **Args:**
@@ -95,10 +95,10 @@ fn def __init__(out self, params: Dict[String, String])
 
 **Raises:**
 
-### `__del__`
+### `__deinit__`
 
 ```mojo
-fn def __del__(deinit self)
+fn def __deinit__(deinit self)
 ```
 
 **Args:**

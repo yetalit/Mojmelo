@@ -17,7 +17,7 @@ struct SolutionInfo
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `ImplicitlyCopyable`, `ImplicitlyDeletable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
+`AnyType`, `Copyable`, `Deinitable`, `ImplicitlyCopyable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
