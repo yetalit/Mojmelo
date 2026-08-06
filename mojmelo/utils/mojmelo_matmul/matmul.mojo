@@ -324,8 +324,7 @@ def matmul_impl[
     for i in range(0, M, mc):
         var Cb = C.slice(i, 0, min(M - i, mc), N)
         for p in range(0, K, kc):
-            # pack_A runs with inner_parallel=True because loop_n will parallelize
-            var Ac = pack_A[mr, inner_parallel=True](
+            var Ac = pack_A[mr, inner_parallel=False](
                 Ac_buffer,
                 A.slice(i, p, min(M - i, mc), min(K - p, kc)),
             )
