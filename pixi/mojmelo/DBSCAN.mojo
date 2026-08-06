@@ -1,7 +1,7 @@
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from std.collections import Set
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 
 struct DBSCAN:
     """A density based clustering method that expands clusters from samples that have more neighbors within a radius."""
@@ -34,7 +34,7 @@ struct DBSCAN:
         def p(i: Int):
             try:
                 var kd_results = KDTreeResultVector()
-                kdtree.r_nearest(Span(ptr=X[i, unsafe=True].data, length=X.width), self.eps, kd_results)
+                kdtree.r_nearest(Span(unsafe_ptr=X.data.unsafe_offset(i * X.width), length=X.width), self.eps, kd_results)
                 for idp in range(len(kd_results)):
                     neighborhoods[i].append(kd_results[idp].idx)
             except e:

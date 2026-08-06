@@ -1,8 +1,8 @@
 # Modified version of YichengDWu's matmul.mojo (https://github.com/YichengDWu/matmul.mojo)
 
-from std.algorithm import vectorize, parallelize
-from std.memory import stack_allocation
-from std.memory.memory import _malloc
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
+from std.memory import stack_allocation, Layout
 from std.sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
 from std.utils import IndexList
 import std.random as random
@@ -26,7 +26,7 @@ def intsqrt[n: Int]() -> Int:
         y = (n // x + x) // 2
     return x
 
-struct Layout(TrivialRegisterPassable, Copyable, Writable):
+struct MatLayout(TrivialRegisterPassable, Copyable, Writable):
     var shape: IndexList[2]
     var strides: IndexList[2]
 
@@ -52,38 +52,38 @@ struct Layout(TrivialRegisterPassable, Copyable, Writable):
 
 
 struct Matrix[Type: DType]:
-    var data: UnsafePointer[Scalar[Self.Type], MutAnyOrigin]
-    var layout: Layout
+    var data: Pointer[Scalar[Self.Type], MutUntrackedOrigin]
+    var layout: MatLayout
 
     def __init__(out self, shape: Tuple[Int, Int]):
-        self.data = alloc[Scalar[Self.Type]](shape[0] * shape[1]).as_unsafe_any_origin()
-        self.layout = Layout(shape)
+        self.data = alloc(Layout[Scalar[Self.Type]](count=shape[0] * shape[1])).unsafe_leak()
+        self.layout = MatLayout(shape)
 
     @always_inline("nodebug")
     def __init__(
-        out self, data: UnsafePointer[Scalar[Self.Type], MutAnyOrigin], var layout: Layout
+        out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], var layout: MatLayout
     ):
         self.data = data
         self.layout = layout
 
     @always_inline("nodebug")
     def __init__(
-        out self, data: UnsafePointer[Scalar[Self.Type], MutAnyOrigin], shape: Tuple[Int, Int]
+        out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], shape: Tuple[Int, Int]
     ):
         self.data = data
-        self.layout = Layout(shape)
+        self.layout = MatLayout(shape)
 
     @always_inline("nodebug")
     def __getitem__(
         ref [_]self, i: Int, j: Int
     ) -> ref [origin_of(self)] Scalar[Self.Type]:
-        return (self.data + self.layout(i, j))[]
+        return (self.data.unsafe_offset(self.layout(i, j)))[]
 
     @always_inline("nodebug")
     def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self:
         return Matrix(
-            self.data + self.layout(i, j),
-            Layout((ir, jr), (self.layout.strides[0], self.layout.strides[1])),
+            self.data.unsafe_offset(self.layout(i, j)),
+            MatLayout((ir, jr), (self.layout.strides[0], self.layout.strides[1])),
         )
 
     @always_inline("nodebug")
@@ -99,19 +99,19 @@ struct Matrix[Type: DType]:
 
     @always_inline("nodebug")
     def load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Self.Type, width]:
-        var ptr = self.data + self.layout(i, j)
+        var ptr = self.data.unsafe_offset(self.layout(i, j))
         comptime if dim == 0:
-            return ptr.strided_load[width=width](self.layout.strides[0])
+            return ptr.unsafe_strided_load[width=width](self.layout.strides[0])
         else:
-            return ptr.load[width=width]()
+            return ptr.unsafe_load[width=width]()
 
     @always_inline("nodebug")
     def store[width: Int, *, dim: Int](self, value: SIMD[Self.Type, width], i: Int, j: Int):
-        var ptr = self.data + self.layout(i, j)
+        var ptr = self.data.unsafe_offset(self.layout(i, j))
         comptime if dim == 0:
-            ptr.strided_store[width=width](value, self.layout.strides[0])
+            ptr.unsafe_strided_store[width=width](value, self.layout.strides[0])
         else:
-            ptr.store(value)
+            ptr.unsafe_store(value)
 
     def write_to[W: Writer](self, mut writer: W):
         writer.write("Matrix: ", String(self.data), ", Layout: ", self.layout, "\n")
@@ -125,7 +125,7 @@ struct Matrix[Type: DType]:
 def pack_A[
     Type: DType, //, mr: Int, inner_parallel: Bool = False
 ](
-    Ac_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin],
+    Ac_buffer: Pointer[Scalar[Type], MutUntrackedOrigin],
     Ac: Matrix[Type],
 ) -> Matrix[Type]:
     var num_panels = (Ac.shape[0]() + mr - 1) // mr
@@ -133,20 +133,20 @@ def pack_A[
     @parameter
     def pack_panel(idx: Int):
         var i = idx * mr
-        var dst_ptr = Ac_buffer + i * Ac.shape[1]()
-        var src_ptr = Ac.data + i * Ac.stride[0]()
+        var dst_ptr = Ac_buffer.unsafe_offset(i * Ac.shape[1]())
+        var src_ptr = Ac.data.unsafe_offset(i * Ac.stride[0]())
         for _ in range(Ac.shape[1]()):
 
-            def pack_col[width: Int](l: Int) {read}:
-                (dst_ptr + l).store(
-                    (src_ptr + l * Ac.stride[0]()).strided_load[width=width](Ac.stride[0]()),
+            def pack_col[width: Int](l: Int) {imm}:
+                dst_ptr.unsafe_offset(l).unsafe_store(
+                    (src_ptr.unsafe_offset(l * Ac.stride[0]())).unsafe_strided_load[width=width](Ac.stride[0]()),
                 )
 
             vectorize[simd_width_of[Type]()](min(Ac.shape[0]() - i, mr), pack_col)
             for l in range(min(Ac.shape[0]() - i, mr), mr):
-                dst_ptr[l] = Scalar[Type](0)
-            dst_ptr = dst_ptr + mr
-            src_ptr = src_ptr + 1
+                dst_ptr[unsafe_offset=l] = Scalar[Type](0)
+            dst_ptr = dst_ptr.unsafe_offset(mr)
+            src_ptr = src_ptr.unsafe_offset(1)
 
     comptime if inner_parallel:
         for i in range(num_panels):
@@ -154,7 +154,7 @@ def pack_A[
     else:
         parallelize[pack_panel](num_panels, num_performance_cores())
 
-    var Ac_layout = Layout(
+    var Ac_layout = MatLayout(
         (roundup(Ac.shape[0](), mr), Ac.shape[1]()), (1, mr)
     )
     return Matrix(Ac_buffer, Ac_layout)
@@ -163,16 +163,16 @@ def pack_A[
 @always_inline
 def pack_B[
     Type: DType, //, kc: Int, nr: Int
-](Bc_buffer: UnsafePointer[Scalar[Type], MutAnyOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
+](Bc_buffer: Pointer[Scalar[Type], MutUntrackedOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
     var dst_ptr = Bc_buffer
     for i in range(0, Bc.shape[1](), nr):
-        var src_ptr = Bc.data + i
+        var src_ptr = Bc.data.unsafe_offset(i)
         for _ in range(Bc.shape[0]()):
 
-            def pack_row[width: Int](l: Int) {read}:
-                (dst_ptr + l).store[
+            def pack_row[width: Int](l: Int) {imm}:
+                dst_ptr.unsafe_offset(l).unsafe_store[
                     alignment = size_of[Type]() * simd_width_of[Type]()
-                ]((src_ptr + l).load[width=width]())
+                ](src_ptr.unsafe_offset(l).unsafe_load[width=width]())
 
             vectorize[
                 simd_width_of[Type](),
@@ -180,11 +180,11 @@ def pack_B[
             ](min(Bc.shape[1]() - i, nr), pack_row)
 
             for l in range(min(Bc.shape[1]() - i, nr), nr):
-                dst_ptr[l] = Scalar[Type](0)
-            dst_ptr = dst_ptr + nr
-            src_ptr = src_ptr + Bc.stride[0]()
+                dst_ptr[unsafe_offset=l] = Scalar[Type](0)
+            dst_ptr = dst_ptr.unsafe_offset(nr)
+            src_ptr = src_ptr.unsafe_offset(Bc.stride[0]())
 
-    var Bc_layout = Layout(
+    var Bc_layout = MatLayout(
         (Bc.shape[0](), roundup(Bc.shape[1](), nr)), (nr, 1)
     )
     return Matrix[Type](Bc_buffer, Bc_layout)
@@ -202,7 +202,7 @@ def micro_kernel[
     var Cr_ptr = Cr.data
 
     var ar: SIMD[Type, simd_width]
-    var br = InlineArray[SIMD[Type, simd_width], nr // simd_width](
+    var br = Array[SIMD[Type, simd_width], nr // simd_width](
         fill=SIMD[Type, simd_width](0)
     )
 
@@ -212,22 +212,22 @@ def micro_kernel[
     comptime if padding:
         comptime for i in range(mr):
             if i < Cr.shape[0]():
-                def load_col[width: Int](j: Int) {read}:
-                    (cr_base + i * nr + j).store(
-                        (Cr_ptr + i * Cr.stride[0]() + j).load[width=width]()
+                def load_col[width: Int](j: Int) {imm}:
+                    cr_base.unsafe_offset(i * nr + j).unsafe_store(
+                        Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_load[width=width]()
                     )
                 vectorize[simd_width](Cr.shape[1](), load_col)
     else:
         comptime for i in range(mr):
             comptime for j in range(0, nr, simd_width):
-                (cr_base + i * nr + j).store(
-                    (Cr_ptr + i * Cr.stride[0]() + j).load[width=simd_width]()
+                cr_base.unsafe_offset(i * nr + j).unsafe_store(
+                    Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_load[width=simd_width]()
                 )
 
     # Inner accumulation loop
     for _ in range(Ar.shape[1]()):
         comptime for j in range(0, nr, simd_width):
-            br[j // simd_width] = (Br_ptr + j).load[
+            br[j // simd_width] = Br_ptr.unsafe_offset(j).unsafe_load[
                 width=simd_width,
                 alignment = size_of[Type]() * simd_width_of[Type](),
             ]()
@@ -235,28 +235,28 @@ def micro_kernel[
         comptime for i in range(mr):
             comptime for j in range(0, nr, simd_width):
                 comptime offset = i * nr + j
-                ar = SIMD[Type, size=simd_width](Ar_ptr[])
-                (cr_base + offset).store(
-                    ar.fma(br[j // simd_width], (cr_base + offset).load[width=simd_width]())
+                ar = SIMD[Type, length=simd_width](Ar_ptr[])
+                cr_base.unsafe_offset(offset).unsafe_store(
+                    ar.fma(br[j // simd_width], cr_base.unsafe_offset(offset).unsafe_load[width=simd_width]())
                 )
-            Ar_ptr += 1
+            Ar_ptr = Ar_ptr.unsafe_offset(1)
 
-        Br_ptr += nr
+        Br_ptr = Br_ptr.unsafe_offset(nr)
 
     # Store C tile back
     comptime if padding:
         comptime for i in range(mr):
             if i < Cr.shape[0]():
-                def store_row[width: Int](j: Int) {read}:
-                    (Cr_ptr + i * Cr.stride[0]() + j).store(
-                        (cr_base + i * nr + j).load[width=width]()
+                def store_row[width: Int](j: Int) {imm}:
+                    Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_store(
+                        cr_base.unsafe_offset(i * nr + j).unsafe_load[width=width]()
                     )
                 vectorize[simd_width](Cr.shape[1](), store_row)
     else:
         comptime for i in range(mr):
             comptime for j in range(0, nr, simd_width):
-                (Cr_ptr + i * Cr.stride[0]() + j).store(
-                    (cr_base + i * nr + j).load[width=simd_width]()
+                Cr_ptr.unsafe_offset(i * Cr.stride[0]() + j).unsafe_store(
+                    cr_base.unsafe_offset(i * nr + j).unsafe_load[width=simd_width]()
                 )
 
 
@@ -269,14 +269,14 @@ def macro_kernel[
     @parameter
     def parallelize_ir(idx: Int):
         var ir = idx * mr
-        var Ar = Matrix(Ac.data + ir * Ac.shape[1](), (mr, Ac.shape[1]()))
+        var Ar = Matrix(Ac.data.unsafe_offset(ir * Ac.shape[1]()), (mr, Ac.shape[1]()))
         for jr in range(0, Bc.shape[1](), nr):
             var Cr = Cc.slice(
                 ir, jr,
                 min(Cc.shape[0]() - ir, mr),
                 min(Cc.shape[1]() - jr, nr),
             )
-            var Br = Matrix(Bc.data + jr * Bc.shape[0](), (Bc.shape[0](), nr))
+            var Br = Matrix(Bc.data.unsafe_offset(jr * Bc.shape[0]()), (Bc.shape[0](), nr))
             if Cr.shape[0]() == mr and Cr.shape[1]() == nr:
                 micro_kernel[mr, nr, False](Cr, Ar, Br)
             else:
@@ -302,11 +302,11 @@ def loop_n[
         var j = tile_idx * nc_actual
         var tile_n = min(N - j, nc_actual)
 
-        var Bc_buffer = _malloc[Scalar[Type]](kc * nc_actual * size_of[Type](), alignment=64).value()
-        var Bc = pack_B[kc, nr](Bc_buffer.as_unsafe_any_origin(), B.slice(0, j, B.shape[0](), tile_n))
+        var Bc_buffer = alloc(Layout[Scalar[Type]](count=kc * nc_actual * size_of[Type](), alignment=64)).unsafe_leak()
+        var Bc = pack_B[kc, nr](Bc_buffer, B.slice(0, j, B.shape[0](), tile_n))
         var Cc = C.slice(0, j, C.shape[0](), tile_n)
         macro_kernel[mr, nr](Cc, A, Bc)
-        Bc_buffer.free()
+        Bc_buffer.unsafe_free()
 
     parallelize[process_tile](num_tiles, num_tiles)
 
@@ -319,20 +319,20 @@ def matmul_impl[
     var N = C.shape[1]()
     var K = A.shape[1]()
 
-    var Ac_buffer = _malloc[Scalar[Type]](mc * kc * size_of[Type](), alignment=64).value()
+    var Ac_buffer = alloc(Layout[Scalar[Type]](count=mc * kc * size_of[Type](), alignment=64)).unsafe_leak()
 
     for i in range(0, M, mc):
         var Cb = C.slice(i, 0, min(M - i, mc), N)
         for p in range(0, K, kc):
             # pack_A runs with inner_parallel=True because loop_n will parallelize
             var Ac = pack_A[mr, inner_parallel=True](
-                Ac_buffer.as_unsafe_any_origin(),
+                Ac_buffer,
                 A.slice(i, p, min(M - i, mc), min(K - p, kc)),
             )
             var Bb = B.slice(p, 0, min(K - p, kc), N)
             loop_n[kc, mr, nr](nc, Cb, Ac, Bb)
 
-    Ac_buffer.free()
+    Ac_buffer.unsafe_free()
 
 
 @always_inline

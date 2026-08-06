@@ -5,18 +5,18 @@ struct svm_model:
 	var param: svm_parameter # parameter
 	var nr_class: Int # number of classes, = 2 in regression/one class svm
 	var l: Int # total SV
-	var SV: OptionalUnsafePointer[UnsafePointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin] # SVs (SV[l])
-	var sv_coef: OptionalUnsafePointer[OptionalUnsafePointer[Float64, MutUntrackedOrigin], MutUntrackedOrigin]	# coefficients for SVs in decision functions (sv_coef[k-1][l])
-	var rho: OptionalUnsafePointer[Float64, MutUntrackedOrigin]	# constants in decision functions (rho[k*(k-1)/2])
-	var probA: OptionalUnsafePointer[Float64, MutUntrackedOrigin] # pariwise probability information
-	var probB: OptionalUnsafePointer[Float64, MutUntrackedOrigin]
-	var prob_density_marks: OptionalUnsafePointer[Float64, MutUntrackedOrigin] # probability information for ONE_CLASS
-	var sv_indices: OptionalUnsafePointer[Scalar[DType.int], MutUntrackedOrigin] # sv_indices[0,...,nSV-1] are values in [1,...,num_traning_data] to indicate SVs in the training set
+	var SV: OptionalPointer[Pointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin] # SVs (SV[l])
+	var sv_coef: OptionalPointer[OptionalPointer[Float64, MutUntrackedOrigin], MutUntrackedOrigin]	# coefficients for SVs in decision functions (sv_coef[k-1][l])
+	var rho: OptionalPointer[Float64, MutUntrackedOrigin]	# constants in decision functions (rho[k*(k-1)/2])
+	var probA: OptionalPointer[Float64, MutUntrackedOrigin] # pariwise probability information
+	var probB: OptionalPointer[Float64, MutUntrackedOrigin]
+	var prob_density_marks: OptionalPointer[Float64, MutUntrackedOrigin] # probability information for ONE_CLASS
+	var sv_indices: OptionalPointer[Int, MutUntrackedOrigin] # sv_indices[0,...,nSV-1] are values in [1,...,num_traning_data] to indicate SVs in the training set
 
 	# for classification only
 
-	var label: OptionalUnsafePointer[Int, MutUntrackedOrigin] # label of each class (label[k])
-	var nSV: OptionalUnsafePointer[Int, MutUntrackedOrigin]	# number of SVs for each class (nSV[k])
+	var label: OptionalPointer[Int, MutUntrackedOrigin] # label of each class (label[k])
+	var nSV: OptionalPointer[Int, MutUntrackedOrigin]	# number of SVs for each class (nSV[k])
 				# nSV[0] + nSV[1] + ... + nSV[k-1] = l
 	var free_sv: Int # 1 if svm_model is created by svm_load_model
 				# 0 if svm_model is created by svm_train

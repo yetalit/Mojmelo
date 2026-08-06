@@ -2,7 +2,8 @@ from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import euclidean_distance, squared_euclidean_distance, MODEL_IDS
 import std.random as random
 import std.math as math
-from std.algorithm import vectorize, parallelize
+from std.algorithm import vectorize
+from mojmelo.utils.algorithm import parallelize
 
 struct KMeans(Copyable):
     """K-Means clustering."""
@@ -48,13 +49,12 @@ struct KMeans(Copyable):
         """Compute cluster centers and cluster index for each sample."""
         # Mean centering
         self.X_mean = Matrix.zeros(1, X.width)
-        var n_rows = X.height
-        var n_cols = X.width
+        var n_rows, n_cols = X.height, X.width
         @parameter
         def p(col: Int):
             var sum: Float32 = 0
             for row in range(n_rows):
-                sum += X.data.load(row * n_cols + col)
+                sum += X.data.unsafe_load(row * n_cols + col)
 
             self.X_mean.store[1](0, col, sum / Float32(n_rows))
         parallelize[p](n_cols)
@@ -90,13 +90,13 @@ struct KMeans(Copyable):
         for idx in range(X.height):
             var label = self.labels[idx]
             self.inertia += dist_from_centroids[idx, label]
-            cluster_sizes.data[label] += 1.0
+            cluster_sizes.data[unsafe_offset=label] += 1.0
             # write directly into centroid row pointer
-            var c_ptr = centroids.data + label * X.width
-            var x_ptr = X.data + idx * X.width
+            var c_ptr = centroids.data.unsafe_offset(label * X.width)
+            var x_ptr = X.data.unsafe_offset(idx * X.width)
 
-            def accumulate[simd_width: Int](j: Int) {read}:
-                c_ptr.store(j, c_ptr.load[width=simd_width](j) + x_ptr.load[width=simd_width](j))
+            def accumulate[simd_width: Int](j: Int) {imm}:
+                c_ptr.unsafe_store(j, c_ptr.unsafe_load[width=simd_width](j) + x_ptr.unsafe_load[width=simd_width](j))
             vectorize[centroids.simd_width](X.width, accumulate)
         return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
 
@@ -125,19 +125,19 @@ struct KMeans(Copyable):
                 var dist_from_centroids = Matrix(X.height, self.k)
                 for i in range(self.k):
                     # Compute distances to the nearest centroid
-                    var c_ptr = candidate_centroids[idc].data + i * X.width
+                    var c_ptr = candidate_centroids[idc].data.unsafe_offset(i * X.width)
                     @parameter
                     def p(row: Int):
-                        var x_ptr = X.data + row * X.width
+                        var x_ptr = X.data.unsafe_offset(row * X.width)
                         var acc: Float32 = 0.0
 
                         def sq[simd_width: Int](col: Int) {mut}:
-                            var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
+                            var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr.unsafe_load[width=simd_width](col)
                             acc += (d * d).reduce_add()
                         vectorize[Matrix.simd_width](X.width, sq)
                         dist_from_centroids.store[1](row, i, acc)
                     parallelize[p](X.height)
-                inertia_values.data[idc] = dist_from_centroids.min(axis=1).sum()
+                inertia_values.data[unsafe_offset=idc] = dist_from_centroids.min(axis=1).sum()
         else:
             # Initialize centroids using KMeans++
             self._kmeans_plus_plus(X, candidate_centroids, inertia_values)
@@ -171,8 +171,8 @@ struct KMeans(Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(self.k).as_bytes())
             f.write_bytes(UInt64(self.centroids_.size).as_bytes())
-            f.write_bytes(Span(ptr=self.centroids_.data.bitcast[UInt8](), length=4*self.centroids_.size))
-            f.write_bytes(Span(ptr=self.X_mean.data.bitcast[UInt8](), length=4*self.X_mean.size))
+            f.write_bytes(Span(unsafe_ptr=self.centroids_.data.unsafe_bitcast[UInt8](), length=4*self.centroids_.size))
+            f.write_bytes(Span(unsafe_ptr=self.X_mean.data.unsafe_bitcast[UInt8](), length=4*self.X_mean.size))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -181,15 +181,19 @@ struct KMeans(Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var k = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
+            var k = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             model.k = k
-            model.centroids_ = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
-            model.X_mean = Matrix(1, n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4 * n_features).unsafe_ptr())))
+            var centroids_ = f.read_bytes(4 * n_features)
+            model.centroids_ = Matrix(1, n_features, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(centroids_.unsafe_ptr())))
+            _ = centroids_
+            var X_mean = f.read_bytes(4 * n_features)
+            model.X_mean = Matrix(1, n_features, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X_mean.unsafe_ptr())))
+            _ = X_mean
         return model^
 
     def centroids(self) raises -> Matrix:
@@ -205,48 +209,48 @@ struct KMeans(Copyable):
             for i in range(1, self.k):
                 # squared euclidean
                 var dists = Matrix(X.height, 1)
-                var c_ptr = candidate_centroids[idc].data + (i - 1) * X.width
+                var c_ptr = candidate_centroids[idc].data.unsafe_offset((i - 1) * X.width)
                 @parameter
                 def p(row: Int):
-                    var x_ptr = X.data + row * X.width
+                    var x_ptr = X.data.unsafe_offset(row * X.width)
                     var acc: Float32 = 0.0
 
                     def sq[simd_width: Int](col: Int) {mut}:
-                        var d = x_ptr.load[width=simd_width](col) - c_ptr.load[width=simd_width](col)
+                        var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr.unsafe_load[width=simd_width](col)
                         acc += (d * d).reduce_add()
                     vectorize[Matrix.simd_width](X.width, sq)
-                    dists.data[row] = acc
+                    dists.data[unsafe_offset=row] = acc
                 parallelize[p](X.height)
 
                 for row in range(X.height):
-                    if dists.data[row] < min_distances.data[row]:
-                        min_distances.data[row] = dists.data[row]
+                    if dists.data[unsafe_offset=row] < min_distances.data[unsafe_offset=row]:
+                        min_distances.data[unsafe_offset=row] = dists.data[unsafe_offset=row]
                 var total = min_distances.sum()
                 var rand_prob = random.random_float64().cast[DType.float32]() * total
                 var cumsum: Float32 = 0.0
                 for idp in range(X.height):
-                    cumsum += min_distances.data[idp]
+                    cumsum += min_distances.data[unsafe_offset=idp]
                     if cumsum >= rand_prob:
                         candidate_centroids[idc][i] = X[idp]
                         break
 
             var dists_last = Matrix(X.height, 1)
-            var c_ptr_last = candidate_centroids[idc].data + (self.k - 1) * X.width
+            var c_ptr_last = candidate_centroids[idc].data.unsafe_offset((self.k - 1) * X.width)
             @parameter
             def p_last(row: Int):
-                var x_ptr = X.data + row * X.width
+                var x_ptr = X.data.unsafe_offset(row * X.width)
                 var acc: Float32 = 0.0
 
                 def sq_last[simd_width: Int](col: Int) {mut}:
-                    var d = x_ptr.load[width=simd_width](col) - c_ptr_last.load[width=simd_width](col)
+                    var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr_last.unsafe_load[width=simd_width](col)
                     acc += (d * d).reduce_add()
                 vectorize[X.simd_width](X.width, sq_last)
-                dists_last.data[row] = acc
+                dists_last.data[unsafe_offset=row] = acc
             parallelize[p_last](X.height)
             for row in range(X.height):
-                if dists_last.data[row] < min_distances.data[row]:
-                    min_distances.data[row] = dists_last.data[row]
-            inertia_values.data[idc] = min_distances.sum()
+                if dists_last.data[unsafe_offset=row] < min_distances.data[unsafe_offset=row]:
+                    min_distances.data[unsafe_offset=row] = dists_last.data[unsafe_offset=row]
+            inertia_values.data[unsafe_offset=idc] = min_distances.sum()
 
     @always_inline
     def _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix, X_norms: Matrix) raises -> List[Int]:
@@ -258,22 +262,22 @@ struct KMeans(Copyable):
             var best = 0
             var best_dist: Float32 = math.inf[DType.float32]()
 
-            var x_ptr = X.data + i * X.width
+            var x_ptr = X.data.unsafe_offset(i * X.width)
             var d_ptr =
-                dist_from_centroids.data + i * self.k
+                dist_from_centroids.data.unsafe_offset(i * self.k)
 
             for k in range(self.k):
-                var c_ptr = self.centroids_.data + k * X.width
+                var c_ptr = self.centroids_.data.unsafe_offset(k * X.width)
 
                 var dot: Float32 = 0.0
 
                 def mul[simd_width: Int](j: Int) {mut}:
-                    dot += (x_ptr.load[width=simd_width](j) *
-                            c_ptr.load[width=simd_width](j)).reduce_add()
+                    dot += (x_ptr.unsafe_load[width=simd_width](j) *
+                            c_ptr.unsafe_load[width=simd_width](j)).reduce_add()
                 vectorize[X.simd_width](X.width, mul)
 
-                var dist = X_norms.data[i] - 2.0 * dot + C_norms.data[k]
-                d_ptr[k] = dist
+                var dist = X_norms.data[unsafe_offset=i] - 2.0 * dot + C_norms.data[unsafe_offset=k]
+                d_ptr[unsafe_offset=k] = dist
 
                 if dist < best_dist:
                     best_dist = dist

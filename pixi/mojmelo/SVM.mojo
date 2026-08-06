@@ -5,9 +5,9 @@ from mojmelo.utils.libsvm.svm_problem import svm_problem
 from mojmelo.utils.libsvm.svm_node import svm_node
 from mojmelo.utils.libsvm.svm_model import svm_model
 from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
 import std.random as random
-from std.memory import memcpy
+from std.memory import unsafe_memcpy, Layout
 from std.sys import size_of
 
 struct SVC(CV, Copyable):
@@ -39,10 +39,10 @@ struct SVC(CV, Copyable):
     """Whether to use the shrinking heuristic."""
     var probability: Bool
     """Whether to enable probability estimates."""
-    var _model: OptionalUnsafePointer[svm_model, MutUntrackedOrigin]
+    var _model: OptionalPointer[svm_model, MutUntrackedOrigin]
     var _n_features: Int
     var _x_list: List[List[svm_node]]
-    var _x_ptr: List[UnsafePointer[svm_node, MutUntrackedOrigin]]
+    var _x_ptr: List[Pointer[svm_node, MutUntrackedOrigin]]
     comptime MODEL_ID = 6
 
     def __init__(out self, gamma: String = 'scale', C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf', degree: Int = 2,
@@ -67,7 +67,7 @@ struct SVC(CV, Copyable):
         self._model = None
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]]()
+        self._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]]()
 
     def __init__(out self, gamma: Float64, C: Float64 = 0.0, nu: Float64 = 0.0, kernel: String = 'rbf', degree: Int = 2,
                 coef0: Float64 = 0.0, cache_size: Float64 = 200, tol: Float64 = 1e-3, shrinking: Bool = True, probability: Bool = False, random_state: Int = -1):
@@ -88,7 +88,7 @@ struct SVC(CV, Copyable):
         self._model = None
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]]()
+        self._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]]()
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the SVM model according to the given training data."""
@@ -138,24 +138,24 @@ struct SVC(CV, Copyable):
 
         self._x_list = List[List[svm_node]](capacity=X.height)
         self._x_list.resize(X.height, List[svm_node]())
-        self._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]](capacity=X.height)
-        self._x_ptr.resize(X.height, UnsafePointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
+        self._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]](capacity=X.height)
+        self._x_ptr.resize(X.height, Pointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
 
         @parameter
         def p(i: Int):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
-                    val = X_float64[(i * X.width) + c]
+                    val = X_float64[unsafe_offset=(i * X.width) + c]
                 else:
-                    val = X_float64[(c * X.height) + i]
+                    val = X_float64[unsafe_offset=(c * X.height) + i]
                 if val != 0.0:
                     self._x_list[i].append(svm_node(c+1, val))
             self._x_list[i].append(svm_node(-1, 0))
             self._x_ptr[i] = self._x_list[i]._data
         parallelize[p](X.height)
 
-        X_float64.free()
+        X_float64.unsafe_free()
 
         var prob = svm_problem()
         prob.l = X.height
@@ -164,12 +164,12 @@ struct SVC(CV, Copyable):
 
         var check = svm_check_parameter(prob, param)
         if check != "":
-            prob.y.free()
+            prob.y.unsafe_free()
             raise Error(check)
 
         self._model = svm_train(prob, param)
 
-        prob.y.free()
+        prob.y.unsafe_free()
     
     def predict(self, X: Matrix) raises -> Matrix:
         """Perform classification on samples in X.
@@ -178,7 +178,7 @@ struct SVC(CV, Copyable):
             The predicted classes.
         """
         var X_float64 = X.cast_ptr[DType.float64]()
-        var y_ptr = alloc[Float64](X.height)
+        var y_ptr = alloc(Layout[Float64](count=X.height)).unsafe_leak()
 
         @parameter
         def p(i: Int):
@@ -186,19 +186,19 @@ struct SVC(CV, Copyable):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
-                    val = X_float64[(i * X.width) + c]
+                    val = X_float64[unsafe_offset=(i * X.width) + c]
                 else:
-                    val = X_float64[(c * X.height) + i]
+                    val = X_float64[unsafe_offset=(c * X.height) + i]
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
-            y_ptr[i] = svm_predict(self._model.value()[], x_list._data)
+            y_ptr[unsafe_offset=i] = svm_predict(self._model.value()[], x_list._data)
             _ = x_list
         parallelize[p](X.height)
 
-        X_float64.free()
+        X_float64.unsafe_free()
 
-        return Matrix(data=y_ptr.as_unsafe_any_origin(), height=X.height, width=1)
+        return Matrix(data=y_ptr, height=X.height, width=1)
 
     def decision_function(self, X: Matrix) -> List[List[Float64]]:
         """Evaluate the decision function for the samples in X.
@@ -216,19 +216,19 @@ struct SVC(CV, Copyable):
             for c in range(X.width):
                 var val: Float64
                 if X.order == 'c':
-                    val = X_float64[(i * X.width) + c]
+                    val = X_float64[unsafe_offset=(i * X.width) + c]
                 else:
-                    val = X_float64[(c * X.height) + i]
+                    val = X_float64[unsafe_offset=(c * X.height) + i]
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
             var result = svm_decision_function(self._model.value()[], x_list._data)
             dec_values[i] = List[Float64](unsafe_uninit_length=result[1])
-            dec_values[i]._data = result[0].value()
+            dec_values[i]._data = result[0]
             _ = x_list
         parallelize[p](X.height)
 
-        X_float64.free()
+        X_float64.unsafe_free()
 
         return dec_values^
 
@@ -249,8 +249,8 @@ struct SVC(CV, Copyable):
             f.write_bytes(_model[].param.C.as_bytes())
             f.write_bytes(UInt64(_model[].param.nr_weight).as_bytes())
             if _model[].param.nr_weight:
-                f.write_bytes(Span(ptr=_model[].param.weight_label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].param.nr_weight))
-                f.write_bytes(Span(ptr=_model[].param.weight.value().bitcast[UInt8](), length=8*_model[].param.nr_weight))
+                f.write_bytes(Span(unsafe_ptr=_model[].param.weight_label.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].param.nr_weight))
+                f.write_bytes(Span(unsafe_ptr=_model[].param.weight.value().unsafe_bitcast[UInt8](), length=8*_model[].param.nr_weight))
             f.write_bytes(_model[].param.nu.as_bytes())
             f.write_bytes(UInt8(_model[].param.shrinking).as_bytes())
             f.write_bytes(UInt8(_model[].param.probability).as_bytes())
@@ -258,16 +258,18 @@ struct SVC(CV, Copyable):
             f.write_bytes(UInt64(_model[].nr_class).as_bytes())
             f.write_bytes(UInt64(_model[].l).as_bytes())
             f.write_bytes(UInt64(self._n_features).as_bytes())
-            f.write_bytes(Span(ptr=self.support_vectors().data.bitcast[UInt8](), length=4*_model[].l*self._n_features))
+            var X = self.support_vectors()
+            f.write_bytes(Span(unsafe_ptr=X.data.unsafe_bitcast[UInt8](), length=4*_model[].l*self._n_features))
+            _ = X
             for i in range(_model[].nr_class-1):
-                f.write_bytes(Span(ptr=_model[].sv_coef.value()[i].value().bitcast[UInt8](), length=8*_model[].l))
-            f.write_bytes(Span(ptr=_model[].rho.value().bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+                f.write_bytes(Span(unsafe_ptr=_model[].sv_coef.value()[unsafe_offset=i].value().unsafe_bitcast[UInt8](), length=8*_model[].l))
+            f.write_bytes(Span(unsafe_ptr=_model[].rho.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
             if self.probability:
-                f.write_bytes(Span(ptr=_model[].probA.value().bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
-                f.write_bytes(Span(ptr=_model[].probB.value().bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
-            f.write_bytes(Span(ptr=_model[].sv_indices.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].l))
-            f.write_bytes(Span(ptr=_model[].label.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
-            f.write_bytes(Span(ptr=_model[].nSV.value().bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
+                f.write_bytes(Span(unsafe_ptr=_model[].probA.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+                f.write_bytes(Span(unsafe_ptr=_model[].probB.value().unsafe_bitcast[UInt8](), length=8*(_model[].nr_class*(_model[].nr_class-1))//2))
+            f.write_bytes(Span(unsafe_ptr=_model[].sv_indices.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].l))
+            f.write_bytes(Span(unsafe_ptr=_model[].label.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
+            f.write_bytes(Span(unsafe_ptr=_model[].nSV.value().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*_model[].nr_class))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -276,28 +278,28 @@ struct SVC(CV, Copyable):
         var model = Self()
         with open(_path, "r") as f:
             var id = f.read_bytes(1)[0]
-            if id < 1 or id > UInt8(MODEL_IDS.size-1):
+            if id < 1 or id > UInt8(MODEL_IDS.length-1):
                 raise Error('Input file with invalid metadata!')
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
-            var _model = alloc[svm_model](1)
+            var _model = alloc(Layout[svm_model](count=1)).unsafe_leak()
             var svm_type = Int(f.read_bytes(1)[0])
             var kernel_type = Int(f.read_bytes(1)[0])
-            var degree = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var gamma = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var coef0 = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var cache_size = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var eps = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var C = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
-            var nr_weight = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var weight_label = OptionalUnsafePointer[Int, MutUntrackedOrigin]()
-            var weight = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
+            var degree = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var gamma = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var coef0 = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var cache_size = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var eps = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var C = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
+            var nr_weight = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var weight_label = OptionalPointer[Int, MutUntrackedOrigin]()
+            var weight = OptionalPointer[Float64, MutUntrackedOrigin]()
             if nr_weight:
-                weight_label = alloc[Int](nr_weight)
-                memcpy(dest=weight_label, src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().bitcast[Int](), count=nr_weight)
-                weight = alloc[Float64](nr_weight)
-                memcpy(dest=weight, src=f.read_bytes(8*nr_weight).unsafe_ptr().bitcast[Float64](), count=nr_weight)
-            var nu = f.read_bytes(8).unsafe_ptr().bitcast[Float64]()[]
+                weight_label = alloc(Layout[Int](count=nr_weight)).unsafe_leak()
+                unsafe_memcpy(dest=weight_label.value(), src=f.read_bytes(size_of[DType.int]()*nr_weight).unsafe_ptr().unsafe_bitcast[Int](), count=nr_weight)
+                weight = alloc(Layout[Float64](count=nr_weight)).unsafe_leak()
+                unsafe_memcpy(dest=weight.value(), src=f.read_bytes(8*nr_weight).unsafe_ptr().unsafe_bitcast[Float64](), count=nr_weight)
+            var nu = f.read_bytes(8).unsafe_ptr().unsafe_bitcast[Float64]()[]
             var shrinking = Int(f.read_bytes(1)[0])
             var probability = Int(f.read_bytes(1)[0])
             var param = svm_parameter(
@@ -317,50 +319,51 @@ struct SVC(CV, Copyable):
                 shrinking = shrinking,
                 probability = probability)
             _model[].param = param^
-            var nr_class = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var l = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var _n_features = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-            var X = Matrix(l, _n_features, UnsafePointer[Float32, MutAnyOrigin](unsafe_from_address=Int(f.read_bytes(4*l*_n_features).unsafe_ptr())))
-            
-            var X_float64 = X.cast_ptr[DType.float64]()
-            model._x_list = List[List[svm_node]](capacity=X.height)
-            model._x_list.resize(X.height, List[svm_node]())
-            model._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]](capacity=X.height)
-            model._x_ptr.resize(X.height, UnsafePointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
+            var nr_class = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var l = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var _n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            var X = f.read_bytes(4*l*_n_features)
+            var X_mat = Matrix(l, _n_features, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(X.unsafe_ptr())))
+            _ = X
+            var X_float64 = X_mat.cast_ptr[DType.float64]()
+            model._x_list = List[List[svm_node]](capacity=X_mat.height)
+            model._x_list.resize(X_mat.height, List[svm_node]())
+            model._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]](capacity=X_mat.height)
+            model._x_ptr.resize(X_mat.height, Pointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
             @parameter
             def p(i: Int):
-                for c in range(X.width):
+                for c in range(X_mat.width):
                     var val: Float64
-                    if X.order == 'c':
-                        val = X_float64[(i * X.width) + c]
+                    if X_mat.order == 'c':
+                        val = X_float64[unsafe_offset=(i * X_mat.width) + c]
                     else:
-                        val = X_float64[(c * X.height) + i]
+                        val = X_float64[unsafe_offset=(c * X_mat.height) + i]
                     if val != 0.0:
                         model._x_list[i].append(svm_node(c+1, val))
                 model._x_list[i].append(svm_node(-1, 0))
                 model._x_ptr[i] = model._x_list[i]._data
-            parallelize[p](X.height)
-            X_float64.free()
+            parallelize[p](X_mat.height)
+            X_float64.unsafe_free()
 
-            var sv_coef = alloc[OptionalUnsafePointer[Float64, MutUntrackedOrigin]](nr_class-1)
+            var sv_coef = alloc(Layout[OptionalPointer[Float64, MutUntrackedOrigin]](count=nr_class-1)).unsafe_leak()
             for i in range(nr_class-1):
-                sv_coef[i] = alloc[Float64](l)
-                memcpy(dest=sv_coef[i], src=f.read_bytes(8*l).unsafe_ptr().bitcast[Float64](), count=l)
-            var rho = alloc[Float64]((nr_class*(nr_class-1))//2)
-            memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-            var probA = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
-            var probB = OptionalUnsafePointer[Float64, MutUntrackedOrigin]()
+                sv_coef[unsafe_offset=i] = alloc(Layout[Float64](count=l)).unsafe_leak()
+                unsafe_memcpy(dest=sv_coef[unsafe_offset=i].value(), src=f.read_bytes(8*l).unsafe_ptr().unsafe_bitcast[Float64](), count=l)
+            var rho = alloc(Layout[Float64](count=(nr_class*(nr_class-1))//2)).unsafe_leak()
+            unsafe_memcpy(dest=rho, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
+            var probA = OptionalPointer[Float64, MutUntrackedOrigin]()
+            var probB = OptionalPointer[Float64, MutUntrackedOrigin]()
             if probability:
-                probA = alloc[Float64]((nr_class*(nr_class-1))//2)
-                memcpy(dest=probA, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-                probB = alloc[Float64]((nr_class*(nr_class-1))//2)
-                memcpy(dest=probB, src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
-            var sv_indices = alloc[Scalar[DType.int]](l)
-            memcpy(dest=sv_indices, src=f.read_bytes(size_of[DType.int]()*l).unsafe_ptr().bitcast[Scalar[DType.int]](), count=l)
-            var label = alloc[Int](nr_class)
-            memcpy(dest=label, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().bitcast[Int](), count=nr_class)
-            var nSV = alloc[Int](nr_class)
-            memcpy(dest=nSV, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().bitcast[Int](), count=nr_class)
+                probA = alloc(Layout[Float64](count=(nr_class*(nr_class-1))//2)).unsafe_leak()
+                unsafe_memcpy(dest=probA.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
+                probB = alloc(Layout[Float64](count=(nr_class*(nr_class-1))//2)).unsafe_leak()
+                unsafe_memcpy(dest=probB.value(), src=f.read_bytes(8*(nr_class*(nr_class-1))//2).unsafe_ptr().unsafe_bitcast[Float64](), count=(nr_class*(nr_class-1))//2)
+            var sv_indices = alloc(Layout[Int](count=l)).unsafe_leak()
+            unsafe_memcpy(dest=sv_indices, src=f.read_bytes(size_of[DType.int]()*l).unsafe_ptr().unsafe_bitcast[Scalar[DType.int]](), count=l)
+            var label = alloc(Layout[Int](count=nr_class)).unsafe_leak()
+            unsafe_memcpy(dest=label, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
+            var nSV = alloc(Layout[Int](count=nr_class)).unsafe_leak()
+            unsafe_memcpy(dest=nSV, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
             _model[].nr_class = nr_class
             _model[].l = l
             _model[].SV = model._x_ptr._data
@@ -375,7 +378,7 @@ struct SVC(CV, Copyable):
             model._model = _model
         return model^
 
-    def __del__(deinit self):
+    def __deinit__(deinit self):
         if self._model:
             svm_free_and_destroy_model(self._model)
 
@@ -385,8 +388,8 @@ struct SVC(CV, Copyable):
         var support_vectors_ = Matrix.zeros(model[].l, self._n_features)
         for row in range(support_vectors_.height):
             var pointer = 0
-            while model[].SV.value()[row][pointer].index != -1:
-                support_vectors_[row, model[].SV.value()[row][pointer].index-1] = model[].SV.value()[row][pointer].value.cast[DType.float32]()
+            while model[].SV.value()[unsafe_offset=row][unsafe_offset=pointer].index != -1:
+                support_vectors_[row, model[].SV.value()[unsafe_offset=row][unsafe_offset=pointer].index-1] = model[].SV.value()[unsafe_offset=row][unsafe_offset=pointer].value.cast[DType.float32]()
                 pointer += 1
         return support_vectors_^
 
@@ -449,4 +452,4 @@ struct SVC(CV, Copyable):
         self._model = None
         self._n_features = 0
         self._x_list = List[List[svm_node]]()
-        self._x_ptr = List[UnsafePointer[svm_node, MutUntrackedOrigin]]()
+        self._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]]()

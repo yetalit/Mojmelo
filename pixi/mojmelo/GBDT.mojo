@@ -2,7 +2,8 @@ from mojmelo.utils.BDecisionTree import BDecisionTree
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
 from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link, MODEL_IDS
-from std.algorithm import parallelize
+from mojmelo.utils.algorithm import parallelize
+from std.memory import Layout
 
 struct GBDT(CV, Copyable):
 	"""Gradient Boosting with support for both classification and regression."""
@@ -29,7 +30,7 @@ struct GBDT(CV, Copyable):
 	"""Minimum loss reduction required to make a further partition on a leaf node of the tree."""
 	var n_bins: Int
 	"""Generates histogram boundaries as possible threshold values when n_bins >= 2 instead of all possible values."""
-	var trees: UnsafePointer[BDecisionTree, MutAnyOrigin]
+	var trees: Pointer[BDecisionTree, MutUntrackedOrigin]
 	var score_start: Float32
 	var num_class: Int
 	comptime MODEL_ID = 11
@@ -58,14 +59,14 @@ struct GBDT(CV, Copyable):
 		self.reg_alpha = reg_alpha
 		self.gamma = gamma
 		self.n_bins = n_bins
-		self.trees = UnsafePointer[BDecisionTree, MutAnyOrigin].unsafe_dangling()
+		self.trees = Pointer[BDecisionTree, MutUntrackedOrigin].unsafe_dangling()
 		self.score_start = 0.0
 		self.num_class = 0
 
-	def __del__(deinit self):
+	def __deinit__(deinit self):
 		for i in range(self.n_trees):
-			(self.trees + i).destroy_pointee()
-		self.trees.free()
+			self.trees.unsafe_offset(i).unsafe_deinit_pointee()
+		self.trees.unsafe_free()
 
 	def fit(mut self, X: Matrix, y: Matrix) raises:
 		"""Fit the gradient boosting model."""
@@ -74,11 +75,11 @@ struct GBDT(CV, Copyable):
 		if self.criterion == 'softmax':
 			self.num_class = len(y.unique())
 			self.score_start = 0.0
-			self.trees = alloc[BDecisionTree](self.n_trees * self.num_class).as_unsafe_any_origin()
+			self.trees = alloc(Layout[BDecisionTree](count=self.n_trees * self.num_class)).unsafe_leak()
 			score = Matrix.zeros(X.height, self.num_class)
 		else:
 			self.num_class = 1
-			self.trees = alloc[BDecisionTree](self.n_trees).as_unsafe_any_origin()
+			self.trees = alloc(Layout[BDecisionTree](count=self.n_trees)).unsafe_leak()
 			self.score_start = y.mean()
 			score = Matrix.full(X.height, 1, self.score_start)
 
@@ -91,9 +92,9 @@ struct GBDT(CV, Copyable):
 					var h = self.loss_h(score)
 					var tree = BDecisionTree(min_samples_split = self.min_samples_split, max_depth = self.max_depth, reg_lambda = self.reg_lambda, reg_alpha = self.reg_alpha, gamma = self.gamma, n_bins=self.n_bins)
 					tree.fit(X_F, g=g['', k], h=h['', k])
-					(self.trees + t_i * self.num_class + k).init_pointee_move(tree)
-					self.trees[t_i * self.num_class + k]._moveinit_(tree)
-					score['', k] += self.learning_rate * self.trees[t_i * self.num_class + k].predict(X)
+					(self.trees.unsafe_offset(t_i * self.num_class + k)).unsafe_write(tree)
+					self.trees[unsafe_offset=t_i * self.num_class + k]._moveinit_(tree)
+					score['', k] += self.learning_rate * self.trees[unsafe_offset=t_i * self.num_class + k].predict(X)
 				except e:
 					print('Error:', e)
 			parallelize[p](self.num_class)
@@ -111,7 +112,7 @@ struct GBDT(CV, Copyable):
 			@parameter
 			def per_tree(i: Int):
 				try:
-					score['', i] = self.learning_rate * self.trees[i * self.num_class + k].predict(X)
+					score['', i] = self.learning_rate * self.trees[unsafe_offset=i * self.num_class + k].predict(X)
 				except e:
 					print('Error:', e)
 			parallelize[per_tree](self.n_trees)
@@ -140,7 +141,7 @@ struct GBDT(CV, Copyable):
 			for t_i in range(self.n_trees * self.num_class):
 				var node_list = List[Node]()
 				var children_index_list = List[Tuple[Int, Int]]()
-				var stack = [self.trees[t_i].root.value()[].copy()]
+				var stack = List([self.trees[unsafe_offset=t_i].root.value()[].copy()])
 				while len(stack) > 0:
 					var node = stack.pop()
 					var children_index = (-1, -1)
@@ -167,30 +168,30 @@ struct GBDT(CV, Copyable):
 		var model = Self()
 		with open(_path, "r") as f:
 			var id = f.read_bytes(1)[0]
-			if id < 1 or id > UInt8(MODEL_IDS.size-1):
+			if id < 1 or id > UInt8(MODEL_IDS.length-1):
 				raise Error('Input file with invalid metadata!')
 			elif id != Self.MODEL_ID:
 				raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
 			model.criterion = materialize[Self.criterion_ids]()[f.read_bytes(1)[0]]
-			model.learning_rate = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-			model.score_start = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-			model.n_trees = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-			model.num_class = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-			model.trees = alloc[BDecisionTree](model.n_trees * model.num_class).as_unsafe_any_origin()
+			model.learning_rate = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+			model.score_start = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+			model.n_trees = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+			model.num_class = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+			model.trees = alloc(Layout[BDecisionTree](count=model.n_trees * model.num_class)).unsafe_leak()
 			for t_i in range(model.n_trees * model.num_class):
 				var tree = BDecisionTree()
-				var node_size = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-				var node_list = List[UnsafePointer[Node, MutAnyOrigin]]()
+				var node_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+				var node_list = List[Pointer[Node, MutUntrackedOrigin]]()
 				var children_index_list = List[Tuple[Int, Int]]()
-				for i in range(node_size):
-					var feature = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-					var threshold = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-					var left = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-					var right = Int(f.read_bytes(8).unsafe_ptr().bitcast[UInt64]()[])
-					var value = f.read_bytes(4).unsafe_ptr().bitcast[Float32]()[]
-					var node = alloc[Node](1)
-					node.init_pointee_move(Node(feature=feature, threshold=threshold, value=value))
-					node_list.append(node.as_unsafe_any_origin())
+				for _ in range(node_size):
+					var feature = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+					var threshold = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+					var left = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+					var right = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+					var value = f.read_bytes(4).unsafe_ptr().unsafe_bitcast[Float32]()[]
+					var node = alloc(Layout[Node](count=1)).unsafe_leak()
+					node.unsafe_write(Node(feature=feature, threshold=threshold, value=value))
+					node_list.append(node)
 					children_index_list.append((left, right))
 				tree.root = node_list[0]
 				for i in range(node_size):
@@ -198,8 +199,8 @@ struct GBDT(CV, Copyable):
 						node_list[i][].left = node_list[children_index_list[i][0]]
 					if children_index_list[i][1] != -1:
 						node_list[i][].right = node_list[children_index_list[i][1]]
-				(model.trees + t_i).init_pointee_move(tree)
-				model.trees[t_i]._moveinit_(tree)
+				model.trees.unsafe_offset(t_i).unsafe_write(tree)
+				model.trees[unsafe_offset=t_i]._moveinit_(tree)
 		return model^
 
 	def __init__(out self, params: Dict[String, String]) raises:
@@ -245,6 +246,6 @@ struct GBDT(CV, Copyable):
 			self.n_bins = atol(String(params['n_bins']))
 		else:
 			self.n_bins = 0
-		self.trees = UnsafePointer[BDecisionTree, MutAnyOrigin].unsafe_dangling()
+		self.trees = Pointer[BDecisionTree, MutUntrackedOrigin].unsafe_dangling()
 		self.score_start = 0.0
 		self.num_class = 0
