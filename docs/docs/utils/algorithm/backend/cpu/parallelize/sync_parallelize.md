@@ -20,3 +20,18 @@ TODO: Currently exceptions raised by func will cause a trap rather than
 
 - **num_work_items** (`Int`): Number of parallel tasks.
 
+```mojo
+fn def sync_parallelize[FuncType: def(Int) -> None](func: FuncType, num_work_items: Int)
+```
+
+Executes func(0) ... func(num_work_items-1) as parallel sub-tasks, and returns when all are complete.
+
+**Parameters:**
+
+- **FuncType** (`def(Int) -> None`): The body function type.
+
+**Args:**
+
+- **func** (`FuncType`): The closure carrying the captured state of the body function.
+- **num_work_items** (`Int`): Number of parallel tasks.
+

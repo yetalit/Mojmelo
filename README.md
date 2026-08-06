@@ -202,16 +202,16 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model          | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |----------------|-----------------|----------------|--------------|
-| sklearn KMeans | 0.2766 ± 0.0054 |       -        | 0.9390       |
-| mojmelo KMeans | 0.2201 ± 0.0089 | 0.8822         | 0.9389       |
+| sklearn KMeans | 0.2807 ± 0.0019 |       -        | 0.9390       |
+| mojmelo KMeans | 0.2016 ± 0.0062 | 0.8822         | 0.9389       |
 
 [`HDBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/hdbs_bench.mojo) (algorithm='boruvka_kdtree')
 
 | Model            | Fit Time (s)    | ARI vs sklearn | ARI vs fast_hdbscan | ARI vs truth |
 |------------------|-----------------|----------------|---------------------|--------------|
-| skl-contrib HDBS | 1.1947 ± 0.0133 |       -        |          -          | 0.9984       |
-| fast hdbscan     | 0.2994 ± 0.0043 |       -        |          -          | 0.9984       |
-| mojmelo HDBS     | 0.2041 ± 0.0060 | 0.9887         | 0.9984              | 0.9901       |
+| skl-contrib HDBS | 1.1945 ± 0.0067 |       -        |          -          | 0.9988       |
+| fast hdbscan     | 0.2412 ± 0.0014 |       -        |          -          | 0.9989       |
+| mojmelo HDBS     | 0.1765 ± 0.0032 | 0.9923         | 0.9989              | 0.9933       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
@@ -238,8 +238,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn DTC | 0.9051 ± 0.0008 | 0.0004 ± 0.0000  | 0.9300   |
-| mojmelo DTC | 0.0749 ± 0.0028 | 0.0002 ± 0.0000  | 0.9328   |
+| sklearn DTC | 0.8498 ± 0.0033 | 0.0004 ± 0.0000  | 0.9667   |
+| mojmelo DTC | 0.0810 ± 0.0057 | 0.0001 ± 0.0000  | 0.9668   |
 
 [`DecisionTreeRegressor`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dtr_bench.mojo)
 
@@ -266,8 +266,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 0.2231 ± 0.0008 | 0.0063 ± 0.0000    | 0.5329        |
-| mojmelo PCA | 0.0760 ± 0.0011 | 0.0166 ± 0.0013    | 0.5329        |
+| sklearn PCA | 0.2486 ± 0.0085 | 0.0107 ± 0.0019    | 0.5367        |
+| mojmelo PCA | 0.0595 ± 0.0033 | 0.0157 ± 0.0001    | 0.5367        |
 
 ## Contributing
 
