@@ -16,6 +16,7 @@ def roundup(a: Int, b: Int) -> Int:
 def rounddown(a: Int, b: Int) -> Int:
     return (a // b) * b
 
+# math.sqrt doesn't work at compile time
 def intsqrt[n: Int]() -> Int:
     comptime if n == 0:
         return 0
@@ -338,7 +339,7 @@ def matmul_impl[
 def matmul_params[Type: DType]() -> IndexList[5]:
     comptime mc = 8192 // size_of[Type]()
     comptime N = simd_width_of[Type]()
-    comptime Vectors = 32 if CompilationTarget.has_avx512f() else 16
+    comptime Vectors = 16 if CompilationTarget.has_avx2() else 8
 
     @parameter
     def compute_kc[mr: Int, nr: Int]() -> Int:
