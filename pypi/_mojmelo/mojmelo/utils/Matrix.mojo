@@ -655,16 +655,19 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat.data[unsafe_offset=0] = self._elemwise_matrix[mul](rhs).sum()
             return mat^
         
-        if self.height * self.width * rhs.width <= 4096:
+        if self.height * self.width * rhs.width <= 8096:
             # matmul naive
-            var mat = Self(self.height, rhs.width)
+            var mat = Matrix.zeros(self.height, rhs.width)
             for i in range(self.size):
-                var rhsr = i % self.width
-                for j in range(rhsr * rhs.width, rhsr * rhs.width + rhs.width):
-                    if rhsr != 0:
-                        mat.data[unsafe_offset=(Int(i / self.width) * mat.width) + (j % rhs.width)] += self.data[unsafe_offset=i] * rhs.data[unsafe_offset=j]
-                    else:
-                        mat.data[unsafe_offset=(Int(i / self.width) * mat.width) + (j % rhs.width)] = self.data[unsafe_offset=i] * rhs.data[unsafe_offset=j]
+                var k = i % self.width
+                var out_row = Int(i / self.width) * mat.width
+                var rhs_row = k * rhs.width
+                var a = self.data[unsafe_offset=i]
+
+                for j in range(rhs.width):
+                    mat.data[unsafe_offset=out_row + j] += (
+                        a * rhs.data[unsafe_offset=rhs_row + j]
+                    )
             return mat^
         var A = matmul.Matrix[DType.float32](self.data, (self.height, self.width))
         var B = matmul.Matrix[DType.float32](rhs.data, (rhs.height, rhs.width))
