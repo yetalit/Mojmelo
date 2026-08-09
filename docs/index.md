@@ -202,8 +202,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model          | Fit Time (s)    | ARI vs sklearn | ARI vs truth |
 |----------------|-----------------|----------------|--------------|
-| sklearn KMeans | 0.2807 ± 0.0019 |       -        | 0.9390       |
-| mojmelo KMeans | 0.2016 ± 0.0062 | 0.8822         | 0.9389       |
+| sklearn KMeans | 0.2764 ± 0.0010 |       -        | 0.9390       |
+| mojmelo KMeans | 0.1713 ± 0.0029 | 0.8822         | 0.9390       |
 
 [`HDBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/hdbs_bench.mojo) (algorithm='boruvka_kdtree')
 
@@ -266,8 +266,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 0.2486 ± 0.0085 | 0.0107 ± 0.0019    | 0.5367        |
-| mojmelo PCA | 0.0595 ± 0.0033 | 0.0157 ± 0.0001    | 0.5367        |
+| sklearn PCA | 0.2359 ± 0.0081 | 0.0088 ± 0.0019    | 0.5375        |
+| mojmelo PCA | 0.0515 ± 0.0027 | 0.0103 ± 0.0001    | 0.5375        |
 
 ## Contributing
 
