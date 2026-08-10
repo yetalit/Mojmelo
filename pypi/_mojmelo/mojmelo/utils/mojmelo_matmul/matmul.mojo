@@ -339,7 +339,7 @@ def matmul_impl[
 def matmul_params[Type: DType]() -> IndexList[5]:
     comptime mc = 8192 // size_of[Type]()
     comptime N = simd_width_of[Type]()
-    comptime Vectors = 16 if CompilationTarget.has_avx2() else 8
+    comptime Vectors = 32 if CompilationTarget.is_apple_silicon() else 16
 
     @parameter
     def compute_kc[mr: Int, nr: Int]() -> Int:
