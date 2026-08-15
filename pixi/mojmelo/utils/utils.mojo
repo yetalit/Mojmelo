@@ -355,23 +355,6 @@ def softmax_h(score: Matrix) raises -> Matrix:
 
 
 @always_inline
-def findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
-    var left = 0
-    var right = len(intervals) - 1
-
-    while left <= right:
-        var mid = left + (right - left) // 2
-
-        if x < intervals[mid][0]:
-            right = mid - 1
-        elif x >= intervals[mid][1]:
-            left = mid + 1
-        else:
-            return mid  # x is within the interval
-
-    return -1  # not found
-
-@always_inline
 def fill_indices(N: Int) raises -> Pointer[Int, MutUntrackedOrigin]:
     """Generates indices from 0 to N.
 

@@ -1609,15 +1609,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return list^
 
     @staticmethod
-    @always_inline
-    def linspace(start: Float32, stop: Float32, num: Int, order: String = 'c') raises -> Matrix:
-        var result = Matrix(1, num, order= order.lower())
-        var jump = (stop - start) / Float32(num - 1)
-        for i in range(num):
-            result.data[unsafe_offset=i] = start + Float32(i) * jump
-        return result^
-
-    @staticmethod
     def from_numpy(np_arr: PythonObject, order: String = 'c') raises -> Matrix:
         """Initialize a matrix from a numpy array.
 
