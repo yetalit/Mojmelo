@@ -47,7 +47,6 @@ Mojo module
 - [`softmax_link`](softmax_link.md)
 - [`softmax_g`](softmax_g.md)
 - [`softmax_h`](softmax_h.md)
-- [`findInterval`](findInterval.md)
 - [`fill_indices`](fill_indices.md)
 - [`fill_indices_list`](fill_indices_list.md)
 - [`cast`](cast.md)

@@ -1934,26 +1934,6 @@ fn def rand_choice(arang: Int, size: Int, replace: Bool = True, seed: Bool = Tru
 
 **Raises:**
 
-### `linspace`
-
-```mojo
-@staticmethod
-fn def linspace(start: Float32, stop: Float32, num: Int, order: String = "c") -> Self
-```
-
-**Args:**
-
-- **start** (`Float32`)
-- **stop** (`Float32`)
-- **num** (`Int`)
-- **order** (`String`)
-
-**Returns:**
-
-`Self`
-
-**Raises:**
-
 ### `from_numpy`
 
 ```mojo
