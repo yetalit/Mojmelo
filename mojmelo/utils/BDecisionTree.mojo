@@ -1,6 +1,6 @@
 from mojmelo.DecisionTree import Node
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import findInterval, fill_indices_list
+from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.algorithm import parallelize
 from std.memory import Layout
 import std.math as math
@@ -152,36 +152,30 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
                 var start = column.min()
                 var end = column.max()
                 if start != end:
-                    var bins = Matrix.linspace(start, end, n_bins+1)
-                    var intervals = List[Tuple[Float32, Float32]]()
-                    for bin_i in range(1, len(bins)):
-                        intervals.append((bins.data[unsafe_offset=bin_i-1], bins.data[unsafe_offset=bin_i]))
+                    var inv_width = Float32(n_bins) / (end - start)
+                    var bin_width = (end - start) / Float32(n_bins)
+                    var g_hist = Matrix.zeros(1, n_bins)
+                    var h_hist = Matrix.zeros(1, n_bins)
 
-                    var g_per_interval = Matrix.zeros(len(column), len(intervals))
-                    var h_per_interval = Matrix.zeros(len(column), len(intervals))
-                    @parameter
-                    def find_interval(i: Int):
-                        try:
-                            var interval = findInterval(intervals, column.data[unsafe_offset=i])
-                            g_per_interval[i, interval] = g.data[unsafe_offset=i]
-                            h_per_interval[i, interval] = h.data[unsafe_offset=i]
-                        except e:
-                            print('Error:', e)
-                    parallelize[find_interval](len(column))
-                    var g_sum = g_per_interval.sum(axis=0)
-                    var h_sum = h_per_interval.sum(axis=0)
-                    
+                    for i in range(len(column)):
+                        var b = Int((column.data[unsafe_offset=i] - start) * inv_width)
+                        if b >= n_bins:
+                            b = n_bins - 1
+                        elif b < 0:
+                            b = 0
+                        g_hist.data[unsafe_offset=b] += g.data[unsafe_offset=i]
+                        h_hist.data[unsafe_offset=b] += h.data[unsafe_offset=i]
+
                     var left_g_sum = var left_h_sum = Float32(0)
-
-                    for step in range(len(intervals)-1):
-                        left_g_sum += g_sum.data[unsafe_offset=step]
-                        left_h_sum += h_sum.data[unsafe_offset=step]
+                    for step in range(n_bins - 1):
+                        left_g_sum += g_hist.data[unsafe_offset=step]
+                        left_h_sum += h_hist.data[unsafe_offset=step]
 
                         var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                         var ig = parent_loss - child_loss
                         if ig > max_gains.data[unsafe_offset=idx]:
                             max_gains.data[unsafe_offset=idx] = ig
-                            best_thresholds.data[unsafe_offset=idx] = bins.data[unsafe_offset=step+1]
+                            best_thresholds.data[unsafe_offset=idx] = start + bin_width * Float32(step + 1)
         except e:
             print('Error:', e)
     parallelize[p](len(feat_idxs))
