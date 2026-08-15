@@ -364,7 +364,9 @@ def findInterval(intervals: List[Tuple[Float32, Float32]], x: Float32) -> Int:
 
         if x < intervals[mid][0]:
             right = mid - 1
-        elif x >= intervals[mid][1]:
+        elif x > intervals[mid][1] or (
+            x == intervals[mid][1] and mid != len(intervals) - 1
+        ):
             left = mid + 1
         else:
             return mid  # x is within the interval

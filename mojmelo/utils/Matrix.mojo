@@ -1611,10 +1611,15 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @staticmethod
     @always_inline
     def linspace(start: Float32, stop: Float32, num: Int, order: String = 'c') raises -> Matrix:
-        var result = Matrix(1, num, order= order.lower())
+        var result = Matrix(1, num, order=order.lower())
+
         var jump = (stop - start) / Float32(num - 1)
-        for i in range(num):
+
+        result.data[unsafe_offset=0] = start
+        for i in range(1, num - 1):
             result.data[unsafe_offset=i] = start + Float32(i) * jump
+        result.data[unsafe_offset=num - 1] = stop
+
         return result^
 
     @staticmethod
