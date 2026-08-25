@@ -7,7 +7,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/yetalit/mojmelo">
-    <img src="./images/logo-min.jpg" alt="Logo" width="256" height="256">
+    <img src="https://raw.githubusercontent.com/yetalit/Mojmelo/main/images/logo-min.jpg" alt="Logo" width="256" height="256">
   </a>
   <h3 align="center">Mojmelo</h3>
   <p align="center">
@@ -83,9 +83,9 @@ Note: If CPU cache details are available by the OS, benchmarking parts of the se
 
 #### PyPI CLI
 
-Using the command below, the PyPI package containing the source code will be installed from the github repository:
+Using the command below, the PyPI package containing the source code will be installed:
 ```
-pip install "git+https://github.com/yetalit/Mojmelo.git#subdirectory=pypi"
+pip install mojmelo
 ```
 
 Then start the setup process this way:

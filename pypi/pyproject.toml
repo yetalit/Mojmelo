@@ -5,6 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mojmelo"
 version = "0.1.5"
+description = "Machine Learning algorithms in pure Mojo."
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
 
 dependencies = ["mojo-compiler>=1.0.0"]
 
@@ -20,3 +29,7 @@ _mojmelo = [
     "mojmelo/*",
     "mojmelo/**/*",
 ]
+
+[project.urls]
+Homepage = "https://github.com/yetalit/Mojmelo"
+Issues = "https://github.com/yetalit/Mojmelo/issues"
