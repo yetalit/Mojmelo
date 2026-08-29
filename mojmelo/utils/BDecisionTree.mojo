@@ -105,12 +105,6 @@ def leaf_score_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float3
     return (-g_sum / (h_sum + reg_lambda)) - reg_alpha * math.copysign(Float32(1), g_sum)
 
 @always_inline
-def leaf_loss(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
-    var g_sum = g.sum()
-    var h_sum = h.sum()
-    return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
-
-@always_inline
 def leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 
@@ -130,24 +124,22 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
             for i in range(len(indices)):
                 column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
             if n_bins < 2 or len(column) < n_bins:
-                var sorted_indices = indices_to_sort.copy()
-                column.argsort_inplace(sorted_indices)
+                var sorted_indices = column.argsort(indices_to_sort)
 
                 var left_g_sum = var left_h_sum = Float32(0)
 
                 for step in range(1, len(indices)):
-                    var prev = sorted_indices[step - 1]
-                    left_g_sum += g.data[unsafe_offset=prev]
-                    left_h_sum += h.data[unsafe_offset=prev]
+                    left_g_sum += g.data[unsafe_offset=sorted_indices[step - 1]]
+                    left_h_sum += h.data[unsafe_offset=sorted_indices[step - 1]]
 
-                    if column.data[unsafe_offset=step] == column.data[unsafe_offset=step - 1]:
+                    if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
                         continue  # skip redundant thresholds
 
                     var child_loss = leaf_loss_precompute(reg_lambda, reg_alpha, left_g_sum, left_h_sum) + leaf_loss_precompute(reg_lambda, reg_alpha, total_g_sum - left_g_sum, total_h_sum - left_h_sum)
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[unsafe_offset=idx]:
                         max_gains.data[unsafe_offset=idx] = ig
-                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=step] + column.data[unsafe_offset=step - 1]) / 2.0  # midpoint
+                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=sorted_indices[step]] + column.data[unsafe_offset=sorted_indices[step - 1]]) / 2.0  # midpoint
             else:
                 var start = column.min()
                 var end = column.max()

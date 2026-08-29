@@ -1,4 +1,3 @@
-import mojmelo.utils.sort as msort
 from .mojmelo_matmul import matmul
 from std.memory import unsafe_memcpy, unsafe_memset_zero, Layout
 from std.algorithm import vectorize
@@ -157,11 +156,14 @@ def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mu
     # Sort eigenpairs descending by eigenvalue
     var sorted_indices = fill_indices_list(n)
     @parameter
-    def cmp_fn(a: Float64, b: Float64) -> Bool:
-        return a > b
+    def cmp_fn(a: Int, b: Int) -> Bool:
+        return eig[unsafe_offset=a] > eig[unsafe_offset=b]
 
-    msort.sort[cmp_fn](
-        Span(unsafe_ptr=eig, length=n), Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
+    sort[cmp_fn](
+        Span[
+            Int,
+            origin_of(sorted_indices),
+        ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
     )
 
     var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
@@ -172,7 +174,7 @@ def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mu
     Vout = Vout.reshape(k, n)
 
     for r in range(n):
-        var lambda_ = eig[unsafe_offset=r]
+        var lambda_ = eig[unsafe_offset=sorted_indices[r]]
         if lambda_ < 0 and abs(lambda_) < 1e-14:
             lambda_ = 0.0 # clamp tiny negative
         S[unsafe_offset=r] = math.sqrt(lambda_) if lambda_ > 0.0 else 0.0

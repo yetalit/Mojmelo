@@ -289,7 +289,7 @@ Contributions can be done to the project in these 3 ways:
 
 * `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
 
-* `argmin`, `argmax` and `argsort` implementations and `utils.algorithm` submodule are based on codes from <a href='https://github.com/modular/modular'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
+* `argmin` and `argmax` implementations and `utils.algorithm` submodule are based on codes from <a href='https://github.com/modular/modular'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
 
 * <a href='https://arxiv.org/abs/physics/0408067'>KDTREE2</a>, a kd-tree implementation in Fortran 95 and C++ by Matthew B. Kennel.
 

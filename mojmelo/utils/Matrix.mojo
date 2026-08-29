@@ -1,4 +1,3 @@
-import mojmelo.utils.sort as msort
 from .mojmelo_matmul import matmul
 from std.sys import simd_width_of, CompilationTarget
 from std.memory import unsafe_memcpy, unsafe_memcmp, unsafe_memset_zero, Layout
@@ -1259,8 +1258,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             return Matrix(vect, self.height, 1, self.order)
 
     @always_inline
-    def argsort[ascending: Bool = True](self) raises -> List[Int]:
-        var sorted_indices = fill_indices_list(self.size)
+    def argsort[ascending: Bool = True](self, indices_to_sort: List[Int] = List[Int]()) raises -> List[Int]:
+        var sorted_indices = fill_indices_list(self.size) if len(indices_to_sort) == 0 else indices_to_sort.copy()
         @parameter
         def cmp_fn(a: Int, b: Int) -> Bool:
             comptime if ascending:
@@ -1275,19 +1274,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
         )
         return sorted_indices^
-
-    @always_inline
-    def argsort_inplace[ascending: Bool = True](mut self, mut sorted_indices: List[Int]) raises:
-        @parameter
-        def cmp_fn(a: Float32, b: Float32) -> Bool:
-            comptime if ascending:
-                return a < b
-            else:
-                return a > b
-
-        msort.sort[cmp_fn](
-            Span(unsafe_ptr=self.data, length=self.size), Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(sorted_indices.unsafe_ptr()))
-        )
 
     @always_inline
     def min(self) raises -> Float32:

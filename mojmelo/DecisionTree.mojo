@@ -291,23 +291,21 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                 var left_histogram = List[Int](capacity=num_classes)
                 left_histogram.resize(num_classes, 0)
                 var right_histogram = histogram.copy()
-                var sorted_indices = indices_to_sort.copy()
-                column.argsort_inplace(sorted_indices)
+                var sorted_indices = column.argsort(indices_to_sort)
                 var n_left: Float32 = 0.0
                 for step in range(1, len(indices)):
-                    var prev = sorted_indices[step - 1]
-                    var c = Int(_y.data[unsafe_offset=prev])
+                    var c = Int(_y.data[unsafe_offset=sorted_indices[step - 1]])
                     if weights.size == 0:
                         n_left += 1
                         left_histogram[c] += 1
                         right_histogram[c] -= 1
                     else:
-                        var weight = Int(weights.data[unsafe_offset=prev])
+                        var weight = Int(weights.data[unsafe_offset=sorted_indices[step - 1]])
                         n_left += Float32(weight)
                         left_histogram[c] += weight
                         right_histogram[c] -= weight
 
-                    if column.data[unsafe_offset=step] == column.data[unsafe_offset=step - 1]:
+                    if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
                         continue
 
                     var n_right = total_samples - n_left
@@ -315,7 +313,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[unsafe_offset=idx]:
                         max_gains.data[unsafe_offset=idx] = ig
-                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=step] + column.data[unsafe_offset=step - 1]) / 2.0
+                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=sorted_indices[step]] + column.data[unsafe_offset=sorted_indices[step - 1]]) / 2.0
             except e:
                 print('Error:', e)
         parallelize[p_c](len(feat_idxs))
@@ -328,23 +326,21 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                 var column = Matrix(len(indices), 1)
                 for i in range(len(indices)):
                     column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
-                var sorted_indices = indices_to_sort.copy()
-                column.argsort_inplace(sorted_indices)
+                var sorted_indices = column.argsort(indices_to_sort)
                 var left_sum = var left_sum_sq = var n_left = Float32(0)
                 for step in range(1, len(indices)):
-                    var prev = sorted_indices[step - 1]
-                    var yi = _y.data[unsafe_offset=prev]
+                    var yi = _y.data[unsafe_offset=sorted_indices[step - 1]]
                     if weights.size == 0:
                         n_left += 1
                         left_sum += yi
                         left_sum_sq += yi * yi
                     else:
-                        var weight = weights.data[unsafe_offset=prev]
+                        var weight = weights.data[unsafe_offset=sorted_indices[step - 1]]
                         n_left += weight
                         left_sum += yi * weight
                         left_sum_sq += yi * yi * weight
 
-                    if column.data[unsafe_offset=step] == column.data[unsafe_offset=step - 1]:
+                    if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
                         continue
 
                     var n_right = total_samples - n_left
@@ -352,7 +348,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                     var ig = parent_loss - child_loss
                     if ig > max_gains.data[unsafe_offset=idx]:
                         max_gains.data[unsafe_offset=idx] = ig
-                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=step] + column.data[unsafe_offset=step - 1]) / 2.0
+                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=sorted_indices[step]] + column.data[unsafe_offset=sorted_indices[step - 1]]) / 2.0
             except e:
                 print('Error:', e)
         parallelize[p_r](len(feat_idxs))
