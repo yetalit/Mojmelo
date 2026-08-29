@@ -7,7 +7,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/yetalit/mojmelo">
-    <img src="https://raw.githubusercontent.com/yetalit/Mojmelo/main/images/logo-min.jpg" alt="Logo" width="256" height="256">
+    <img src="https://pypi-camo.freetls.fastly.net/44d368ea64684e7f6fe64370d658e29271256a24/68747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f796574616c69742f4d6f6a6d656c6f2f6d61696e2f696d616765732f6c6f676f2d6d696e2e6a7067" alt="Logo" width="256" height="256">
   </a>
   <h3 align="center">Mojmelo</h3>
   <p align="center">
