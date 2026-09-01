@@ -196,7 +196,7 @@ struct HDBSCANBoruvka:
             self.dim
         )
         # Apply core distance floor: effective lb for mutual reachability
-        var lb_mr = max(max(lb2, core_p), Float32(0.0))
+        var lb_mr = max(max(lb2, core_p), Float32(0))
         if lb_mr >= heap_dist[unsafe_offset=0]:
             return
         # Also prune against the shared per-component bound

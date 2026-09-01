@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, gini_precompute, mse_loss, mse_loss_precompute, fill_indices_list, MODEL_IDS
+from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, mse_loss, mse_loss_precompute, fill_indices_list, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 import std.math as math
 from std.memory import Layout
@@ -53,16 +53,12 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         self.criterion = criterion.lower()
         if self.criterion == 'gini':
             self.loss_func = gini
-            self.c_func = gini_precompute
-            self.r_func = mse_loss_precompute
         elif self.criterion == 'mse':
             self.loss_func = mse_loss
-            self.r_func = mse_loss_precompute
-            self.c_func = entropy_precompute
         else:
             self.loss_func = entropy
-            self.c_func = entropy_precompute
-            self.r_func = mse_loss_precompute
+        self.c_func = entropy_precompute
+        self.r_func = mse_loss_precompute
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
@@ -77,16 +73,12 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             self.criterion = 'gini'
         if self.criterion == 'gini':
             self.loss_func = gini
-            self.c_func = gini_precompute
-            self.r_func = mse_loss_precompute
         elif self.criterion == 'mse':
             self.loss_func = mse_loss
-            self.r_func = mse_loss_precompute
-            self.c_func = entropy_precompute
         else:
             self.loss_func = entropy
-            self.c_func = entropy_precompute
-            self.r_func = mse_loss_precompute
+        self.c_func = entropy_precompute
+        self.r_func = mse_loss_precompute
         if 'min_samples_split' in params:
             self.min_samples_split = atol(String(params['min_samples_split']))
         else:
@@ -278,45 +270,93 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
     var max_gains = Matrix(1, len(feat_idxs))
     max_gains.fill(-math.inf[DType.float32]())
     var best_thresholds = Matrix(1, len(feat_idxs))
+
     var indices_to_sort = fill_indices_list(len(indices))
     if criterion != 'mse':
-        var num_classes = Int(_y.max() + 1)  # assuming y is 0-indexed
         var histogram = _y.bincount() if weights.size == 0 else _y.bincount(weights)
-        @parameter
-        def p_c(idx: Int):
-            try:
-                var column = Matrix(len(indices), 1)
-                for i in range(len(indices)):
-                    column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
-                var left_histogram = List[Int](capacity=num_classes)
-                left_histogram.resize(num_classes, 0)
-                var right_histogram = histogram.copy()
-                var sorted_indices = column.argsort(indices_to_sort)
-                var n_left: Float32 = 0.0
-                for step in range(1, len(indices)):
-                    var c = Int(_y.data[unsafe_offset=sorted_indices[step - 1]])
-                    if weights.size == 0:
-                        n_left += 1
-                        left_histogram[c] += 1
-                        right_histogram[c] -= 1
-                    else:
-                        var weight = Int(weights.data[unsafe_offset=sorted_indices[step - 1]])
+        var num_classes = len(histogram)
+
+        if criterion == 'gini':
+            # unnormalized sum of squares of the full (right-side) histogram
+            var total_sum_sq: Float32 = 0.0
+            for c in range(num_classes):
+                total_sum_sq += Float32(histogram[c]) * Float32(histogram[c])
+
+            @parameter
+            def p_gini(idx: Int):
+                try:
+                    var column = Matrix(len(indices), 1)
+                    for i in range(len(indices)):
+                        column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
+                    var left_histogram = List[Int](capacity=num_classes)
+                    left_histogram.resize(num_classes, 0)
+                    var right_histogram = histogram.copy()
+                    var sorted_indices = column.argsort(indices_to_sort)
+
+                    var n_left = var left_sum_sq = Float32(0)
+                    var right_sum_sq = total_sum_sq
+
+                    for step in range(1, len(indices)):
+                        var c = Int(_y.data[unsafe_offset=sorted_indices[step - 1]])
+                        var weight: Float32 = 1.0
+                        if weights.size != 0:
+                            weight = weights.data[unsafe_offset=sorted_indices[step - 1]]
+
+                        left_sum_sq  += 2.0 * Float32(left_histogram[c]) * weight + weight * weight
+                        right_sum_sq += -2.0 * Float32(right_histogram[c]) * weight + weight * weight
+
+                        n_left += weight
+                        left_histogram[c] += Int(weight)
+                        right_histogram[c] -= Int(weight)
+
+                        if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
+                            continue
+
+                        var n_right = total_samples - n_left
+                        var gini_left = 1.0 - left_sum_sq / (n_left * n_left)
+                        var gini_right = 1.0 - right_sum_sq / (n_right * n_right)
+                        var child_loss = (n_left / total_samples) * gini_left + (n_right / total_samples) * gini_right
+                        var ig = parent_loss - child_loss
+                        if ig > max_gains.data[unsafe_offset=idx]:
+                            max_gains.data[unsafe_offset=idx] = ig
+                            best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=sorted_indices[step]] + column.data[unsafe_offset=sorted_indices[step - 1]]) / 2.0
+                except e:
+                    print('Error:', e)
+            parallelize[p_gini](len(feat_idxs))
+        else:
+            @parameter
+            def p_c(idx: Int):
+                try:
+                    var column = Matrix(len(indices), 1)
+                    for i in range(len(indices)):
+                        column.data[unsafe_offset=i] = X[indices[i], feat_idxs[idx]]
+                    var left_histogram = List[Int](capacity=num_classes)
+                    left_histogram.resize(num_classes, 0)
+                    var right_histogram = histogram.copy()
+                    var sorted_indices = column.argsort(indices_to_sort)
+                    var n_left: Float32 = 0.0
+                    for step in range(1, len(indices)):
+                        var c = Int(_y.data[unsafe_offset=sorted_indices[step - 1]])
+                        var weight = 1
+                        if weights.size != 0:
+                            weight = Int(weights.data[unsafe_offset=sorted_indices[step - 1]])
+
                         n_left += Float32(weight)
                         left_histogram[c] += weight
                         right_histogram[c] -= weight
 
-                    if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
-                        continue
+                        if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
+                            continue
 
-                    var n_right = total_samples - n_left
-                    var child_loss = (n_left / total_samples) * c_precompute(n_left, left_histogram) + (n_right / total_samples) * c_precompute(n_right, right_histogram)
-                    var ig = parent_loss - child_loss
-                    if ig > max_gains.data[unsafe_offset=idx]:
-                        max_gains.data[unsafe_offset=idx] = ig
-                        best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=sorted_indices[step]] + column.data[unsafe_offset=sorted_indices[step - 1]]) / 2.0
-            except e:
-                print('Error:', e)
-        parallelize[p_c](len(feat_idxs))
+                        var n_right = total_samples - n_left
+                        var child_loss = (n_left / total_samples) * c_precompute(n_left, left_histogram) + (n_right / total_samples) * c_precompute(n_right, right_histogram)
+                        var ig = parent_loss - child_loss
+                        if ig > max_gains.data[unsafe_offset=idx]:
+                            max_gains.data[unsafe_offset=idx] = ig
+                            best_thresholds.data[unsafe_offset=idx] = (column.data[unsafe_offset=sorted_indices[step]] + column.data[unsafe_offset=sorted_indices[step - 1]]) / 2.0
+                except e:
+                    print('Error:', e)
+            parallelize[p_c](len(feat_idxs))
     else:
         var sum_total = _y.sum() if weights.size == 0 else _y.ele_mul(weights).sum()
         var sum_sq_total = _y.ele_mul(_y).sum() if weights.size == 0 else (_y.ele_mul(_y).ele_mul(weights)).sum()
@@ -330,15 +370,13 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                 var left_sum = var left_sum_sq = var n_left = Float32(0)
                 for step in range(1, len(indices)):
                     var yi = _y.data[unsafe_offset=sorted_indices[step - 1]]
-                    if weights.size == 0:
-                        n_left += 1
-                        left_sum += yi
-                        left_sum_sq += yi * yi
-                    else:
-                        var weight = weights.data[unsafe_offset=sorted_indices[step - 1]]
-                        n_left += weight
-                        left_sum += yi * weight
-                        left_sum_sq += yi * yi * weight
+                    var weight: Float32 = 1.0
+                    if weights.size != 0:
+                        weight = weights.data[unsafe_offset=sorted_indices[step - 1]]
+
+                    n_left += weight
+                    left_sum += yi * weight
+                    left_sum_sq += yi * yi * weight
 
                     if column.data[unsafe_offset=sorted_indices[step]] == column.data[unsafe_offset=sorted_indices[step - 1]]:
                         continue

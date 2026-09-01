@@ -303,13 +303,6 @@ def gini(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     return 1 - _sum
 
 @always_inline
-def gini_precompute(size: Float32, histogram: List[Int]) raises -> Float32:
-    var _sum: Float32 = 0.0
-    for i in range(len(histogram)):
-        _sum += (Float32(histogram[i]) / size) ** 2
-    return 1 - _sum
-
-@always_inline
 def mse_loss(y: Matrix, weights: Matrix, size: Float32) raises -> Float32:
     if len(y) == 0:
         return 0.0

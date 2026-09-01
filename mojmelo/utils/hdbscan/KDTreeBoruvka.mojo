@@ -81,10 +81,10 @@ def node_pair_lower_bound(
     vectorize[Matrix.simd_width](dim, v)
 
     var R = r1 + r2
-    var dist = math.sqrt(dist2) if dist2 > 0.0 else Float32(0.0)
+    var dist = math.sqrt(dist2) if dist2 > 0.0 else Float32(0)
     var lb = dist - R
 
-    return (lb * lb) if lb > 0.0 else Float32(0.0)
+    return (lb * lb) if lb > 0.0 else Float32(0)
 
 
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
