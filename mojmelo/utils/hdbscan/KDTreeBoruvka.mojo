@@ -112,6 +112,10 @@ struct KDTreeBoruvka:
     var core_dist: Pointer[Float32, MutUntrackedOrigin]
     var build_idx: List[Int]
     var proj_buf: List[Float32]
+
+    var knn_idx: Pointer[Int, MutUntrackedOrigin]
+    var knn_dist: Pointer[Float32, MutUntrackedOrigin]
+    var k: Int
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
     var _center_arena: Pointer[Float32, MutUntrackedOrigin]
 
@@ -134,16 +138,22 @@ struct KDTreeBoruvka:
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
+        self.k = 2 * min_samples
+        self.knn_idx  = alloc(Layout[Int](count=self.n * self.k)).unsafe_leak()
+        self.knn_dist = alloc(Layout[Float32](count=self.n * self.k)).unsafe_leak()
         @parameter
         def compute_core_dist(p: Int):
             try:
                 var kd_results = KDTreeResultVector()
                 self.kdtree.n_nearest(
                     Span(unsafe_ptr=self.data.unsafe_offset(p * self.dim), length=self.dim),
-                    min_samples + 1,
+                    self.k,
                     kd_results
                 )
                 self.core_dist[unsafe_offset=p] = kd_results[min_samples].dis
+                for j in range(self.k):
+                    self.knn_idx[unsafe_offset=p * self.k + j]  = kd_results[j].idx
+                    self.knn_dist[unsafe_offset=p * self.k + j] = kd_results[j].dis
             except e:
                 print('Error:', e)
 

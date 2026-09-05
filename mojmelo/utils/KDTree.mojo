@@ -57,14 +57,14 @@ struct KDTreeResultVector(Copyable, Sized):
 
     @always_inline
     def __getitem__(self, index: Int) -> KDTreeResult:
-        return self._self._data[index].copy()
+        return self._self._data[index]
 
     @always_inline
     def __len__(self) -> Int:
         return len(self._self)
 
     def append_element_and_heapify(mut self, e: KDTreeResult):
-        self._self.push(e.copy())
+        self._self.push(e)
 
     def max_value(self) -> Float32:
         return self._self.peek().dis
@@ -73,7 +73,7 @@ struct KDTreeResultVector(Copyable, Sized):
         # Remove the current worst (largest-distance) neighbor and insert
         # the new candidate, then report the new worst distance.
         _ = self._self.pop()
-        self._self.push(e.copy())
+        self._self.push(e)
         return self.max_value()
 
 struct SearchRecord:
@@ -278,7 +278,7 @@ struct KDTreeNode(Copyable):
                 if abs(indexofi-centeridx) < correltime:
                     continue # skip this point.
             var e = KDTreeResult(dis, indexofi)
-            sr.result[]._self.push(e.copy())
+            sr.result[]._self.push(e)
 
 struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
     var _data: Matrix
@@ -363,7 +363,7 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
                 if (not parent) or (parent.value()[].cut_dim == i):
                     self.spread_in_coordinate(i,l,u,node[].box[i])
                 else:
-                    node[].box[i] = parent.value()[].box[i].copy()
+                    node[].box[i] = parent.value()[].box[i]
                 var spread = node[].box[i].upper - node[].box[i].lower 
                 if spread > maxspread:
                     maxspread = spread
@@ -393,12 +393,12 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True](Copyable):
             var node_right = node[].right.value()
             if not node[].right:
                 for i in range(self.dim):
-                    node[].box[i] = node_left[].box[i].copy()
+                    node[].box[i] = node_left[].box[i]
                 node[].cut_val = node_left[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             elif not node[].left:
                 for i in range(self.dim):
-                    node[].box[i] = node_right[].box[i].copy()
+                    node[].box[i] = node_right[].box[i]
                 node[].cut_val = node_right[].box[c].upper
                 node[].cut_val_left = node[].cut_val_right = node[].cut_val
             else:
