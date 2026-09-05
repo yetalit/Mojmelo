@@ -13,24 +13,20 @@ struct KNN(CV, Copyable):
     Euclidean -> 'euc';
     Manhattan -> 'man'.
     """
-    var search_depth: Int
-    """Current KDTree implementation applies some approximation to its search results.
-        Increasing search_depth can lead to more accurate results at the cost of performance."""
-    var kdtree: KDTree[sort_results=True]
+    var kdtree: KDTree[sort_results=False]
     var y_train: Matrix
     comptime MODEL_ID = 4
     comptime metric_ids: List[String] = ['euc', 'man']
 
-    def __init__(out self, k: Int = 3, metric: String = 'euc', search_depth: Int = 1) raises:
+    def __init__(out self, k: Int = 3, metric: String = 'euc') raises:
         self.k = k
         self.metric = metric.lower()
-        self.search_depth = search_depth
-        self.kdtree = KDTree[sort_results=True](Matrix(0, 0), build=False)
+        self.kdtree = KDTree(Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the k-nearest neighbors classifier from the training dataset."""
-        self.kdtree = KDTree[sort_results=True](X, self.metric)
+        self.kdtree = KDTree(X, self.metric)
         self.y_train = y
 
     def predict(self, X: Matrix) raises -> Matrix:
@@ -52,7 +48,7 @@ struct KNN(CV, Copyable):
     @always_inline
     def _predict(self, x: Matrix) raises -> Float32:
         var kd_results = KDTreeResultVector()
-        self.kdtree.n_nearest(Span(unsafe_ptr=x.data, length=x.size), self.search_depth * self.k, kd_results)
+        self.kdtree.n_nearest(Span(unsafe_ptr=x.data, length=x.size), self.k, kd_results)
         # Extract the labels of the k nearest neighbor and return the most common class label
         var k_neighbor_votes = Dict[Int, Int]()
         var most_common = Int(self.y_train.data[unsafe_offset=kd_results[0].idx])
@@ -73,7 +69,6 @@ struct KNN(CV, Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt32(self.k).as_bytes())
             f.write_bytes(UInt8(materialize[self.metric_ids]().index(self.metric)).as_bytes())
-            f.write_bytes(UInt32(self.search_depth).as_bytes())
             f.write_bytes(UInt64(self.kdtree.N).as_bytes())
             f.write_bytes(UInt64(self.kdtree.dim).as_bytes())
             var X = Matrix(self.kdtree.N, self.kdtree.dim)
@@ -95,7 +90,6 @@ struct KNN(CV, Copyable):
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var k = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
-            var search_depth = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var X = f.read_bytes(4 * n_samples * n_features)
@@ -106,7 +100,6 @@ struct KNN(CV, Copyable):
             _ = y_train
             model.k = k
             model.metric = metric
-            model.search_depth = search_depth
             model.fit(X_mat, y_train_mat)
         return model^
 
@@ -119,9 +112,5 @@ struct KNN(CV, Copyable):
             self.metric = params['metric'].lower()
         else:
             self.metric = 'euc'
-        if 'search_depth' in params:
-            self.search_depth = atol(String(params['search_depth']))
-        else:
-            self.search_depth = 1
-        self.kdtree = KDTree[sort_results=True](Matrix(0, 0), build=False)
+        self.kdtree = KDTree(Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)

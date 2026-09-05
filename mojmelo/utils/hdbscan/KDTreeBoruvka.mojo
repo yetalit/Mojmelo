@@ -116,7 +116,7 @@ struct KDTreeBoruvka:
     var _center_arena: Pointer[Float32, MutUntrackedOrigin]
 
     @always_inline
-    def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
+    def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int) raises:
         self.data = data.data
         self.kdtree = KDTree[sort_results=True](data, metric='euc')
         self.n = data.height
@@ -134,15 +134,13 @@ struct KDTreeBoruvka:
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
-        var k = search_depth * min_samples + 1
-
         @parameter
         def compute_core_dist(p: Int):
             try:
                 var kd_results = KDTreeResultVector()
                 self.kdtree.n_nearest(
                     Span(unsafe_ptr=self.data.unsafe_offset(p * self.dim), length=self.dim),
-                    k,
+                    min_samples + 1,
                     kd_results
                 )
                 self.core_dist[unsafe_offset=p] = kd_results[min_samples].dis
