@@ -159,7 +159,7 @@ def main() raises:
     # - n_jobs=-1 uses all available CPU cores.
     #
     # GridSearchCV returns the best hyperparameters and their score. [0] contains the best parameters.
-    var best_params = GridSearchCV[KNN](
+    var best_params = GridSearchCV[KNN[]](
         X,
         y,
         params,
@@ -224,8 +224,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn KNN | 0.0389 ± 0.0005 | 1.7741 ± 0.0051  | 0.9535   |
-| mojmelo KNN | 0.0143 ± 0.0003 | 0.4500 ± 0.0042  | 0.9535   |
+| sklearn KNN | 0.0359 ± 0.0006 | 1.7392 ± 0.0111  | 0.9135   |
+| mojmelo KNN | 0.0150 ± 0.0007 | 0.3708 ± 0.0098  | 0.9135   |
 
 [`SVM`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/svm_bench.mojo)
 

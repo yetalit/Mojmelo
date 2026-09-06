@@ -13,7 +13,7 @@ def main() raises:
     var y = le.fit_transform(data[1])
     var params = Dict[String, List[String]]()
     params['k'] = ['3', '5', '7']
-    var best_params = GridSearchCV[KNN](X, y, params, accuracy_score, cv=4, n_jobs=-1)[0].copy()
+    var best_params = GridSearchCV[KNN[]](X, y, params, accuracy_score, cv=4, n_jobs=-1)[0].copy()
     print('tuned parameters: ', best_params)
     var X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
     var knn = KNN(best_params)

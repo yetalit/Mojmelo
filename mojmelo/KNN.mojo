@@ -4,8 +4,12 @@ from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from mojmelo.utils.utils import CV, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 
-struct KNN(CV, Copyable):
-    """Classifier implementing the k-nearest neighbors vote."""
+struct KNN[EUC: Bool = False](CV, Copyable):
+    """Classifier implementing the k-nearest neighbors vote.
+
+    Parameters:
+        EUC: Setting EUC=True lets compiler optimize Euclidean distance calculations.
+    """
     var k: Int
     """Number of neighbors to use."""
     var metric: String
@@ -13,7 +17,7 @@ struct KNN(CV, Copyable):
     Euclidean -> 'euc';
     Manhattan -> 'man'.
     """
-    var kdtree: KDTree[sort_results=False]
+    var kdtree: KDTree[sort_results=False, EUC=Self.EUC]
     var y_train: Matrix
     comptime MODEL_ID = 4
     comptime metric_ids: List[String] = ['euc', 'man']
@@ -21,12 +25,12 @@ struct KNN(CV, Copyable):
     def __init__(out self, k: Int = 3, metric: String = 'euc') raises:
         self.k = k
         self.metric = metric.lower()
-        self.kdtree = KDTree(Matrix(0, 0), build=False)
+        self.kdtree = KDTree[EUC=Self.EUC](Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
         """Fit the k-nearest neighbors classifier from the training dataset."""
-        self.kdtree = KDTree(X, self.metric)
+        self.kdtree = KDTree[EUC=Self.EUC](X, self.metric)
         self.y_train = y
 
     def predict(self, X: Matrix) raises -> Matrix:
@@ -90,6 +94,8 @@ struct KNN(CV, Copyable):
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var k = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
+            if Self.EUC and metric != 'euc':
+                raise Error('EUC parameter is set to True but the loaded metric value is not Euclidean!')
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var X = f.read_bytes(4 * n_samples * n_features)
@@ -112,5 +118,5 @@ struct KNN(CV, Copyable):
             self.metric = params['metric'].lower()
         else:
             self.metric = 'euc'
-        self.kdtree = KDTree(Matrix(0, 0), build=False)
+        self.kdtree = KDTree[EUC=Self.EUC](Matrix(0, 0), build=False)
         self.y_train = Matrix(0, 0)

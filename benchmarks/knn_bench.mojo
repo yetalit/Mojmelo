@@ -19,7 +19,7 @@ def main() raises:
     var accuracy = 0.0
     # warm-up
     for _ in range(WARMUP):
-        var knn = KNN(k=11)
+        var knn = KNN[EUC=True](k=11)
         knn.fit(X_train, y_train)
         var y_pred = knn.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred).cast[DType.float64]()
@@ -29,7 +29,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        var knn = KNN(k=11)
+        var knn = KNN[EUC=True](k=11)
 
         var t0 = time.perf_counter()
         knn.fit(X_train, y_train)
