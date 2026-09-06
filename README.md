@@ -209,9 +209,9 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model            | Fit Time (s)    | ARI vs sklearn | ARI vs fast_hdbscan | ARI vs truth |
 |------------------|-----------------|----------------|---------------------|--------------|
-| skl-contrib HDBS | 1.1945 ± 0.0067 |       -        |          -          | 0.9988       |
-| fast hdbscan     | 0.2412 ± 0.0014 |       -        |          -          | 0.9989       |
-| mojmelo HDBS     | 0.1765 ± 0.0032 | 0.9923         | 0.9989              | 0.9933       |
+| skl-contrib HDBS | 1.1391 ± 0.0078 |       -        |          -          | 0.9972       |
+| fast hdbscan     | 0.2729 ± 0.0087 |       -        |          -          | 0.9975       |
+| mojmelo HDBS     | 0.2980 ± 0.0107 | 0.9954         | 0.9975              | 0.9961       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
@@ -224,8 +224,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn KNN | 0.0353 ± 0.0005 | 1.7600 ± 0.0063  | 0.8543   |
-| mojmelo KNN | 0.0149 ± 0.0006 | 0.2126 ± 0.0040  | 0.8347   |
+| sklearn KNN | 0.0389 ± 0.0005 | 1.7741 ± 0.0051  | 0.9535   |
+| mojmelo KNN | 0.0143 ± 0.0003 | 0.4500 ± 0.0042  | 0.9535   |
 
 [`SVM`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/svm_bench.mojo)
 
