@@ -3,7 +3,7 @@ import time
 from sklearn.decomposition import PCA
 
 
-def prepare_data(seed, n_samples=100000, n_features=100):
+def prepare_data(seed, n_samples=100000, n_features=500):
     rng = np.random.RandomState(seed)
 
     # create correlated data
@@ -62,7 +62,7 @@ def benchmark_model(X, warmup=2, runs=5):
 
 
 def sklearn_model():
-    return PCA(n_components=20, svd_solver='full', random_state=42)
+    return PCA(n_components=100, svd_solver='full')
 
 
 # -----------------------

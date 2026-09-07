@@ -17,7 +17,7 @@ def main() raises:
     var explained_var = 0.0
     # warm-up
     for _ in range(WARMUP):
-        var pca = PCA(n_components=20)
+        var pca = PCA(n_components=100)
         pca.fit(data)
         keep(pca.transform(data))
         explained_var = pca.explained_variance_ratio.sum().cast[DType.float64]()
@@ -27,7 +27,7 @@ def main() raises:
 
     # timed runs
     for _ in range(RUNS):
-        var pca = PCA(n_components=20)
+        var pca = PCA(n_components=100)
 
         var t0 = time.perf_counter()
         pca.fit(data)
