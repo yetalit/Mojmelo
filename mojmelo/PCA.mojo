@@ -3,7 +3,6 @@ from mojmelo.utils.svd import svd
 from mojmelo.utils.utils import MODEL_IDS
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from std.python import Python
 
 struct PCA(Copyable):
     """Principal component analysis (PCA).
@@ -21,11 +20,9 @@ struct PCA(Copyable):
     var whiten: Bool
     """To transform data to have zero mean, unit variance, and no correlation between features."""
     var whiten_: Matrix
-    var lapack: Bool
-    """Use LAPACK to calculate svd."""
     comptime MODEL_ID = 12
 
-    def __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False):
+    def __init__(out self, n_components: Int, whiten: Bool = False):
         self.n_components = n_components
         self.components = Matrix(0, 0)
         self.components_T = Matrix(0, 0)
@@ -34,7 +31,6 @@ struct PCA(Copyable):
         self.mean = Matrix(0, 0)
         self.whiten = whiten
         self.whiten_ = Matrix(0, 0)
-        self.lapack = lapack
 
     def fit(mut self, X: Matrix) raises:
         """Fit the model."""
@@ -50,14 +46,7 @@ struct PCA(Copyable):
             self.mean.store[1](0, col, sum / Float32(n_rows))
         parallelize[p](n_cols)
 
-        var S: Matrix
-        if self.lapack:
-            var numpy_linalg = Python.import_module('numpy.linalg')
-            var USVt = numpy_linalg.svd((X - self.mean).to_numpy(), full_matrices=False)
-            S = Matrix.from_numpy(USVt[1])
-            self.components = Matrix.from_numpy(USVt[2]).load_rows(self.n_components)
-        else:
-            S, self.components = svd((X - self.mean), self.n_components)
+        var S, self.components = svd((X - self.mean), self.n_components)
 
         self.components_T = self.components.T()
         var explained_variance = (S ** 2) / Float32(X.height - 1)

@@ -9,6 +9,7 @@ from mojmelo.utils.utils import fill_indices_list
 
 comptime EPS = 1e-13
 comptime simd_width = 4 * simd_width_of[DType.float64]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.float64]()
+comptime PARALLEL_ROW_THRESHOLD = 64
 
 def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, MutUntrackedOrigin], V: Pointer[Float64, MutUntrackedOrigin], n: Int):
     unsafe_memcpy(dest=V, src=A, count=n*n)
@@ -35,23 +36,51 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
                 e[unsafe_offset=i] = scale * g
                 h -= f * g
                 V[unsafe_offset=l * n + i] = f - g
+
+                if l+1 >= PARALLEL_ROW_THRESHOLD:
+                    @parameter
+                    def fill_row(j: Int):
+                        V[unsafe_offset=i * n + j] = V[unsafe_offset=j * n + i] / h
+                        var s = 0.0
+                        for k in range(j+1):
+                            s += V[unsafe_offset=k * n + j] * V[unsafe_offset=k * n + i]
+                        for k in range(j + 1, l+1):
+                            s += V[unsafe_offset=j * n + k] * V[unsafe_offset=k * n + i]
+                        e[unsafe_offset=j] = s / h
+                    parallelize[fill_row](l+1)
+                else:
+                    for j in range(l+1):
+                        V[unsafe_offset=i * n + j] = V[unsafe_offset=j * n + i] / h
+                        var s = 0.0
+                        for k in range(j+1):
+                            s += V[unsafe_offset=k * n + j] * V[unsafe_offset=k * n + i]
+                        for k in range(j + 1, l+1):
+                            s += V[unsafe_offset=j * n + k] * V[unsafe_offset=k * n + i]
+                        e[unsafe_offset=j] = s / h
+
                 f = 0.0
                 for j in range(l+1):
-                    V[unsafe_offset=i * n + j] = V[unsafe_offset=j * n + i] / h
-                    var s = 0.0
-                    for k in range(j+1):
-                        s += V[unsafe_offset=k * n + j] * V[unsafe_offset=k * n + i]
-                    for k in range(j + 1, l+1):
-                        s += V[unsafe_offset=j * n + k] * V[unsafe_offset=k * n + i]
-                    e[unsafe_offset=j] = s / h
                     f += e[unsafe_offset=j] * V[unsafe_offset=j * n + i]
 
                 var hh = f / (h + h)
+
                 for j in range(l+1):
-                    f = V[unsafe_offset=j * n + i]
-                    e[unsafe_offset=j] -= hh * f
-                    for k in range(j+1):
-                        V[unsafe_offset=k * n + j] -= (f * e[unsafe_offset=k] + e[unsafe_offset=j] * V[unsafe_offset=k * n + i])
+                    e[unsafe_offset=j] -= hh * V[unsafe_offset=j * n + i]
+
+                if l+1 >= PARALLEL_ROW_THRESHOLD:
+                    @parameter
+                    def rank2_update(j: Int):
+                        var fj = V[unsafe_offset=j * n + i]
+                        var ej = e[unsafe_offset=j]
+                        for k in range(j+1):
+                            V[unsafe_offset=k * n + j] -= (fj * e[unsafe_offset=k] + ej * V[unsafe_offset=k * n + i])
+                    parallelize[rank2_update](l+1)
+                else:
+                    for j in range(l+1):
+                        var fj = V[unsafe_offset=j * n + i]
+                        var ej = e[unsafe_offset=j]
+                        for k in range(j+1):
+                            V[unsafe_offset=k * n + j] -= (fj * e[unsafe_offset=k] + ej * V[unsafe_offset=k * n + i])
 
         else:
             e[unsafe_offset=i] = V[unsafe_offset=l * n + i]
@@ -64,12 +93,22 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
     for i in range(n):
         var l = i - 1
         if eig[unsafe_offset=i] != 0.0:
-            for j in range(l+1):
-                var s = 0.0
-                for k in range(l+1):
-                    s += V[unsafe_offset=k * n + i] * V[unsafe_offset=j * n + k]
-                for k in range(l+1):
-                    V[unsafe_offset=j * n + k] -= s * V[unsafe_offset=i * n + k]
+            if l+1 >= PARALLEL_ROW_THRESHOLD:
+                @parameter
+                def accumulate_row(j: Int):
+                    var s = 0.0
+                    for k in range(l+1):
+                        s += V[unsafe_offset=k * n + i] * V[unsafe_offset=j * n + k]
+                    for k in range(l+1):
+                        V[unsafe_offset=j * n + k] -= s * V[unsafe_offset=i * n + k]
+                parallelize[accumulate_row](l+1)
+            else:
+                for j in range(l+1):
+                    var s = 0.0
+                    for k in range(l+1):
+                        s += V[unsafe_offset=k * n + i] * V[unsafe_offset=j * n + k]
+                    for k in range(l+1):
+                        V[unsafe_offset=j * n + k] -= s * V[unsafe_offset=i * n + k]
 
         eig[unsafe_offset=i] = V[unsafe_offset=i * n + i]
         V[unsafe_offset=i * n + i] = 1.0
@@ -147,6 +186,9 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
     e.unsafe_free()
 
 def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: Pointer[Float64, MutUntrackedOrigin]) raises:
+    """
+    Tall/square path: eigendecompose A^T @ A, an (n x n) matrix (n = A.width).
+    """
     var eig = alloc(Layout[Float64](count=n)).unsafe_leak()
     unsafe_memset_zero(eig, n)
     var V_full = alloc(Layout[Float64](count=n*n)).unsafe_leak()
@@ -178,9 +220,68 @@ def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mu
         if lambda_ < 0 and abs(lambda_) < 1e-14:
             lambda_ = 0.0 # clamp tiny negative
         S[unsafe_offset=r] = math.sqrt(lambda_) if lambda_ > 0.0 else 0.0
-    
+
     ATA.unsafe_free()
     eig.unsafe_free()
+
+def svd_wide(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mut Vout: Matrix,
+             AAT: Pointer[Float64, MutUntrackedOrigin], AT: matmul.Matrix[DType.float64]) raises:
+    """
+    Wide/square path: eigendecompose A @ A^T, an (m x m) matrix (m = A.height).
+    """
+    var eig = alloc(Layout[Float64](count=m)).unsafe_leak()
+    unsafe_memset_zero(eig, m)
+    var U_full = alloc(Layout[Float64](count=m*m)).unsafe_leak()
+
+    eigensystem(AAT, eig, U_full, m)
+
+    # Sort eigenpairs descending by eigenvalue
+    var sorted_indices = fill_indices_list(m)
+    @parameter
+    def cmp_fn(a: Int, b: Int) -> Bool:
+        return eig[unsafe_offset=a] > eig[unsafe_offset=b]
+
+    sort[cmp_fn](
+        Span[
+            Int,
+            origin_of(sorted_indices),
+        ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
+    )
+
+    for r in range(m):
+        var lambda_ = eig[unsafe_offset=sorted_indices[r]]
+        if lambda_ < 0 and abs(lambda_) < 1e-14:
+            lambda_ = 0.0 # clamp tiny negative
+        S[unsafe_offset=r] = math.sqrt(lambda_) if lambda_ > 0.0 else 0.0
+    unsafe_memset_zero(S.unsafe_offset(m), n - m)
+
+    # Pull the top-k eigenvectors of A @ A^T into a plain (m, k) row-major buffer
+    var Uk = alloc(Layout[Float64](count=m*k)).unsafe_leak()
+    for i in range(m):
+        for j in range(k):
+            Uk[unsafe_offset = i * k + j] = U_full[unsafe_offset = sorted_indices[j] * m + i]
+
+    # Recover right singular vectors: V (n x k) = A^T (n x m) @ Uk (m x k)
+    var V_mm = matmul.Matrix[DType.float64]((n, k))
+    unsafe_memset_zero(V_mm.data, n * k)
+    var Uk_mm = matmul.Matrix[DType.float64](Uk, (m, k))
+    matmul.matmul(n, m, k, V_mm, AT, Uk_mm)
+
+    # Normalize each column by 1 / s_i and transpose straight into the (k, n) row-major layout
+    var Vout_raw = alloc(Layout[Float64](count=k*n)).unsafe_leak()
+    for j in range(k):
+        var s = S[unsafe_offset=j]
+        var inv_s = 1.0 / s if s > EPS else 0.0
+        for i in range(n):
+            Vout_raw[unsafe_offset = j * n + i] = V_mm.data[unsafe_offset = i * k + j] * inv_s
+
+    Vout = Matrix(Vout_raw, k, n)
+
+    AAT.unsafe_free()
+    eig.unsafe_free()
+    U_full.unsafe_free()
+    Uk.unsafe_free()
+    V_mm.data.unsafe_free()
 
 def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var A64 = A.cast_ptr[DType.float64]()
@@ -189,15 +290,30 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
     var S = alloc(Layout[Float64](count=A.width)).unsafe_leak()
     var V = Matrix(0, 0)
 
-    var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))
-    var B = matmul.Matrix[DType.float64](A64, (A.height, A.width))
-    var ATA = matmul.Matrix[DType.float64]((A.width, A.width))
-    unsafe_memset_zero(ATA.data, A.width * A.width)
-    matmul.matmul(A.width, A.height, A.width, ATA, AT, B)
-    A64.unsafe_free()
-    A64T.unsafe_free()
+    var AT = matmul.Matrix[DType.float64](A64T, (A.width, A.height))   # A^T: (n, m)
+    var B = matmul.Matrix[DType.float64](A64, (A.height, A.width))     # A:   (m, n)
 
-    svd_thin(A.height, A.width, k, S, V, ATA.data)
+    if A.height < A.width:
+        # Wide matrix: diagonalize the smaller (m x m) Gram matrix instead of the (n x n) one,
+        # then recover the right singular vectors from the left ones.
+        var AAT = matmul.Matrix[DType.float64]((A.height, A.height))
+        unsafe_memset_zero(AAT.data, A.height * A.height)
+        matmul.matmul(A.height, A.width, A.height, AAT, B, AT)
+        A64.unsafe_free()
+
+        svd_wide(A.height, A.width, k, S, V, AAT.data, AT)
+
+        A64T.unsafe_free()
+    else:
+        # Tall or square matrix: A^T A (n x n) Gram matrix + eigensolve.
+        var ATA = matmul.Matrix[DType.float64]((A.width, A.width))
+        unsafe_memset_zero(ATA.data, A.width * A.width)
+        matmul.matmul(A.width, A.height, A.width, ATA, AT, B)
+        A64.unsafe_free()
+        A64T.unsafe_free()
+
+        svd_thin(A.height, A.width, k, S, V, ATA.data)
+
     return Matrix(S, 1, A.width), V^
 
 @always_inline
