@@ -39,7 +39,12 @@ from .jacobi import (
     apply_rotation_right_cols,
     apply_rotation_cols_direct,
 )
-from .bidiagonalization import make_householder_in_place, apply_householder_left
+from .bidiagonalization import (
+    make_householder_in_place,
+    apply_householder_left,
+    householder_qr_matrixR,
+    householder_qr_apply_q_on_left,
+)
 
 # ------------------------------------------------------------------------------
 # Column-pivoted Householder QR of an m x n matrix A, m >= n: A*P = Q*R for a
@@ -166,12 +171,7 @@ struct ColPivHouseholderQR:
         """The cols x cols (== m_cols x m_cols) upper-triangular R factor of
         A*P, as a fresh dense copy.
         """
-        var q = self.m_cols
-        var R = Mat(q, q)
-        for j in range(q):
-            for i in range(j + 1):
-                R[i, j] = self.m_qr[i, j]
-        return R^
+        return householder_qr_matrixR(self.m_qr, self.m_cols)
 
     @always_inline
     def apply_q_on_left(self, mut M: Mat):
@@ -179,14 +179,7 @@ struct ColPivHouseholderQR:
         applied in reverse order, same pattern as
         UpperBidiagonalization.apply_u_on_left / bdcsvd.HouseholderQR.
         """
-        var k = self.m_cols - 1
-        while k >= 0:
-            var tau = self.m_hCoeffs[k]
-            if tau != RealScalar(0):
-                var essential = self.m_qr.col(k).segment(k + 1, self.m_rows - k - 1)
-                var sub = M.block(k, 0, self.m_rows - k, M.cols())
-                apply_householder_left(sub, essential, tau)
-            k -= 1
+        householder_qr_apply_q_on_left(self.m_qr, self.m_hCoeffs, self.m_rows, self.m_cols, M)
 
 # ------------------------------------------------------------------------------
 # Undo a ColPivHouseholderQR's column permutation on the singular-vector

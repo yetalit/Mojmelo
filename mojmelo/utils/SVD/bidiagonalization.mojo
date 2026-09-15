@@ -107,6 +107,37 @@ def apply_householder_left(mut M: Mat, essential: Vec, tau: RealScalar):
             _householder_left_update_col(base.unsafe_offset(j * col_stride), ess_data, ess_stride, ess_len, tau)
         parallelize[process_col](cols)
 
+# ------------------------------------------------------------------------------
+# qr's upper triangle (including diagonal) holds R, qr's strict lower triangle
+# holds each reflector's essential vector, and hCoeffs holds the tau's.
+# The two structs differ only in how compute() picks/orders columns before
+# reflecting — R extraction and applying Q are identical either way, so both
+# structs delegate to these instead of keeping their own copies in sync by hand.
+# ------------------------------------------------------------------------------
+@always_inline
+def householder_qr_matrixR(qr: Mat, size: Int) -> Mat:
+    """The size x size upper-triangular R factor, as a fresh dense copy."""
+    var R = Mat(size, size)
+    for j in range(size):
+        for i in range(j + 1):
+            R[i, j] = qr[i, j]
+    return R^
+
+@always_inline
+def householder_qr_apply_q_on_left(qr: Mat, hCoeffs: Vec, rows: Int, num_reflectors: Int, mut M: Mat):
+    """M <- Q * M, i.e. H_0 * H_1 * ... * H_{num_reflectors-1} * M —
+    reflectors applied in reverse order, same pattern as
+    UpperBidiagonalization.apply_u_on_left.
+    """
+    var k = num_reflectors - 1
+    while k >= 0:
+        var tau = hCoeffs[k]
+        if tau != RealScalar(0):
+            var essential = qr.col(k).segment(k + 1, rows - k - 1)
+            var sub = M.block(k, 0, rows - k, M.cols())
+            apply_householder_left(sub, essential, tau)
+        k -= 1
+
 @always_inline
 def _householder_right_update_row(
     row_ptr0: Pointer[RealScalar, MutUntrackedOrigin],

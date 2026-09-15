@@ -25,7 +25,13 @@ from .linalg_core import (
 )
 from .jacobi_svd import JacobiSVD
 from .bdcsvd_impl import BDCSVDImpl
-from .bidiagonalization import UpperBidiagonalization, make_householder_in_place, apply_householder_left
+from .bidiagonalization import (
+    UpperBidiagonalization,
+    make_householder_in_place,
+    apply_householder_left,
+    householder_qr_matrixR,
+    householder_qr_apply_q_on_left,
+)
 
 def prepare_work(A: Mat, do_transpose: Bool) -> Mat:
     """Returns a fresh Mat in both branches (transpose or plain copy) —
@@ -92,12 +98,7 @@ struct HouseholderQR:
         as a fresh dense copy — matches Eigen's
         `qrDecomp.matrixQR().topRows(diagSize).triangularView<StrictlyLower>().setZero()`.
         """
-        var q = self.m_cols
-        var R = Mat(q, q)
-        for j in range(q):
-            for i in range(j + 1):
-                R[i, j] = self.m_qr[i, j]
-        return R^
+        return householder_qr_matrixR(self.m_qr, self.m_cols)
 
     @always_inline
     def apply_q_on_left(self, mut M: Mat):
@@ -105,14 +106,7 @@ struct HouseholderQR:
         applied in reverse order, same pattern as
         UpperBidiagonalization.apply_u_on_left.
         """
-        var k = self.m_cols - 1
-        while k >= 0:
-            var tau = self.m_hCoeffs[k]
-            if tau != RealScalar(0):
-                var essential = self.m_qr.col(k).segment(k + 1, self.m_rows - k - 1)
-                var sub = M.block(k, 0, self.m_rows - k, M.cols())
-                apply_householder_left(sub, essential, tau)
-            k -= 1
+        householder_qr_apply_q_on_left(self.m_qr, self.m_hCoeffs, self.m_rows, self.m_cols, M)
 
 struct BDCSVD:
     var m_impl: BDCSVDImpl
