@@ -1346,6 +1346,17 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         return mat^
 
     @always_inline
+    def absMax(self) raises -> Float32:
+        var m: Float32 = 0.0
+        var data = self.data
+        def findMax[simd_width: Int](idx: Int) {mut}:
+            var max_in_vec = abs(data.unsafe_load[simd_width](idx)).reduce_max()
+            if max_in_vec > m:
+                m = max_in_vec
+        vectorize[self.simd_width](self.size, findMax)
+        return m
+
+    @always_inline
     def reshape(self, height: Int, width: Int) -> Matrix:
         var mat: Matrix = self
         mat.height = height
@@ -1441,7 +1452,10 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def norm(self) raises -> Float32:
-        return math.sqrt((self ** 2).sum())
+        var scale = self.absMax()
+        if scale == 0:
+            return 0
+        return scale * math.sqrt(((self / scale) ** 2).sum())
 
     def outer(self, rhs: Matrix) raises -> Matrix:
         var mat = Matrix(self.size, rhs.size, order= self.order)
