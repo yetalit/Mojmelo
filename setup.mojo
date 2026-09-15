@@ -10,9 +10,9 @@ def cachel1() -> Int32:
     var l1_cache_size: c_int = 0
     comptime length: c_size_t = 4
     # Get L1 Cache Size
-    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".as_c_string_slice(), Pointer(to=l1_cache_size), Pointer(to=length), None, 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l1dcachesize".as_c_string_span(), Pointer(to=l1_cache_size), Pointer(to=length), None, 0) == 0:
         if l1_cache_size <= 1:
-            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".as_c_string_slice(), Pointer(to=l1_cache_size), Pointer(to=length), None, 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l1dcachesize".as_c_string_span(), Pointer(to=l1_cache_size), Pointer(to=length), None, 0) == 0:
                 if l1_cache_size <= 1:
                     return 65536
                 return l1_cache_size
@@ -20,7 +20,7 @@ def cachel1() -> Int32:
                 return 65536
         return l1_cache_size
     else:
-        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".as_c_string_slice(), Pointer(to=l1_cache_size), Pointer(to=length), None, 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l1dcachesize".as_c_string_span(), Pointer(to=l1_cache_size), Pointer(to=length), None, 0) == 0:
             if l1_cache_size <= 1:
                 return 65536
             return l1_cache_size
@@ -32,9 +32,9 @@ def cachel2() -> Int32:
     var l2_cache_size: c_int = 0
     comptime length: c_size_t = 4
     # Get L2 Cache Size
-    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".as_c_string_slice(), Pointer(to=l2_cache_size), Pointer(to=length), None, 0) == 0:
+    if external_call["sysctlbyname", c_int]("hw.perflevel0.l2cachesize".as_c_string_span(), Pointer(to=l2_cache_size), Pointer(to=length), None, 0) == 0:
         if l2_cache_size <= 1:
-            if external_call["sysctlbyname", c_int]("hw.l2cachesize".as_c_string_slice(), Pointer(to=l2_cache_size), Pointer(to=length), None, 0) == 0:
+            if external_call["sysctlbyname", c_int]("hw.l2cachesize".as_c_string_span(), Pointer(to=l2_cache_size), Pointer(to=length), None, 0) == 0:
                 if l2_cache_size <= 1:
                     return 4194304
                 return l2_cache_size
@@ -42,7 +42,7 @@ def cachel2() -> Int32:
                 return 4194304
         return l2_cache_size
     else:
-        if external_call["sysctlbyname", c_int]("hw.l2cachesize".as_c_string_slice(), Pointer(to=l2_cache_size), Pointer(to=length), None, 0) == 0:
+        if external_call["sysctlbyname", c_int]("hw.l2cachesize".as_c_string_span(), Pointer(to=l2_cache_size), Pointer(to=length), None, 0) == 0:
             if l2_cache_size <= 1:
                 return 4194304
             return l2_cache_size

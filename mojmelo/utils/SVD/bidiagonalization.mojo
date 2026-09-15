@@ -110,21 +110,46 @@ def apply_householder_left(mut M: Mat, essential: Vec, tau: RealScalar):
 @always_inline
 def _householder_right_update_row(
     row_ptr0: Pointer[RealScalar, MutUntrackedOrigin],
-    col_stride: Int,
+    var col_stride: Int,
     ess_data: Pointer[RealScalar, MutUntrackedOrigin],
-    ess_stride: Int,
+    var ess_stride: Int,
     ess_len: Int,
     tau: RealScalar,
 ):
     # row_ptr0 -> M[i, 0]; M[i, j] lives at row_ptr0 + j*col_stride
     var s = row_ptr0[]
-    for j in range(ess_len):
-        s += ess_data[unsafe_offset=j * ess_stride] * row_ptr0[unsafe_offset=(j + 1) * col_stride]
+
+    if ess_stride == col_stride:
+        var e_ptr = ess_data
+        var m_ptr = row_ptr0.unsafe_offset(col_stride)
+        def dotv[simd_width: Int](idx: Int) {mut}:
+            var ev = e_ptr.unsafe_strided_load[width=simd_width](ess_stride)
+            var mv = m_ptr.unsafe_strided_load[width=simd_width](col_stride)
+            s += (ev * mv).reduce_add()
+            e_ptr = e_ptr.unsafe_offset(simd_width * ess_stride)
+            m_ptr = m_ptr.unsafe_offset(simd_width * col_stride)
+        vectorize[SIMD_WIDTH](ess_len, dotv)
+    else:
+        for j in range(ess_len):
+            s += ess_data[unsafe_offset=j * ess_stride] * row_ptr0[unsafe_offset=(j + 1) * col_stride]
+
     s = s * tau
     row_ptr0[] = row_ptr0[] - s
-    for j in range(ess_len):
-        var off = (j + 1) * col_stride
-        row_ptr0[unsafe_offset=off] = row_ptr0[unsafe_offset=off] - s * ess_data[unsafe_offset=j * ess_stride]
+
+    if ess_stride == col_stride:
+        var e_ptr2 = ess_data
+        var m_ptr2 = row_ptr0.unsafe_offset(col_stride)
+        def axpy[simd_width: Int](idx: Int) {mut}:
+            var ev = e_ptr2.unsafe_strided_load[width=simd_width](ess_stride)
+            var mv = m_ptr2.unsafe_strided_load[width=simd_width](col_stride)
+            m_ptr2.unsafe_strided_store[width=simd_width](mv - s * ev, col_stride)
+            e_ptr2 = e_ptr2.unsafe_offset(simd_width * ess_stride)
+            m_ptr2 = m_ptr2.unsafe_offset(simd_width * col_stride)
+        vectorize[SIMD_WIDTH](ess_len, axpy)
+    else:
+        for j in range(ess_len):
+            var off = (j + 1) * col_stride
+            row_ptr0[unsafe_offset=off] = row_ptr0[unsafe_offset=off] - s * ess_data[unsafe_offset=j * ess_stride]
 
 @always_inline
 def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
