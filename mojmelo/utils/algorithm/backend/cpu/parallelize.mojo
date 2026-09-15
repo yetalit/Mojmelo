@@ -16,8 +16,8 @@ from std.math import ceildiv
 from std.os import abort
 from std.utils.index import IndexList
 
-from std.runtime.asyncrt import TaskGroup
-from std.runtime.asyncrt import parallelism_level
+from std.runtime._asyncrt import TaskGroup
+from std.runtime import parallelism_level
 from .runtime import tracing
 from .runtime.tracing import Trace, TraceLevel
 
@@ -102,7 +102,7 @@ def sync_parallelize[
         return
 
     @always_inline
-    @parameter
+    @__parameter
     async def task_fn(i: Int):
         func_wrapped(i)
 

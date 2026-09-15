@@ -44,7 +44,7 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
 
     def predict(self, X: Matrix) raises -> Matrix:
         var y_predicted = Matrix(X.height, 1)
-        @parameter
+        @__parameter
         def p(i: Int):
             y_predicted.data[unsafe_offset=i] = _traverse_tree(X.data.unsafe_offset(i * X.width), self.root.value())
         parallelize[p](X.height)
@@ -117,7 +117,7 @@ def _best_criteria(reg_lambda: Float32, reg_alpha: Float32, X: Matrix, indices: 
     var best_thresholds = Matrix(1, len(feat_idxs))
     var indices_to_sort = fill_indices_list(len(indices)) if n_bins < 2 or len(indices) < n_bins else List[Int]()
 
-    @parameter
+    @__parameter
     def p(idx: Int):
         try:
             var column = Matrix(len(indices), 1)

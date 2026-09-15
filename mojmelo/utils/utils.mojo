@@ -47,7 +47,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
         axis_size, chunk_size, output_stride, input_stride, parallel_size
     )
 
-    @parameter
+    @__parameter
     @always_inline
     def cmpeq[
         dtype: DType, simd_width: SIMDLength
@@ -59,7 +59,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
         else:
             return a.ge(b)
 
-    @parameter
+    @__parameter
     @always_inline
     def cmp[
         dtype: DType, simd_width: SIMDLength
@@ -223,7 +223,7 @@ def sign(z: Matrix) -> Matrix:
             else:
                 mat.data[unsafe_offset=i] = 0.0
     else:
-        @parameter
+        @__parameter
         def p(i: Int):
             if z.data[unsafe_offset=i] > 0.0:
                 mat.data[unsafe_offset=i] = 1.0
@@ -383,7 +383,7 @@ def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntra
         vectorize[width](size, matrix_vectorize)
     else:
         var n_vects = Int(math.ceil(size / width))
-        @parameter
+        @__parameter
         def matrix_vectorize_parallelize(i: Int):
             var idx = i * width
             ptr.unsafe_store(idx, data.unsafe_load[width=width](idx).cast[des]())

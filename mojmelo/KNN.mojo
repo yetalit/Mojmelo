@@ -40,7 +40,7 @@ struct KNN[EUC: Bool = False](CV, Copyable):
             Class indices for each data sample.
         """
         var y_pred = Matrix(X.height, 1)
-        @parameter
+        @__parameter
         def p(i: Int):
             try:
                 y_pred.data[unsafe_offset=i] = self._predict(X[i])

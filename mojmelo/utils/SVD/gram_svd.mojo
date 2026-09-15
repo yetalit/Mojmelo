@@ -1,4 +1,4 @@
-from .mojmelo_matmul import matmul
+from ..mojmelo_matmul import matmul
 from std.memory import unsafe_memcpy, unsafe_memset_zero, Layout
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
@@ -38,7 +38,7 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
                 V[unsafe_offset=l * n + i] = f - g
 
                 if l+1 >= PARALLEL_ROW_THRESHOLD:
-                    @parameter
+                    @__parameter
                     def fill_row(j: Int):
                         V[unsafe_offset=i * n + j] = V[unsafe_offset=j * n + i] / h
                         var s = 0.0
@@ -68,7 +68,7 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
                     e[unsafe_offset=j] -= hh * V[unsafe_offset=j * n + i]
 
                 if l+1 >= PARALLEL_ROW_THRESHOLD:
-                    @parameter
+                    @__parameter
                     def rank2_update(j: Int):
                         var fj = V[unsafe_offset=j * n + i]
                         var ej = e[unsafe_offset=j]
@@ -94,7 +94,7 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
         var l = i - 1
         if eig[unsafe_offset=i] != 0.0:
             if l+1 >= PARALLEL_ROW_THRESHOLD:
-                @parameter
+                @__parameter
                 def accumulate_row(j: Int):
                     var s = 0.0
                     for k in range(l+1):
@@ -185,7 +185,7 @@ def eigensystem(A: Pointer[Float64, MutUntrackedOrigin], eig: Pointer[Float64, M
 
     e.unsafe_free()
 
-def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: Pointer[Float64, MutUntrackedOrigin]) raises:
+def svd_tall(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mut Vout: Matrix, ATA: Pointer[Float64, MutUntrackedOrigin]) raises:
     """
     Tall/square path: eigendecompose A^T @ A, an (n x n) matrix (n = A.width).
     """
@@ -197,15 +197,16 @@ def svd_thin(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mu
 
     # Sort eigenpairs descending by eigenvalue
     var sorted_indices = fill_indices_list(n)
-    @parameter
-    def cmp_fn(a: Int, b: Int) -> Bool:
+
+    def cmp_fn(a: Int, b: Int) {eig} -> Bool:
         return eig[unsafe_offset=a] > eig[unsafe_offset=b]
 
-    sort[cmp_fn](
+    sort(
         Span[
             Int,
             origin_of(sorted_indices),
-        ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
+        ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)),
+        cmp_fn
     )
 
     var V_f = Matrix(V_full, n, n, order='f')['', sorted_indices]
@@ -237,15 +238,16 @@ def svd_wide(m: Int, n: Int, k: Int, S: Pointer[Float64, MutUntrackedOrigin], mu
 
     # Sort eigenpairs descending by eigenvalue
     var sorted_indices = fill_indices_list(m)
-    @parameter
-    def cmp_fn(a: Int, b: Int) -> Bool:
+
+    def cmp_fn(a: Int, b: Int) {eig} -> Bool:
         return eig[unsafe_offset=a] > eig[unsafe_offset=b]
 
-    sort[cmp_fn](
+    sort(
         Span[
             Int,
             origin_of(sorted_indices),
-        ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices))
+        ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)),
+        cmp_fn
     )
 
     for r in range(m):
@@ -312,7 +314,7 @@ def svd(A: Matrix, k: Int) raises -> Tuple[Matrix, Matrix]:
         A64.unsafe_free()
         A64T.unsafe_free()
 
-        svd_thin(A.height, A.width, k, S, V, ATA.data)
+        svd_tall(A.height, A.width, k, S, V, ATA.data)
 
     return Matrix(S, 1, A.width), V^
 
@@ -330,7 +332,7 @@ def C_transpose(A: Matrix, A64: Pointer[Float64, MutUntrackedOrigin]) -> Pointer
                 tmpPtr = tmpPtr.unsafe_offset(simd_width * width)
             vectorize[simd_width](A.height, convert)
     else:
-        @parameter
+        @__parameter
         def p(i: Int):
             var idx_col = i
             var tmpPtr = A64.unsafe_offset(idx_col)

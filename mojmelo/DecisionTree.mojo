@@ -134,7 +134,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             The predicted values.
         """
         var y_predicted = Matrix(X.height, 1)
-        @parameter
+        @__parameter
         def p(i: Int):
             y_predicted.data[unsafe_offset=i] = _traverse_tree(X.data.unsafe_offset(i * X.width), self.root.value())
         parallelize[p](X.height)
@@ -282,7 +282,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
             for c in range(num_classes):
                 total_sum_sq += Float32(histogram[c]) * Float32(histogram[c])
 
-            @parameter
+            @__parameter
             def p_gini(idx: Int):
                 try:
                     var column = Matrix(len(indices), 1)
@@ -324,7 +324,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
                     print('Error:', e)
             parallelize[p_gini](len(feat_idxs))
         else:
-            @parameter
+            @__parameter
             def p_c(idx: Int):
                 try:
                     var column = Matrix(len(indices), 1)
@@ -360,7 +360,7 @@ def _best_criteria(X: Matrix, indices: List[Int], _y: Matrix, weights: Matrix, f
     else:
         var sum_total = _y.sum() if weights.size == 0 else _y.ele_mul(weights).sum()
         var sum_sq_total = _y.ele_mul(_y).sum() if weights.size == 0 else (_y.ele_mul(_y).ele_mul(weights)).sum()
-        @parameter
+        @__parameter
         def p_r(idx: Int):
             try:
                 var column = Matrix(len(indices), 1)

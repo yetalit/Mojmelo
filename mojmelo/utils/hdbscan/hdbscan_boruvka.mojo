@@ -116,7 +116,7 @@ struct HDBSCANBoruvka:
 
         var k = self.tree[].k
 
-        @parameter
+        @__parameter
         def find_edge(i: Int):
             for j in range(k):
                 var nb = self.tree[].knn_idx[unsafe_offset=i * k + j]
@@ -162,7 +162,7 @@ struct HDBSCANBoruvka:
 
     def update_components_and_nodes(mut self) raises:
         # --- 1. Refresh point→component labels in parallel ---
-        @parameter
+        @__parameter
         def update_point(i: Int):
             self.component_of_point[i] = self.u_f.find(i)
             self.u_f_finds[i] = self.component_of_point[i]
@@ -305,7 +305,7 @@ struct HDBSCANBoruvka:
         # One task per point.  Each point holds a private heap_dist / heap_nbr
         # slot (its own candidate_dist[i] / candidate_neighbor[i]) but shares
         # component_bound[component] with all other points in the same component 
-        @parameter
+        @__parameter
         def query_point(i: Int):
             var comp = self.component_of_point[i]
             var heap_dist = self.candidate_dist.unsafe_ptr().unsafe_offset(i)

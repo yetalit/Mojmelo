@@ -509,10 +509,9 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True, EUC: Bool = Fa
         self.root.value()[].search(sr)
 
         comptime if Self.sort_results:
-            @parameter
             def cmp_fn(a: KDTreeResult, b: KDTreeResult) -> Bool:
                 return a.dis < b.dis
-            sort[cmp_fn](Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)))
+            sort(Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)), cmp_fn)
         
     def n_nearest_around_point(self, idxin: Int, correltime: Int, nn: Int,
                         mut result: KDTreeResultVector) raises:
@@ -534,10 +533,9 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True, EUC: Bool = Fa
         buf.unsafe_free()
 
         comptime if Self.sort_results:
-            @parameter
             def cmp_fn(a: KDTreeResult, b: KDTreeResult) -> Bool:
                 return a.dis < b.dis
-            sort[cmp_fn](Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)))
+            sort(Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)), cmp_fn)
 
 
     def r_nearest(self, qv: Span[Float32, MutUntrackedOrigin], r2: Float32, mut result: KDTreeResultVector) raises:
@@ -554,10 +552,9 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True, EUC: Bool = Fa
         self.root.value()[].search(sr)
 
         comptime if Self.sort_results:
-            @parameter
             def cmp_fn(a: KDTreeResult, b: KDTreeResult) -> Bool:
                 return a.dis < b.dis
-            sort[cmp_fn](Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)))
+            sort(Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)), cmp_fn)
 
     def r_count(self, qv: Span[Float32, MutUntrackedOrigin], r2: Float32) raises -> Int:
         # search for all within a ball of a certain radius
@@ -594,10 +591,9 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True, EUC: Bool = Fa
         buf.unsafe_free()
 
         comptime if Self.sort_results:
-            @parameter
             def cmp_fn(a: KDTreeResult, b: KDTreeResult) -> Bool:
                 return a.dis < b.dis
-            sort[cmp_fn](Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)))
+            sort(Span[KDTreeResult, origin_of(result._self._data)](unsafe_ptr= result._self._data.unsafe_ptr(), length= len(result)), cmp_fn)
 
     def r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) raises -> Int:
         var buf = alloc(Layout[Float32](count=self.dim)).unsafe_leak()

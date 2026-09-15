@@ -388,7 +388,7 @@ def mat_transpose(a: Mat) -> Mat:
                 tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.cols())
             vectorize[SIMD_WIDTH](a.cols(), convert)
     else:
-        @parameter
+        @__parameter
         def p(i: Int):
             var idx_row = i
             var tmpPtr = a.data.unsafe_offset(idx_row)
@@ -408,7 +408,7 @@ def mat_scale(mut a: Mat, s: RealScalar):
         vectorize[SIMD_WIDTH](a.size, scalar_vectorize)
     else:
         var n_vects = Int(ceil(a.size / SIMD_WIDTH))
-        @parameter
+        @__parameter
         def scalar_vectorize_parallelize(i: Int):
             var idx = i * SIMD_WIDTH
             a.data.unsafe_store[SIMD_WIDTH](idx, a.data.unsafe_load[width=SIMD_WIDTH](idx) / s)

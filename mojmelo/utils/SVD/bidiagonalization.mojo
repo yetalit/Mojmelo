@@ -102,7 +102,7 @@ def apply_householder_left(mut M: Mat, essential: Vec, tau: RealScalar):
         for j in range(cols):
             _householder_left_update_col(base.unsafe_offset(j * col_stride), ess_data, ess_stride, ess_len, tau)
     else:
-        @parameter
+        @__parameter
         def process_col(j: Int):
             _householder_left_update_col(base.unsafe_offset(j * col_stride), ess_data, ess_stride, ess_len, tau)
         parallelize[process_col](cols)
@@ -142,7 +142,7 @@ def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
         for i in range(rows):
             _householder_right_update_row(base.unsafe_offset(i), col_stride, ess_data, ess_stride, ess_len, tau)
     else:
-        @parameter
+        @__parameter
         def process_row(i: Int):
             _householder_right_update_row(base.unsafe_offset(i), col_stride, ess_data, ess_stride, ess_len, tau)
         parallelize[process_row](rows)

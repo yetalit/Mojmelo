@@ -30,7 +30,7 @@ struct DBSCAN:
 
         var neighborhoods = List[List[Int]](capacity=X.height)
         neighborhoods.resize(X.height, List[Int]())
-        @parameter
+        @__parameter
         def p(i: Int):
             try:
                 var kd_results = KDTreeResultVector()

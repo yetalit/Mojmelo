@@ -1,5 +1,5 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.svd import svd
+from mojmelo.utils.SVD.gram_svd import svd
 from mojmelo.utils.utils import MODEL_IDS
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
@@ -37,7 +37,7 @@ struct PCA(Copyable):
         # Mean centering
         self.mean = Matrix.zeros(1, X.width)
         var n_rows, n_cols = X.height, X.width
-        @parameter
+        @__parameter
         def p(col: Int):
             var sum: Float32 = 0
             for row in range(n_rows):

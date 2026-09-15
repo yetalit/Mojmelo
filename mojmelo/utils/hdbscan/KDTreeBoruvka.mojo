@@ -141,7 +141,7 @@ struct KDTreeBoruvka:
         self.k = 2 * min_samples
         self.knn_idx  = alloc(Layout[Int](count=self.n * self.k)).unsafe_leak()
         self.knn_dist = alloc(Layout[Float32](count=self.n * self.k)).unsafe_leak()
-        @parameter
+        @__parameter
         def compute_core_dist(p: Int):
             try:
                 var kd_results = KDTreeResultVector()

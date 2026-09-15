@@ -141,7 +141,7 @@ struct SVC(CV, Copyable):
         self._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]](capacity=X.height)
         self._x_ptr.resize(X.height, Pointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
 
-        @parameter
+        @__parameter
         def p(i: Int):
             for c in range(X.width):
                 var val: Float64
@@ -180,7 +180,7 @@ struct SVC(CV, Copyable):
         var X_float64 = X.cast_ptr[DType.float64]()
         var y_ptr = alloc(Layout[Float64](count=X.height)).unsafe_leak()
 
-        @parameter
+        @__parameter
         def p(i: Int):
             var x_list = List[svm_node]()
             for c in range(X.width):
@@ -210,7 +210,7 @@ struct SVC(CV, Copyable):
         var dec_values = List[List[Float64]](capacity=X.height)
         dec_values.resize(X.height, List[Float64]())
 
-        @parameter
+        @__parameter
         def p(i: Int):
             var x_list = List[svm_node]()
             for c in range(X.width):
@@ -330,7 +330,7 @@ struct SVC(CV, Copyable):
             model._x_list.resize(X_mat.height, List[svm_node]())
             model._x_ptr = List[Pointer[svm_node, MutUntrackedOrigin]](capacity=X_mat.height)
             model._x_ptr.resize(X_mat.height, Pointer[svm_node, MutUntrackedOrigin].unsafe_dangling())
-            @parameter
+            @__parameter
             def p(i: Int):
                 for c in range(X_mat.width):
                     var val: Float64

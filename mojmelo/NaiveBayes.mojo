@@ -53,7 +53,7 @@ struct GaussianNB(Copyable):
             # calculate posterior probability for each class
             posteriors['', i] = math.log(self._priors[i]) + self._pdf(i, X).log().sum(axis=1)
         var y_pred = Matrix(X.height, 1)
-        @parameter
+        @__parameter
         def p(i: Int):
             # return class with highest posterior probability
             y_pred.data[unsafe_offset=i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
@@ -148,7 +148,7 @@ struct MultinomialNB(CV, Copyable):
             # calculate posterior probability for each class
             posteriors['', i] = math.log(self._priors[i]) + self._class_probs[i].log().ele_mul(X).sum(axis=1)
         var y_pred = Matrix(X.height, 1)
-        @parameter
+        @__parameter
         def p(i: Int):
             # return class with highest posterior probability
             y_pred.data[unsafe_offset=i] = Float32(self._classes[posteriors[i, unsafe=True].argmax()])
