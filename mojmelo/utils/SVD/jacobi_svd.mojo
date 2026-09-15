@@ -7,16 +7,6 @@
 # "R-SVD" step), then runs the two-sided Jacobi sweep on that square work
 # matrix.
 #
-#   * `householder_qr(...)`      — plain (non-pivoting) Householder QR,
-#                                   standing in for Eigen's
-#                                   HouseholderQRPreconditioner. Eigen also
-#                                   offers ColPivHouseholderQR (the default)
-#                                   and FullPivHouseholderQR preconditioners,
-#                                   which are more numerically robust for
-#                                   rank-deficient/ill-conditioned inputs but
-#                                   require column-pivoting machinery this
-#                                   port doesn't have; not ported.
-#
 # NOT ported:
 #   * Thin U/V — this port always produces full square U (rows x rows) and
 #     full square V (cols x cols), matching what JacobiSVD's ComputeFullU |
@@ -29,11 +19,13 @@
 # converged; the cap here is a deliberate safety valve).
 # ==============================================================================
 
+from std.math import sqrt
 from .linalg_core import (
     RealScalar,
     REAL_EPSILON,
     REAL_MIN,
     Vec,
+    IVec,
     Mat,
     ComputationInfo,
     INFO_SUCCESS,
@@ -47,72 +39,167 @@ from .jacobi import (
     apply_rotation_right_cols,
     apply_rotation_cols_direct,
 )
+from .bidiagonalization import make_householder_in_place, apply_householder_left
 
 # ------------------------------------------------------------------------------
-# Plain (non-pivoting) Householder QR of an m x n matrix A, m >= n.
+# Column-pivoted Householder QR of an m x n matrix A, m >= n: A*P = Q*R for a
+# column permutation P. At each of the n steps, the remaining column with the
+# largest norm is swapped into the pivot position before the Householder
+# reflection is built.
+#
+# Column norms are maintained incrementally rather than recomputed from
+# scratch every step (an O(n) update instead of O(m)), using the same
+# stable downdate LAPACK's xGEQP3 uses (Drmac & Bujanovic, LAWN176): the
+# updated norm is trusted only while updated/direct stays above a threshold;
+# once it decays past that, the norm for that column is recomputed exactly.
+# Skipping that fallback is a known way for column-pivoted QR to silently
+# pick bad pivots on exactly the ill-conditioned inputs this exists to help.
 # ------------------------------------------------------------------------------
-def householder_qr(A: Mat, mut Q_out: Mat, mut R_out: Mat):
-    var m = A.rows()
-    var n = A.cols()
+struct ColPivHouseholderQR:
+    var m_qr: Mat
+    var m_hCoeffs: Vec
+    # m_colsPermutation[k] = index of the original column now sitting in
+    # position k of m_qr (i.e. m_qr[:, k] == A[:, m_colsPermutation[k]]).
+    var m_colsPermutation: IVec
+    var m_rows: Int
+    var m_cols: Int  # number of reflectors == min(original rows, cols)
+    var m_maxPivot: RealScalar
 
-    var R = Mat(m, n)
-    R.copyFrom(A)
-    var Q = mat_identity(m, m)
+    @always_inline
+    def __init__(out self):
+        self.m_qr = Mat(0, 0)
+        self.m_hCoeffs = Vec(0)
+        self.m_colsPermutation = IVec(0)
+        self.m_rows = 0
+        self.m_cols = 0
+        self.m_maxPivot = RealScalar(0)
 
+    def compute(mut self, A: Mat):
+        var rows = A.rows()
+        var cols = A.cols()
+        self.m_qr = A.copy()
+        self.m_rows = rows
+        var size = min(rows, cols)
+        self.m_cols = size
+        self.m_hCoeffs = Vec(size)
+        self.m_maxPivot = RealScalar(0)
+
+        self.m_colsPermutation = IVec(cols)
+        for j in range(cols):
+            self.m_colsPermutation[j] = j
+        if size == 0:
+            return
+
+        # colNormsUpdated: cheaply-downdated running estimate of each
+        # remaining column's norm. colNormsDirect: the norm as of its last
+        # exact computation — comparing the two is how the downdate's
+        # accuracy is monitored.
+        var colNormsUpdated = Vec(cols)
+        var colNormsDirect = Vec(cols)
+        for j in range(cols):
+            var nrm = self.m_qr.col(j).norm()
+            colNormsUpdated[j] = nrm
+            colNormsDirect[j] = nrm
+
+        var norm_downdate_threshold = sqrt(REAL_EPSILON)
+
+        for k in range(size):
+            # Pivot: bring the remaining column with the largest (updated)
+            # norm into position k.
+            var biggest = k
+            var biggest_norm = colNormsUpdated[k]
+            for j in range(k + 1, cols):
+                if colNormsUpdated[j] > biggest_norm:
+                    biggest_norm = colNormsUpdated[j]
+                    biggest = j
+
+            if biggest != k:
+                self.m_qr.swap_cols(k, biggest)
+                swap(colNormsUpdated[k], colNormsUpdated[biggest])
+                swap(colNormsDirect[k], colNormsDirect[biggest])
+                swap(self.m_colsPermutation[k], self.m_colsPermutation[biggest])
+
+            var remainingRows = rows - k
+            var remainingCols = cols - k - 1
+
+            var col_tail = self.m_qr.col(k).segment(k, remainingRows)
+            var tb = make_householder_in_place(col_tail)
+            var tau = tb[0]
+            var beta = tb[1]
+            self.m_hCoeffs[k] = tau
+            # make_householder_in_place aliased tau into col_tail[0] ==
+            # m_qr[k,k]; put the true R diagonal value back.
+            self.m_qr[k, k] = beta
+
+            var absBeta = abs(beta)
+            if absBeta > self.m_maxPivot:
+                self.m_maxPivot = absBeta
+
+            if remainingCols > 0 and tau != RealScalar(0):
+                var essential = col_tail.segment(1, remainingRows - 1)
+                var sub = self.m_qr.block(k, k + 1, remainingRows, remainingCols)
+                apply_householder_left(sub, essential, tau)
+
+            # LAWN176 column-norm downdate (same derivation LAPACK's
+            # xGEQP3/xGEQPF use): after reflecting, each remaining column's
+            # new tail norm is exactly the old norm scaled by
+            # sqrt(1 - (element just zeroed / old norm)^2), computed here in
+            # the numerically nicer (1+t)(1-t) form. If that estimate's
+            # relative trust (tracked via colNormsUpdated/colNormsDirect)
+            # has decayed too far, fall back to an exact recomputation
+            # rather than keep compounding an unreliable update.
+            for j in range(k + 1, cols):
+                if colNormsUpdated[j] != RealScalar(0):
+                    var temp = abs(self.m_qr[k, j]) / colNormsUpdated[j]
+                    temp = max(RealScalar(0), (RealScalar(1) + temp) * (RealScalar(1) - temp))
+                    var ratio = colNormsUpdated[j] / colNormsDirect[j]
+                    var temp2 = temp * ratio * ratio
+                    if temp2 <= norm_downdate_threshold:
+                        var recomputed = self.m_qr.col(j).segment(k + 1, rows - k - 1).norm()
+                        colNormsDirect[j] = recomputed
+                        colNormsUpdated[j] = recomputed
+                    else:
+                        colNormsUpdated[j] = colNormsUpdated[j] * sqrt(temp)
+
+    @always_inline
+    def matrixR(self) -> Mat:
+        """The cols x cols (== m_cols x m_cols) upper-triangular R factor of
+        A*P, as a fresh dense copy.
+        """
+        var q = self.m_cols
+        var R = Mat(q, q)
+        for j in range(q):
+            for i in range(j + 1):
+                R[i, j] = self.m_qr[i, j]
+        return R^
+
+    @always_inline
+    def apply_q_on_left(self, mut M: Mat):
+        """M <- Q * M, i.e. H_0 * H_1 * ... * H_{m_cols-1} * M — reflectors
+        applied in reverse order, same pattern as
+        UpperBidiagonalization.apply_u_on_left / bdcsvd.HouseholderQR.
+        """
+        var k = self.m_cols - 1
+        while k >= 0:
+            var tau = self.m_hCoeffs[k]
+            if tau != RealScalar(0):
+                var essential = self.m_qr.col(k).segment(k + 1, self.m_rows - k - 1)
+                var sub = M.block(k, 0, self.m_rows - k, M.cols())
+                apply_householder_left(sub, essential, tau)
+            k -= 1
+
+# ------------------------------------------------------------------------------
+# Undo a ColPivHouseholderQR's column permutation on the singular-vector
+# matrix that came out of the square Jacobi sweep on R: since A*P = Q*R,
+# the sweep produces the singular vectors of the *permuted* problem, so row k
+# of that result belongs at row perm[k] (the original, unpermuted index).
+# ------------------------------------------------------------------------------
+@always_inline
+def unpermute_rows(mut M: Mat, perm: IVec):
+    var n = len(perm)
+    var src = M.copy()
     for k in range(n):
-        var remaining = m - k
-        if remaining <= 1:
-            continue
-
-        # Householder vector v for column k, rows k..m-1: v <- x - alpha*e1,
-        # alpha = -sign(x0)*||x|| (sign chosen to avoid cancellation).
-        var v = Vec(remaining)
-        for i in range(remaining):
-            v[i] = R[k + i, k]
-
-        var xnorm = v.norm()
-        if xnorm < REAL_MIN:
-            continue
-
-        var x0 = v[0]
-        var alpha = -xnorm if x0 >= RealScalar(0) else xnorm
-        v[0] = x0 - alpha
-
-        var vnorm = v.norm()
-        if vnorm < REAL_MIN:
-            continue
-        v.stableNormalize()
-
-        # Apply H = I - 2vv^T to R[k:m, k:n] (zeroes column k below the
-        # diagonal, updates the trailing columns).
-        for j in range(k, n):
-            var dot = RealScalar(0)
-            for i in range(remaining):
-                dot += v[i] * R[k + i, j]
-            var factor = RealScalar(2) * dot
-            for i in range(remaining):
-                var updated = R[k + i, j] - factor * v[i]
-                R[k + i, j] = updated
-
-        # Accumulate Q <- Q * H on the right, restricted to columns k:m —
-        # after all n steps, Q = H_0 * H_1 * ... * H_{n-1}, i.e. the full
-        # orthogonal factor such that A == Q * R.
-        for i in range(m):
-            var dot2 = RealScalar(0)
-            for t in range(remaining):
-                dot2 += Q[i, k + t] * v[t]
-            var factor2 = RealScalar(2) * dot2
-            for t in range(remaining):
-                var updated2 = Q[i, k + t] - factor2 * v[t]
-                Q[i, k + t] = updated2
-
-    var Rtop = Mat(n, n)
-    for i in range(n):
-        for j in range(n):
-            Rtop[i, j] = R[i, j] if i <= j else RealScalar(0)
-
-    Q_out = Q^
-    R_out = Rtop^
+        M.row(perm[k]).copyFrom(src.row(k))
 
 # ------------------------------------------------------------------------------
 # Non-blocked two-sided Jacobi sweep — the IsComplex == false branch of
@@ -242,25 +329,41 @@ def jacobi_svd(A: Mat, mut U_out: Mat, mut S_out: Vec, mut V_out: Mat) -> Comput
         return finish_jacobi_svd(work, U_out, V_out, diag_size, maxCoeff, S_out)
     elif rows > cols:
         # R-SVD, rows > cols case (Eigen's PreconditionIfMoreRowsThanCols):
-        # A == Q * [R_top; 0], so diagonalizing R_top (cols x cols) gives
-        # U_small, V such that A == (Q * [U_small; 0-embedded]) * S * V^T.
-        # Since Q is already the full rows x rows orthogonal factor, "embed
-        # U_small into Q" is exactly "let the sweep rotate the first `cols`
-        # columns of Q in place" — no separate embedding step required.
-        var Rtop = Mat(0, 0)
-        householder_qr(scaled, U_out, Rtop)
+        # A*P == Q * [R_top; 0] for the column permutation P that
+        # ColPivHouseholderQR chose, so diagonalizing R_top (cols x cols)
+        # gives U_small, V_perm such that A*P == (Q * [U_small;
+        # 0-embedded]) * S * V_perm^T. Q is already the full rows x rows
+        # orthogonal factor (built via apply_q_on_left on the identity), so
+        # "embed U_small into Q" is exactly "let the sweep rotate the first
+        # `cols` columns of Q in place" — no separate embedding step
+        # required. V_perm's *rows* (indexed by A's original columns) still
+        # need un-permuting to undo P before they're the true V.
+        var qr = ColPivHouseholderQR()
+        qr.compute(scaled)
+        var Rtop = qr.matrixR()
+        U_out = mat_identity(rows, rows)
+        qr.apply_q_on_left(U_out)
         V_out = mat_identity(cols, cols)
-        return finish_jacobi_svd(Rtop, U_out, V_out, diag_size, maxCoeff, S_out)
+        var info = finish_jacobi_svd(Rtop, U_out, V_out, diag_size, maxCoeff, S_out)
+        unpermute_rows(V_out, qr.m_colsPermutation)
+        return info
     else:
         # R-SVD, cols > rows case (Eigen's PreconditionIfMoreColsThanRows):
-        # mirror image of the above, QR'ing A^T instead so V absorbs the
-        # orthogonal factor and U comes out directly at its final size.
+        # mirror image of the above, column-pivoted-QR'ing A^T instead so V
+        # absorbs the orthogonal factor and U comes out directly at its
+        # final size. The permutation this time reorders A's *rows* (== A^T's
+        # columns), so it's U's rows that need un-permuting afterwards.
         var At = mat_transpose(scaled)
-        var Rtop = Mat(0, 0)
-        householder_qr(At, V_out, Rtop)
+        var qr = ColPivHouseholderQR()
+        qr.compute(At)
+        var Rtop = qr.matrixR()
+        V_out = mat_identity(cols, cols)
+        qr.apply_q_on_left(V_out)
         var work = mat_transpose(Rtop)
         U_out = mat_identity(rows, rows)
-        return finish_jacobi_svd(work, U_out, V_out, diag_size, maxCoeff, S_out)
+        var info = finish_jacobi_svd(work, U_out, V_out, diag_size, maxCoeff, S_out)
+        unpermute_rows(U_out, qr.m_colsPermutation)
+        return info
 
 struct JacobiSVD:
     var compute_v: Bool
