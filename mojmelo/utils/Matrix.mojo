@@ -27,7 +27,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     # initialize from Pointer
     @always_inline
-    def __init__[src: DType = DType.float32](out self, data: Pointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = 'c'):
+    def __init__[src: DType = DType.float32, consume: Bool = True](out self, data: Pointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = 'c'):
         self.height = height
         self.width = width
         self.size = height * width
@@ -35,7 +35,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             self.data = data.unsafe_bitcast[Float32]()
         else:
             self.data = cast[src=src, des=DType.float32, width=self.simd_width](data, self.size)
-            data.unsafe_free()
+            comptime if consume:
+                data.unsafe_free()
         self.order = order.lower()
 
     # initialize by copying from Pointer

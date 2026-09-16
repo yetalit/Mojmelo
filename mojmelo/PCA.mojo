@@ -1,5 +1,6 @@
 from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.SVD.gram_svd import svd
+from mojmelo.utils.SVD.bdcsvd import BDCSVD
+from mojmelo.utils.SVD.linalg_core import Mat, INFO_SUCCESS, INFO_NO_CONVERGENCE
 from mojmelo.utils.utils import MODEL_IDS
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
@@ -34,19 +35,45 @@ struct PCA(Copyable):
 
     def fit(mut self, X: Matrix) raises:
         """Fit the model."""
+        var X_F = X.asorder('f')
         # Mean centering
         self.mean = Matrix.zeros(1, X.width)
         var n_rows, n_cols = X.height, X.width
+
         @__parameter
         def p(col: Int):
+            var offset = col * n_rows
             var sum: Float32 = 0
-            for row in range(n_rows):
-                sum += X.data.unsafe_load(row * n_cols + col)
 
-            self.mean.store[1](0, col, sum / Float32(n_rows))
+            def add[simd_width: Int](row: Int) {mut}:
+                sum += X_F.data.unsafe_load[simd_width](offset + row).reduce_add()
+            vectorize[X.simd_width](n_rows, add)
+
+            var mu = sum / Float32(n_rows)
+            self.mean.data[unsafe_offset=col] = mu
+
+            def center[simd_width: Int](row: Int) {offset, X_F, mu}:
+                var idx = offset + row
+                X_F.data.unsafe_store[simd_width](
+                    idx,
+                    X_F.data.unsafe_load[simd_width](idx) - mu
+                )
+            vectorize[X.simd_width](n_rows, center)
+
         parallelize[p](n_cols)
 
-        var S, self.components = svd((X - self.mean), self.n_components)
+        var X_f64 = Mat(X_F.cast_ptr[DType.float64](), n_rows, n_cols, 1, n_rows)
+        X_f64.owns = True
+        var svd = BDCSVD()
+        var svd_info = svd.compute(X_f64, False, True)
+        if svd_info != INFO_SUCCESS:
+            if svd_info == INFO_NO_CONVERGENCE:
+                print("\nWARNING: SVD didn't converged!")
+            else:
+                raise Error("SVD failed!")
+        var S = Matrix.__init__[consume=False](svd.singularValues().data, 1, n_cols)
+        self.components = Matrix.__init__[consume=False](svd.matrixV().data, self.n_components, n_cols)
+        _ = svd
 
         self.components_T = self.components.T()
         var explained_variance = (S ** 2) / Float32(X.height - 1)
