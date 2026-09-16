@@ -71,25 +71,52 @@ struct HouseholderQR:
         if size == 0:
             return
 
-        for k in range(size):
-            var remainingRows = rows - k
-            var remainingCols = cols - k - 1
+        comptime block_size = 64
+        var k = 0
+        while k < size:
+            var nb = min(block_size, size - k)
+            # Panel: unblocked generation, but each reflector's trailing
+            # update is confined to the panel's own nb columns (cheap:
+            # O(rows * nb) per column instead of O(rows * cols)) — this
+            # is what breaks the generate-then-update dependency into
+            # something small enough to keep doing the rank-1 way.
+            var V = Mat(rows - k, nb)
+            var taus = Vec(nb)
+            for jj in range(nb):
+                var kk = k + jj
+                var remainingRows = rows - kk
+                var panelRemainingCols = (k + nb) - kk - 1
 
-            var col_tail = self.m_qr.col(k).segment(k, remainingRows)
-            var tb = make_householder_in_place(col_tail)
-            var tau = tb[0]
-            var beta = tb[1]
-            self.m_hCoeffs[k] = tau
-            # make_householder_in_place aliased tau into col_tail[0] ==
-            # m_qr[k,k]; put the true R diagonal value back so the upper
-            # triangle of m_qr is exactly R, with tau living only in
-            # m_hCoeffs.
-            self.m_qr[k, k] = beta
+                var col_tail = self.m_qr.col(kk).segment(kk, remainingRows)
+                var tb = make_householder_in_place(col_tail)
+                var tau = tb[0]
+                var beta = tb[1]
+                self.m_hCoeffs[kk] = tau
+                self.m_qr[kk, kk] = beta
+                taus[jj] = tau
+                V[jj, jj] = RealScalar(1)
 
-            if remainingCols > 0 and tau != RealScalar(0):
-                var essential = col_tail.segment(1, remainingRows - 1)
-                var sub = self.m_qr.block(k, k + 1, remainingRows, remainingCols)
-                apply_householder_left(sub, essential, tau)
+                if tau != RealScalar(0):
+                    var essential = col_tail.segment(1, remainingRows - 1)
+                    for r in range(len(essential)):
+                        V[jj + 1 + r, jj] = essential[r]
+                    if panelRemainingCols > 0:
+                        var sub = self.m_qr.block(kk, kk + 1, remainingRows, panelRemainingCols)
+                        apply_householder_left(sub, essential, tau)
+
+            # Flush the whole panel onto the wide trailing block (columns
+            # to the right of the panel) in one shot: 2 GEMMs instead of
+            # nb more rank-1 updates. Needs Q_panel^T here, not Q_panel:
+            # sequential generation applies H_0 first, so the net effect
+            # already imposed on later columns is H_{nb-1}*...*H_1*H_0,
+            # the transpose of the H_0*...*H_{nb-1} that apply_q_on_left
+            # wants when reconstructing Q elsewhere.
+            var afterCols = cols - (k + nb)
+            if afterCols > 0:
+                var trailing = self.m_qr.block(k, k + nb, rows - k, afterCols)
+                apply_compact_wy_block(trailing, V, taus, True)
+
+            k += nb
 
     @always_inline
     def matrixR(self) -> Mat:

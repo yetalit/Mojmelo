@@ -165,7 +165,7 @@ def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
 # first — matching the existing high-to-low loop order).
 # ------------------------------------------------------------------------------
 @always_inline
-def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec):
+def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = False):
     var rows = V.rows()
     var plen = V.cols()
     if plen == 0:
@@ -194,11 +194,20 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec):
             T[r, j] = -taus[j] * s
         T[j, j] = taus[j]
 
-    # C <- C - V * (T * (V^T * C)). The two rows*plen*n-sized GEMMs
-    # dominate; the plen x plen one is cheap.
+    # C <- C - V * (T * (V^T * C))   [Q = I - V T V^T applied], or with
+    # T^T in place of T when the caller needs Q^T instead (same V, T —
+    # (I - V T V^T)^T == I - V T^T V^T since V^T V^T-conjugation is its
+    # own transpose-partner here). Q^T is what a QR/bidiagonalization
+    # panel needs when flushing its effect onto trailing columns during
+    # factorization; Q itself is what reconstructing U/V from an already-
+    # finished factorization needs (apply_u_on_left etc.).
     var Vt = mat_transpose(V)
     var W = matmul(Vt, C)
-    var TW = matmul(T, W)
+    var TW: Mat
+    if use_transpose:
+        TW = matmul(mat_transpose(T), W)
+    else:
+        TW = matmul(T, W)
     var update = matmul(V, TW)
     for j in range(C.cols()):
         for i in range(rows):
