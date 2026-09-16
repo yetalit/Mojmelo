@@ -29,8 +29,7 @@ from .bidiagonalization import (
     UpperBidiagonalization,
     make_householder_in_place,
     apply_householder_left,
-    householder_qr_matrixR,
-    householder_qr_apply_q_on_left,
+    apply_compact_wy_block,
 )
 
 def prepare_work(A: Mat, do_transpose: Bool) -> Mat:
@@ -98,15 +97,40 @@ struct HouseholderQR:
         as a fresh dense copy — matches Eigen's
         `qrDecomp.matrixQR().topRows(diagSize).triangularView<StrictlyLower>().setZero()`.
         """
-        return householder_qr_matrixR(self.m_qr, self.m_cols)
+        var q = self.m_cols
+        var R = Mat(q, q)
+        for j in range(q):
+            for i in range(j + 1):
+                R[i, j] = self.m_qr[i, j]
+        return R^
 
     @always_inline
     def apply_q_on_left(self, mut M: Mat):
-        """M <- Q * M, i.e. H_0 * H_1 * ... * H_{m_cols-1} * M — reflectors
-        applied in reverse order, same pattern as
-        UpperBidiagonalization.apply_u_on_left.
+        """M <- Q * M, i.e. H_0 * H_1 * ... * H_{m_cols-1} * M, applied via
+        compact-WY panels of `block_size` reflectors at a time (2 GEMMs per
+        panel) instead of one rank-1 update per reflector. M here is the
+        full rows x rows (or cols x cols) matrixU/matrixV, so this is the
+        single most expensive Householder-apply in the whole solve for
+        rectangular inputs.
         """
-        householder_qr_apply_q_on_left(self.m_qr, self.m_hCoeffs, self.m_rows, self.m_cols, M)
+        comptime block_size = 64
+        var k_hi = self.m_cols - 1
+        while k_hi >= 0:
+            var plen = min(block_size, k_hi + 1)
+            var kb = k_hi - plen + 1
+            var block_rows = self.m_rows - kb
+            var V = Mat(block_rows, plen)
+            var taus = Vec(plen)
+            for j in range(plen):
+                var k = kb + j
+                taus[j] = self.m_hCoeffs[k]
+                V[j, j] = RealScalar(1)
+                var essential = self.m_qr.col(k).segment(k + 1, self.m_rows - k - 1)
+                for r in range(len(essential)):
+                    V[j + 1 + r, j] = essential[r]
+            var C = M.block(kb, 0, block_rows, M.cols())
+            apply_compact_wy_block(C, V, taus)
+            k_hi = kb - 1
 
 struct BDCSVD:
     var m_impl: BDCSVDImpl

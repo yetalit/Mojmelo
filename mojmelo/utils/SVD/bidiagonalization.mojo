@@ -107,80 +107,24 @@ def apply_householder_left(mut M: Mat, essential: Vec, tau: RealScalar):
             _householder_left_update_col(base.unsafe_offset(j * col_stride), ess_data, ess_stride, ess_len, tau)
         parallelize[process_col](cols)
 
-# ------------------------------------------------------------------------------
-# qr's upper triangle (including diagonal) holds R, qr's strict lower triangle
-# holds each reflector's essential vector, and hCoeffs holds the tau's.
-# The two structs differ only in how compute() picks/orders columns before
-# reflecting — R extraction and applying Q are identical either way, so both
-# structs delegate to these instead of keeping their own copies in sync by hand.
-# ------------------------------------------------------------------------------
-@always_inline
-def householder_qr_matrixR(qr: Mat, size: Int) -> Mat:
-    """The size x size upper-triangular R factor, as a fresh dense copy."""
-    var R = Mat(size, size)
-    for j in range(size):
-        for i in range(j + 1):
-            R[i, j] = qr[i, j]
-    return R^
-
-@always_inline
-def householder_qr_apply_q_on_left(qr: Mat, hCoeffs: Vec, rows: Int, num_reflectors: Int, mut M: Mat):
-    """M <- Q * M, i.e. H_0 * H_1 * ... * H_{num_reflectors-1} * M —
-    reflectors applied in reverse order, same pattern as
-    UpperBidiagonalization.apply_u_on_left.
-    """
-    var k = num_reflectors - 1
-    while k >= 0:
-        var tau = hCoeffs[k]
-        if tau != RealScalar(0):
-            var essential = qr.col(k).segment(k + 1, rows - k - 1)
-            var sub = M.block(k, 0, rows - k, M.cols())
-            apply_householder_left(sub, essential, tau)
-        k -= 1
-
 @always_inline
 def _householder_right_update_row(
     row_ptr0: Pointer[RealScalar, MutUntrackedOrigin],
-    var col_stride: Int,
+    col_stride: Int,
     ess_data: Pointer[RealScalar, MutUntrackedOrigin],
-    var ess_stride: Int,
+    ess_stride: Int,
     ess_len: Int,
     tau: RealScalar,
 ):
     # row_ptr0 -> M[i, 0]; M[i, j] lives at row_ptr0 + j*col_stride
     var s = row_ptr0[]
-
-    if ess_stride == col_stride:
-        var e_ptr = ess_data
-        var m_ptr = row_ptr0.unsafe_offset(col_stride)
-        def dotv[simd_width: Int](idx: Int) {mut}:
-            var ev = e_ptr.unsafe_strided_load[width=simd_width](ess_stride)
-            var mv = m_ptr.unsafe_strided_load[width=simd_width](col_stride)
-            s += (ev * mv).reduce_add()
-            e_ptr = e_ptr.unsafe_offset(simd_width * ess_stride)
-            m_ptr = m_ptr.unsafe_offset(simd_width * col_stride)
-        vectorize[SIMD_WIDTH](ess_len, dotv)
-    else:
-        for j in range(ess_len):
-            s += ess_data[unsafe_offset=j * ess_stride] * row_ptr0[unsafe_offset=(j + 1) * col_stride]
-
+    for j in range(ess_len):
+        s += ess_data[unsafe_offset=j * ess_stride] * row_ptr0[unsafe_offset=(j + 1) * col_stride]
     s = s * tau
     row_ptr0[] = row_ptr0[] - s
-
-    if ess_stride == col_stride:
-        var e_ptr2 = ess_data
-        var m_ptr2 = row_ptr0.unsafe_offset(col_stride)
-        def axpy[simd_width: Int](idx: Int) {mut}:
-            var ev = e_ptr2.unsafe_strided_load[width=simd_width](ess_stride)
-            var mv = m_ptr2.unsafe_strided_load[width=simd_width](col_stride)
-            m_ptr2.unsafe_strided_store[width=simd_width](mv - s * ev, col_stride)
-            e_ptr2 = e_ptr2.unsafe_offset(simd_width * ess_stride)
-            m_ptr2 = m_ptr2.unsafe_offset(simd_width * col_stride)
-        vectorize[SIMD_WIDTH](ess_len, axpy)
-    else:
-        for j in range(ess_len):
-            var off = (j + 1) * col_stride
-            row_ptr0[unsafe_offset=off] = row_ptr0[unsafe_offset=off] - s * ess_data[unsafe_offset=j * ess_stride]
+    for j in range(ess_len):
+        var off = (j + 1) * col_stride
+        row_ptr0[unsafe_offset=off] = row_ptr0[unsafe_offset=off] - s * ess_data[unsafe_offset=j * ess_stride]
 
 @always_inline
 def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
@@ -202,6 +146,63 @@ def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
         def process_row(i: Int):
             _householder_right_update_row(base.unsafe_offset(i), col_stride, ess_data, ess_stride, ess_len, tau)
         parallelize[process_row](rows)
+
+# ------------------------------------------------------------------------------
+# Compact-WY blocked application of a panel of `plen` Householder reflectors.
+# Net effect on C is the same as calling apply_householder_left once per
+# reflector in decreasing index order (i.e. H applied first, then H
+# one index down, etc.) — but batched into 2 GEMMs instead of `plen` rank-1
+# updates, so the work rides the matmul kernel instead of doing memory-bound
+# rank-1 updates one at a time.
+#
+# V: rows x plen. Column j is [zeros(j); 1; essential_j] — i.e. reflector j
+# (0-indexed, increasing j = increasing original index) has its implicit
+# leading 1 at row j and its essential tail below that. taus[j] pairs with
+# column j. This is exactly LAPACK's DLARFT "forward" convention, giving
+# H = H_0 * H_1 * ... * H_{plen-1} = I - V*T*V^T, which is the product our
+# callers need (index 0 = outermost/leftmost = smallest original index,
+# applied last; index plen-1 = innermost = largest original index, applied
+# first — matching the existing high-to-low loop order).
+# ------------------------------------------------------------------------------
+@always_inline
+def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec):
+    var rows = V.rows()
+    var plen = V.cols()
+    if plen == 0:
+        return
+
+    # Build T (plen x plen, upper triangular): T[0,0] = tau_0; for j > 0,
+    # T[0:j,j] = -tau_j * T[0:j,0:j] * (V[:,0:j]^T v_j), T[j,j] = tau_j.
+    # O(plen^2 * rows) — negligible next to the O(rows * plen * n) GEMMs
+    # below as long as plen << n. A zero tau_j naturally zeroes column j
+    # of T, so a reflector with tau == 0 needs no special-casing here.
+    var T = Mat(plen, plen)
+    T[0, 0] = taus[0]
+    for j in range(1, plen):
+        var vj = V.col(j)
+        var z = Vec(j)
+        for c in range(j):
+            var vc = V.col(c)
+            var dot = RealScalar(0)
+            for r in range(rows):
+                dot += vc[r] * vj[r]
+            z[c] = dot
+        for r in range(j):
+            var s = RealScalar(0)
+            for c in range(r, j):
+                s += T[r, c] * z[c]
+            T[r, j] = -taus[j] * s
+        T[j, j] = taus[j]
+
+    # C <- C - V * (T * (V^T * C)). The two rows*plen*n-sized GEMMs
+    # dominate; the plen x plen one is cheap.
+    var Vt = mat_transpose(V)
+    var W = matmul(Vt, C)
+    var TW = matmul(T, W)
+    var update = matmul(V, TW)
+    for j in range(C.cols()):
+        for i in range(rows):
+            C[i, j] = C[i, j] - update[i, j]
 
 def upperbidiagonalization_unblocked(mut mat: Mat, mut diag: Vec, mut superdiag: Vec):
     var rows = mat.rows()
@@ -293,14 +294,24 @@ struct UpperBidiagonalization:
     # highest-indexed reflector first and work back down to H_0.
     @always_inline
     def apply_u_on_left(self, mut M: Mat):
-        var k = self.m_cols - 1
-        while k >= 0:
-            var tau = self.m_householder[k, k]
-            if tau != RealScalar(0):
+        comptime block_size = 64
+        var k_hi = self.m_cols - 1
+        while k_hi >= 0:
+            var plen = min(block_size, k_hi + 1)
+            var kb = k_hi - plen + 1
+            var block_rows = self.m_rows - kb
+            var V = Mat(block_rows, plen)
+            var taus = Vec(plen)
+            for j in range(plen):
+                var k = kb + j
+                taus[j] = self.m_householder[k, k]
+                V[j, j] = RealScalar(1)
                 var essential = self.m_householder.col(k).segment(k + 1, self.m_rows - k - 1)
-                var sub = M.block(k, 0, self.m_rows - k, M.cols())
-                apply_householder_left(sub, essential, tau)
-            k -= 1
+                for r in range(len(essential)):
+                    V[j + 1 + r, j] = essential[r]
+            var C = M.block(kb, 0, block_rows, M.cols())
+            apply_compact_wy_block(C, V, taus)
+            k_hi = kb - 1
 
     # Apply V_h = H_0 * H_1 * ... * H_{cols-2} to M from the left, i.e.
     # M <- V_h * M. Same reverse application order as apply_u_on_left; the
@@ -308,11 +319,22 @@ struct UpperBidiagonalization:
     # the (0,0) entry of a bidiagonal's right-hand transform is untouched.
     @always_inline
     def apply_v_on_left(self, mut M: Mat):
-        var k = self.m_cols - 2
-        while k >= 0:
-            var tau = self.m_householder[k, k + 1]
-            if tau != RealScalar(0):
+        comptime block_size = 64
+        var k_hi = self.m_cols - 2
+        while k_hi >= 0:
+            var plen = min(block_size, k_hi + 1)
+            var kb = k_hi - plen + 1
+            var pivot0 = kb + 1  # row of reflector j=0's implicit leading 1
+            var block_rows = self.m_cols - pivot0
+            var V = Mat(block_rows, plen)
+            var taus = Vec(plen)
+            for j in range(plen):
+                var k = kb + j
+                taus[j] = self.m_householder[k, k + 1]
+                V[j, j] = RealScalar(1)
                 var essential = self.m_householder.row(k).segment(k + 2, self.m_cols - k - 2)
-                var sub = M.block(k + 1, 0, self.m_cols - k - 1, M.cols())
-                apply_householder_left(sub, essential, tau)
-            k -= 1
+                for r in range(len(essential)):
+                    V[j + 1 + r, j] = essential[r]
+            var C = M.block(pivot0, 0, block_rows, M.cols())
+            apply_compact_wy_block(C, V, taus)
+            k_hi = kb - 1
