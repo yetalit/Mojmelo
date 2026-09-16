@@ -98,8 +98,7 @@ struct HouseholderQR:
 
                 if tau != RealScalar(0):
                     var essential = col_tail.segment(1, remainingRows - 1)
-                    for r in range(len(essential)):
-                        V[jj + 1 + r, jj] = essential[r]
+                    V.col(jj).segment(jj + 1, len(essential)).copyFrom(essential)
                     if panelRemainingCols > 0:
                         var sub = self.m_qr.block(kk, kk + 1, remainingRows, panelRemainingCols)
                         apply_householder_left(sub, essential, tau)
@@ -153,8 +152,7 @@ struct HouseholderQR:
                 taus[j] = self.m_hCoeffs[k]
                 V[j, j] = RealScalar(1)
                 var essential = self.m_qr.col(k).segment(k + 1, self.m_rows - k - 1)
-                for r in range(len(essential)):
-                    V[j + 1 + r, j] = essential[r]
+                V.col(j).segment(j + 1, len(essential)).copyFrom(essential)
             var C = M.block(kb, 0, block_rows, M.cols())
             apply_compact_wy_block(C, V, taus)
             k_hi = kb - 1

@@ -11,7 +11,7 @@
 from std.math import sqrt, hypot
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, matmul, mat_transpose
+from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, matmul, mat_transpose, vec_dot
 
 @always_inline
 def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
@@ -173,20 +173,14 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = 
 
     # Build T (plen x plen, upper triangular): T[0,0] = tau_0; for j > 0,
     # T[0:j,j] = -tau_j * T[0:j,0:j] * (V[:,0:j]^T v_j), T[j,j] = tau_j.
-    # O(plen^2 * rows) — negligible next to the O(rows * plen * n) GEMMs
-    # below as long as plen << n. A zero tau_j naturally zeroes column j
-    # of T, so a reflector with tau == 0 needs no special-casing here.
+    # This stays a serial O(plen^2 * rows) loop (SIMD, not threaded).
     var T = Mat(plen, plen)
     T[0, 0] = taus[0]
     for j in range(1, plen):
         var vj = V.col(j)
         var z = Vec(j)
         for c in range(j):
-            var vc = V.col(c)
-            var dot = RealScalar(0)
-            for r in range(rows):
-                dot += vc[r] * vj[r]
-            z[c] = dot
+            z[c] = vec_dot(V.col(c), vj)
         for r in range(j):
             var s = RealScalar(0)
             for c in range(r, j):
@@ -316,8 +310,7 @@ struct UpperBidiagonalization:
                 taus[j] = self.m_householder[k, k]
                 V[j, j] = RealScalar(1)
                 var essential = self.m_householder.col(k).segment(k + 1, self.m_rows - k - 1)
-                for r in range(len(essential)):
-                    V[j + 1 + r, j] = essential[r]
+                V.col(j).segment(j + 1, len(essential)).copyFrom(essential)
             var C = M.block(kb, 0, block_rows, M.cols())
             apply_compact_wy_block(C, V, taus)
             k_hi = kb - 1
@@ -342,8 +335,7 @@ struct UpperBidiagonalization:
                 taus[j] = self.m_householder[k, k + 1]
                 V[j, j] = RealScalar(1)
                 var essential = self.m_householder.row(k).segment(k + 2, self.m_cols - k - 2)
-                for r in range(len(essential)):
-                    V[j + 1 + r, j] = essential[r]
+                V.col(j).segment(j + 1, len(essential)).copyFrom(essential)
             var C = M.block(pivot0, 0, block_rows, M.cols())
             apply_compact_wy_block(C, V, taus)
             k_hi = kb - 1

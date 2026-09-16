@@ -367,6 +367,21 @@ def swap_vecs(mut a: Vec, mut b: Vec):
     b.copyFrom(tmp)
 
 @always_inline
+def vec_dot(a: Vec, b: Vec) -> RealScalar:
+    var n = len(a)
+    var sum = 0.0
+    if a.stride == 1 and b.stride == 1:
+        var ad = a.data
+        var bd = b.data
+        def dotChunk[simd_width: Int](idx: Int) {mut}:
+            sum += (ad.unsafe_load[simd_width](idx) * bd.unsafe_load[simd_width](idx)).reduce_add()
+        vectorize[SIMD_WIDTH](n, dotChunk)
+    else:
+        for i in range(n):
+            sum += a[i] * b[i]
+    return sum
+
+@always_inline
 def reverse_cols(mut m: Mat, count: Int):
     var i = 0
     var j = count - 1
