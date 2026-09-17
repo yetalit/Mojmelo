@@ -38,11 +38,6 @@ struct HDBSCAN:
         in clustering results. Setting this flag to True will, at a some
         performance cost, ensure that the clustering results match the
         reference implementation."""
-    var search_depth: Int
-    """Current KDTree implementation applies some approximation to its search results.
-        Increasing search_depth can lead to more accurate results at the cost of performance.
-        This can be useful for small datasets."""
-
     var labels: List[Int]
     """Cluster labels for each point in the dataset given to fit()."""
     var probabilities: List[Float32]
@@ -68,8 +63,7 @@ struct HDBSCAN:
         cluster_selection_persistence: Float32 = 0,
         max_cluster_size: Int = 0,
         allow_single_cluster: Bool = False,
-        match_reference_implementation: Bool = False,
-        search_depth: Int = 1
+        match_reference_implementation: Bool = False
     ):
         self.min_samples = min_samples
         self.min_cluster_size = min_cluster_size
@@ -81,7 +75,6 @@ struct HDBSCAN:
         self.max_cluster_size = max_cluster_size
         self.allow_single_cluster = allow_single_cluster
         self.match_reference_implementation = match_reference_implementation
-        self.search_depth = search_depth
         
         self.labels = List[Int]()
         self.probabilities = List[Float32]()
@@ -100,7 +93,7 @@ struct HDBSCAN:
         if self.cluster_selection_method != 'eom' and self.cluster_selection_method != 'leaf':
             raise Error('Invalid cluster_selection_method value!')
 
-        var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=max(32, 2 * self.min_samples), search_depth=self.search_depth)
+        var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=max(32, 2 * self.min_samples))
         var boruvka_alg = HDBSCANBoruvka(Pointer[KDTreeBoruvka, MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=tree))), min_samples=self.min_samples, alpha=self.alpha)
         var mst_edges = boruvka_alg.spanning_tree()
         _ = tree

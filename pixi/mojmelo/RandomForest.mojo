@@ -76,7 +76,7 @@ struct RandomForest(CV, Copyable):
                 n_feats = X.width
             else:
                 n_feats = math.sqrt(X.width)
-        @parameter
+        @__parameter
         def p(i: Int):
             var tree = DecisionTree(
                 min_samples_split = self.min_samples_split,
@@ -101,7 +101,7 @@ struct RandomForest(CV, Copyable):
             The predicted values.
         """
         var tree_preds = Matrix(X.height, self.n_trees)
-        @parameter
+        @__parameter
         def predict_per_tree(i: Int):
             try:
                 tree_preds['', i] = self.trees[unsafe_offset=i].predict(X)
@@ -110,7 +110,7 @@ struct RandomForest(CV, Copyable):
         parallelize[predict_per_tree](self.n_trees)
 
         var y_predicted = Matrix(X.height, 1)
-        @parameter
+        @__parameter
         def predict_per_sample(i: Int):
             try:
                 y_predicted.data[unsafe_offset=i] = _predict(tree_preds[i], self.criterion)

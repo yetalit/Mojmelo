@@ -53,7 +53,7 @@ If you are not familiar with Mojo projects, you can get started here: https://mo
 
 ### Prerequisites
 
-* mojo-compiler 1.0.0 or later
+* mojo-compiler 1.1.0 or later
 
 Optionally, bellow Python packages can be installed for a better usability and to run tests:
 1. Numpy
@@ -159,7 +159,7 @@ def main() raises:
     # - n_jobs=-1 uses all available CPU cores.
     #
     # GridSearchCV returns the best hyperparameters and their score. [0] contains the best parameters.
-    var best_params = GridSearchCV[KNN](
+    var best_params = GridSearchCV[KNN[]](
         X,
         y,
         params,
@@ -209,9 +209,9 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model            | Fit Time (s)    | ARI vs sklearn | ARI vs fast_hdbscan | ARI vs truth |
 |------------------|-----------------|----------------|---------------------|--------------|
-| skl-contrib HDBS | 1.1945 ± 0.0067 |       -        |          -          | 0.9988       |
-| fast hdbscan     | 0.2412 ± 0.0014 |       -        |          -          | 0.9989       |
-| mojmelo HDBS     | 0.1765 ± 0.0032 | 0.9923         | 0.9989              | 0.9933       |
+| skl-contrib HDBS | 1.1391 ± 0.0078 |       -        |          -          | 0.9972       |
+| fast hdbscan     | 0.2729 ± 0.0087 |       -        |          -          | 0.9975       |
+| mojmelo HDBS     | 0.2980 ± 0.0107 | 0.9954         | 0.9975              | 0.9961       |
 
 [`DBSCAN`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/dbs_bench.mojo) (algorithm='kd_tree')
 
@@ -224,8 +224,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Predict Time (s) | Accuracy |
 |-------------|-----------------|------------------|----------|
-| sklearn KNN | 0.0353 ± 0.0005 | 1.7600 ± 0.0063  | 0.8543   |
-| mojmelo KNN | 0.0149 ± 0.0006 | 0.2126 ± 0.0040  | 0.8347   |
+| sklearn KNN | 0.0359 ± 0.0006 | 1.7392 ± 0.0111  | 0.9135   |
+| mojmelo KNN | 0.0150 ± 0.0007 | 0.3708 ± 0.0098  | 0.9135   |
 
 [`SVM`](https://github.com/yetalit/Mojmelo/blob/main/benchmarks/svm_bench.mojo)
 
@@ -266,8 +266,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 0.2359 ± 0.0081 | 0.0088 ± 0.0019    | 0.5375        |
-| mojmelo PCA | 0.0515 ± 0.0027 | 0.0103 ± 0.0001    | 0.5375        |
+| sklearn PCA | 1.1585 ± 0.0220 | 0.0353 ± 0.0002    | 0.5358        |
+| mojmelo PCA | 1.6651 ± 0.0421 | 0.0617 ± 0.0004    | 0.5358        |
 
 ## Contributing
 
@@ -287,11 +287,13 @@ Contributions can be done to the project in these 3 ways:
 
 * `HDBSCAN` implementation is partially based on <a href='https://hdbscan.readthedocs.io/en/latest/'>hdbscan</a> by Leland McInnes, John Healy and Steve Astels licensed under the BSD-3-Clause license and <a href='https://fast-hdbscan.readthedocs.io/en/latest/'>Fast Multicore HDBSCAN</a> by Tutte Institute for Mathematics and Computing licensed under the BSD-2-Clause license.
 
-* `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
+* `BDCSVD` implementation is based on <a href='https://libeigen.gitlab.io'>Eigen</a>, a C++ template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms by Benoit Jacob, Gael Guennebaud and others licensed under the MPL-2.0 license.
 
-* `argmin`, `argmax` and `argsort` implementations and `utils.algorithm` submodule are based on codes from <a href='https://github.com/modular/modular'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
+* `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo/'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
 
-* <a href='https://arxiv.org/abs/physics/0408067'>KDTREE2</a>, a kd-tree implementation in Fortran 95 and C++ by Matthew B. Kennel.
+* `argmin` and `argmax` implementations and `utils.algorithm` submodule are based on codes from <a href='https://github.com/modular/modular/'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
+
+* <a href='https://arxiv.org/abs/physics/0408067/'>KDTREE2</a>, a kd-tree implementation in Fortran 95 and C++ by Matthew B. Kennel.
 
 * Initially drew inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>.
 

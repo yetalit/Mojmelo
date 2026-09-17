@@ -81,10 +81,10 @@ def node_pair_lower_bound(
     vectorize[Matrix.simd_width](dim, v)
 
     var R = r1 + r2
-    var dist = math.sqrt(dist2) if dist2 > 0.0 else Float32(0.0)
+    var dist = math.sqrt(dist2) if dist2 > 0.0 else Float32(0)
     var lb = dist - R
 
-    return (lb * lb) if lb > 0.0 else Float32(0.0)
+    return (lb * lb) if lb > 0.0 else Float32(0)
 
 
 # Thin wrapper so nd[].center._data compiles in HDBSCANBoruvka unchanged.
@@ -104,7 +104,7 @@ struct NodeData(Copyable):
 
 struct KDTreeBoruvka:
     var data: Pointer[Float32, MutUntrackedOrigin]
-    var kdtree: KDTree[sort_results=True]
+    var kdtree: KDTree[sort_results=True, EUC=True]
     var n: Int
     var dim: Int
     var leaf_size: Int
@@ -112,13 +112,17 @@ struct KDTreeBoruvka:
     var core_dist: Pointer[Float32, MutUntrackedOrigin]
     var build_idx: List[Int]
     var proj_buf: List[Float32]
+
+    var knn_idx: Pointer[Int, MutUntrackedOrigin]
+    var knn_dist: Pointer[Float32, MutUntrackedOrigin]
+    var k: Int
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
     var _center_arena: Pointer[Float32, MutUntrackedOrigin]
 
     @always_inline
-    def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int) raises:
+    def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int) raises:
         self.data = data.data
-        self.kdtree = KDTree[sort_results=True](data, metric='euc')
+        self.kdtree = KDTree[sort_results=True, EUC=True](data, metric='euc')
         self.n = data.height
         self.dim = data.width
         self.leaf_size = leaf_size
@@ -134,18 +138,22 @@ struct KDTreeBoruvka:
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
-        var k = search_depth * min_samples + 1
-
-        @parameter
+        self.k = 2 * min_samples
+        self.knn_idx  = alloc(Layout[Int](count=self.n * self.k)).unsafe_leak()
+        self.knn_dist = alloc(Layout[Float32](count=self.n * self.k)).unsafe_leak()
+        @__parameter
         def compute_core_dist(p: Int):
             try:
                 var kd_results = KDTreeResultVector()
                 self.kdtree.n_nearest(
                     Span(unsafe_ptr=self.data.unsafe_offset(p * self.dim), length=self.dim),
-                    k,
+                    self.k,
                     kd_results
                 )
                 self.core_dist[unsafe_offset=p] = kd_results[min_samples].dis
+                for j in range(self.k):
+                    self.knn_idx[unsafe_offset=p * self.k + j]  = kd_results[j].idx
+                    self.knn_dist[unsafe_offset=p * self.k + j] = kd_results[j].dis
             except e:
                 print('Error:', e)
 

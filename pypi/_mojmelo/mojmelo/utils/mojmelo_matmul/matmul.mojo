@@ -131,7 +131,7 @@ def pack_A[
 ) -> Matrix[Type]:
     var num_panels = (Ac.shape[0]() + mr - 1) // mr
 
-    @parameter
+    @__parameter
     def pack_panel(idx: Int):
         var i = idx * mr
         var dst_ptr = Ac_buffer.unsafe_offset(i * Ac.shape[1]())
@@ -267,7 +267,7 @@ def macro_kernel[
 ](mut Cc: Matrix[Type], Ac: Matrix[Type], Bc: Matrix[Type]):
     var n_threads = num_performance_cores()
 
-    @parameter
+    @__parameter
     def parallelize_ir(idx: Int):
         var ir = idx * mr
         var Ar = Matrix(Ac.data.unsafe_offset(ir * Ac.shape[1]()), (mr, Ac.shape[1]()))
@@ -298,7 +298,7 @@ def loop_n[
 
     var num_tiles = (N + nc_actual - 1) // nc_actual
 
-    @parameter
+    @__parameter
     def process_tile(tile_idx: Int):
         var j = tile_idx * nc_actual
         var tile_n = min(N - j, nc_actual)
@@ -341,12 +341,12 @@ def matmul_params[Type: DType]() -> IndexList[5]:
     comptime N = simd_width_of[Type]()
     comptime Vectors = 32 if CompilationTarget.is_apple_silicon() else 16
 
-    @parameter
+    @__parameter
     def compute_kc[mr: Int, nr: Int]() -> Int:
         comptime CBr = Int((L1_ASSOCIATIVITY - 1) / (1 + mr / nr))
         return (CBr * L1_CACHE_SIZE) // (nr * size_of[Type]() * L1_ASSOCIATIVITY)
 
-    @parameter
+    @__parameter
     def compute_params[C: Int]() -> IndexList[5]:
         comptime p = C // (intsqrt[C]() + 1)
         comptime mr = C // p - 1

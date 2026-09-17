@@ -1334,7 +1334,7 @@ struct SVC_Q(QMatrix):
         var data = OptionalPointer[Float32, MutUntrackedOrigin]()
         var start = self.cache.get_data(i, Pointer[OptionalPointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=data))),_len)
         if start < _len:
-            @parameter
+            @__parameter
             def p(j: Int):
                 data.value()[unsafe_offset=j+start] = ((self.y[unsafe_offset=i]*self.y[unsafe_offset=j+start]).cast[DType.float64]()*self.kernel_function(self._self, i,j+start)).cast[DType.float32]()
             parallelize[p](_len - start)
@@ -1497,7 +1497,7 @@ struct SVR_Q(QMatrix):
         var data = OptionalPointer[Float32, MutUntrackedOrigin]()
         var real_i = self.index[unsafe_offset=i]
         if self.cache.get_data(real_i, Pointer[OptionalPointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=data))),self.l) < self.l:
-            @parameter
+            @__parameter
             def p(j: Int):
                 data.value()[unsafe_offset=j] = self.kernel_function(self._self, real_i,j).cast[DType.float32]()
             parallelize[p](self.l)
@@ -2009,12 +2009,12 @@ def svm_one_class_probability(prob: svm_problem, model: svm_model, prob_density_
 
     for i in range(prob.l):
         pred_results[unsafe_offset=i] = svm_predict_values(model,prob.x[unsafe_offset=i], dec_values.unsafe_offset(i))
-    @parameter
+
     def cmp_fn(a: Float64, b: Float64) -> Bool:
         return a < b
 
-    sort[cmp_fn](
-        Span(unsafe_ptr=dec_values, length=prob.l)
+    sort(
+        Span(unsafe_ptr=dec_values, length=prob.l), cmp_fn
     )
 
     var neg_counter=0
@@ -2498,7 +2498,7 @@ def svm_predict_values(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin
         var sum = 0.0
 
         var values = alloc(Layout[Float64](count=model.l)).unsafe_leak()
-        @parameter
+        @__parameter
         def p(i: Int):
             values[unsafe_offset=i] = sv_coef.value()[unsafe_offset=i] * k_function(x,model.SV.value()[unsafe_offset=i],model.param)
         parallelize[p](model.l)
@@ -2522,7 +2522,7 @@ def svm_predict_values(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin
 
         var kvalue = alloc(Layout[Float64](count=l)).unsafe_leak()
 
-        @parameter
+        @__parameter
         def pv(i: Int):
             kvalue[unsafe_offset=i] = k_function(x,model.SV.value()[unsafe_offset=i],model.param)
         parallelize[pv](l)

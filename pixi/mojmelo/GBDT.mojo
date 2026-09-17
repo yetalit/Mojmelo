@@ -85,7 +85,7 @@ struct GBDT(CV, Copyable):
 
 		for i in range(self.n_trees):
 			var t_i = i
-			@parameter
+			@__parameter
 			def p(k: Int):
 				try:
 					var g = self.loss_g(y, score)
@@ -106,10 +106,10 @@ struct GBDT(CV, Copyable):
             The predicted values.
         """
 		var scores = Matrix(X.height, self.num_class)
-		@parameter
+		@__parameter
 		def per_class(k: Int):
 			var score = Matrix(X.height, self.n_trees)
-			@parameter
+			@__parameter
 			def per_tree(i: Int):
 				try:
 					score['', i] = self.learning_rate * self.trees[unsafe_offset=i * self.num_class + k].predict(X)

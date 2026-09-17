@@ -178,15 +178,15 @@ def compute_stability(condensed_tree: Dict[String, List[Int]], lambda_vals: List
     sorted_lambdas.resize(len(lambdas), 0)
 
     var sorted_indices = fill_indices_list(len(sorted_children))
-    @parameter
-    def cmp_int(a: Int, b: Int) -> Bool:
+
+    def cmp_int(a: Int, b: Int) {sorted_children} -> Bool:
         return sorted_children[a] < sorted_children[b]
 
-    sort[cmp_int](
+    sort(
             Span[
                 Int,
                 origin_of(sorted_indices),
-            ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)))
+            ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)), cmp_int)
     for i, idx in enumerate(sorted_indices):
         sorted_children[i] = condensed_tree['child'][idx]
         sorted_lambdas[i] = lambdas[idx]
@@ -262,15 +262,15 @@ def max_lambdas(tree: Dict[String, List[Int]], lambda_vals: List[Float32]) raise
     sorted_lambdas.resize(len(lambda_vals), 0)
 
     var sorted_indices = fill_indices_list(len(sorted_parents))
-    @parameter
-    def cmp_int(a: Int, b: Int) -> Bool:
+
+    def cmp_int(a: Int, b: Int) {sorted_parents} -> Bool:
         return sorted_parents[a] < sorted_parents[b]
 
-    sort[cmp_int](
+    sort(
             Span[
                 Int,
                 origin_of(sorted_indices),
-            ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)))
+            ](unsafe_ptr=sorted_indices.unsafe_ptr(), length=len(sorted_indices)), cmp_int)
     for i, idx in enumerate(sorted_indices):
         sorted_parents[i] = tree['parent'][idx]
         sorted_lambdas[i] = lambda_vals[idx]
@@ -527,15 +527,15 @@ def get_stability_scores(mut labels: List[Int], clusters: Set[Int],
 
     var result = List[Float32](capacity=len(clusters))
     result.resize(len(clusters), 0)
-    @parameter
+
     def cmp_int(a: Int, b: Int) -> Bool:
         return a < b
     var sorted_clusters = List[Int](clusters)
-    sort[cmp_int](
+    sort(
             Span[
                 Int,
                 origin_of(sorted_clusters),
-            ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)))
+            ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)), cmp_int)
     for n, c in enumerate(sorted_clusters):
         var n_ = n
         var cluster_size = 0
@@ -750,17 +750,17 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
     var node_list = List[Int]()
     for key in stability.keys():
         node_list.append(key)
-    @parameter
+
     def cmp_int[ascending: Bool = True](a: Int, b: Int) -> Bool:
         comptime if ascending:
             return a < b
         else:
             return a > b
-    sort[cmp_int[False]](
+    sort(
             Span[
                 Int,
                 origin_of(node_list),
-            ](unsafe_ptr=node_list.unsafe_ptr(), length=len(node_list)))
+            ](unsafe_ptr=node_list.unsafe_ptr(), length=len(node_list)), cmp_int[False])
     if not allow_single_cluster:
         var tmp = List[Int](node_list[:len(node_list)-1])
         node_list = tmp^
@@ -867,11 +867,11 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
 
     var clusters = Set([c for c in is_cluster.copy() if is_cluster[c]])
     var sorted_clusters = List[Int](clusters.copy())
-    sort[cmp_int[True]](
+    sort(
             Span[
                 Int,
                 origin_of(sorted_clusters),
-            ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)))
+            ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)), cmp_int[True])
     var cluster_map = {c: n for n, c in enumerate(sorted_clusters)}
     var reverse_cluster_map = {e.value: e.key for e in cluster_map.items()}
 

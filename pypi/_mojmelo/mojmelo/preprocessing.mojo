@@ -31,7 +31,7 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
                 for i in range(norms.height):
                     norms.data[unsafe_offset=i] = data[i].norm()
             else:
-                @parameter
+                @__parameter
                 def p1(i: Int):
                     try:
                         norms.data[unsafe_offset=i] = data[i].norm()
@@ -39,7 +39,7 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
                         print('Error:', e)
                 parallelize[p1](norms.height)
 
-    @parameter
+    @__parameter
     def p2(i: Int):
         try:
             if norms.data[unsafe_offset=i] != 0.0:
@@ -304,7 +304,7 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
         var n_workers = n_jobs
         if n_workers == -1:
             n_workers = num_performance_cores()
-        @parameter
+        @__parameter
         def p(i: Int):
             params[i] = Dict[String, String]()
             var j = 0

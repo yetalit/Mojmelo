@@ -108,6 +108,41 @@ struct HDBSCANBoruvka:
         self.component_remap = List[Int](capacity=self.n)
         self.component_remap.resize(self.n, -1)
 
+    def initialize_from_knn(mut self) raises:
+        var edge_j = List[Int](capacity=self.n)
+        var edge_d = List[Float32](capacity=self.n)
+        edge_j.resize(self.n, -1)
+        edge_d.resize(self.n, math.inf[DType.float32]())
+
+        var k = self.tree[].k
+
+        @__parameter
+        def find_edge(i: Int):
+            for j in range(k):
+                var nb = self.tree[].knn_idx[unsafe_offset=i * k + j]
+                if nb == i:
+                    continue
+                if self.tree[].core_dist[unsafe_offset=i] >= self.tree[].core_dist[unsafe_offset=nb]:
+                    edge_j[i] = nb
+                    edge_d[i] = max(self.tree[].core_dist[unsafe_offset=i],
+                                    self.tree[].knn_dist[unsafe_offset=i * k + j])
+                    break
+        parallelize[find_edge](self.n)
+
+        # Sequential union-find merge
+        for i in range(self.n):
+            if edge_j[i] < 0:
+                continue
+            var cp = self.u_f.find(i)
+            var cq = self.u_f.find(edge_j[i])
+            if cp == cq:
+                continue
+            self.edges[self.num_edges, 0] = Float32(i)
+            self.edges[self.num_edges, 1] = Float32(edge_j[i])
+            self.edges[self.num_edges, 2] = math.sqrt(edge_d[i])
+            self.num_edges += 1
+            self.u_f.unite(i, edge_j[i])
+
     # ------------------------------------------------------------------ #
     #  Mutual reachability distance (squared, deferred sqrt to edge emit) #
     # ------------------------------------------------------------------ #
@@ -127,7 +162,7 @@ struct HDBSCANBoruvka:
 
     def update_components_and_nodes(mut self) raises:
         # --- 1. Refresh point→component labels in parallel ---
-        @parameter
+        @__parameter
         def update_point(i: Int):
             self.component_of_point[i] = self.u_f.find(i)
             self.u_f_finds[i] = self.component_of_point[i]
@@ -196,7 +231,7 @@ struct HDBSCANBoruvka:
             self.dim
         )
         # Apply core distance floor: effective lb for mutual reachability
-        var lb_mr = max(max(lb2, core_p), Float32(0.0))
+        var lb_mr = max(max(lb2, core_p), Float32(0))
         if lb_mr >= heap_dist[unsafe_offset=0]:
             return
         # Also prune against the shared per-component bound
@@ -270,7 +305,7 @@ struct HDBSCANBoruvka:
         # One task per point.  Each point holds a private heap_dist / heap_nbr
         # slot (its own candidate_dist[i] / candidate_neighbor[i]) but shares
         # component_bound[component] with all other points in the same component 
-        @parameter
+        @__parameter
         def query_point(i: Int):
             var comp = self.component_of_point[i]
             var heap_dist = self.candidate_dist.unsafe_ptr().unsafe_offset(i)
@@ -345,6 +380,7 @@ struct HDBSCANBoruvka:
 
     def spanning_tree(mut self) raises -> Matrix:
         self.num_edges = 0
+        self.initialize_from_knn()
 
         while True:
             self.update_components_and_nodes()

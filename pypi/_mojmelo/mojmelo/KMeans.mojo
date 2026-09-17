@@ -50,7 +50,7 @@ struct KMeans(Copyable):
         # Mean centering
         self.X_mean = Matrix.zeros(1, X.width)
         var n_rows, n_cols = X.height, X.width
-        @parameter
+        @__parameter
         def p(col: Int):
             var sum: Float32 = 0
             for row in range(n_rows):
@@ -126,7 +126,7 @@ struct KMeans(Copyable):
                 for i in range(self.k):
                     # Compute distances to the nearest centroid
                     var c_ptr = candidate_centroids[idc].data.unsafe_offset(i * X.width)
-                    @parameter
+                    @__parameter
                     def p(row: Int):
                         var x_ptr = X.data.unsafe_offset(row * X.width)
                         var acc: Float32 = 0.0
@@ -210,7 +210,7 @@ struct KMeans(Copyable):
                 # squared euclidean
                 var dists = Matrix(X.height, 1)
                 var c_ptr = candidate_centroids[idc].data.unsafe_offset((i - 1) * X.width)
-                @parameter
+                @__parameter
                 def p(row: Int):
                     var x_ptr = X.data.unsafe_offset(row * X.width)
                     var acc: Float32 = 0.0
@@ -236,7 +236,7 @@ struct KMeans(Copyable):
 
             var dists_last = Matrix(X.height, 1)
             var c_ptr_last = candidate_centroids[idc].data.unsafe_offset((self.k - 1) * X.width)
-            @parameter
+            @__parameter
             def p_last(row: Int):
                 var x_ptr = X.data.unsafe_offset(row * X.width)
                 var acc: Float32 = 0.0
@@ -257,7 +257,7 @@ struct KMeans(Copyable):
         var labels = List[Int](capacity=X.height)
         labels.resize(X.height, 0)
         var C_norms = self.centroids_.ele_mul(self.centroids_).sum(axis=1)
-        @parameter
+        @__parameter
         def p(i: Int):
             var best = 0
             var best_dist: Float32 = math.inf[DType.float32]()
