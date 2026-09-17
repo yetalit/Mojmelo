@@ -1,5 +1,5 @@
 from std.memory import Layout, unsafe_memcpy, unsafe_memset_zero
-from std.math import sqrt, ceil
+from std.math import sqrt
 from std.sys import CompilationTarget, simd_width_of
 from std.algorithm import vectorize
 from ..mojmelo_matmul import matmul as GEMM
@@ -393,25 +393,24 @@ def reverse_cols(mut m: Mat, count: Int):
 @always_inline
 def mat_transpose(a: Mat) -> Mat:
     var mat = Mat(a.cols(), a.rows())
-    var col_stride = a.col_stride
     if mat.size < 98304:
         for i in range(a.rows()):
             var idx_row = i
-            var tmpPtr = a.data.unsafe_offset(idx_row * a.row_stride)
+            var tmpPtr = a.data.unsafe_offset(idx_row)
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * col_stride)
+                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](mat.cols()))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.cols())
             vectorize[SIMD_WIDTH](a.cols(), convert)
     else:
         @__parameter
         def p(i: Int):
             var idx_row = i
-            var tmpPtr = a.data.unsafe_offset(idx_row * a.row_stride)
+            var tmpPtr = a.data.unsafe_offset(idx_row)
     
             def pconvert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * col_stride)
+                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](mat.cols()))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.cols())
             vectorize[SIMD_WIDTH](a.cols(), pconvert)
         parallelize[p](a.rows())
     return mat^
@@ -423,12 +422,16 @@ def mat_scale(mut a: Mat, s: RealScalar):
             a.data.unsafe_store[simd_width](idx, a.data.unsafe_load[width=simd_width](idx) / s)
         vectorize[SIMD_WIDTH](a.size, scalar_vectorize)
     else:
-        var n_vects = Int(ceil(a.size / SIMD_WIDTH))
+        var n_full = a.size // SIMD_WIDTH
         @__parameter
         def scalar_vectorize_parallelize(i: Int):
             var idx = i * SIMD_WIDTH
             a.data.unsafe_store[SIMD_WIDTH](idx, a.data.unsafe_load[width=SIMD_WIDTH](idx) / s)
-        parallelize[scalar_vectorize_parallelize](n_vects)
+        parallelize[scalar_vectorize_parallelize](n_full)
+
+        var tailStart = n_full * SIMD_WIDTH
+        for idx in range(tailStart, a.size):
+            a.data[unsafe_offset=idx] = a.data[unsafe_offset=idx] / s
 
 @always_inline
 def mat_identity(rows: Int, cols: Int) -> Mat:
