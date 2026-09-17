@@ -435,14 +435,14 @@ def mat_scale(mut a: Mat, s: RealScalar):
             a.data[unsafe_offset=idx] = a.data[unsafe_offset=idx] / s
 
 @always_inline
-def mat_identity(rows: Int, cols: Int) -> Mat:
+def mat_identity(var rows: Int, cols: Int) -> Mat:
     var m = Mat(rows, cols)
-    var n = rows if rows < cols else cols
+    var n = min(rows, cols)
 
     var tmpPtr = m.data
     def convert[simd_width: Int](idx: Int) {mut}:
-        tmpPtr.unsafe_strided_store[width=simd_width](1.0, (n + 1))
-        tmpPtr = tmpPtr.unsafe_offset(simd_width * (n + 1))
+        tmpPtr.unsafe_strided_store[width=simd_width](1.0, (rows + 1))
+        tmpPtr = tmpPtr.unsafe_offset(simd_width * (rows + 1))
     vectorize[SIMD_WIDTH](n, convert)
 
     return m^
