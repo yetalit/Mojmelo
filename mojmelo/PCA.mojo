@@ -65,7 +65,7 @@ struct PCA(Copyable):
         var X_f64 = Mat(X_F.cast_ptr[DType.float64](), n_rows, n_cols, 1, n_rows)
         X_f64.owns = True
         var svd = BDCSVD()
-        var svd_info = svd.compute(X_f64, False, True)
+        var svd_info = svd.compute(X_f64, computeU=False, computeV=True, thinV=True)
         if svd_info != INFO_SUCCESS:
             if svd_info == INFO_NO_CONVERGENCE:
                 print("\nWARNING: SVD didn't converged!")

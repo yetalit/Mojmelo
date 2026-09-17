@@ -162,6 +162,8 @@ struct BDCSVD:
     var m_isTranspose: Bool
     var m_computeU: Bool
     var m_computeV: Bool
+    var m_computeThinU: Bool
+    var m_computeThinV: Bool
     var m_matrixU: Mat
     var m_matrixV: Mat
     var m_singularValues: Vec
@@ -184,6 +186,8 @@ struct BDCSVD:
         self.m_isTranspose = False
         self.m_computeU = False
         self.m_computeV = False
+        self.m_computeThinU = False
+        self.m_computeThinV = False
         self.m_matrixU = Mat(0, 0)
         self.m_matrixV = Mat(0, 0)
         self.m_singularValues = Vec(0)
@@ -219,11 +223,21 @@ struct BDCSVD:
     def nonzeroSingularValues(self) -> Int:
         return self.m_nonzeroSingularValues
 
-    def allocate(mut self, rows: Int, cols: Int, computeU: Bool, computeV: Bool):
+    def allocate(
+        mut self,
+        rows: Int,
+        cols: Int,
+        computeU: Bool,
+        computeV: Bool,
+        thinU: Bool = False,
+        thinV: Bool = False,
+    ):
         self.m_diagSize = min(rows, cols)
         self.m_isTranspose = cols > rows
         self.m_computeU = computeU
         self.m_computeV = computeV
+        self.m_computeThinU = thinU and computeU
+        self.m_computeThinV = thinV and computeV
 
         # Same crossover Eigen uses (based on LAPACK dgesdd's 11.0/6.0,
         # widened to avoid a regression for relatively square matrices):
@@ -255,6 +269,8 @@ struct BDCSVD:
 
     # compute_bidiagonal_impl: SVD of a bidiagonal matrix given directly as
     # (diagonal, superdiagonal). No bidiagonalization step needed.
+    # No thinU/thinV parameters here: this path is inherently n x n
+    # (rows == cols == diagSize == len(diag)), so thin and full always coincide.
     @always_inline
     def compute_bidiagonal(
         mut self, diag: Vec, superdiag: Vec, computeU: Bool, computeV: Bool
@@ -334,14 +350,16 @@ struct BDCSVD:
     # Runs the QR pre-pass ("R-Bidiagonalization") for very rectangular
     # inputs, via HouseholderQR.
     @always_inline
-    def compute(mut self, A: Mat, computeU: Bool, computeV: Bool) -> ComputationInfo:
+    def compute(
+        mut self, A: Mat, computeU: Bool, computeV: Bool, thinU: Bool = False, thinV: Bool = False
+    ) -> ComputationInfo:
         var rows = A.rows()
         var cols = A.cols()
-        self.allocate(rows, cols, computeU, computeV)
+        self.allocate(rows, cols, computeU, computeV, thinU, thinV)
 
         # Small problem: fall back to the dense base-case solver directly.
         if cols < self.m_impl.algoSwap():
-            self.smallSvd.compute(A)
+            self.smallSvd.compute(A, thinU=self.m_computeThinU, thinV=self.m_computeThinV)
             self.m_info = self.smallSvd.info()
             if self.m_info == INFO_SUCCESS or self.m_info == INFO_NO_CONVERGENCE:
                 self.m_singularValues = self.smallSvd.singularValues()
@@ -398,22 +416,29 @@ struct BDCSVD:
         var naiveU_ = self.m_impl.naiveU()
         var naiveV_ = self.m_impl.naiveV()
 
+        # Thin U/V: build m_matrixU/m_matrixV only diagSize columns wide
+        # instead of rows/cols wide. embed_topleft only ever touches the top
+        # diagSize x diagSize corner regardless, and apply_u_on_left /
+        # apply_v_on_left / apply_q_on_left all size their work off
+        # M.cols(), so this alone makes every later apply proportionally cheaper.
+        var Ucols = self.m_diagSize if self.m_computeThinU else rows
+        var Vcols = self.m_diagSize if self.m_computeThinV else cols
         if not self.m_isTranspose:
             if computeU:
-                self.m_matrixU = mat_identity(rows, rows)
+                self.m_matrixU = mat_identity(rows, Ucols)
                 embed_topleft(self.m_matrixU, naiveV_, self.m_diagSize)
                 bid.apply_u_on_left(self.m_matrixU)
             if computeV:
-                self.m_matrixV = mat_identity(cols, cols)
+                self.m_matrixV = mat_identity(cols, Vcols)
                 embed_topleft(self.m_matrixV, naiveU_, self.m_diagSize)
                 bid.apply_v_on_left(self.m_matrixV)
         else:
             if computeU:
-                self.m_matrixU = mat_identity(rows, rows)
+                self.m_matrixU = mat_identity(rows, Ucols)
                 embed_topleft(self.m_matrixU, naiveU_, self.m_diagSize)
                 bid.apply_v_on_left(self.m_matrixU)
             if computeV:
-                self.m_matrixV = mat_identity(cols, cols)
+                self.m_matrixV = mat_identity(cols, Vcols)
                 embed_topleft(self.m_matrixV, naiveV_, self.m_diagSize)
                 bid.apply_u_on_left(self.m_matrixV)
 

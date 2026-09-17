@@ -7,11 +7,6 @@
 # "R-SVD" step), then runs the two-sided Jacobi sweep on that square work
 # matrix.
 #
-# NOT ported:
-#   * Thin U/V — this port always produces full square U (rows x rows) and
-#     full square V (cols x cols), matching what JacobiSVD's ComputeFullU |
-#     ComputeFullV options would result.
-#
 # CONVERGENCE: capped at `max_sweeps` cyclic sweeps over all (p,q) pairs;
 # returns INFO_NO_CONVERGENCE (not a crash) if that cap is hit without every
 # off-diagonal pair falling under the threshold — mirrors Eigen's own
@@ -304,17 +299,22 @@ def finish_jacobi_svd(
 #   4. Sign-fix the diagonal (flip the corresponding U column where negative).
 #   5. Sort singular values descending, permuting U/V columns to match.
 # ------------------------------------------------------------------------------
-def jacobi_svd(A: Mat, mut U_out: Mat, mut S_out: Vec, mut V_out: Mat) -> ComputationInfo:
+def jacobi_svd(
+    A: Mat, mut U_out: Mat, mut S_out: Vec, mut V_out: Mat, thinU: Bool = False, thinV: Bool = False
+) -> ComputationInfo:
     var rows = A.rows()
     var cols = A.cols()
     var diag_size = rows if rows < cols else cols
+
+    var Ucols = diag_size if thinU else rows
+    var Vcols = diag_size if thinV else cols
 
     var maxCoeff = A.cwiseAbsMax()
     if maxCoeff == RealScalar(0):
         # Zero matrix: SVD is trivially all-zero singular values with
         # identity singular vectors.
-        U_out = mat_identity(rows, rows)
-        V_out = mat_identity(cols, cols)
+        U_out = mat_identity(rows, Ucols)
+        V_out = mat_identity(cols, Vcols)
         S_out = Vec(diag_size)
         return INFO_SUCCESS
 
@@ -327,8 +327,8 @@ def jacobi_svd(A: Mat, mut U_out: Mat, mut S_out: Vec, mut V_out: Mat) -> Comput
         # Already square: no QR preconditioning needed.
         var work = Mat(rows, rows)
         work.copyFrom(scaled)
-        U_out = mat_identity(rows, rows)
-        V_out = mat_identity(cols, cols)
+        U_out = mat_identity(rows, Ucols)
+        V_out = mat_identity(cols, Vcols)
         return finish_jacobi_svd(work, U_out, V_out, diag_size, maxCoeff, S_out)
     elif rows > cols:
         # R-SVD, rows > cols case (Eigen's PreconditionIfMoreRowsThanCols):
@@ -341,12 +341,19 @@ def jacobi_svd(A: Mat, mut U_out: Mat, mut S_out: Vec, mut V_out: Mat) -> Comput
         # `cols` columns of Q in place" — no separate embedding step
         # required. V_perm's *rows* (indexed by A's original columns) still
         # need un-permuting to undo P before they're the true V.
+        #
+        # Thin U: build only an rows x diag_size (== rows x cols) slice of
+        # the identity before applying Q. apply_q_on_left's cost scales
+        # with the target's column count, so this is the whole saving —
+        # the sweep afterwards only ever touches columns < diag_size
+        # anyway, full or thin. V is already diag_size wide here regardless
+        # of thinV, since cols == diag_size in this branch.
         var qr = ColPivHouseholderQR()
         qr.compute(scaled)
         var Rtop = qr.matrixR()
-        U_out = mat_identity(rows, rows)
+        U_out = mat_identity(rows, Ucols)
         qr.apply_q_on_left(U_out)
-        V_out = mat_identity(cols, cols)
+        V_out = mat_identity(cols, Vcols)
         var info = finish_jacobi_svd(Rtop, U_out, V_out, diag_size, maxCoeff, S_out)
         unpermute_rows(V_out, qr.m_colsPermutation)
         return info
@@ -356,14 +363,17 @@ def jacobi_svd(A: Mat, mut U_out: Mat, mut S_out: Vec, mut V_out: Mat) -> Comput
         # absorbs the orthogonal factor and U comes out directly at its
         # final size. The permutation this time reorders A's *rows* (== A^T's
         # columns), so it's U's rows that need un-permuting afterwards.
+        # Mirror image of the thin note above: here it's V that holds Q, so
+        # thinV is what narrows the expensive apply_q_on_left; U is already
+        # diag_size wide regardless of thinU, since rows == diag_size here.
         var At = mat_transpose(scaled)
         var qr = ColPivHouseholderQR()
         qr.compute(At)
         var Rtop = qr.matrixR()
-        V_out = mat_identity(cols, cols)
+        V_out = mat_identity(cols, Vcols)
         qr.apply_q_on_left(V_out)
         var work = mat_transpose(Rtop)
-        U_out = mat_identity(rows, rows)
+        U_out = mat_identity(rows, Ucols)
         var info = finish_jacobi_svd(work, U_out, V_out, diag_size, maxCoeff, S_out)
         unpermute_rows(U_out, qr.m_colsPermutation)
         return info
@@ -383,12 +393,12 @@ struct JacobiSVD:
         self.sing_vals = Vec(0)
         self.status = INFO_SUCCESS
 
-    def compute(mut self, m: Mat):
+    def compute(mut self, m: Mat, thinU: Bool = False, thinV: Bool = False):
         # Computes both U and V internally regardless of
         # `self.compute_v` — the two-sided sweep needs the V-side rotations
         # to correctly evolve the work matrix and hence U/singular values
         # either way, so skipping V's accumulation wouldn't save much.
-        self.status = jacobi_svd(m, self.u, self.sing_vals, self.v)
+        self.status = jacobi_svd(m, self.u, self.sing_vals, self.v, thinU, thinV)
 
     @always_inline
     def info(self) -> ComputationInfo:
