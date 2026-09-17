@@ -207,6 +207,219 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = 
         for i in range(rows):
             C[i, j] = C[i, j] - update[i, j]
 
+# ------------------------------------------------------------------------------
+# Small dense matrix-vector helpers used only by the blocked bidiagonalization
+# below (the panel bookkeeping needs plain Mat*Vec / Mat^T*Vec, not the full
+# Mat*Mat GEMM machinery).
+# ------------------------------------------------------------------------------
+@always_inline
+def matTvec(A: Mat, x: Vec) -> Vec:
+    """Y = A^T * X. y has length A.cols(), x must have length A.rows()."""
+    var m = A.rows()
+    var n = A.cols()
+    var y = Vec(n)
+    if m * max(n, 1) < 4096:
+        for j in range(n):
+            y[j] = vec_dot(A.col(j), x)
+    else:
+        @__parameter
+        def process_col(j: Int):
+            y[j] = vec_dot(A.col(j), x)
+        parallelize[process_col](n)
+    return y^
+
+@always_inline
+def matvec(A: Mat, x: Vec) -> Vec:
+    """Y = A * X, via column-scaled accumulation (each column read once,
+    contiguous). y has length A.rows(), x must have length A.cols()."""
+    var m = A.rows()
+    var n = A.cols()
+    var y = Vec(m)
+    for j in range(n):
+        vec_add_scaled_inplace(y, A.col(j), x[j])
+    return y^
+
+@always_inline
+def vec_sub_scaled_inplace(mut y: Vec, z: Vec, var scale: RealScalar):
+    """Y -= scale * Z (elementwise, same length)."""
+    var n = len(y)
+    if y.stride == 1 and z.stride == 1:
+        var yd = y.data
+        var zd = z.data
+        def sub[simd_width: Int](idx: Int) {mut}:
+            yd.unsafe_store[simd_width](idx, yd.unsafe_load[simd_width](idx) - scale * zd.unsafe_load[simd_width](idx))
+        vectorize[SIMD_WIDTH](n, sub)
+    else:
+        for i in range(n):
+            y[i] = y[i] - scale * z[i]
+
+@always_inline
+def vec_add_scaled_inplace(mut y: Vec, z: Vec, scale: RealScalar):
+    """Y += scale * Z."""
+    vec_sub_scaled_inplace(y, z, -scale)
+
+@always_inline
+def vec_scale_inplace(mut y: Vec, var scale: RealScalar):
+    var n = len(y)
+    if y.stride == 1:
+        var yd = y.data
+        def sc[simd_width: Int](idx: Int) {mut}:
+            yd.unsafe_store[simd_width](idx, yd.unsafe_load[simd_width](idx) * scale)
+        vectorize[SIMD_WIDTH](n, sc)
+    else:
+        for i in range(n):
+            y[i] = y[i] * scale
+
+# ==============================================================================
+# Port of Eigen's upperbidiagonalization_blocked_helper /
+# upperbidiagonalization_inplace_blocked (Eigen/src/SVD/UpperBidiagonalization.h),
+# implementing "The Design of a Parallel Dense Linear Algebra Software Library:
+# Reduction to Hessenberg, Tridiagonal, and Bidiagonal Form" (Choi, Dongarra,
+# Walker, 1995), section 3.3.
+#
+# Reduces the leading `bs` columns/rows of the panel A to bidiagonal form,
+# while accumulating auxiliary matrices X, Y so the trailing A22 block can be
+# updated with 2 GEMMs (A22 -= A10*Y_bottom^T + X_bottom*A01) instead of `bs`
+# separate full-width rank-1 updates.
+#
+# Storage convention matches upperbidiagonalization_unblocked exactly: on
+# return, A[k,k] holds tau for left reflector k (diagonal[k] holds beta),
+# A[k,k+1] holds tau for right reflector k (upper_diagonal[k] holds beta),
+# with essential vectors below/right of those pivots.
+# ==============================================================================
+def upperbidiagonalization_blocked_helper(mut A: Mat, mut diagonal: Vec, mut upper_diagonal: Vec, bs: Int, mut X: Mat, mut Y: Mat):
+    var brows = A.rows()
+    var bcols = A.cols()
+
+    var tau_v: RealScalar
+    var tau_u: RealScalar
+    var tau_u_prev = RealScalar(0)
+
+    for k in range(bs):
+        var remainingRows = brows - k
+        var remainingCols = bcols - k - 1
+
+        var X_k1 = X.block(k, 0, remainingRows, k)
+        var V_k1 = A.block(k, 0, remainingRows, k)
+
+        # 1 - update the k-th column of A
+        var v_k = A.col(k).tail(remainingRows)
+        if k > 0:
+            vec_sub_scaled_inplace(v_k, matvec(V_k1, Y.row(k).head(k)), RealScalar(1))
+            vec_sub_scaled_inplace(v_k, matvec(X_k1, A.col(k).head(k)), RealScalar(1))
+
+        # 2 - construct left Householder transform in-place
+        var tb_v = make_householder_in_place(v_k)
+        tau_v = tb_v[0]
+        diagonal[k] = tb_v[1]
+
+        if k + 1 < bcols:
+            var Y_k = Y.block(k + 1, 0, remainingCols, k + 1)
+            var U_k1 = A.block(0, k + 1, k, remainingCols)
+
+            # this eases the application of Householder transforms below:
+            # A(k,k) temporarily reads as the implicit "1" of v_k.
+            A[k, k] = RealScalar(1)
+
+            # 3 - y_k = tau_v * (A^T*v_k - Y_k[:,:k]*(V_k1^T*v_k) - U_k1^T*(X_k1^T*v_k))
+            var y_k = Y.col(k).tail(remainingCols)
+            y_k.copyFrom(matTvec(A.block(k, k + 1, remainingRows, remainingCols), v_k))
+            vec_sub_scaled_inplace(y_k, matvec(Y_k.block(0, 0, remainingCols, k), matTvec(V_k1, v_k)), RealScalar(1))
+            vec_sub_scaled_inplace(y_k, matTvec(U_k1, matTvec(X_k1, v_k)), RealScalar(1))
+            vec_scale_inplace(y_k, tau_v)
+
+            # 4 - update k-th row of A (it becomes u_k)
+            var u_k = A.row(k).tail(remainingCols)
+            vec_sub_scaled_inplace(u_k, matvec(Y_k, A.row(k).head(k + 1)), RealScalar(1))
+            if k > 0:
+                vec_sub_scaled_inplace(u_k, matTvec(U_k1, X.row(k).head(k)), RealScalar(1))
+
+            # 5 - construct right Householder transform in-place
+            var tb_u = make_householder_in_place(u_k)
+            tau_u = tb_u[0]
+            upper_diagonal[k] = tb_u[1]
+
+            # A(k,k+1) temporarily reads as the implicit "1" of u_k.
+            A[k, k + 1] = RealScalar(1)
+
+            # 6 - x_k = tau_u * (A*u_k - X_k1[1:]*(U_k1*u_k) - A[k+1:,:k+1]*(Y_k^T*u_k))
+            if remainingRows - 1 > 0:
+                var x_k = X.col(k).segment(k + 1, remainingRows - 1)
+                x_k.copyFrom(matvec(A.block(k + 1, k + 1, remainingRows - 1, remainingCols), u_k))
+                vec_sub_scaled_inplace(x_k, matvec(X_k1.block(1, 0, remainingRows - 1, k), matvec(U_k1, u_k)), RealScalar(1))
+                vec_sub_scaled_inplace(x_k, matvec(A.block(k + 1, 0, remainingRows - 1, k + 1), matTvec(Y_k, u_k)), RealScalar(1))
+                vec_scale_inplace(x_k, tau_u)
+
+            # Restore the PREVIOUS iteration's right-reflector pivot only now
+            # -- row k-1 (via U_k1, which includes it) is still read as "1"
+            # by this same iteration's step 4 above.
+            if k > 0:
+                A[k - 1, k] = tau_u_prev
+            tau_u_prev = tau_u
+        else:
+            A[k - 1, k] = tau_u_prev
+
+        A[k, k] = tau_v
+
+    if bs < bcols:
+        A[bs - 1, bs] = tau_u_prev
+
+    # Flush the panel's accumulated effect onto A22 via 2 GEMMs.
+    if bcols > bs and brows > bs:
+        var A11 = A.block(bs, bs, brows - bs, bcols - bs)
+        var A10 = A.block(bs, 0, brows - bs, bs)
+        var A01 = A.block(0, bs, bs, bcols - bs)
+        var Y_bottom = Y.block(bs, 0, bcols - bs, bs)
+        var X_bottom = X.block(bs, 0, brows - bs, bs)
+
+        # A01's row (bs-1) is the last right reflector's own row; its pivot
+        # (A01[bs-1,0] == A[bs-1,bs]) must read as 1 for this GEMM, same
+        # trick as within the loop -- temporarily override, then restore.
+        var tmp = A[bs - 1, bs]
+        A[bs - 1, bs] = RealScalar(1)
+
+        var corr_a = matmul(A10, mat_transpose(Y_bottom))
+        for j in range(A11.cols()):
+            for i in range(A11.rows()):
+                A11[i, j] = A11[i, j] - corr_a[i, j]
+
+        var corr_b = matmul(X_bottom, A01)
+        for j in range(A11.cols()):
+            for i in range(A11.rows()):
+                A11[i, j] = A11[i, j] - corr_b[i, j]
+
+        A[bs - 1, bs] = tmp
+
+def upperbidiagonalization_inplace_blocked(mut A: Mat, mut diag: Vec, mut superdiag: Vec, max_block_size: Int = 16):
+    var rows = A.rows()
+    var cols = A.cols()
+    var size = min(rows, cols)
+    if size == 0:
+        return
+    var X = Mat(rows, max_block_size)
+    var Y = Mat(cols, max_block_size)
+    var block_size = min(max_block_size, size)
+
+    var k = 0
+    while k < size:
+        var bs = min(size - k, block_size)
+        var brows = rows - k
+        var bcols = cols - k
+        var B = A.block(k, k, brows, bcols)
+        var diag_sub = diag.segment(k, len(diag) - k)
+        var superdiag_sub = superdiag.segment(k, max(len(superdiag) - k, 0))
+
+        if k + bs == cols or bcols < 2 * block_size:
+            # Fall back to unblocked for the small trailing submatrix.
+            upperbidiagonalization_unblocked(B, diag_sub, superdiag_sub)
+            break
+        else:
+            var X_sub = X.block(0, 0, brows, bs)
+            var Y_sub = Y.block(0, 0, bcols, bs)
+            upperbidiagonalization_blocked_helper(B, diag_sub, superdiag_sub, bs, X_sub, Y_sub)
+
+        k += bs
+
 def upperbidiagonalization_unblocked(mut mat: Mat, mut diag: Vec, mut superdiag: Vec):
     var rows = mat.rows()
     var cols = mat.cols()
@@ -268,7 +481,7 @@ struct UpperBidiagonalization:
         self.m_householder = A.copy()
         self.m_diag = Vec(cols)
         self.m_superdiag = Vec(max(cols - 1, 0))
-        upperbidiagonalization_unblocked(self.m_householder, self.m_diag, self.m_superdiag)
+        upperbidiagonalization_inplace_blocked(self.m_householder, self.m_diag, self.m_superdiag)
         self.m_isInitialized = True
 
     def compute_unblocked(mut self, A: Mat):

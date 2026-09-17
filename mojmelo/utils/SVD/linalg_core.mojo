@@ -393,24 +393,25 @@ def reverse_cols(mut m: Mat, count: Int):
 @always_inline
 def mat_transpose(a: Mat) -> Mat:
     var mat = Mat(a.cols(), a.rows())
+    var col_stride = a.col_stride
     if mat.size < 98304:
         for i in range(a.rows()):
             var idx_row = i
-            var tmpPtr = a.data.unsafe_offset(idx_row)
+            var tmpPtr = a.data.unsafe_offset(idx_row * a.row_stride)
     
             def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](mat.cols()))
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.cols())
+                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * col_stride)
             vectorize[SIMD_WIDTH](a.cols(), convert)
     else:
         @__parameter
         def p(i: Int):
             var idx_row = i
-            var tmpPtr = a.data.unsafe_offset(idx_row)
+            var tmpPtr = a.data.unsafe_offset(idx_row * a.row_stride)
     
             def pconvert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](mat.cols()))
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * mat.cols())
+                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
+                tmpPtr = tmpPtr.unsafe_offset(simd_width * col_stride)
             vectorize[SIMD_WIDTH](a.cols(), pconvert)
         parallelize[p](a.rows())
     return mat^
