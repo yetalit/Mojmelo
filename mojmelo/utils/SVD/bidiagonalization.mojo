@@ -1,11 +1,6 @@
 # ==============================================================================
 # Based on libeigen — Eigen/src/SVD/UpperBidiagonalization.h, Copyright (C) 2009-2010 Benoit
 # Jacob, Copyright (C) 2013-2014 Gael Guennebaud, MPL-2.0.
-# ------------------------------------------------------------------------------
-# This ports `upperbidiagonalization_inplace_unblocked` — the plain O(n^3),
-# no-fancy-optimizations version, which the original says is "faster for
-# small matrix sizes". `upperbidiagonalization_inplace_blocked` (the
-# WY-representation, GEMM-heavy version for large matrices) is NOT ported.
 # ==============================================================================
 
 from std.math import sqrt, hypot
@@ -271,8 +266,7 @@ def vec_scale_inplace(mut y: Vec, var scale: RealScalar):
             y[i] = y[i] * scale
 
 # ==============================================================================
-# Port of Eigen's upperbidiagonalization_blocked_helper /
-# upperbidiagonalization_inplace_blocked (Eigen/src/SVD/UpperBidiagonalization.h),
+# Port of Eigen's upperbidiagonalization_blocked_helper / upperbidiagonalization_inplace_blocked,
 # implementing "The Design of a Parallel Dense Linear Algebra Software Library:
 # Reduction to Hessenberg, Tridiagonal, and Bidiagonal Form" (Choi, Dongarra,
 # Walker, 1995), section 3.3.

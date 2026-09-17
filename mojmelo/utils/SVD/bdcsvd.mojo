@@ -2,10 +2,6 @@
 # Based on libeigen — Eigen/src/SVD/BDCSVD.h, Copyright (C) 2013 Gauthier Brun,
 # Nicolas Carre, Jean Ceccato, Pierre Zoppitelli, Jitse Niesen, and
 # Copyright (C) 2014-2017 Gael Guennebaud, MPL-2.0.
-# ------------------------------------------------------------------------------
-# Eigen's `HouseholderQR` (used below for the QR pre-pass) is itself
-# blocked/WY-accumulated for large matrices, the same way `UpperBidiagonalization`'s
-# blocked path is. The QR pre-pass here uses a plain unblocked Householder QR instead.
 # ==============================================================================
 
 from .linalg_core import (
@@ -41,7 +37,6 @@ def prepare_work(A: Mat, do_transpose: Bool) -> Mat:
     return A.copy()
 
 # ==============================================================================
-# HouseholderQR — plain unblocked Householder QR.
 # Storage convention matches Eigen's HouseholderQR: m_qr's upper triangle
 # (including diagonal) holds R itself untouched; m_qr's strict lower holds
 # each reflector's essential vector; taus live in the separate m_hCoeffs

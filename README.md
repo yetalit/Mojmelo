@@ -53,7 +53,7 @@ If you are not familiar with Mojo projects, you can get started here: https://mo
 
 ### Prerequisites
 
-* mojo-compiler 1.0.0 or later
+* mojo-compiler 1.1.0 or later
 
 Optionally, bellow Python packages can be installed for a better usability and to run tests:
 1. Numpy
@@ -266,8 +266,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 1.1169 ± 0.0133 | 0.0366 ± 0.0023    | 0.5371        |
-| mojmelo PCA | 0.4396 ± 0.0082 | 0.0617 ± 0.0009    | 0.5371        |
+| sklearn PCA | 1.1585 ± 0.0220 | 0.0353 ± 0.0002    | 0.5358        |
+| mojmelo PCA | 1.6651 ± 0.0421 | 0.0617 ± 0.0004    | 0.5358        |
 
 ## Contributing
 
@@ -287,11 +287,13 @@ Contributions can be done to the project in these 3 ways:
 
 * `HDBSCAN` implementation is partially based on <a href='https://hdbscan.readthedocs.io/en/latest/'>hdbscan</a> by Leland McInnes, John Healy and Steve Astels licensed under the BSD-3-Clause license and <a href='https://fast-hdbscan.readthedocs.io/en/latest/'>Fast Multicore HDBSCAN</a> by Tutte Institute for Mathematics and Computing licensed under the BSD-2-Clause license.
 
-* `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
+* `BDCSVD` implementation is based on <a href='https://libeigen.gitlab.io'>Eigen</a>, a C++ template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms by Benoit Jacob, Gael Guennebaud and others licensed under the MPL-2.0 license.
 
-* `argmin` and `argmax` implementations and `utils.algorithm` submodule are based on codes from <a href='https://github.com/modular/modular'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
+* `matmul` implementation is based on <a href='https://github.com/YichengDWu/matmul.mojo/'>matmul.mojo</a> by Ethan Wu (YichengDWu) licensed under the Apache-2.0 license.
 
-* <a href='https://arxiv.org/abs/physics/0408067'>KDTREE2</a>, a kd-tree implementation in Fortran 95 and C++ by Matthew B. Kennel.
+* `argmin` and `argmax` implementations and `utils.algorithm` submodule are based on codes from <a href='https://github.com/modular/modular/'>Modular</a> licensed under the Apache License v2.0 with LLVM Exceptions.
+
+* <a href='https://arxiv.org/abs/physics/0408067/'>KDTREE2</a>, a kd-tree implementation in Fortran 95 and C++ by Matthew B. Kennel.
 
 * Initially drew inspiration from Patrick Loeber's <a href='https://github.com/patrickloeber/MLfromscratch/'>MLfromscratch</a>.
 
