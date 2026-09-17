@@ -37,7 +37,6 @@ Mojo module
 - [`entropy`](entropy.md)
 - [`entropy_precompute`](entropy_precompute.md)
 - [`gini`](gini.md)
-- [`gini_precompute`](gini_precompute.md)
 - [`mse_loss`](mse_loss.md)
 - [`mse_loss_precompute`](mse_loss_precompute.md)
 - [`mse_g`](mse_g.md)

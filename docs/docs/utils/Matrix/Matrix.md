@@ -30,12 +30,13 @@ Native matrix data structure.
 ### `__init__`
 
 ```mojo
-fn def __init__[src: DType = DType.float32](out self, data: Pointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = "c")
+fn def __init__[src: DType = .float32, consume: Bool = True](out self, data: Pointer[Scalar[src], MutUntrackedOrigin], height: Int, width: Int, order: String = "c")
 ```
 
 **Parameters:**
 
 - **src** (`DType`)
+- **consume** (`Bool`)
 
 **Args:**
 
@@ -814,7 +815,7 @@ fn def __ipow__(mut self, rhs: Int)
 ### `load`
 
 ```mojo
-fn def load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]
+fn def load[nelts: Int](self, y: Int, x: Int) -> SIMD[.float32, nelts]
 ```
 
 **Parameters:**
@@ -829,12 +830,12 @@ fn def load[nelts: Int](self, y: Int, x: Int) -> SIMD[DType.float32, nelts]
 
 **Returns:**
 
-`SIMD[DType.float32, nelts]`
+`SIMD[.float32, nelts]`
 
 ### `store`
 
 ```mojo
-fn def store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts])
+fn def store[nelts: Int](self, y: Int, x: Int, val: SIMD[.float32, nelts])
 ```
 
 **Parameters:**
@@ -846,7 +847,7 @@ fn def store[nelts: Int](self, y: Int, x: Int, val: SIMD[DType.float32, nelts])
 - **self** (`Self`)
 - **y** (`Int`)
 - **x** (`Int`)
-- **val** (`SIMD[DType.float32, nelts]`)
+- **val** (`SIMD[.float32, nelts]`)
 
 ### `load_columns`
 
@@ -1506,7 +1507,7 @@ fn def argmax_f(self, axis: Int) -> Self
 ### `argsort`
 
 ```mojo
-fn def argsort[ascending: Bool = True](self) -> List[Int]
+fn def argsort[ascending: Bool = True](self, indices_to_sort: List[Int] = List()) -> List[Int]
 ```
 
 **Parameters:**
@@ -1516,27 +1517,11 @@ fn def argsort[ascending: Bool = True](self) -> List[Int]
 **Args:**
 
 - **self** (`Self`)
+- **indices_to_sort** (`List[Int]`)
 
 **Returns:**
 
 `List[Int]`
-
-**Raises:**
-
-### `argsort_inplace`
-
-```mojo
-fn def argsort_inplace[ascending: Bool = True](mut self, mut sorted_indices: List[Int])
-```
-
-**Parameters:**
-
-- **ascending** (`Bool`)
-
-**Args:**
-
-- **self** (`Self`)
-- **sorted_indices** (`List[Int]`)
 
 **Raises:**
 
@@ -1599,6 +1584,22 @@ fn def max(self, axis: Int) -> Self
 **Returns:**
 
 `Self`
+
+**Raises:**
+
+### `absMax`
+
+```mojo
+fn def absMax(self) -> Float32
+```
+
+**Args:**
+
+- **self** (`Self`)
+
+**Returns:**
+
+`Float32`
 
 **Raises:**
 

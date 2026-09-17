@@ -23,7 +23,6 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 - **mean** (`Matrix`)
 - **whiten** (`Bool`): To transform data to have zero mean, unit variance, and no correlation between features.
 - **whiten_** (`Matrix`)
-- **lapack** (`Bool`): Use LAPACK to calculate svd.
 
 ## Implemented traits
 
@@ -34,14 +33,13 @@ Principal component analysis (PCA). Linear dimensionality reduction using Singul
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, n_components: Int, whiten: Bool = False, lapack: Bool = False)
+fn def __init__(out self, n_components: Int, whiten: Bool = False)
 ```
 
 **Args:**
 
 - **n_components** (`Int`)
 - **whiten** (`Bool`)
-- **lapack** (`Bool`)
 - **self** (`Self`)
 
 **Returns:**

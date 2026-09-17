@@ -3,7 +3,7 @@ Mojo function
 # `gt`
 
 ```mojo
-fn def gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]
+fn def gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[.bool, width]
 ```
 
 **Parameters:**
@@ -18,5 +18,5 @@ fn def gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]
 
 **Returns:**
 
-`SIMD[DType.bool, width]`
+`SIMD[.bool, width]`
 

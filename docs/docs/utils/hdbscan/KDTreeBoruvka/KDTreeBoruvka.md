@@ -10,7 +10,7 @@ struct KDTreeBoruvka
 ## Fields
 
 - **data** (`Pointer[Float32, MutUntrackedOrigin]`)
-- **kdtree** (`KDTree[True]`)
+- **kdtree** (`KDTree[True, EUC=True]`)
 - **n** (`Int`)
 - **dim** (`Int`)
 - **leaf_size** (`Int`)
@@ -18,6 +18,9 @@ struct KDTreeBoruvka
 - **core_dist** (`Pointer[Float32, MutUntrackedOrigin]`)
 - **build_idx** (`List[Int]`)
 - **proj_buf** (`List[Float32]`)
+- **knn_idx** (`Pointer[Int, MutUntrackedOrigin]`)
+- **knn_dist** (`Pointer[Float32, MutUntrackedOrigin]`)
+- **k** (`Int`)
 
 ## Implemented traits
 
@@ -28,7 +31,7 @@ struct KDTreeBoruvka
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search_depth: Int)
+fn def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int)
 ```
 
 **Args:**
@@ -36,7 +39,6 @@ fn def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int, search
 - **data** (`Matrix`)
 - **min_samples** (`Int`)
 - **leaf_size** (`Int`)
-- **search_depth** (`Int`)
 - **self** (`Self`)
 
 **Returns:**

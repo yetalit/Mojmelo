@@ -4,7 +4,7 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
+struct KDTree[sort_results: Bool = False, rearrange: Bool = True, EUC: Bool = False]
 ```
 
 ## Aliases
@@ -15,12 +15,13 @@ struct KDTree[sort_results: Bool = False, rearrange: Bool = True]
 
 - **sort_results** (`Bool`)
 - **rearrange** (`Bool`)
+- **EUC** (`Bool`)
 
 ## Fields
 
 - **N** (`Int`)
 - **dim** (`Int`)
-- **root** (`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`)
+- **root** (`Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]`)
 - **ind** (`List[Int]`)
 - **metric** (`def(Float32) thin -> Float32`)
 
@@ -87,7 +88,7 @@ fn def build_tree(mut self)
 ### `build_tree_for_range`
 
 ```mojo
-fn def build_tree_for_range(mut self, l: Int, u: Int, parent: Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]) -> Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]
+fn def build_tree_for_range(mut self, l: Int, u: Int, parent: Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]) -> Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]
 ```
 
 **Args:**
@@ -95,11 +96,11 @@ fn def build_tree_for_range(mut self, l: Int, u: Int, parent: Optional[Pointer[K
 - **self** (`Self`)
 - **l** (`Int`)
 - **u** (`Int`)
-- **parent** (`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`)
+- **parent** (`Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]`)
 
 **Returns:**
 
-`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`
+`Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]`
 
 **Raises:**
 
@@ -247,5 +248,16 @@ fn def r_count_around_point(self, idxin: Int, correltime: Int, r2: Float32) -> I
 `Int`
 
 **Raises:**
+
+### `delTree`
+
+```mojo
+fn def delTree(self, node: Pointer[KDTreeNode[EUC], MutUntrackedOrigin])
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **node** (`Pointer[KDTreeNode[EUC], MutUntrackedOrigin]`)
 
 

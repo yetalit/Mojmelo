@@ -14,7 +14,7 @@ struct KDTreeResult
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Deinitable`, `ImplicitlyCopyable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
+`AnyType`, `Comparable`, `Copyable`, `Deinitable`, `Equatable`, `ImplicitlyCopyable`, `Movable`, `RegisterPassable`, `TrivialRegisterPassable`
 
 ## Methods
 
@@ -48,10 +48,55 @@ fn def __le__(self, rhs: Self) -> Bool
 
 `Bool`
 
+### `__eq__`
+
+```mojo
+fn def __eq__(self, rhs: Self) -> Bool
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`Bool`
+
+### `__ne__`
+
+```mojo
+fn def __ne__(self, rhs: Self) -> Bool
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`Bool`
+
 ### `__gt__`
 
 ```mojo
 fn def __gt__(self, rhs: Self) -> Bool
+```
+
+**Args:**
+
+- **self** (`Self`)
+- **rhs** (`Self`)
+
+**Returns:**
+
+`Bool`
+
+### `__ge__`
+
+```mojo
+fn def __ge__(self, rhs: Self) -> Bool
 ```
 
 **Args:**

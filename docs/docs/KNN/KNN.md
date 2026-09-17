@@ -4,7 +4,7 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct KNN
+struct KNN[EUC: Bool = False]
 ```
 
 Classifier implementing the k-nearest neighbors vote.
@@ -14,12 +14,15 @@ Classifier implementing the k-nearest neighbors vote.
 - `MODEL_ID = 4`
 - `metric_ids = List(String("euc"), String("man"), __list_literal__=NoneType(None))`
 
+## Parameters
+
+- **EUC** (`Bool`): Setting EUC=True lets compiler optimize Euclidean distance calculations.
+
 ## Fields
 
 - **k** (`Int`): Number of neighbors to use.
 - **metric** (`String`): Metric to use for distance computation: Euclidean -> 'euc'; Manhattan -> 'man'.
-- **search_depth** (`Int`): Current KDTree implementation applies some approximation to its search results. Increasing search_depth can lead to more accurate results at the cost of performance.
-- **kdtree** (`KDTree[True]`)
+- **kdtree** (`KDTree[EUC=EUC]`)
 - **y_train** (`Matrix`)
 
 ## Implemented traits
@@ -31,14 +34,13 @@ Classifier implementing the k-nearest neighbors vote.
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, k: Int = Int(3), metric: String = "euc", search_depth: Int = Int(1))
+fn def __init__(out self, k: Int = Int(3), metric: String = "euc")
 ```
 
 **Args:**
 
 - **k** (`Int`)
 - **metric** (`String`)
-- **search_depth** (`Int`)
 - **self** (`Self`)
 
 **Returns:**

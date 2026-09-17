@@ -16,5 +16,4 @@ Mojo module
 - [`Abs`](Abs.md)
 - [`Squared`](Squared.md)
 - [`dis_from_bnd`](dis_from_bnd.md)
-- [`delTree`](delTree.md)
 

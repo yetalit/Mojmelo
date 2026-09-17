@@ -21,7 +21,6 @@ Cluster data using hierarchical density-based clustering.
 - **max_cluster_size** (`Int`): A limit to the size of clusters returned by the eom algorithm.
 - **allow_single_cluster** (`Bool`): By default HDBSCAN* will not produce a single cluster, setting this to True will override this and allow single cluster results in the case that you feel this is a valid result for your dataset.
 - **match_reference_implementation** (`Bool`): There exist some interpretational differences between this HDBSCAN* implementation and the original authors reference implementation in Java. This can result in very minor differences in clustering results. Setting this flag to True will, at a some performance cost, ensure that the clustering results match the reference implementation.
-- **search_depth** (`Int`): Current KDTree implementation applies some approximation to its search results. Increasing search_depth can lead to more accurate results at the cost of performance. This can be useful for small datasets.
 - **labels** (`List[Int]`): Cluster labels for each point in the dataset given to fit().
 - **probabilities** (`List[Float32]`): The strength with which each sample is a member of its assigned cluster.
 - **cluster_persistence** (`List[Float32]`): A score of how persistent each cluster is. A score of 1.0 represents a perfectly stable cluster that persists over all distance scales, while a score of 0.0 represents a perfectly ephemeral cluster.
@@ -38,7 +37,7 @@ Cluster data using hierarchical density-based clustering.
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, min_samples: Int = Int(5), min_cluster_size: Int = Int(5), cluster_selection_method: String = "eom", alpha: Float32 = 1, cluster_selection_epsilon: Float32 = Float32("0"), cluster_selection_epsilon_max: Float32 = inf[DType.float32](), cluster_selection_persistence: Float32 = Float32("0"), max_cluster_size: Int = Int(0), allow_single_cluster: Bool = False, match_reference_implementation: Bool = False, search_depth: Int = Int(1))
+fn def __init__(out self, min_samples: Int = Int(5), min_cluster_size: Int = Int(5), cluster_selection_method: String = "eom", alpha: Float32 = 1, cluster_selection_epsilon: Float32 = Float32("0"), cluster_selection_epsilon_max: Float32 = inf[DType.float32](), cluster_selection_persistence: Float32 = Float32("0"), max_cluster_size: Int = Int(0), allow_single_cluster: Bool = False, match_reference_implementation: Bool = False)
 ```
 
 **Args:**
@@ -53,7 +52,6 @@ fn def __init__(out self, min_samples: Int = Int(5), min_cluster_size: Int = Int
 - **max_cluster_size** (`Int`)
 - **allow_single_cluster** (`Bool`)
 - **match_reference_implementation** (`Bool`)
-- **search_depth** (`Int`)
 - **self** (`Self`)
 
 **Returns:**

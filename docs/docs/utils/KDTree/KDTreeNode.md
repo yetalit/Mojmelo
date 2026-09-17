@@ -4,8 +4,12 @@ Mojo struct
 
 ```mojo
 @memory_only
-struct KDTreeNode
+struct KDTreeNode[EUC: Bool]
 ```
+
+## Parameters
+
+- **EUC** (`Bool`)
 
 ## Fields
 
@@ -16,8 +20,8 @@ struct KDTreeNode
 - **l** (`Int`)
 - **u** (`Int`)
 - **box** (`List[interval]`)
-- **left** (`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`)
-- **right** (`Optional[Pointer[KDTreeNode, MutUntrackedOrigin]]`)
+- **left** (`Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]`)
+- **right** (`Optional[Pointer[KDTreeNode[EUC], MutUntrackedOrigin]]`)
 - **metric** (`def(Float32) thin -> Float32`)
 
 ## Implemented traits

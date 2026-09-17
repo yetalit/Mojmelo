@@ -52,6 +52,18 @@ fn def __init__(out self, t: Pointer[KDTreeBoruvka, MutUntrackedOrigin], min_sam
 
 **Raises:**
 
+### `initialize_from_knn`
+
+```mojo
+fn def initialize_from_knn(mut self)
+```
+
+**Args:**
+
+- **self** (`Self`)
+
+**Raises:**
+
 ### `mr_rdist`
 
 ```mojo

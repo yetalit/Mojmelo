@@ -42,18 +42,6 @@ fn def __getitem__(self, index: Int) -> KDTreeResult
 
 `KDTreeResult`
 
-### `__setitem__`
-
-```mojo
-fn def __setitem__(mut self, index: Int, val: KDTreeResult)
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **index** (`Int`)
-- **val** (`KDTreeResult`)
-
 ### `__len__`
 
 ```mojo
@@ -68,16 +56,6 @@ fn def __len__(self) -> Int
 
 `Int`
 
-### `append_heap`
-
-```mojo
-fn def append_heap(mut self)
-```
-
-**Args:**
-
-- **self** (`Self`)
-
 ### `append_element_and_heapify`
 
 ```mojo
@@ -88,16 +66,6 @@ fn def append_element_and_heapify(mut self, e: KDTreeResult)
 
 - **self** (`Self`)
 - **e** (`KDTreeResult`)
-
-### `pop_heap`
-
-```mojo
-fn def pop_heap(mut self)
-```
-
-**Args:**
-
-- **self** (`Self`)
 
 ### `max_value`
 
