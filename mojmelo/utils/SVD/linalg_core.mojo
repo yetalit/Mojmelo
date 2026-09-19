@@ -359,6 +359,8 @@ struct Mat(Copyable):
 # ------------------------------------------------------------------------------
 # A handful of small free-function Vec/Mat helpers shared across files.
 # ------------------------------------------------------------------------------
+comptime PAR_ELEMS = 1 << 16   # don't spawn threads for less work than this
+
 @always_inline
 def swap_vecs(mut a: Vec, mut b: Vec):
     var tmp = Vec(len(a))
@@ -367,19 +369,61 @@ def swap_vecs(mut a: Vec, mut b: Vec):
     b.copyFrom(tmp)
 
 @always_inline
+def dot_contig(
+    a: Pointer[RealScalar, MutUntrackedOrigin],
+    b: Pointer[RealScalar, MutUntrackedOrigin],
+    n: Int,
+) -> RealScalar:
+    var acc0 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
+    var acc1 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
+    var acc2 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
+    var acc3 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
+    var i = 0
+    while i + 4 * SIMD_WIDTH <= n:
+        acc0 += a.unsafe_load[width=SIMD_WIDTH](i) * b.unsafe_load[width=SIMD_WIDTH](i)
+        acc1 += a.unsafe_load[width=SIMD_WIDTH](i + SIMD_WIDTH) * b.unsafe_load[width=SIMD_WIDTH](i + SIMD_WIDTH)
+        acc2 += a.unsafe_load[width=SIMD_WIDTH](i + 2 * SIMD_WIDTH) * b.unsafe_load[width=SIMD_WIDTH](i + 2 * SIMD_WIDTH)
+        acc3 += a.unsafe_load[width=SIMD_WIDTH](i + 3 * SIMD_WIDTH) * b.unsafe_load[width=SIMD_WIDTH](i + 3 * SIMD_WIDTH)
+        i += 4 * SIMD_WIDTH
+    var s = ((acc0 + acc1) + (acc2 + acc3)).reduce_add()
+    while i < n:
+        s += a[unsafe_offset=i] * b[unsafe_offset=i]
+        i += 1
+    return s
+
+@always_inline
 def vec_dot(a: Vec, b: Vec) -> RealScalar:
     var n = len(a)
-    var sum = 0.0
     if a.stride == 1 and b.stride == 1:
-        var ad = a.data
-        var bd = b.data
-        def dotChunk[simd_width: Int](idx: Int) {mut}:
-            sum += (ad.unsafe_load[simd_width](idx) * bd.unsafe_load[simd_width](idx)).reduce_add()
-        vectorize[SIMD_WIDTH](n, dotChunk)
-    else:
-        for i in range(n):
-            sum += a[i] * b[i]
+        return dot_contig(a.data, b.data, n)
+    var sum = 0.0
+    for i in range(n):
+        sum += a[i] * b[i]
     return sum
+
+@always_inline
+def sub_inplace(dst: Mat, src: Mat):
+    """Dst -= Src for same-shape column-major views (row_stride == 1)."""
+    var rows = dst.rows()
+    var cols = dst.cols()
+    var dptr = dst.data
+    var sptr = src.data
+    var dcs = dst.col_stride
+    var scs = src.col_stride
+
+    @__parameter
+    def one_col(j: Int):
+        var d = dptr.unsafe_offset(j * dcs)
+        var s = sptr.unsafe_offset(j * scs)
+        def f[w: Int](idx: Int) {mut}:
+            d.unsafe_store[w](idx, d.unsafe_load[width=w](idx) - s.unsafe_load[width=w](idx))
+        vectorize[SIMD_WIDTH](rows, f)
+
+    if rows * cols < PAR_ELEMS:
+        for j in range(cols):
+            one_col(j)
+    else:
+        parallelize[one_col](cols)
 
 @always_inline
 def reverse_cols(mut m: Mat, count: Int):

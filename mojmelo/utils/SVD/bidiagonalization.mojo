@@ -6,7 +6,7 @@
 from std.math import sqrt, hypot
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, matmul, mat_transpose, vec_dot
+from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, dot_contig, sub_inplace
 
 @always_inline
 def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
@@ -57,9 +57,7 @@ def _householder_left_update_col(
     var s = col_ptr[]
 
     if ess_stride == 1:
-        def dotv[simd_width: Int](idx: Int) {mut}:
-            s += (ess_data.unsafe_load[width=simd_width](idx) * tail_ptr.unsafe_load[width=simd_width](idx)).reduce_add()
-        vectorize[SIMD_WIDTH](ess_len, dotv)
+        s += dot_contig(ess_data, tail_ptr, ess_len)
     else:
         # Strided essential (V-side reflector via apply_v_on_left): plain
         # scalar loop rather than a SIMD path.
@@ -161,14 +159,12 @@ def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
 # ------------------------------------------------------------------------------
 @always_inline
 def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = False):
-    var rows = V.rows()
     var plen = V.cols()
     if plen == 0:
         return
 
     # Build T (plen x plen, upper triangular): T[0,0] = tau_0; for j > 0,
     # T[0:j,j] = -tau_j * T[0:j,0:j] * (V[:,0:j]^T v_j), T[j,j] = tau_j.
-    # This stays a serial O(plen^2 * rows) loop (SIMD, not threaded).
     var T = Mat(plen, plen)
     T[0, 0] = taus[0]
     for j in range(1, plen):
@@ -191,47 +187,103 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = 
     # factorization; Q itself is what reconstructing U/V from an already-
     # finished factorization needs (apply_u_on_left etc.).
     var Vt = mat_transpose(V)
-    var W = matmul(Vt, C)
+    var Wm = matmul(Vt, C)
     var TW: Mat
     if use_transpose:
-        TW = matmul(mat_transpose(T), W)
+        TW = matmul(mat_transpose(T), Wm)
     else:
-        TW = matmul(T, W)
+        TW = matmul(T, Wm)
     var update = matmul(V, TW)
-    for j in range(C.cols()):
-        for i in range(rows):
-            C[i, j] = C[i, j] - update[i, j]
+    sub_inplace(C, update)
 
 # ------------------------------------------------------------------------------
 # Small dense matrix-vector helpers used only by the blocked bidiagonalization
 # below (the panel bookkeeping needs plain Mat*Vec / Mat^T*Vec, not the full
 # Mat*Mat GEMM machinery).
 # ------------------------------------------------------------------------------
-@always_inline
-def matTvec(A: Mat, x: Vec) -> Vec:
-    """Y = A^T * X. y has length A.cols(), x must have length A.rows()."""
-    var m = A.rows()
-    var n = A.cols()
-    var y = Vec(n)
-    if m * max(n, 1) < 4096:
-        for j in range(n):
-            y[j] = vec_dot(A.col(j), x)
-    else:
-        @__parameter
-        def process_col(j: Int):
-            y[j] = vec_dot(A.col(j), x)
-        parallelize[process_col](n)
-    return y^
+comptime GEMV_ROW_CHUNK = 1024
 
 @always_inline
 def matvec(A: Mat, x: Vec) -> Vec:
-    """Y = A * X, via column-scaled accumulation (each column read once,
-    contiguous). y has length A.rows(), x must have length A.cols()."""
+    """Y = A * x. Each task owns a slice of rows of y (no write sharing) and
+    consumes 4 columns per pass, so y is loaded/stored once per 4 FMAs."""
     var m = A.rows()
     var n = A.cols()
-    var y = Vec(m)
-    for j in range(n):
-        vec_add_scaled_inplace(y, A.col(j), x[j])
+    var y = Vec(m)  # zero-initialised
+    var yp = y.data
+    var base = A.data
+    var cs = A.col_stride
+    var nchunks = (m + GEMV_ROW_CHUNK - 1) // GEMV_ROW_CHUNK
+
+    @__parameter
+    def do_chunk(c: Int):
+        var r0 = c * GEMV_ROW_CHUNK
+        var rlen = min(GEMV_ROW_CHUNK, m - r0)
+        var yc = yp.unsafe_offset(r0)
+        var j = 0
+        while j + 4 <= n:
+            var x0 = x[j]
+            var x1 = x[j + 1]
+            var x2 = x[j + 2]
+            var x3 = x[j + 3]
+            var p0 = base.unsafe_offset(j * cs + r0)
+            var p1 = base.unsafe_offset((j + 1) * cs + r0)
+            var p2 = base.unsafe_offset((j + 2) * cs + r0)
+            var p3 = base.unsafe_offset((j + 3) * cs + r0)
+            var i = 0
+            while i + SIMD_WIDTH <= rlen:
+                var acc = yc.unsafe_load[width=SIMD_WIDTH](i)
+                acc += p0.unsafe_load[width=SIMD_WIDTH](i) * x0
+                acc += p1.unsafe_load[width=SIMD_WIDTH](i) * x1
+                acc += p2.unsafe_load[width=SIMD_WIDTH](i) * x2
+                acc += p3.unsafe_load[width=SIMD_WIDTH](i) * x3
+                yc.unsafe_store[SIMD_WIDTH](i, acc)
+                i += SIMD_WIDTH
+            while i < rlen:
+                yc[unsafe_offset=i] = (
+                    yc[unsafe_offset=i]
+                    + p0[unsafe_offset=i] * x0 + p1[unsafe_offset=i] * x1
+                    + p2[unsafe_offset=i] * x2 + p3[unsafe_offset=i] * x3
+                )
+                i += 1
+            j += 4
+        while j < n:  # leftover columns
+            var xj = x[j]
+            var p = base.unsafe_offset(j * cs + r0)
+            for i in range(rlen):
+                yc[unsafe_offset=i] = yc[unsafe_offset=i] + p[unsafe_offset=i] * xj
+            j += 1
+
+    if m * n < PAR_ELEMS or nchunks == 1:
+        for c in range(nchunks):
+            do_chunk(c)
+    else:
+        parallelize[do_chunk](nchunks)
+    return y^
+
+@always_inline
+def matTvec(A: Mat, x: Vec) -> Vec:
+    """Y = A^T x. One dot per column. Tasks own *groups* of columns
+    sized to ~32K elements so dispatch cost is amortised."""
+    var m = A.rows()
+    var n = A.cols()
+    var y = Vec(n)
+    if m * n < PAR_ELEMS:
+        for j in range(n):
+            y[j] = vec_dot(A.col(j), x)
+        return y^
+
+    var group = max(1, 32768 // max(m, 1))
+    var ngroups = (n + group - 1) // group
+
+    @__parameter
+    def do_group(g: Int):
+        var j0 = g * group
+        var j1 = min(n, j0 + group)
+        for j in range(j0, j1):
+            y[j] = vec_dot(A.col(j), x)
+
+    parallelize[do_group](ngroups)
     return y^
 
 @always_inline
@@ -247,11 +299,6 @@ def vec_sub_scaled_inplace(mut y: Vec, z: Vec, var scale: RealScalar):
     else:
         for i in range(n):
             y[i] = y[i] - scale * z[i]
-
-@always_inline
-def vec_add_scaled_inplace(mut y: Vec, z: Vec, scale: RealScalar):
-    """Y += scale * Z."""
-    vec_sub_scaled_inplace(y, z, -scale)
 
 @always_inline
 def vec_scale_inplace(mut y: Vec, var scale: RealScalar):
@@ -360,31 +407,34 @@ def upperbidiagonalization_blocked_helper(mut A: Mat, mut diagonal: Vec, mut upp
 
     # Flush the panel's accumulated effect onto A22 via 2 GEMMs.
     if bcols > bs and brows > bs:
-        var A11 = A.block(bs, bs, brows - bs, bcols - bs)
-        var A10 = A.block(bs, 0, brows - bs, bs)
-        var A01 = A.block(0, bs, bs, bcols - bs)
-        var Y_bottom = Y.block(bs, 0, bcols - bs, bs)
-        var X_bottom = X.block(bs, 0, brows - bs, bs)
+        var mrows = brows - bs
+        var ncols_ = bcols - bs
+        var A11 = A.block(bs, bs, mrows, ncols_)
+        var A10 = A.block(bs, 0, mrows, bs)
+        var A01 = A.block(0, bs, bs, ncols_)
+        var Y_bottom = Y.block(bs, 0, ncols_, bs)
+        var X_bottom = X.block(bs, 0, mrows, bs)
 
-        # A01's row (bs-1) is the last right reflector's own row; its pivot
-        # (A01[bs-1,0] == A[bs-1,bs]) must read as 1 for this GEMM, same
-        # trick as within the loop -- temporarily override, then restore.
+        # A01[bs-1, 0] is the last right-reflector's pivot: must read as 1
+        # while we gather it (same trick as before).
         var tmp = A[bs - 1, bs]
         A[bs - 1, bs] = RealScalar(1)
 
-        var corr_a = matmul(A10, mat_transpose(Y_bottom))
-        for j in range(A11.cols()):
-            for i in range(A11.rows()):
-                A11[i, j] = A11[i, j] - corr_a[i, j]
+        var P = Mat(mrows, 2 * bs)                 # [A10 | X_bottom]
+        P.block(0, 0, mrows, bs).copyFrom(A10)
+        P.block(0, bs, mrows, bs).copyFrom(X_bottom)
+        var Q = Mat(2 * bs, ncols_)                # [Y_bottom^T ; A01]
+        for c in range(ncols_):
+            for t in range(bs):
+                Q[t, c] = Y_bottom[c, t]
+                Q[bs + t, c] = A01[t, c]
 
-        var corr_b = matmul(X_bottom, A01)
-        for j in range(A11.cols()):
-            for i in range(A11.rows()):
-                A11[i, j] = A11[i, j] - corr_b[i, j]
+        A[bs - 1, bs] = tmp                        # restore right after the gather
 
-        A[bs - 1, bs] = tmp
+        var update = matmul(P, Q)
+        sub_inplace(A11, update)
 
-def upperbidiagonalization_inplace_blocked(mut A: Mat, mut diag: Vec, mut superdiag: Vec, max_block_size: Int = 16):
+def upperbidiagonalization_inplace_blocked(mut A: Mat, mut diag: Vec, mut superdiag: Vec, max_block_size: Int = 32):
     var rows = A.rows()
     var cols = A.cols()
     var size = min(rows, cols)

@@ -655,7 +655,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat.data[unsafe_offset=0] = self._elemwise_matrix[mul](rhs).sum()
             return mat^
         
-        if self.height * self.width * rhs.width <= 8096:
+        if self.height * self.width * rhs.width <= 8192:
             # matmul naive
             var mat = Matrix.zeros(self.height, rhs.width)
             for i in range(self.size):
