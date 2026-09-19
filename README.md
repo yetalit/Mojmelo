@@ -266,8 +266,8 @@ More examples are available in [`tests`](https://github.com/yetalit/Mojmelo/blob
 
 | Model       | Fit Time (s)    | Transform Time (s) | Explained Var |
 |-------------|-----------------|--------------------|---------------|
-| sklearn PCA | 1.1585 ± 0.0220 | 0.0353 ± 0.0002    | 0.5358        |
-| mojmelo PCA | 1.6651 ± 0.0421 | 0.0617 ± 0.0004    | 0.5358        |
+| sklearn PCA | 1.1472 ± 0.0173 | 0.0352 ± 0.0003    | 0.5370        |
+| mojmelo PCA | 1.3108 ± 0.0186 | 0.0614 ± 0.0004    | 0.5370        |
 
 ## Contributing
 

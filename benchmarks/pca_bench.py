@@ -25,7 +25,7 @@ def prepare_data(seed, n_samples=100000, n_features=500):
 # -----------------------
 # CORE BENCHMARK
 # -----------------------
-def benchmark_model(X, warmup=2, runs=5):
+def benchmark_model(X, warmup=3, runs=5):
     explained_var = 0.0
 
     # warm-up

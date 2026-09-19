@@ -12,7 +12,7 @@ def main() raises:
     var pca_bench = Python.import_module("pca_bench")
     var data = Matrix.from_numpy(pca_bench.prepare_data(GLOBAL_SEED)) # X
 
-    var WARMUP = 2
+    var WARMUP = 3
     var RUNS = 5
     var explained_var = 0.0
     # warm-up
