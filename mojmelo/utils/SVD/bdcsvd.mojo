@@ -259,7 +259,7 @@ struct BDCSVD:
             if a < considerZero:
                 self.m_nonzeroSingularValues = i
                 for j in range(i + 1, self.m_diagSize):
-                    self.m_singularValues[j] = RealScalar(0.0)
+                    self.m_singularValues[j] = RealScalar(0)
                 break
 
     # compute_bidiagonal_impl: SVD of a bidiagonal matrix given directly as
@@ -280,7 +280,7 @@ struct BDCSVD:
             return self.m_info
 
         var diagScale = diag.cwiseAbsMax()
-        var superdiagScale = superdiag.cwiseAbsMax() if n > 1 else RealScalar(0.0)
+        var superdiagScale = superdiag.cwiseAbsMax() if n > 1 else RealScalar(0)
         var scale = diagScale if diagScale > superdiagScale else superdiagScale
         if scale == RealScalar(0):
             scale = RealScalar(1)

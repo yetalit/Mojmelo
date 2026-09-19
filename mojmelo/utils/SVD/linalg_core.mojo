@@ -509,3 +509,11 @@ def matmul(a: Mat, b: Mat) -> Mat:
     GEMM.matmul(b.cols(), a.rows(), a.cols(), C_T_rm, B_T_rm, A_T_rm)
 
     return result^
+
+@always_inline
+def matmul_acc(dst: Mat, a: Mat, b: Mat):
+    """Dst += a * b."""
+    var A_T_rm = GEMM.Matrix[RealScalar.DTYPE](a.data, GEMM.MatLayout((a.cols(), a.rows()), (a.col_stride, a.row_stride)))
+    var B_T_rm = GEMM.Matrix[RealScalar.DTYPE](b.data, GEMM.MatLayout((b.cols(), b.rows()), (b.col_stride, b.row_stride)))
+    var C_T_rm = GEMM.Matrix[RealScalar.DTYPE](dst.data, GEMM.MatLayout((b.cols(), a.rows()), (dst.col_stride, dst.row_stride)))
+    GEMM.matmul(b.cols(), a.rows(), a.cols(), C_T_rm, B_T_rm, A_T_rm)

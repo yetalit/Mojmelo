@@ -6,7 +6,7 @@
 from std.math import sqrt, hypot
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, dot_contig, sub_inplace
+from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, dot_contig, sub_inplace, matmul_acc
 
 @always_inline
 def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
@@ -163,15 +163,18 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = 
     if plen == 0:
         return
 
-    # Build T (plen x plen, upper triangular): T[0,0] = tau_0; for j > 0,
-    # T[0:j,j] = -tau_j * T[0:j,0:j] * (V[:,0:j]^T v_j), T[j,j] = tau_j.
+    var Vt = mat_transpose(V)
+
+    # T (plen x plen, upper triangular):
+    #   T[0,0] = tau_0;  for j > 0:  T[0:j, j] = -tau_j * T[0:j, 0:j] * z,
+    #   T[j,j] = tau_j,  where z = V[:, 0:j]^T v_j  ==  G[0:j, j],  G = V^T V.
+    var G = matmul(Vt, V)
     var T = Mat(plen, plen)
     T[0, 0] = taus[0]
+    var z = Vec(plen)
     for j in range(1, plen):
-        var vj = V.col(j)
-        var z = Vec(j)
         for c in range(j):
-            z[c] = vec_dot(V.col(c), vj)
+            z[c] = G[c, j]
         for r in range(j):
             var s = RealScalar(0)
             for c in range(r, j):
@@ -179,22 +182,18 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = 
             T[r, j] = -taus[j] * s
         T[j, j] = taus[j]
 
-    # C <- C - V * (T * (V^T * C))   [Q = I - V T V^T applied], or with
-    # T^T in place of T when the caller needs Q^T instead (same V, T —
-    # (I - V T V^T)^T == I - V T^T V^T since V^T V^T-conjugation is its
-    # own transpose-partner here). Q^T is what a QR/bidiagonalization
-    # panel needs when flushing its effect onto trailing columns during
-    # factorization; Q itself is what reconstructing U/V from an already-
-    # finished factorization needs (apply_u_on_left etc.).
-    var Vt = mat_transpose(V)
-    var Wm = matmul(Vt, C)
+    for j in range(plen):  # fold the minus sign into T
+        for r in range(j + 1):
+            T[r, j] = -T[r, j]
+
+    # C <- C - V * (T * (V^T * C)),  with T^T when use_transpose (Q^T instead of Q).
+    var W = matmul(Vt, C)
     var TW: Mat
     if use_transpose:
-        TW = matmul(mat_transpose(T), Wm)
+        TW = matmul(mat_transpose(T), W)
     else:
-        TW = matmul(T, Wm)
-    var update = matmul(V, TW)
-    sub_inplace(C, update)
+        TW = matmul(T, W)
+    matmul_acc(C, V, TW)
 
 # ------------------------------------------------------------------------------
 # Small dense matrix-vector helpers used only by the blocked bidiagonalization
@@ -416,20 +415,20 @@ def upperbidiagonalization_blocked_helper(mut A: Mat, mut diagonal: Vec, mut upp
         var X_bottom = X.block(bs, 0, mrows, bs)
 
         # A01[bs-1, 0] is the last right-reflector's pivot: must read as 1
-        # while we gather it (same trick as before).
+        # while we gather it.
         var tmp = A[bs - 1, bs]
         A[bs - 1, bs] = RealScalar(1)
 
-        var P = Mat(mrows, 2 * bs)                 # [A10 | X_bottom]
+        var P = Mat(mrows, 2 * bs)  # [A10 | X_bottom]
         P.block(0, 0, mrows, bs).copyFrom(A10)
         P.block(0, bs, mrows, bs).copyFrom(X_bottom)
-        var Q = Mat(2 * bs, ncols_)                # [Y_bottom^T ; A01]
+        var Q = Mat(2 * bs, ncols_)  # [Y_bottom^T ; A01]
         for c in range(ncols_):
             for t in range(bs):
                 Q[t, c] = Y_bottom[c, t]
                 Q[bs + t, c] = A01[t, c]
 
-        A[bs - 1, bs] = tmp                        # restore right after the gather
+        A[bs - 1, bs] = tmp  # restore right after the gather
 
         var update = matmul(P, Q)
         sub_inplace(A11, update)

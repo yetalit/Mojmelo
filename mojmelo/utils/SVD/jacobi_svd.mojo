@@ -260,7 +260,7 @@ def finish_jacobi_svd(
     var S = Vec(diag_size)
     for i in range(diag_size):
         var v = work[i, i]
-        if v < RealScalar(0.0):
+        if v < RealScalar(0):
             S[i] = -v
             for r in range(U_out.rows()):
                 U_out[r, i] = -U_out[r, i]
