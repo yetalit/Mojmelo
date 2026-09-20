@@ -1,9 +1,9 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 import std.math as math
-from mojmelo.utils.hdbscan.KDTreeBoruvka import KDTreeBoruvka
-from mojmelo.utils.hdbscan.hdbscan_boruvka import HDBSCANBoruvka
-from mojmelo.utils.hdbscan.hdbscan_linkage import label
-from mojmelo.utils.hdbscan.hdbscan_tree import condense_tree, get_clusters, compute_stability, simplify_hierarchy
+from mojmelo.internal.hdbscan.KDTreeBoruvka import KDTreeBoruvka
+from mojmelo.internal.hdbscan.hdbscan_boruvka import HDBSCANBoruvka
+from mojmelo.internal.hdbscan.hdbscan_linkage import label
+from mojmelo.internal.hdbscan.hdbscan_tree import condense_tree, get_clusters, compute_stability, simplify_hierarchy
 
 struct HDBSCAN:
     """Cluster data using hierarchical density-based clustering."""

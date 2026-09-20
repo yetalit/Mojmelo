@@ -1,4 +1,4 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS, sub, add
 import std.math as math
 import std.time as time

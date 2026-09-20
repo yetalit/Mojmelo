@@ -1,5 +1,5 @@
 from std.collections import Dict
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from mojmelo.utils.utils import CV, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize

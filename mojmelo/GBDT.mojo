@@ -1,6 +1,6 @@
-from mojmelo.utils.BDecisionTree import BDecisionTree
+from mojmelo.internal.BDecisionTree import BDecisionTree
 from mojmelo.DecisionTree import Node
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, sigmoid, log_g, log_h, mse_g, mse_h, softmax_g, softmax_h, softmax_link, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 from std.memory import Layout

@@ -1,4 +1,4 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, mse_loss, mse_loss_precompute, fill_indices_list, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 import std.math as math

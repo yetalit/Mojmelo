@@ -1,7 +1,7 @@
 # Based on hdbscan (https://github.com/scikit-learn-contrib/hdbscan) _hdbscan_tree.pyx by Leland McInnes.
 
 from std.memory import unsafe_memset_zero, Layout
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 import std.math as math
 from std.algorithm import vectorize

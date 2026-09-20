@@ -1,4 +1,4 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
 import std.math as math

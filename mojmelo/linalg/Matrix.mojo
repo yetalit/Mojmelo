@@ -6,7 +6,7 @@ from mojmelo.utils.algorithm import parallelize, reduction
 import std.math as math
 import std.random as random
 from mojmelo.utils.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, fill_indices, fill_indices_list, cast, _max_abs
-from mojmelo.utils.lu import lu_solve
+from mojmelo.linalg.lu import lu_solve
 from std.python import Python, PythonObject
 
 struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):

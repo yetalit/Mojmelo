@@ -1,4 +1,4 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, cartesian_product
 from mojmelo.utils.algorithm import parallelize
 from std.sys import num_performance_cores

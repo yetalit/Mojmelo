@@ -1,5 +1,5 @@
 from mojmelo.utils.utils import fill_indices_list
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from .KDTreeBoruvka import KDTreeBoruvka, node_pair_lower_bound
 import std.math as math
 from std.algorithm import vectorize

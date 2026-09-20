@@ -1,6 +1,6 @@
 from std.memory import unsafe_memcpy, Layout
 import std.math as math
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from std.python import Python, PythonObject
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize

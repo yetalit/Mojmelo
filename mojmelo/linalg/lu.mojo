@@ -34,7 +34,7 @@ def _swap[dtype: DType](var r1: Pointer[Scalar[dtype], MutUntrackedOrigin], var 
 
     vectorize[W](count, body)
 
-
+@always_inline
 def _eliminate[
     dtype: DType
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int) raises:
@@ -71,7 +71,7 @@ def _eliminate[
             _axpy[dtype, W](a.unsafe_offset(i * n + k + 1), ak, width, l)
             _axpy[dtype, W](x.unsafe_offset(i * nrhs), xk, nrhs, l)
 
-
+@always_inline
 def _back_substitute[
     dtype: DType
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int):
@@ -102,6 +102,7 @@ def _back_substitute[
 # ----------------------------------------------------------------------
 # Public entry point
 # ----------------------------------------------------------------------
+@always_inline
 def lu_solve[
     dtype: DType = DType.float64
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int = 1) raises:

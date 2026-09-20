@@ -1,5 +1,5 @@
 import std.math as math
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, normal_distr, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of

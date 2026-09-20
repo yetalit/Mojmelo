@@ -1,5 +1,5 @@
 from mojmelo.DecisionTree import DecisionTree, Node
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 from std.memory import Layout
