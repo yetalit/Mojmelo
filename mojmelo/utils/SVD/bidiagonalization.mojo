@@ -6,7 +6,8 @@
 from std.math import sqrt, hypot
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, dot_contig, sub_inplace, matmul_acc
+from mojmelo.utils.utils import _axpy, vec_scale, dot_config
+from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, sub_inplace, matmul_acc
 
 @always_inline
 def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
@@ -44,7 +45,7 @@ def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
 @always_inline
 def _householder_left_update_col(
     col_ptr: Pointer[RealScalar, MutUntrackedOrigin],
-    var ess_data: Pointer[RealScalar, MutUntrackedOrigin],
+    ess_data: Pointer[RealScalar, MutUntrackedOrigin],
     ess_stride: Int,
     ess_len: Int,
     tau: RealScalar,
@@ -57,7 +58,7 @@ def _householder_left_update_col(
     var s = col_ptr[]
 
     if ess_stride == 1:
-        s += dot_contig(ess_data, tail_ptr, ess_len)
+        s += dot_config[RealScalar.DTYPE](ess_data, tail_ptr, ess_len)
     else:
         # Strided essential (V-side reflector via apply_v_on_left): plain
         # scalar loop rather than a SIMD path.
@@ -68,10 +69,7 @@ def _householder_left_update_col(
     col_ptr[] = col_ptr[] - s
 
     if ess_stride == 1:
-        def axpy[simd_width: Int](idx: Int) {mut}:
-            var upd = tail_ptr.unsafe_load[width=simd_width](idx) - s * ess_data.unsafe_load[width=simd_width](idx)
-            tail_ptr.unsafe_store[simd_width](idx, upd)
-        vectorize[SIMD_WIDTH](ess_len, axpy)
+        _axpy[RealScalar.DTYPE](tail_ptr, ess_data, ess_len, s)
     else:
         for i in range(ess_len):
             var upd = tail_ptr[unsafe_offset=i] - s * ess_data[unsafe_offset=i * ess_stride]
@@ -300,15 +298,11 @@ def vec_sub_scaled_inplace(mut y: Vec, z: Vec, var scale: RealScalar):
             y[i] = y[i] - scale * z[i]
 
 @always_inline
-def vec_scale_inplace(mut y: Vec, var scale: RealScalar):
-    var n = len(y)
+def vec_scale_inplace(mut y: Vec, scale: RealScalar):
     if y.stride == 1:
-        var yd = y.data
-        def sc[simd_width: Int](idx: Int) {mut}:
-            yd.unsafe_store[simd_width](idx, yd.unsafe_load[simd_width](idx) * scale)
-        vectorize[SIMD_WIDTH](n, sc)
+        vec_scale[RealScalar.DTYPE](y.data, len(y), scale)
     else:
-        for i in range(n):
+        for i in range(len(y)):
             y[i] = y[i] * scale
 
 # ==============================================================================

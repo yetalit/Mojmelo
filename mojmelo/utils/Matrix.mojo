@@ -5,7 +5,8 @@ from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize, reduction
 import std.math as math
 import std.random as random
-from mojmelo.utils.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, fill_indices, fill_indices_list, cast
+from mojmelo.utils.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, fill_indices, fill_indices_list, cast, _max_abs
+from mojmelo.utils.lu import lu_solve
 from std.python import Python, PythonObject
 
 struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
@@ -1349,14 +1350,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def absMax(self) raises -> Float32:
-        var m: Float32 = 0.0
-        var data = self.data
-        def findMax[simd_width: Int](idx: Int) {mut}:
-            var max_in_vec = abs(data.unsafe_load[simd_width](idx)).reduce_max()
-            if max_in_vec > m:
-                m = max_in_vec
-        vectorize[self.simd_width](self.size, findMax)
-        return m
+        return _max_abs[DType.float32](self.data, self.size)
 
     @always_inline
     def reshape(self, height: Int, width: Int) -> Matrix:
@@ -1367,73 +1361,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @staticmethod
     @always_inline
-    def lu_factor(mut A: Matrix, piv: Pointer[Int, MutAnyOrigin], N: Int) raises:
-        for i in range(N):
-            piv[unsafe_offset=i] = i
-
-        for k in range(N - 1):
-            var max_row = k
-            for i in range(k + 1, N):
-                if (abs(A[i, k]) > abs(A[max_row, k])):
-                    max_row = i
-
-            if k != max_row:
-                swap(A[k], A[max_row])
-
-                var temp = piv[unsafe_offset=k]
-                piv[unsafe_offset=k] = piv[unsafe_offset=max_row]
-                piv[unsafe_offset=max_row] = temp
-
-            # LU decomposition (Gaussian elimination)
-            for i in range(k + 1, N):
-                A[i, k] /= A[k, k]
-                A[i, True, k + 1] -= A[i, k] * A[k, True, k + 1]
-
-    @staticmethod
-    @always_inline
-    def lu_solve(A: Matrix, piv: Pointer[Int, MutAnyOrigin], b: Matrix, mut x: Matrix, N: Int, Mi: Int) raises:
-        var y = Matrix(1, N)
-
-        # Forward substitution: solve L * y = P * b
-        for i in range(N):
-            y.data[unsafe_offset=i] = b[piv[unsafe_offset=i], Mi]
-            for j in range(i):
-                y.data[unsafe_offset=i] -= A[i, j] * y.data[unsafe_offset=j]
-
-        # Backward substitution: solve U * x = y
-        for i in range(N - 1, -1, -1):
-            x[i, Mi] = y.data[unsafe_offset=i]
-            for j in range(i + 1, N):
-                x[i, Mi] -= A[i, j] * x[j, Mi]
-            x[i, Mi] /= A[i, i]
-
-    @staticmethod
-    @always_inline
-    def solve(var A: Matrix, b: Matrix) raises -> Matrix:
+    def solve(A: Matrix, b: Matrix) raises -> Matrix:
         if A.height != A.width:
             raise Error("\"A\" must be square!")
         if A.width != b.height:
             raise Error("\"B\" has an unrelated shape to \"A\"!")
         var N = A.height
         var M = b.width
-        var X = Matrix(N, M, order=A.order)
-        var piv = alloc(Layout[Int](count=N)).unsafe_leak()
-
-        Matrix.lu_factor(A, piv.as_unsafe_any_origin(), N)
-        if M > 1:
-            @__parameter
-            def p(i: Int):
-                try:
-                    Matrix.lu_solve(A, piv.as_unsafe_any_origin(), b, X, N, i)
-                except e:
-                    print('Error:', e)
-            parallelize[p](M)
-        else:
-            Matrix.lu_solve(A, piv.as_unsafe_any_origin(), b, X, N, 0)
-
-        piv.unsafe_free()
-
-        return X^
+        var A64 = A.cast_ptr[DType.float64]()
+        var X64 = b.cast_ptr[DType.float64]()
+        lu_solve[DType.float64](A64, X64, N, M)
+        A64.unsafe_free()
+        return Matrix(X64, N, M, order=A.order)
 
     def inv(self) raises -> Matrix:
         if self.height != self.width:

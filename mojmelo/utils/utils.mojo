@@ -4,7 +4,7 @@ from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from std.sys import simd_width_of
+from std.sys import simd_width_of, CompilationTarget
 
 # Cross Validation trait
 trait CV(Deinitable):
@@ -417,3 +417,81 @@ def cartesian_product(lists: List[List[String]]) -> List[List[String]]:
             result.append(List([item]) + prod.copy())
 
     return result^
+
+@always_inline
+def _max_abs[dtype: DType](var p: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
+    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
+    var m = Scalar[dtype](0)
+
+    def findMax[simd_width: Int](idx: Int) {mut}:
+        var max_in_vec = abs(p.unsafe_load[simd_width](idx)).reduce_max()
+        if max_in_vec > m:
+            m = max_in_vec
+
+    vectorize[W](count, findMax)
+    return m
+
+@always_inline
+def _axpy[
+    dtype: DType
+](
+    var dst: Pointer[Scalar[dtype], MutUntrackedOrigin],
+    var src: Pointer[Scalar[dtype], MutUntrackedOrigin],
+    count: Int,
+    var alpha: Scalar[dtype],
+):
+    """dst[0:count] -= alpha * src[0:count] (ranges must not overlap)."""
+    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
+
+    def body[w: Int](idx: Int) {mut}:
+        dst.unsafe_offset(idx).unsafe_store(
+            dst.unsafe_load[w](idx) - SIMD[dtype, w](alpha) * src.unsafe_load[w](idx)
+        )
+
+    vectorize[W](count, body)
+
+@always_inline
+def vec_scale[
+    dtype: DType
+](var d: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int, var s: Scalar[dtype]):
+    """D[0:count] *= s."""
+    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
+
+    def body[w: Int](idx: Int) {mut}:
+        d.unsafe_offset(idx).unsafe_store(d.unsafe_load[w](idx) * SIMD[dtype, w](s))
+
+    vectorize[W](count, body)
+
+@always_inline
+def dot_config[
+    dtype: DType
+](pa: Pointer[Scalar[dtype], MutUntrackedOrigin], pb: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
+    """Dot product with 4 independent SIMD accumulators, so the FMA latency
+    chain of a single accumulator doesn't bound throughput. `vectorize` handles
+    whatever is left after the unrolled main loop."""
+    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
+    var a0 = SIMD[dtype, W](0)
+    var a1 = SIMD[dtype, W](0)
+    var a2 = SIMD[dtype, W](0)
+    var a3 = SIMD[dtype, W](0)
+    var j = 0
+    while j + 4 * W <= count:
+        a0 += pa.unsafe_load[W](j) * pb.unsafe_load[W](j)
+        a1 += pa.unsafe_load[W](j + W) * pb.unsafe_load[W](j + W)
+        a2 += pa.unsafe_load[W](j + 2 * W) * pb.unsafe_load[W](j + 2 * W)
+        a3 += pa.unsafe_load[W](j + 3 * W) * pb.unsafe_load[W](j + 3 * W)
+        j += 4 * W
+
+    var acc = (a0 + a1) + (a2 + a3)
+    var tail = Scalar[dtype](0)
+    var qa = pa.unsafe_offset(j)
+    var qb = pb.unsafe_offset(j)
+
+    def body[w: Int](idx: Int) {mut}:
+        comptime if w == W:
+            acc += qa.unsafe_load[W](idx) * qb.unsafe_load[W](idx)
+        else:
+            tail += (qa.unsafe_load[w](idx) * qb.unsafe_load[w](idx)).reduce_add()
+
+    vectorize[W](count - j, body)
+    return acc.reduce_add() + tail

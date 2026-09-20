@@ -4,6 +4,7 @@ from std.sys import CompilationTarget, simd_width_of
 from std.algorithm import vectorize
 from ..mojmelo_matmul import matmul as GEMM
 from mojmelo.utils.algorithm import parallelize
+from mojmelo.utils.utils import _max_abs, vec_scale, dot_config
 
 comptime RealScalar = Float64
 
@@ -105,19 +106,13 @@ struct Vec(Sized):
 
     @always_inline
     def cwiseAbsMax(self) -> RealScalar:
-        var m = 0.0
         if self.stride == 1:
-            var data = self.data
-            def findMax[simd_width: Int](idx: Int) {mut}:
-                var max_in_vec = abs(data.unsafe_load[simd_width](idx)).reduce_max()
-                if max_in_vec > m:
-                    m = max_in_vec
-            vectorize[SIMD_WIDTH](self.n, findMax)
-        else:
-            for i in range(self.n):
-                var a = abs(self[i])
-                if a > m:
-                    m = a
+            return _max_abs[RealScalar.DTYPE](self.data, self.n)
+        var m = 0.0
+        for i in range(self.n):
+            var a = abs(self[i])
+            if a > m:
+                m = a
         return m
 
     @always_inline
@@ -369,33 +364,10 @@ def swap_vecs(mut a: Vec, mut b: Vec):
     b.copyFrom(tmp)
 
 @always_inline
-def dot_contig(
-    a: Pointer[RealScalar, MutUntrackedOrigin],
-    b: Pointer[RealScalar, MutUntrackedOrigin],
-    n: Int,
-) -> RealScalar:
-    var acc0 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
-    var acc1 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
-    var acc2 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
-    var acc3 = SIMD[RealScalar.DTYPE, SIMD_WIDTH](0)
-    var i = 0
-    while i + 4 * SIMD_WIDTH <= n:
-        acc0 += a.unsafe_load[width=SIMD_WIDTH](i) * b.unsafe_load[width=SIMD_WIDTH](i)
-        acc1 += a.unsafe_load[width=SIMD_WIDTH](i + SIMD_WIDTH) * b.unsafe_load[width=SIMD_WIDTH](i + SIMD_WIDTH)
-        acc2 += a.unsafe_load[width=SIMD_WIDTH](i + 2 * SIMD_WIDTH) * b.unsafe_load[width=SIMD_WIDTH](i + 2 * SIMD_WIDTH)
-        acc3 += a.unsafe_load[width=SIMD_WIDTH](i + 3 * SIMD_WIDTH) * b.unsafe_load[width=SIMD_WIDTH](i + 3 * SIMD_WIDTH)
-        i += 4 * SIMD_WIDTH
-    var s = ((acc0 + acc1) + (acc2 + acc3)).reduce_add()
-    while i < n:
-        s += a[unsafe_offset=i] * b[unsafe_offset=i]
-        i += 1
-    return s
-
-@always_inline
 def vec_dot(a: Vec, b: Vec) -> RealScalar:
     var n = len(a)
     if a.stride == 1 and b.stride == 1:
-        return dot_contig(a.data, b.data, n)
+        return dot_config[RealScalar.DTYPE](a.data, b.data, n)
     var sum = 0.0
     for i in range(n):
         sum += a[i] * b[i]
@@ -463,9 +435,7 @@ def mat_transpose(a: Mat) -> Mat:
 @always_inline
 def mat_scale(mut a: Mat, s: RealScalar):
     if a.size < 262144:
-        def scalar_vectorize[simd_width: Int](idx: Int) {imm}:
-            a.data.unsafe_store[simd_width](idx, a.data.unsafe_load[width=simd_width](idx) / s)
-        vectorize[SIMD_WIDTH](a.size, scalar_vectorize)
+        vec_scale[RealScalar.DTYPE](a.data, a.size, 1 / s)
     else:
         var n_full = a.size // SIMD_WIDTH
         @__parameter
