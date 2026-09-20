@@ -4,7 +4,7 @@ from mojmelo.utils.Matrix import Matrix
 from std.python import Python, PythonObject
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from std.sys import simd_width_of, CompilationTarget
+from std.sys import simd_width_of
 
 # Cross Validation trait
 trait CV(Deinitable):
@@ -419,8 +419,7 @@ def cartesian_product(lists: List[List[String]]) -> List[List[String]]:
     return result^
 
 @always_inline
-def _max_abs[dtype: DType](var p: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
-    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
+def _max_abs[dtype: DType, width: Int](var p: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
     var m = Scalar[dtype](0)
 
     def findMax[simd_width: Int](idx: Int) {mut}:
@@ -428,12 +427,13 @@ def _max_abs[dtype: DType](var p: Pointer[Scalar[dtype], MutUntrackedOrigin], co
         if max_in_vec > m:
             m = max_in_vec
 
-    vectorize[W](count, findMax)
+    vectorize[width](count, findMax)
     return m
 
 @always_inline
 def _axpy[
-    dtype: DType
+    dtype: DType,
+    width: Int
 ](
     var dst: Pointer[Scalar[dtype], MutUntrackedOrigin],
     var src: Pointer[Scalar[dtype], MutUntrackedOrigin],
@@ -441,46 +441,43 @@ def _axpy[
     var alpha: Scalar[dtype],
 ):
     """dst[0:count] -= alpha * src[0:count] (ranges must not overlap)."""
-    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
-
     def body[w: Int](idx: Int) {mut}:
         dst.unsafe_offset(idx).unsafe_store(
             dst.unsafe_load[w](idx) - SIMD[dtype, w](alpha) * src.unsafe_load[w](idx)
         )
 
-    vectorize[W](count, body)
+    vectorize[width](count, body)
 
 @always_inline
 def vec_scale[
-    dtype: DType
+    dtype: DType,
+    width: Int
 ](var d: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int, var s: Scalar[dtype]):
     """D[0:count] *= s."""
-    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
-
     def body[w: Int](idx: Int) {mut}:
         d.unsafe_offset(idx).unsafe_store(d.unsafe_load[w](idx) * SIMD[dtype, w](s))
 
-    vectorize[W](count, body)
+    vectorize[width](count, body)
 
 @always_inline
 def dot_config[
-    dtype: DType
+    dtype: DType,
+    width: Int
 ](pa: Pointer[Scalar[dtype], MutUntrackedOrigin], pb: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
     """Dot product with 4 independent SIMD accumulators, so the FMA latency
     chain of a single accumulator doesn't bound throughput. `vectorize` handles
     whatever is left after the unrolled main loop."""
-    comptime W = 4 * simd_width_of[dtype]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[dtype]()
-    var a0 = SIMD[dtype, W](0)
-    var a1 = SIMD[dtype, W](0)
-    var a2 = SIMD[dtype, W](0)
-    var a3 = SIMD[dtype, W](0)
+    var a0 = SIMD[dtype, width](0)
+    var a1 = SIMD[dtype, width](0)
+    var a2 = SIMD[dtype, width](0)
+    var a3 = SIMD[dtype, width](0)
     var j = 0
-    while j + 4 * W <= count:
-        a0 += pa.unsafe_load[W](j) * pb.unsafe_load[W](j)
-        a1 += pa.unsafe_load[W](j + W) * pb.unsafe_load[W](j + W)
-        a2 += pa.unsafe_load[W](j + 2 * W) * pb.unsafe_load[W](j + 2 * W)
-        a3 += pa.unsafe_load[W](j + 3 * W) * pb.unsafe_load[W](j + 3 * W)
-        j += 4 * W
+    while j + 4 * width <= count:
+        a0 += pa.unsafe_load[width](j) * pb.unsafe_load[width](j)
+        a1 += pa.unsafe_load[width](j + width) * pb.unsafe_load[width](j + width)
+        a2 += pa.unsafe_load[width](j + 2 * width) * pb.unsafe_load[width](j + 2 * width)
+        a3 += pa.unsafe_load[width](j + 3 * width) * pb.unsafe_load[width](j + 3 * width)
+        j += 4 * width
 
     var acc = (a0 + a1) + (a2 + a3)
     var tail = Scalar[dtype](0)
@@ -488,10 +485,7 @@ def dot_config[
     var qb = pb.unsafe_offset(j)
 
     def body[w: Int](idx: Int) {mut}:
-        comptime if w == W:
-            acc += qa.unsafe_load[W](idx) * qb.unsafe_load[W](idx)
-        else:
-            tail += (qa.unsafe_load[w](idx) * qb.unsafe_load[w](idx)).reduce_add()
+        acc += qa.unsafe_load[width](idx) * qb.unsafe_load[width](idx)
 
-    vectorize[W](count - j, body)
+    vectorize[width](count - j, body)
     return acc.reduce_add() + tail

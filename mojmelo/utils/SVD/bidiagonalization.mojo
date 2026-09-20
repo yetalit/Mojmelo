@@ -58,7 +58,7 @@ def _householder_left_update_col(
     var s = col_ptr[]
 
     if ess_stride == 1:
-        s += dot_config[RealScalar.DTYPE](ess_data, tail_ptr, ess_len)
+        s += dot_config[RealScalar.DTYPE, SIMD_WIDTH](ess_data, tail_ptr, ess_len)
     else:
         # Strided essential (V-side reflector via apply_v_on_left): plain
         # scalar loop rather than a SIMD path.
@@ -69,7 +69,7 @@ def _householder_left_update_col(
     col_ptr[] = col_ptr[] - s
 
     if ess_stride == 1:
-        _axpy[RealScalar.DTYPE](tail_ptr, ess_data, ess_len, s)
+        _axpy[RealScalar.DTYPE, SIMD_WIDTH](tail_ptr, ess_data, ess_len, s)
     else:
         for i in range(ess_len):
             var upd = tail_ptr[unsafe_offset=i] - s * ess_data[unsafe_offset=i * ess_stride]
@@ -300,7 +300,7 @@ def vec_sub_scaled_inplace(mut y: Vec, z: Vec, var scale: RealScalar):
 @always_inline
 def vec_scale_inplace(mut y: Vec, scale: RealScalar):
     if y.stride == 1:
-        vec_scale[RealScalar.DTYPE](y.data, len(y), scale)
+        vec_scale[RealScalar.DTYPE, SIMD_WIDTH](y.data, len(y), scale)
     else:
         for i in range(len(y)):
             y[i] = y[i] * scale

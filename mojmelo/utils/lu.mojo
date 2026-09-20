@@ -40,7 +40,9 @@ def _eliminate[
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int) raises:
     """Reduce A to upper-triangular form with partial pivoting, applying the
     same row swaps and multipliers to X (the right-hand sides)."""
-    var tol = (Float64(n) * _eps[dtype]()).cast[dtype]() * _max_abs[dtype](
+    comptime W = simd_width_of[dtype]()
+
+    var tol = (Float64(n) * _eps[dtype]()).cast[dtype]() * _max_abs[dtype, W](
         a, n * n
     )
 
@@ -66,18 +68,20 @@ def _eliminate[
         var xk = x.unsafe_offset(k * nrhs)
         for i in range(k + 1, n):
             var l = a[unsafe_offset=i * n + k] * inv
-            _axpy[dtype](a.unsafe_offset(i * n + k + 1), ak, width, l)
-            _axpy[dtype](x.unsafe_offset(i * nrhs), xk, nrhs, l)
+            _axpy[dtype, W](a.unsafe_offset(i * n + k + 1), ak, width, l)
+            _axpy[dtype, W](x.unsafe_offset(i * nrhs), xk, nrhs, l)
 
 
 def _back_substitute[
     dtype: DType
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int):
     """Solve U X = Y in place, where U is the upper triangle of `a`."""
+    comptime W = simd_width_of[dtype]()
+
     if nrhs == 1:
         for ii in range(n):
             var i = n - 1 - ii
-            var s = dot_config[dtype](
+            var s = dot_config[dtype, W](
                 a.unsafe_offset(i * n + i + 1), x.unsafe_offset(i + 1), n - i - 1
             )
             x[unsafe_offset=i] = (x[unsafe_offset=i] - s) / a[
@@ -88,10 +92,10 @@ def _back_substitute[
             var i = n - 1 - ii
             var xi = x.unsafe_offset(i * nrhs)
             for j in range(i + 1, n):
-                _axpy[dtype](
+                _axpy[dtype, W](
                     xi, x.unsafe_offset(j * nrhs), nrhs, a[unsafe_offset=i * n + j]
                 )
-            vec_scale[dtype](
+            vec_scale[dtype, W](
                 xi, nrhs, Scalar[dtype](1) / a[unsafe_offset=i * n + i]
             )
 

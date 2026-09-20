@@ -107,7 +107,7 @@ struct Vec(Sized):
     @always_inline
     def cwiseAbsMax(self) -> RealScalar:
         if self.stride == 1:
-            return _max_abs[RealScalar.DTYPE](self.data, self.n)
+            return _max_abs[RealScalar.DTYPE, SIMD_WIDTH](self.data, self.n)
         var m = 0.0
         for i in range(self.n):
             var a = abs(self[i])
@@ -367,7 +367,7 @@ def swap_vecs(mut a: Vec, mut b: Vec):
 def vec_dot(a: Vec, b: Vec) -> RealScalar:
     var n = len(a)
     if a.stride == 1 and b.stride == 1:
-        return dot_config[RealScalar.DTYPE](a.data, b.data, n)
+        return dot_config[RealScalar.DTYPE, SIMD_WIDTH](a.data, b.data, n)
     var sum = 0.0
     for i in range(n):
         sum += a[i] * b[i]
@@ -435,7 +435,7 @@ def mat_transpose(a: Mat) -> Mat:
 @always_inline
 def mat_scale(mut a: Mat, s: RealScalar):
     if a.size < 262144:
-        vec_scale[RealScalar.DTYPE](a.data, a.size, 1 / s)
+        vec_scale[RealScalar.DTYPE, SIMD_WIDTH](a.data, a.size, 1 / s)
     else:
         var n_full = a.size // SIMD_WIDTH
         @__parameter

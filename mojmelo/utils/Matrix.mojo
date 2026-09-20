@@ -1350,7 +1350,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @always_inline
     def absMax(self) raises -> Float32:
-        return _max_abs[DType.float32](self.data, self.size)
+        return _max_abs[DType.float32, self.simd_width](self.data, self.size)
 
     @always_inline
     def reshape(self, height: Int, width: Int) -> Matrix:
