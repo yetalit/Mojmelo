@@ -3,7 +3,7 @@
 from std.memory import unsafe_memset_zero, Layout
 from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
-import std.math as math
+from std import math
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import reduction
 from std.utils.numerics import nan, isfinite, isinf

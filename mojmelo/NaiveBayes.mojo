@@ -1,4 +1,4 @@
-import std.math as math
+from std import math
 from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, normal_distr, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize

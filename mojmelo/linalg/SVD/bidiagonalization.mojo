@@ -6,7 +6,7 @@
 from std.math import sqrt, hypot
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
-from mojmelo.utils.utils import _axpy, vec_scale, dot_config
+from mojmelo.linalg.utils import mul, elemwise_scalar, _axpy, dot_unrolled
 from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, sub_inplace, matmul_acc
 
 @always_inline
@@ -58,7 +58,7 @@ def _householder_left_update_col(
     var s = col_ptr[]
 
     if ess_stride == 1:
-        s += dot_config[RealScalar.DTYPE, SIMD_WIDTH](ess_data, tail_ptr, ess_len)
+        s += dot_unrolled[RealScalar.DTYPE, SIMD_WIDTH](ess_data, tail_ptr, ess_len)
     else:
         # Strided essential (V-side reflector via apply_v_on_left): plain
         # scalar loop rather than a SIMD path.
@@ -284,14 +284,12 @@ def matTvec(A: Mat, x: Vec) -> Vec:
     return y^
 
 @always_inline
-def vec_sub_scaled_inplace(mut y: Vec, z: Vec, var scale: RealScalar):
+def vec_sub_scaled_inplace(mut y: Vec, z: Vec, scale: RealScalar):
     """Y -= scale * Z (elementwise, same length)."""
     var n = len(y)
     if y.stride == 1 and z.stride == 1:
-        var yd = y.data
-        var zd = z.data
-        def sub[simd_width: Int](idx: Int) {mut}:
-            yd.unsafe_store[simd_width](idx, yd.unsafe_load[simd_width](idx) - scale * zd.unsafe_load[simd_width](idx))
+        def sub[simd_width: Int](idx: Int) {imm}:
+            y.data.unsafe_store[simd_width](idx, y.data.unsafe_load[simd_width](idx) - scale * z.data.unsafe_load[simd_width](idx))
         vectorize[SIMD_WIDTH](n, sub)
     else:
         for i in range(n):
@@ -300,7 +298,7 @@ def vec_sub_scaled_inplace(mut y: Vec, z: Vec, var scale: RealScalar):
 @always_inline
 def vec_scale_inplace(mut y: Vec, scale: RealScalar):
     if y.stride == 1:
-        vec_scale[RealScalar.DTYPE, SIMD_WIDTH](y.data, len(y), scale)
+        elemwise_scalar[RealScalar.DTYPE, SIMD_WIDTH, mul](y.data, y.data, len(y), scale)
     else:
         for i in range(len(y)):
             y[i] = y[i] * scale

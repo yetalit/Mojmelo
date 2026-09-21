@@ -5,7 +5,7 @@ from mojmelo.utils.algorithm import parallelize
 from std.memory import stack_allocation, Layout
 from std.sys import CompilationTarget, num_performance_cores, simd_width_of, size_of
 from std.utils import IndexList
-import std.random as random
+from std import random
 from .params import *
 
 @always_inline

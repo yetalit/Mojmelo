@@ -6,7 +6,7 @@ from mojmelo.internal.libsvm.svm_node import svm_node
 from mojmelo.internal.libsvm.svm_model import svm_model
 from mojmelo.internal.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
 from mojmelo.utils.algorithm import parallelize
-import std.random as random
+from std import random
 from std.memory import unsafe_memcpy, Layout
 from std.sys import size_of
 

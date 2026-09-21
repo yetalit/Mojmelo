@@ -3,9 +3,9 @@ from std.sys import simd_width_of, CompilationTarget
 from std.memory import unsafe_memcpy, unsafe_memcmp, unsafe_memset_zero, Layout
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize, reduction
-import std.math as math
-import std.random as random
-from mojmelo.utils.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, fill_indices, fill_indices_list, cast, _max_abs
+from std import math, random
+from mojmelo.linalg.utils import argn, add, sub, mul, div, eq, ne, gt, ge, lt, le, cast, elemwise_scalar, elemwise_matrix, _max_abs
+from mojmelo.utils.utils import fill_indices, fill_indices_list
 from mojmelo.linalg.lu import lu_solve
 from std.python import Python, PythonObject
 
@@ -144,23 +144,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         vectorize[self.simd_width](mat.width, convert)
         return mat^
 
-    # access a row with offset
-    @always_inline
-    def __getitem__(self, row: Int, offset: Bool, start_i: Int) raises -> Matrix:
-        if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
-            raise Error("Index out of range!")
-        if self.order == 'c' or self.height == 1:
-            return Matrix(1, self.width - start_i, self.data.unsafe_offset(row * self.width + start_i), self.order)
-        var mat = Matrix(1, self.width - start_i, order= self.order)
-        var tmpPtr = self.data.unsafe_offset(row + start_i * self.height)
-        var height = self.height
-
-        def convert[simd_width: Int](idx: Int) {mut}:
-            mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](height))
-            tmpPtr = tmpPtr.unsafe_offset(simd_width * height)
-        vectorize[self.simd_width](mat.width, convert)
-        return mat^
-
     # access a column
     @always_inline
     def __getitem__(self, row: String, column: Int) raises -> Matrix:
@@ -193,23 +176,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             vectorize[self.simd_width](mat.height, convert)
             return mat^
         return Matrix(self.height, 1, self.data.unsafe_offset(column * self.height), self.order)
-
-    # access a column with offset
-    @always_inline
-    def __getitem__(self, offset: Bool, start_i: Int, column: Int) raises -> Matrix:
-        if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
-            raise Error("Index out of range!")
-        if self.order == 'c' and self.width > 1:
-            var mat = Matrix(self.height - start_i, 1)
-            var tmpPtr = self.data.unsafe_offset(column + start_i * self.width)
-            var width = self.width
-    
-            def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store(idx, tmpPtr.unsafe_strided_load[width=simd_width](width))
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * width)
-            vectorize[self.simd_width](mat.height, convert)
-            return mat^
-        return Matrix(self.height - start_i, 1, self.data.unsafe_offset(column * self.height + start_i), self.order)
 
     # access given rows (by their indices)
     @always_inline
@@ -321,22 +287,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 tmpPtr = tmpPtr.unsafe_offset(simd_width * self.height)
             vectorize[self.simd_width](val.size, convert)
 
-    # replace the given row with offset
-    @always_inline
-    def __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Matrix) raises:
-        if row >= self.height or row < 0 or start_i >= self.width or start_i < 0:
-            raise Error("Index out of range!")
-        if self.order == 'c' or self.height == 1:
-            unsafe_memcpy(dest=self.data.unsafe_offset(row * self.width + start_i), src=val.data, count=val.size)
-        else:
-            var tmpPtr = self.data.unsafe_offset(row + start_i * self.height)
-            var val_data = val.data
-
-            def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.height)
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.height)
-            vectorize[self.simd_width](val.size, convert)
-
     # replace the given column
     @always_inline
     def __setitem__(mut self, row: String, column: Int, val: Matrix) raises:
@@ -366,22 +316,6 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             vectorize[self.simd_width](val.size, convert)
         else:
             unsafe_memcpy(dest=self.data.unsafe_offset(column * self.height), src=val.data, count=val.size)
-
-    # replace the given column with offset
-    @always_inline
-    def __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Matrix) raises:
-        if column >= self.width or column < 0 or start_i >= self.height or start_i < 0:
-            raise Error("Index out of range!")
-        if self.order == 'c' and self.width > 1:
-            var tmpPtr = self.data.unsafe_offset(column + start_i * self.width)
-            var val_data = val.data
-    
-            def convert[simd_width: Int](idx: Int) {mut}:
-                tmpPtr.unsafe_strided_store[width=simd_width](val_data.unsafe_load[width=simd_width](idx), self.width)
-                tmpPtr = tmpPtr.unsafe_offset(simd_width * self.width)
-            vectorize[self.simd_width](val.size, convert)
-        else:
-            unsafe_memcpy(dest=self.data.unsafe_offset(column * self.height + start_i), src=val.data, count=val.size)
 
     @always_inline
     def load_columns(self, _range: Int) raises -> Matrix:
@@ -1649,33 +1583,13 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
     @always_inline
     def _elemwise_scalar[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin->SIMD[dtype, width]](self, rhs: Float32) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 262144:
-            def scalar_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.unsafe_store(idx, func[DType.float32, simd_width](self.data.unsafe_load[width=simd_width](idx), rhs))
-            vectorize[self.simd_width](self.size, scalar_vectorize)
-        else:
-            var n_vects = Int(math.ceil(self.size / self.simd_width))
-            @__parameter
-            def scalar_vectorize_parallelize(i: Int):
-                var idx = i * self.simd_width
-                mat.data.unsafe_store(idx, func[DType.float32, self.simd_width](self.data.unsafe_load[width=self.simd_width](idx), rhs))
-            parallelize[scalar_vectorize_parallelize](n_vects)
+        elemwise_scalar[DType.float32, self.simd_width, func](mat.data, self.data, self.size, rhs)
         return mat^
 
     @always_inline
     def _elemwise_matrix[func: def[dtype: DType, width: Int](SIMD[dtype, width],SIMD[dtype, width]) thin ->SIMD[dtype, width]](self, rhs: Self) -> Self:
         var mat = Matrix(self.height, self.width, order= self.order)
-        if self.size < 262144:
-            def matrix_vectorize[simd_width: Int](idx: Int) {imm}:
-                mat.data.unsafe_store(idx, func[DType.float32, simd_width](self.data.unsafe_load[width=simd_width](idx), rhs.data.unsafe_load[width=simd_width](idx)))
-            vectorize[self.simd_width](self.size, matrix_vectorize)
-        else:
-            var n_vects = Int(math.ceil(self.size / self.simd_width))
-            @__parameter
-            def matrix_vectorize_parallelize(i: Int):
-                var idx = i * self.simd_width
-                mat.data.unsafe_store(idx, func[DType.float32, self.simd_width](self.data.unsafe_load[width=self.simd_width](idx), rhs.data.unsafe_load[width=self.simd_width](idx)))
-            parallelize[matrix_vectorize_parallelize](n_vects)
+        elemwise_matrix[DType.float32, self.simd_width, func](mat.data, self.data, rhs.data, self.size)
         return mat^
 
     @always_inline

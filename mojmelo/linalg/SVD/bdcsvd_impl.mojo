@@ -15,11 +15,6 @@ from .linalg_core import (
     SQRT_REAL_MAX,
     swap_vecs,
     reverse_cols,
-    ComputationInfo,
-    INFO_SUCCESS,
-    INFO_NUMERICAL_ISSUE,
-    INFO_NO_CONVERGENCE,
-    INFO_INVALID_INPUT,
     Vec,
     IVec,
     Mat,
@@ -27,7 +22,13 @@ from .linalg_core import (
 )
 from .jacobi_svd import JacobiSVD
 from .jacobi import JacobiRotation, apply_jacobi_on_right
-
+from .bdcsvd import (
+    ComputationInfo,
+    INFO_SUCCESS,
+    INFO_NUMERICAL_ISSUE,
+    INFO_NO_CONVERGENCE,
+    INFO_INVALID_INPUT,
+)
 
 struct BDCSVDImpl:
     var m_naiveU: Mat

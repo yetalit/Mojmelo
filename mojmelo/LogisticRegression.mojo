@@ -1,8 +1,7 @@
 from mojmelo.linalg.Matrix import Matrix
-from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS, sub, mul, add
-import std.math as math
-import std.time as time
-import std.random as random
+from mojmelo.linalg.utils import sub, add, mul
+from mojmelo.utils.utils import CV, sigmoid, sign, cross_entropy, MODEL_IDS
+from std import math, random
 
 struct LogisticRegression(CV, Copyable):
     """A Gradient Descent based logistic regression with binary cross entropy as the loss function."""

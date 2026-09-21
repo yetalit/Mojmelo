@@ -22,9 +22,6 @@ from .linalg_core import (
     Vec,
     IVec,
     Mat,
-    ComputationInfo,
-    INFO_SUCCESS,
-    INFO_NO_CONVERGENCE,
     mat_identity,
     mat_transpose,
 )
@@ -37,6 +34,11 @@ from .jacobi import (
 from .bidiagonalization import (
     make_householder_in_place,
     apply_householder_left,
+)
+from .bdcsvd import (
+    ComputationInfo,
+    INFO_SUCCESS,
+    INFO_NO_CONVERGENCE,
 )
 
 # ------------------------------------------------------------------------------

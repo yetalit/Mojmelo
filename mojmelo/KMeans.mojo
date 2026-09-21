@@ -1,7 +1,6 @@
 from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import euclidean_distance, squared_euclidean_distance, MODEL_IDS
-import std.random as random
-import std.math as math
+from std import math, random
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 

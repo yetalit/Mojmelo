@@ -1,8 +1,7 @@
 from mojmelo.linalg.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS, sub, add
-import std.math as math
-import std.time as time
-import std.random as random
+from mojmelo.linalg.utils import sub, add
+from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS
+from std import math, random
 
 struct LinearRegression(CV, Copyable):
     """A Gradient Descent based linear regression with mse as the loss function."""

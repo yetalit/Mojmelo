@@ -1,9 +1,11 @@
 from std.algorithm import vectorize
 from std.sys import simd_width_of
-from mojmelo.utils.utils import _max_abs, _axpy, vec_scale, dot_config
+from mojmelo.linalg.utils import _max_abs, _axpy, dot_unrolled, mul, elemwise_scalar
+
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
+@always_inline
 def _eps[dtype: DType]() -> Float64:
     comptime if dtype == DType.float64:
         return 2.220446049250313e-16
@@ -22,11 +24,11 @@ def _pivot_row[dtype: DType](a: Pointer[Scalar[dtype], MutUntrackedOrigin], n: I
     return best_row
 
 @always_inline
-def _swap[dtype: DType](var r1: Pointer[Scalar[dtype], MutUntrackedOrigin], var r2: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int):
+def _swap[dtype: DType](r1: Pointer[Scalar[dtype], MutUntrackedOrigin], r2: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int):
     """Swap r1[0:count] with r2[0:count] (must not overlap)."""
     comptime W = simd_width_of[dtype]()
 
-    def body[w: Int](idx: Int) {mut}:
+    def body[w: Int](idx: Int) {imm}:
         var u = r1.unsafe_load[w](idx)
         var v = r2.unsafe_load[w](idx)
         r1.unsafe_offset(idx).unsafe_store(v)
@@ -81,7 +83,7 @@ def _back_substitute[
     if nrhs == 1:
         for ii in range(n):
             var i = n - 1 - ii
-            var s = dot_config[dtype, W](
+            var s = dot_unrolled[dtype, W](
                 a.unsafe_offset(i * n + i + 1), x.unsafe_offset(i + 1), n - i - 1
             )
             x[unsafe_offset=i] = (x[unsafe_offset=i] - s) / a[
@@ -95,8 +97,8 @@ def _back_substitute[
                 _axpy[dtype, W](
                     xi, x.unsafe_offset(j * nrhs), nrhs, a[unsafe_offset=i * n + j]
                 )
-            vec_scale[dtype, W](
-                xi, nrhs, Scalar[dtype](1) / a[unsafe_offset=i * n + i]
+            elemwise_scalar[dtype, W, mul](
+                xi, xi, nrhs, Scalar[dtype](1) / a[unsafe_offset=i * n + i]
             )
 
 # ----------------------------------------------------------------------

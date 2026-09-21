@@ -3,7 +3,7 @@
 from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import squared_euclidean_distance
 from .hdbscan_tree import arange
-import std.math as math
+from std import math
 
 def mst_linkage_core(distance_matrix: Matrix) raises -> Matrix:
     var result = Matrix.zeros(distance_matrix.height - 1, 3)

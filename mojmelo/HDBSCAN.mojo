@@ -1,5 +1,5 @@
 from mojmelo.linalg.Matrix import Matrix
-import std.math as math
+from std import math
 from mojmelo.internal.hdbscan.KDTreeBoruvka import KDTreeBoruvka
 from mojmelo.internal.hdbscan.hdbscan_boruvka import HDBSCANBoruvka
 from mojmelo.internal.hdbscan.hdbscan_linkage import label

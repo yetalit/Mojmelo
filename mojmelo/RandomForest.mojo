@@ -3,8 +3,7 @@ from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 from std.memory import Layout
-import std.math as math
-import std.random as random
+from std import math, random
 
 @always_inline
 def bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:

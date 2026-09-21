@@ -1,7 +1,7 @@
 from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import fill_indices_list
 from mojmelo.utils.KDTree import KDTree, KDTreeResultVector
-import std.math as math
+from std import math
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of

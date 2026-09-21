@@ -6,10 +6,9 @@ from .svm_parameter import svm_parameter
 from .svm_problem import svm_problem
 from .svm_model import svm_model
 from std.sys import size_of
-import std.math as math
+from std import math, random
 from mojmelo.utils.algorithm import parallelize, reduction
 from mojmelo.utils.utils import fill_indices
-import std.random as random
 
 comptime TAU = 1e-12
 

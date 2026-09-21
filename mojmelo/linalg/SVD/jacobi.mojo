@@ -31,7 +31,7 @@ def apply_jacobi_on_right(
             p_ptr[unsafe_offset=r] = c * vp - s * vq
             q_ptr[unsafe_offset=r] = s * vp + c * vq
     else:
-        def blend[simd_width: Int](idx: Int) {mut}:
+        def blend[simd_width: Int](idx: Int) {imm}:
             var vp = p_ptr.unsafe_load[width=simd_width](idx)
             var vq = q_ptr.unsafe_load[width=simd_width](idx)
             p_ptr.unsafe_store[simd_width](idx, c * vp - s * vq)

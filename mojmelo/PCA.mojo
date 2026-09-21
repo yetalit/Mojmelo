@@ -1,6 +1,6 @@
 from mojmelo.linalg.Matrix import Matrix
-from mojmelo.linalg.SVD.bdcsvd import BDCSVD
-from mojmelo.linalg.SVD.linalg_core import Mat, INFO_SUCCESS, INFO_NO_CONVERGENCE
+from mojmelo.linalg.SVD.bdcsvd import BDCSVD, INFO_SUCCESS, INFO_NO_CONVERGENCE
+from mojmelo.linalg.SVD.linalg_core import Mat
 from mojmelo.utils.utils import MODEL_IDS
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize

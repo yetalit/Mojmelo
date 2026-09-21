@@ -4,31 +4,13 @@ from std.sys import CompilationTarget, simd_width_of
 from std.algorithm import vectorize
 from ..mojmelo_matmul import matmul as GEMM
 from mojmelo.utils.algorithm import parallelize
-from mojmelo.utils.utils import _max_abs, vec_scale, dot_config
+from mojmelo.linalg.utils import _max_abs, dot_unrolled
 
 comptime RealScalar = Float64
 
 comptime REAL_EPSILON = 2.220446049250313e-16  # Float64 unit roundoff
 comptime REAL_MIN = 2.2250738585072014e-308  # smallest positive normal Float64
 comptime SQRT_REAL_MAX = sqrt(1.7976931348623157e308)
-
-# ------------------------------------------------------------------------------
-# ComputationInfo — mirrors Eigen::ComputationInfo.
-# ------------------------------------------------------------------------------
-@fieldwise_init
-struct ComputationInfo(TrivialRegisterPassable):
-    var value: Int
-
-    def __eq__(self, other: ComputationInfo) -> Bool:
-        return self.value == other.value
-
-    def __ne__(self, other: ComputationInfo) -> Bool:
-        return self.value != other.value
-
-comptime INFO_SUCCESS = ComputationInfo(0)
-comptime INFO_NUMERICAL_ISSUE = ComputationInfo(1)
-comptime INFO_NO_CONVERGENCE = ComputationInfo(2)
-comptime INFO_INVALID_INPUT = ComputationInfo(3)
 
 comptime SIMD_WIDTH: Int = 4 * simd_width_of[RealScalar.DTYPE]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[RealScalar.DTYPE]()
 # ------------------------------------------------------------------------------
@@ -150,7 +132,7 @@ struct Vec(Sized):
         var nrm = self.norm()
         if nrm > 0:
             if self.stride == 1:
-                def divide[simd_width: Int](idx: Int) {mut}:
+                def divide[simd_width: Int](idx: Int) {imm}:
                     self.data.unsafe_store[simd_width](idx, self.data.unsafe_load[simd_width](idx) / nrm)
                 vectorize[SIMD_WIDTH](self.n, divide)
             else:
@@ -367,7 +349,7 @@ def swap_vecs(mut a: Vec, mut b: Vec):
 def vec_dot(a: Vec, b: Vec) -> RealScalar:
     var n = len(a)
     if a.stride == 1 and b.stride == 1:
-        return dot_config[RealScalar.DTYPE, SIMD_WIDTH](a.data, b.data, n)
+        return dot_unrolled[RealScalar.DTYPE, SIMD_WIDTH](a.data, b.data, n)
     var sum = 0.0
     for i in range(n):
         sum += a[i] * b[i]
@@ -376,26 +358,19 @@ def vec_dot(a: Vec, b: Vec) -> RealScalar:
 @always_inline
 def sub_inplace(dst: Mat, src: Mat):
     """Dst -= Src for same-shape column-major views (row_stride == 1)."""
-    var rows = dst.rows()
-    var cols = dst.cols()
-    var dptr = dst.data
-    var sptr = src.data
-    var dcs = dst.col_stride
-    var scs = src.col_stride
-
     @__parameter
     def one_col(j: Int):
-        var d = dptr.unsafe_offset(j * dcs)
-        var s = sptr.unsafe_offset(j * scs)
-        def f[w: Int](idx: Int) {mut}:
+        var d = dst.data.unsafe_offset(j * dst.col_stride)
+        var s = src.data.unsafe_offset(j * src.col_stride)
+        def f[w: Int](idx: Int) {imm}:
             d.unsafe_store[w](idx, d.unsafe_load[width=w](idx) - s.unsafe_load[width=w](idx))
-        vectorize[SIMD_WIDTH](rows, f)
+        vectorize[SIMD_WIDTH](dst.rows(), f)
 
-    if rows * cols < PAR_ELEMS:
-        for j in range(cols):
+    if dst.rows() * dst.cols() < PAR_ELEMS:
+        for j in range(dst.cols()):
             one_col(j)
     else:
-        parallelize[one_col](cols)
+        parallelize[one_col](dst.cols())
 
 @always_inline
 def reverse_cols(mut m: Mat, count: Int):
@@ -431,22 +406,6 @@ def mat_transpose(a: Mat) -> Mat:
             vectorize[SIMD_WIDTH](a.cols(), pconvert)
         parallelize[p](a.rows())
     return mat^
-
-@always_inline
-def mat_scale(mut a: Mat, s: RealScalar):
-    if a.size < 262144:
-        vec_scale[RealScalar.DTYPE, SIMD_WIDTH](a.data, a.size, 1 / s)
-    else:
-        var n_full = a.size // SIMD_WIDTH
-        @__parameter
-        def scalar_vectorize_parallelize(i: Int):
-            var idx = i * SIMD_WIDTH
-            a.data.unsafe_store[SIMD_WIDTH](idx, a.data.unsafe_load[width=SIMD_WIDTH](idx) / s)
-        parallelize[scalar_vectorize_parallelize](n_full)
-
-        var tailStart = n_full * SIMD_WIDTH
-        for idx in range(tailStart, a.size):
-            a.data[unsafe_offset=idx] = a.data[unsafe_offset=idx] / s
 
 @always_inline
 def mat_identity(var rows: Int, cols: Int) -> Mat:

@@ -8,14 +8,10 @@ from .linalg_core import (
     RealScalar,
     REAL_MIN,
     REAL_EPSILON,
+    SIMD_WIDTH,
     Vec,
     Mat,
-    ComputationInfo,
-    INFO_SUCCESS,
-    INFO_NO_CONVERGENCE,
-    INFO_INVALID_INPUT,
     mat_transpose,
-    mat_scale,
     mat_identity,
     embed_topleft,
 )
@@ -27,6 +23,25 @@ from .bidiagonalization import (
     apply_householder_left,
     apply_compact_wy_block,
 )
+from mojmelo.linalg.utils import mul, elemwise_scalar
+
+# ------------------------------------------------------------------------------
+# ComputationInfo — mirrors Eigen::ComputationInfo.
+# ------------------------------------------------------------------------------
+@fieldwise_init
+struct ComputationInfo(TrivialRegisterPassable):
+    var value: Int
+
+    def __eq__(self, other: ComputationInfo) -> Bool:
+        return self.value == other.value
+
+    def __ne__(self, other: ComputationInfo) -> Bool:
+        return self.value != other.value
+
+comptime INFO_SUCCESS = ComputationInfo(0)
+comptime INFO_NUMERICAL_ISSUE = ComputationInfo(1)
+comptime INFO_NO_CONVERGENCE = ComputationInfo(2)
+comptime INFO_INVALID_INPUT = ComputationInfo(3)
 
 def prepare_work(A: Mat, do_transpose: Bool) -> Mat:
     """Returns a fresh Mat in both branches (transpose or plain copy) —
@@ -370,7 +385,7 @@ struct BDCSVD:
             scale = RealScalar(1)
 
         var work = prepare_work(A, self.m_isTranspose)
-        mat_scale(work, scale)
+        elemwise_scalar[RealScalar.DTYPE, SIMD_WIDTH, mul](work.data, work.data, work.size, RealScalar(1) / scale)
 
         var bid = UpperBidiagonalization()
         if self.m_useQrDecomp:
