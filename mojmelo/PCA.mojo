@@ -45,7 +45,7 @@ struct PCA(Copyable):
             var offset = col * n_rows
             var sum: Float32 = 0
 
-            def add[simd_width: Int](row: Int) {mut}:
+            def add[simd_width: Int](row: Int) {mut sum, X_F, offset}:
                 sum += X_F.data.unsafe_load[simd_width](offset + row).reduce_add()
             vectorize[X.simd_width](n_rows, add)
 

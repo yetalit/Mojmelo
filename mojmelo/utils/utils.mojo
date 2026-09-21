@@ -127,11 +127,9 @@ def accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
         The score.
     """
     var correct_count = 0
-    var y_data = y.data
-    var y_pred_data = y_pred.data
 
-    def compare[simd_width: Int](idx: Int) {mut}:
-        correct_count += y_data.unsafe_load[width=simd_width](idx).eq(y_pred_data.unsafe_load[width=simd_width](idx)).reduce_bit_count()
+    def compare[simd_width: Int](idx: Int) {mut correct_count, y, y_pred}:
+        correct_count += y.data.unsafe_load[width=simd_width](idx).eq(y_pred.data.unsafe_load[width=simd_width](idx)).reduce_bit_count()
     vectorize[y_pred.simd_width](len(y), compare)
     return Float32(correct_count) / Float32(len(y))
 

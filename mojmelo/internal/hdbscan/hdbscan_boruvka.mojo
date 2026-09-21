@@ -250,7 +250,7 @@ struct HDBSCANBoruvka:
                 var xq = self.tree[].data.unsafe_offset(q * self.dim)
                 var d2: Float32 = 0.0
 
-                def v[simd_width: Int](k: Int) {mut}:
+                def v[simd_width: Int](k: Int) {xp, xq, mut d2}:
                     var t = xp.unsafe_load[width=simd_width](k) - xq.unsafe_load[width=simd_width](k)
                     d2 += (t * t).reduce_add()
                 vectorize[Matrix.simd_width](self.dim, v)

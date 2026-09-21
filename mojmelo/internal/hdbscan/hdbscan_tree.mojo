@@ -314,7 +314,7 @@ struct TreeUnionFind:
         var _arange = arange(0, size)
         var tmpPtr = self._data
 
-        def v[simd_width: Int](idx: Int) {mut}:
+        def v[simd_width: Int](idx: Int) {mut tmpPtr, _arange, self}:
             tmpPtr.unsafe_strided_store[width=simd_width](_arange.unsafe_ptr().unsafe_load[width=simd_width](idx), self.width)
             tmpPtr = tmpPtr.unsafe_offset(simd_width * self.width)
         vectorize[simd_width](self.size, v)
@@ -537,11 +537,10 @@ def get_stability_scores(mut labels: List[Int], clusters: Set[Int],
                 origin_of(sorted_clusters),
             ](unsafe_ptr=sorted_clusters.unsafe_ptr(), length=len(sorted_clusters)), cmp_int)
     for n, c in enumerate(sorted_clusters):
-        var n_ = n
         var cluster_size = 0
 
-        def v[simd_width: Int](idx: Int) {mut}:
-            cluster_size += labels.unsafe_ptr().unsafe_load[width=simd_width](idx).eq(n_).reduce_bit_count()
+        def v[simd_width: Int](idx: Int) {mut cluster_size, labels, n}:
+            cluster_size += labels.unsafe_ptr().unsafe_load[width=simd_width](idx).eq(n).reduce_bit_count()
         vectorize[simd_width](len(labels), v)
         if isinf(max_lambda) or max_lambda == 0.0 or cluster_size == 0:
             result[n] = 1.0
@@ -634,7 +633,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Int]], mut lambda_a
     var indices = List[Int](capacity=len(cluster_tree['parent']))
     indices.resize(len(cluster_tree['parent']), 0)
 
-    def v1[simd_width: Int](idx: Int) {mut}:
+    def v1[simd_width: Int](idx: Int) {mut indices, cluster_tree, n_points}:
         try:
             indices.unsafe_ptr().unsafe_store[width=simd_width](idx, cluster_tree['parent'].unsafe_ptr().unsafe_load[width=simd_width](idx) - n_points)
         except e:
@@ -648,7 +647,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Int]], mut lambda_a
     indices = List[Int](capacity=len(condensed_tree['parent']))
     indices.resize(len(condensed_tree['parent']), 0)
 
-    def v2[simd_width: Int](idx: Int) {mut}:
+    def v2[simd_width: Int](idx: Int) {mut indices, condensed_tree, n_points}:
         try:
             indices.unsafe_ptr().unsafe_store[width=simd_width](idx, condensed_tree['parent'].unsafe_ptr().unsafe_load[width=simd_width](idx) - n_points)
         except e:
@@ -668,7 +667,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Int]], mut lambda_a
         var node_indices = List[Int](capacity=len(children))
         node_indices.resize(len(children), 0)
 
-        def v[simd_width: Int](i: Int) {mut}:
+        def v[simd_width: Int](i: Int) {mut node_indices, children, n_points}:
             node_indices.unsafe_ptr().unsafe_store[width=simd_width](i, children.unsafe_ptr().unsafe_load[width=simd_width](i) - n_points)
         vectorize[simd_width](len(node_indices), v)
 
@@ -799,7 +798,7 @@ def get_clusters(tree: Dict[String, List[Int]], mut lambda_array: List[Float32],
         cluster_sizes[node_list[len(node_list) - 1]] = size_sum
         var max_value = -math.inf[DType.float32]()
 
-        def v[simd_width: Int](idx: Int) {mut}:
+        def v[simd_width: Int](idx: Int) {lambda_array, mut max_value}:
             var max_in_simd = (1.0 / lambda_array.unsafe_ptr().unsafe_load[width=simd_width](idx)).reduce_max()
             if max_in_simd > max_value:
                 max_value = max_in_simd

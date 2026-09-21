@@ -74,7 +74,7 @@ def node_pair_lower_bound(
 ) -> Float32:
     var dist2: Float32 = 0.0
 
-    def v[simd_width: Int](k: Int) {mut}:
+    def v[simd_width: Int](k: Int) {center1, center2, mut dist2}:
         var t = center1.unsafe_load[width=simd_width](k) - center2.unsafe_load[width=simd_width](k)
         dist2 += (t * t).reduce_add()
 
@@ -229,7 +229,7 @@ struct KDTreeBoruvka:
             var p = self.data.unsafe_offset(self.build_idx[i] * self.dim)
             var d2: Float32 = 0.0
 
-            def v2[simd_width: Int](k: Int) {mut}:
+            def v2[simd_width: Int](k: Int) {p, cptr, mut d2}:
                 var t = p.unsafe_load[width=simd_width](k) - cptr.unsafe_load[width=simd_width](k)
                 d2 += (t * t).reduce_add()
             vectorize[Matrix.simd_width](self.dim, v2)

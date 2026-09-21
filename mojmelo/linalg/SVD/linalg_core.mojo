@@ -106,9 +106,8 @@ struct Vec(Sized):
 
         var sum = 0.0
         if self.stride == 1:
-            var data = self.data
-            def sumSquares[simd_width: Int](idx: Int) {mut}:
-                var x = data.unsafe_load[simd_width](idx) / scale
+            def sumSquares[simd_width: Int](idx: Int) {self, scale, mut sum}:
+                var x = self.data.unsafe_load[simd_width](idx) / scale
                 sum += (x * x).reduce_add()
             vectorize[SIMD_WIDTH](self.n, sumSquares)
         else:
@@ -315,7 +314,7 @@ struct Mat(Copyable):
         var m = 0.0
         for j in range(self.ncols):
             var col_data = self.data.unsafe_offset(j * self.col_stride)
-            def findMax[simd_width: Int](idx: Int) {mut}:
+            def findMax[simd_width: Int](idx: Int) {col_data, mut m}:
                 var max_in_vec = abs(col_data.unsafe_load[simd_width](idx)).reduce_max()
                 if max_in_vec > m:
                     m = max_in_vec
@@ -387,33 +386,31 @@ def mat_transpose(a: Mat) -> Mat:
     var col_stride = a.col_stride
     if mat.size < 98304:
         for i in range(a.rows()):
-            var idx_row = i
-            var tmpPtr = a.data.unsafe_offset(idx_row * a.row_stride)
+            var tmpPtr = a.data.unsafe_offset(i * a.row_stride)
     
-            def convert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
+            def convert[simd_width: Int](idx: Int) {mat, i, col_stride, mut tmpPtr}:
+                mat.data.unsafe_store[simd_width](idx + i * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
                 tmpPtr = tmpPtr.unsafe_offset(simd_width * col_stride)
             vectorize[SIMD_WIDTH](a.cols(), convert)
     else:
         @__parameter
         def p(i: Int):
-            var idx_row = i
-            var tmpPtr = a.data.unsafe_offset(idx_row * a.row_stride)
+            var tmpPtr = a.data.unsafe_offset(i * a.row_stride)
     
-            def pconvert[simd_width: Int](idx: Int) {mut}:
-                mat.data.unsafe_store[simd_width](idx + idx_row * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
+            def pconvert[simd_width: Int](idx: Int) {mat, i, col_stride, mut tmpPtr}:
+                mat.data.unsafe_store[simd_width](idx + i * mat.rows(), tmpPtr.unsafe_strided_load[width=simd_width](col_stride))
                 tmpPtr = tmpPtr.unsafe_offset(simd_width * col_stride)
             vectorize[SIMD_WIDTH](a.cols(), pconvert)
         parallelize[p](a.rows())
     return mat^
 
 @always_inline
-def mat_identity(var rows: Int, cols: Int) -> Mat:
+def mat_identity(rows: Int, cols: Int) -> Mat:
     var m = Mat(rows, cols)
     var n = min(rows, cols)
 
     var tmpPtr = m.data
-    def convert[simd_width: Int](idx: Int) {mut}:
+    def convert[simd_width: Int](idx: Int) {mut tmpPtr, rows}:
         tmpPtr.unsafe_strided_store[width=simd_width](1.0, (rows + 1))
         tmpPtr = tmpPtr.unsafe_offset(simd_width * (rows + 1))
     vectorize[SIMD_WIDTH](n, convert)

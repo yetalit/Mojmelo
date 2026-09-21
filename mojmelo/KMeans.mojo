@@ -130,7 +130,7 @@ struct KMeans(Copyable):
                         var x_ptr = X.data.unsafe_offset(row * X.width)
                         var acc: Float32 = 0.0
 
-                        def sq[simd_width: Int](col: Int) {mut}:
+                        def sq[simd_width: Int](col: Int) {x_ptr, c_ptr, mut acc}:
                             var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr.unsafe_load[width=simd_width](col)
                             acc += (d * d).reduce_add()
                         vectorize[Matrix.simd_width](X.width, sq)
@@ -214,7 +214,7 @@ struct KMeans(Copyable):
                     var x_ptr = X.data.unsafe_offset(row * X.width)
                     var acc: Float32 = 0.0
 
-                    def sq[simd_width: Int](col: Int) {mut}:
+                    def sq[simd_width: Int](col: Int) {x_ptr, c_ptr, mut acc}:
                         var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr.unsafe_load[width=simd_width](col)
                         acc += (d * d).reduce_add()
                     vectorize[Matrix.simd_width](X.width, sq)
@@ -240,7 +240,7 @@ struct KMeans(Copyable):
                 var x_ptr = X.data.unsafe_offset(row * X.width)
                 var acc: Float32 = 0.0
 
-                def sq_last[simd_width: Int](col: Int) {mut}:
+                def sq_last[simd_width: Int](col: Int) {x_ptr, c_ptr_last, mut acc}:
                     var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr_last.unsafe_load[width=simd_width](col)
                     acc += (d * d).reduce_add()
                 vectorize[X.simd_width](X.width, sq_last)
@@ -270,7 +270,7 @@ struct KMeans(Copyable):
 
                 var dot: Float32 = 0.0
 
-                def mul[simd_width: Int](j: Int) {mut}:
+                def mul[simd_width: Int](j: Int) {mut dot, x_ptr, c_ptr}:
                     dot += (x_ptr.unsafe_load[width=simd_width](j) *
                             c_ptr.unsafe_load[width=simd_width](j)).reduce_add()
                 vectorize[X.simd_width](X.width, mul)

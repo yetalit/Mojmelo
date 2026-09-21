@@ -229,7 +229,7 @@ def elemwise_matrix[
 def _max_abs[dtype: DType, width: Int](var p: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
     var m = Scalar[dtype](0)
 
-    def findMax[simd_width: Int](idx: Int) {mut}:
+    def findMax[simd_width: Int](idx: Int) {p, mut m}:
         var max_in_vec = abs(p.unsafe_load[simd_width](idx)).reduce_max()
         if max_in_vec > m:
             m = max_in_vec
@@ -277,11 +277,9 @@ def dot_unrolled[
 
     var acc = (a0 + a1) + (a2 + a3)
     var tail = Scalar[dtype](0)
-    var qa = pa.unsafe_offset(j)
-    var qb = pb.unsafe_offset(j)
 
-    def body[w: Int](idx: Int) {mut}:
-        acc += qa.unsafe_load[width](idx) * qb.unsafe_load[width](idx)
+    def body[w: Int](idx: Int) {mut acc, pa, pb, j}:
+        acc += pa.unsafe_offset(j).unsafe_load[width](idx) * pb.unsafe_offset(j).unsafe_load[width](idx)
 
     vectorize[width](count - j, body)
     return acc.reduce_add() + tail
