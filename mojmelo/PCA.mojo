@@ -43,20 +43,16 @@ struct PCA(Copyable):
         @__parameter
         def p(col: Int):
             var offset = col * n_rows
-            var sum: Float32 = 0
 
-            def add[simd_width: Int](row: Int) {mut sum, X_F, offset}:
-                sum += X_F.data.unsafe_load[simd_width](offset + row).reduce_add()
-            vectorize[X.simd_width](n_rows, add)
+            def mean[simd_width: Int](row: Int) {self, col, X_F, offset, n_rows}:
+                self.mean.data[unsafe_offset=col] += (X_F.data.unsafe_load[simd_width](offset + row) / Float32(n_rows)).reduce_add() 
+            vectorize[X.simd_width](n_rows, mean)
 
-            var mu = sum / Float32(n_rows)
-            self.mean.data[unsafe_offset=col] = mu
-
-            def center[simd_width: Int](row: Int) {offset, X_F, mu}:
+            def center[simd_width: Int](row: Int) {offset, X_F, self, col}:
                 var idx = offset + row
                 X_F.data.unsafe_store[simd_width](
                     idx,
-                    X_F.data.unsafe_load[simd_width](idx) - mu
+                    X_F.data.unsafe_load[simd_width](idx) - self.mean.data[unsafe_offset=col]
                 )
             vectorize[X.simd_width](n_rows, center)
 

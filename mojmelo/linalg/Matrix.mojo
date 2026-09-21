@@ -819,12 +819,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[unsafe_offset=i] = self['', i, unsafe=True].sum()
+                    if self.order == 'c':
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].sum()
+                    else:
+                        mat.data[unsafe_offset=i] = reduction.sum(Span(unsafe_ptr=self.data.unsafe_offset(i * self.height), length=self.height))
             else:
                 @__parameter
                 def p0(i: Int):
                     try:
-                        mat.data[unsafe_offset=i] = self['', i, unsafe=True].sum()
+                        if self.order == 'c':
+                            mat.data[unsafe_offset=i] = self['', i, unsafe=True].sum()
+                        else:
+                            mat.data[unsafe_offset=i] = reduction.sum(Span(unsafe_ptr=self.data.unsafe_offset(i * self.height), length=self.height))
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -832,12 +838,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[unsafe_offset=i] = self[i, unsafe=True].sum()
+                    if self.order == 'c':
+                        mat.data[unsafe_offset=i] = reduction.sum(Span(unsafe_ptr=self.data.unsafe_offset(i * self.width), length=self.width))
+                    else:
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True].sum()
             else:
                 @__parameter
                 def p1(i: Int):
                     try:
-                        mat.data[unsafe_offset=i] = self[i, unsafe=True].sum()
+                        if self.order == 'c':
+                            mat.data[unsafe_offset=i] = reduction.sum(Span(unsafe_ptr=self.data.unsafe_offset(i * self.width), length=self.width))
+                        else:
+                            mat.data[unsafe_offset=i] = self[i, unsafe=True].sum()
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -890,12 +902,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(correction=correction)
+                    if self.order == 'c':
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(correction=correction)
+                    else:
+                        mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.height), length=self.height), correction=Int(correction))
             else:
                 @__parameter
                 def p0(i: Int):
                     try:
-                        mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(correction=correction)
+                        if self.order == 'c':
+                            mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(correction=correction)
+                        else:
+                            mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.height), length=self.height), correction=Int(correction))
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -903,12 +921,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(correction=correction)
+                    if self.order == 'c':
+                        mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.width), length=self.width), correction=Int(correction))
+                    else:
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(correction=correction)
             else:
                 @__parameter
                 def p1(i: Int):
                     try:
-                        mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(correction=correction)
+                        if self.order == 'c':
+                            mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.width), length=self.width), correction=Int(correction))
+                        else:
+                            mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)
@@ -921,12 +945,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(1, self.width, order= self.order)
             if self.width < 768:
                 for i in range(self.width):
-                    mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
+                    if self.order == 'c':
+                        mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
+                    else:
+                        mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.height), length=self.height), mean_value=_mean.data[unsafe_offset=i], correction=Int(correction))
             else:
                 @__parameter
                 def p0(i: Int):
                     try:
-                        mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
+                        if self.order == 'c':
+                            mat.data[unsafe_offset=i] = self['', i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
+                        else:
+                            mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.height), length=self.height), mean_value=_mean.data[unsafe_offset=i], correction=Int(correction))
                     except e:
                         print('Error:', e)
                 parallelize[p0](self.width)
@@ -934,12 +964,18 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
             mat = Matrix(self.height, 1, order= self.order)
             if self.height < 768:
                 for i in range(self.height):
-                    mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
+                    if self.order == 'c':
+                        mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.width), length=self.width), mean_value=_mean.data[unsafe_offset=i], correction=Int(correction))
+                    else:
+                        mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
             else:
                 @__parameter
                 def p1(i: Int):
                     try:
-                        mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
+                        if self.order == 'c':
+                            mat.data[unsafe_offset=i] = reduction.variance(Span(unsafe_ptr=self.data.unsafe_offset(i * self.width), length=self.width), mean_value=_mean.data[unsafe_offset=i], correction=Int(correction))
+                        else:
+                            mat.data[unsafe_offset=i] = self[i, unsafe=True]._var(_mean.data[unsafe_offset=i], correction=correction)
                     except e:
                         print('Error:', e)
                 parallelize[p1](self.height)

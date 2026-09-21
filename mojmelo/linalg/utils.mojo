@@ -278,8 +278,11 @@ def dot_unrolled[
     var acc = (a0 + a1) + (a2 + a3)
     var tail = Scalar[dtype](0)
 
-    def body[w: Int](idx: Int) {mut acc, pa, pb, j}:
-        acc += pa.unsafe_offset(j).unsafe_load[width](idx) * pb.unsafe_offset(j).unsafe_load[width](idx)
+    def body[w: Int](idx: Int) {mut acc, mut tail, pa, pb, j}:
+        comptime if w == width:
+            acc += pa.unsafe_offset(j).unsafe_load[width](idx) * pb.unsafe_offset(j).unsafe_load[width](idx)
+        else:
+            tail += (pa.unsafe_offset(j).unsafe_load[w](idx) * pb.unsafe_offset(j).unsafe_load[w](idx)).reduce_add()
 
     vectorize[width](count - j, body)
     return acc.reduce_add() + tail
