@@ -1,10 +1,9 @@
 from mojmelo.DecisionTree import DecisionTree, Node
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
 from std.memory import Layout
-import std.math as math
-import std.random as random
+from std import math, random
 
 @always_inline
 def bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
@@ -189,6 +188,7 @@ struct RandomForest(CV, Copyable):
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'n_trees' in params:
             self.n_trees = atol(String(params['n_trees']))
         else:

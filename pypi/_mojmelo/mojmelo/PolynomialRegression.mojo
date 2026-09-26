@@ -1,8 +1,7 @@
-from mojmelo.utils.Matrix import Matrix
-from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS, sub, add
-import std.math as math
-import std.time as time
-import std.random as random
+from mojmelo.linalg.Matrix import Matrix
+from mojmelo.linalg.utils import sub, add
+from mojmelo.utils.utils import CV, sign, mse, MODEL_IDS
+from std import math, random
 
 struct PolyRegression(CV, Copyable):
     """A Gradient Descent based polynomial regression with mse as the loss function."""
@@ -68,7 +67,7 @@ struct PolyRegression(CV, Copyable):
         var l2_lambda = self.reg_alpha * (1.0 - self.l1_ratio)
 
         var prev_cost = math.inf[DType.float32]()
-        var num_b_iters = X.height // self.batch_size if self.batch_size > 0 else 0
+        var num_b_iters = (X.height + self.batch_size - 1) // self.batch_size if self.batch_size > 0 else 0
         # gradient descent
         for _ in range(self.n_iters):
             if self.batch_size > 0:
@@ -181,6 +180,7 @@ struct PolyRegression(CV, Copyable):
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'degree' in params:
             self.degree = atol(String(params['degree']))
         else:

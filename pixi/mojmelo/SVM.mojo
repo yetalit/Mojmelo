@@ -1,12 +1,12 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, MODEL_IDS
-from mojmelo.utils.libsvm.svm_parameter import svm_parameter
-from mojmelo.utils.libsvm.svm_problem import svm_problem
-from mojmelo.utils.libsvm.svm_node import svm_node
-from mojmelo.utils.libsvm.svm_model import svm_model
-from mojmelo.utils.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
+from mojmelo.internal.libsvm.svm_parameter import svm_parameter
+from mojmelo.internal.libsvm.svm_problem import svm_problem
+from mojmelo.internal.libsvm.svm_node import svm_node
+from mojmelo.internal.libsvm.svm_model import svm_model
+from mojmelo.internal.libsvm.svm import svm_check_parameter, svm_train, svm_predict, svm_decision_function, svm_free_and_destroy_model
 from mojmelo.utils.algorithm import parallelize
-import std.random as random
+from std import random
 from std.memory import unsafe_memcpy, Layout
 from std.sys import size_of
 
@@ -165,7 +165,7 @@ struct SVC(CV, Copyable):
         var check = svm_check_parameter(prob, param)
         if check != "":
             prob.y.unsafe_free()
-            raise Error(check)
+            raise Error('SVC.fit:', check)
 
         self._model = svm_train(prob, param)
 
@@ -394,6 +394,7 @@ struct SVC(CV, Copyable):
         return support_vectors_^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'C' in params:
             self.C = atof(String(params['C']))
         else:

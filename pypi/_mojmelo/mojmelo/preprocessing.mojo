@@ -1,10 +1,9 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, cartesian_product
 from mojmelo.utils.algorithm import parallelize
 from std.sys import num_performance_cores
 from std.python import Python, PythonObject
-import std.time as time
-import std.random as random
+from std import random
 
 def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]:
     """Scale input vectors individually to unit norm (vector length).

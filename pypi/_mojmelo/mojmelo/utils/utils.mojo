@@ -1,10 +1,11 @@
 from std.memory import unsafe_memcpy, Layout
-import std.math as math
-from mojmelo.utils.Matrix import Matrix
+from std import math
+from mojmelo.linalg.Matrix import Matrix
 from std.python import Python, PythonObject
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 from std.sys import simd_width_of
+from mojmelo.linalg.utils import sub, mul, div
 
 # Cross Validation trait
 trait CV(Deinitable):
@@ -16,7 +17,7 @@ trait CV(Deinitable):
         ...
 
 
-comptime MODEL_IDS: Array[String, 13] = ['',
+comptime MODEL_IDS: Array[String, 14] = ['',
     'Linear Regression',
     'Polynomial Regression',
     'Logistic Regression',
@@ -28,109 +29,9 @@ comptime MODEL_IDS: Array[String, 13] = ['',
     'Decision Tree',
     'Random Forest',
     'GBDT',
-    'PCA'
+    'PCA',
+    'BernoulliNB'
                                         ]
-
-# ===-----------------------------------------------------------------------===#
-# argn
-# ===-----------------------------------------------------------------------===#
-
-def argn[is_max: Bool](input: Matrix, output: Matrix):
-    comptime simd_width = simd_width_of[DType.float32]()
-    var axis_size = input.size
-    var input_stride = input.size
-    comptime output_stride = 1
-    comptime chunk_size = 1
-    comptime parallel_size = 1
-
-    @__copy_capture(
-        axis_size, chunk_size, output_stride, input_stride, parallel_size
-    )
-
-    @__parameter
-    @always_inline
-    def cmpeq[
-        dtype: DType, simd_width: SIMDLength
-    ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
-        DType.bool, simd_width
-    ]:
-        comptime if is_max:
-            return a.le(b)
-        else:
-            return a.ge(b)
-
-    @__parameter
-    @always_inline
-    def cmp[
-        dtype: DType, simd_width: SIMDLength
-    ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
-        DType.bool, simd_width
-    ]:
-        comptime if is_max:
-            return a.lt(b)
-        else:
-            return a.gt(b)
-
-    # iterate over flattened axes
-    comptime start = 0
-    comptime end = 1
-    for i in range(start, end):
-        var input_offset = i * input_stride
-        var output_offset = i * output_stride
-        var input_dim_ptr = input.data.unsafe_offset(input_offset)
-        var output_dim_ptr = output.data.unsafe_offset(output_offset)
-        var global_val: Float32
-
-        # initialize limits
-        comptime if is_max:
-            global_val = Float32.MIN
-        else:
-            global_val = Float32.MAX
-
-        # initialize vector of maximal/minimal values
-        var global_values: SIMD[DType.float32, simd_width]
-        if axis_size < simd_width:
-            global_values = global_val
-        else:
-            global_values = input_dim_ptr.unsafe_load[width=simd_width]()
-
-        # iterate over values evenly divisible by simd_width
-        var indices = math.iota[DType.float32, simd_width]()
-        var global_indices = indices
-        var last_simd_index = math.align_down(axis_size, simd_width)
-        for j in range(simd_width, last_simd_index, simd_width):
-            var curr_values = input_dim_ptr.unsafe_load[width=simd_width](j)
-            indices += Float32(simd_width)
-
-            var mask = cmpeq(curr_values, global_values)
-            global_indices = mask.select(global_indices, indices)
-            global_values = mask.select(global_values, curr_values)
-
-        comptime if is_max:
-            global_val = global_values.reduce_max()
-        else:
-            global_val = global_values.reduce_min()
-
-        # Check trailing indices.
-        var idx = Float32(0)
-        var found_min: Bool = False
-        for j in range(last_simd_index, axis_size, 1):
-            var elem = input_dim_ptr.unsafe_load(j)
-            if cmp(global_val, elem):
-                global_val = elem
-                idx = Float32(j)
-                found_min = True
-
-        # handle the case where min wasn't in trailing values
-        if not found_min:
-            var matching = global_values.eq(global_val)
-            var min_indices = matching.select(
-                global_indices, Float32.MAX
-            )
-            idx = min_indices.reduce_min()
-        output_dim_ptr[] = idx
-
-# ===----------------------------------------------------------------------===#
 
 @always_inline
 def euclidean_distance(x1: Matrix, x2: Matrix) raises -> Float32:
@@ -155,46 +56,6 @@ def manhattan_distance(x1: Matrix, x2: Matrix) raises -> Float32:
 @always_inline
 def manhattan_distance(x1: Matrix, x2: Matrix, axis: Int) raises -> Matrix:
     return (x1 - x2).abs().sum(axis)
-
-@always_inline
-def add[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
-    return a + b
-
-@always_inline
-def sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
-    return a - b
-
-@always_inline
-def mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
-    return a * b
-
-@always_inline
-def div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
-    return a / b
-
-@always_inline
-def eq[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
-    return a.eq(b)
-
-@always_inline
-def ne[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
-    return a.ne(b)
-
-@always_inline
-def gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
-    return a.gt(b)
-
-@always_inline
-def ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
-    return a.ge(b)
-
-@always_inline
-def lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
-    return a.lt(b)
-
-@always_inline
-def le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
-    return a.le(b)
 
 @always_inline
 def sigmoid(z: Matrix) raises -> Matrix:
@@ -267,11 +128,9 @@ def accuracy_score(y: Matrix, y_pred: Matrix) raises -> Float32:
         The score.
     """
     var correct_count = 0
-    var y_data = y.data
-    var y_pred_data = y_pred.data
 
-    def compare[simd_width: Int](idx: Int) {mut}:
-        correct_count += y_data.unsafe_load[width=simd_width](idx).eq(y_pred_data.unsafe_load[width=simd_width](idx)).reduce_bit_count()
+    def compare[simd_width: Int](idx: Int) {mut correct_count, y, y_pred}:
+        correct_count += y.data.unsafe_load[width=simd_width](idx).eq(y_pred.data.unsafe_load[width=simd_width](idx)).reduce_bit_count()
     vectorize[y_pred.simd_width](len(y), compare)
     return Float32(correct_count) / Float32(len(y))
 
@@ -372,23 +231,6 @@ def fill_indices_list(N: Int) raises -> List[Int]:
     var list = List[Int](unsafe_uninit_length=N)
     list._data = fill_indices(N)
     return list^
-
-@always_inline
-def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntrackedOrigin], size: Int) -> Pointer[Scalar[des], MutUntrackedOrigin]:
-    var ptr = alloc(Layout[Scalar[des]](count=size)).unsafe_leak()
-    if size < 262144:
-
-        def matrix_vectorize[simd_width: Int](idx: Int) {imm}:
-            ptr.unsafe_store(idx, data.unsafe_load[width=simd_width](idx).cast[des]())
-        vectorize[width](size, matrix_vectorize)
-    else:
-        var n_vects = Int(math.ceil(size / width))
-        @__parameter
-        def matrix_vectorize_parallelize(i: Int):
-            var idx = i * width
-            ptr.unsafe_store(idx, data.unsafe_load[width=width](idx).cast[des]())
-        parallelize[matrix_vectorize_parallelize](n_vects)
-    return ptr
 
 def ids_to_numpy(list: List[Int]) raises -> PythonObject:
     """Converts list of indices to numpy array.

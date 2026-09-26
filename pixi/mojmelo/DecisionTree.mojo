@@ -1,9 +1,8 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import CV, entropy, entropy_precompute, gini, mse_loss, mse_loss_precompute, fill_indices_list, MODEL_IDS
 from mojmelo.utils.algorithm import parallelize
-import std.math as math
+from std import math, random
 from std.memory import Layout
-import std.random as random
 
 struct Node(Copyable):
     var feature: Int
@@ -67,6 +66,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         self.root = None
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'criterion' in params:
             self.criterion = params['criterion'].lower()
         else:

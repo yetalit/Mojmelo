@@ -1,7 +1,7 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
+from mojmelo.linalg.utils import elemwise_matrix, add, dot_unrolled
 from mojmelo.utils.utils import euclidean_distance, squared_euclidean_distance, MODEL_IDS
-import std.random as random
-import std.math as math
+from std import math, random
 from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 
@@ -49,15 +49,19 @@ struct KMeans(Copyable):
         """Compute cluster centers and cluster index for each sample."""
         # Mean centering
         self.X_mean = Matrix.zeros(1, X.width)
-        var n_rows, n_cols = X.height, X.width
         @__parameter
         def p(col: Int):
-            var sum: Float32 = 0
-            for row in range(n_rows):
-                sum += X.data.unsafe_load(row * n_cols + col)
+            var x_ptr = X.data.unsafe_offset(col)
+            def mean[simd_width: Int](i: Int) {self, col, mut x_ptr, X}:
+                self.X_mean.store[1](
+                    0,
+                    col,
+                    self.X_mean.load[1](0, col) + (x_ptr.unsafe_strided_load[width=simd_width](X.width) / Float32(X.height)).reduce_add()
+                )
+                x_ptr = x_ptr.unsafe_offset(simd_width * X.width)
+            vectorize[X.simd_width](X.width, mean)
 
-            self.X_mean.store[1](0, col, sum / Float32(n_rows))
-        parallelize[p](n_cols)
+        parallelize[p](X.width)
         var X_ = X - self.X_mean
 
         self.centroids_ = self._initial_centroids(X_)
@@ -94,10 +98,7 @@ struct KMeans(Copyable):
             # write directly into centroid row pointer
             var c_ptr = centroids.data.unsafe_offset(label * X.width)
             var x_ptr = X.data.unsafe_offset(idx * X.width)
-
-            def accumulate[simd_width: Int](j: Int) {imm}:
-                c_ptr.unsafe_store(j, c_ptr.unsafe_load[width=simd_width](j) + x_ptr.unsafe_load[width=simd_width](j))
-            vectorize[centroids.simd_width](X.width, accumulate)
+            elemwise_matrix[DType.float32, centroids.simd_width, add](c_ptr, c_ptr, x_ptr, X.width)
         return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
 
     @always_inline
@@ -131,7 +132,7 @@ struct KMeans(Copyable):
                         var x_ptr = X.data.unsafe_offset(row * X.width)
                         var acc: Float32 = 0.0
 
-                        def sq[simd_width: Int](col: Int) {mut}:
+                        def sq[simd_width: Int](col: Int) {x_ptr, c_ptr, mut acc}:
                             var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr.unsafe_load[width=simd_width](col)
                             acc += (d * d).reduce_add()
                         vectorize[Matrix.simd_width](X.width, sq)
@@ -215,7 +216,7 @@ struct KMeans(Copyable):
                     var x_ptr = X.data.unsafe_offset(row * X.width)
                     var acc: Float32 = 0.0
 
-                    def sq[simd_width: Int](col: Int) {mut}:
+                    def sq[simd_width: Int](col: Int) {x_ptr, c_ptr, mut acc}:
                         var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr.unsafe_load[width=simd_width](col)
                         acc += (d * d).reduce_add()
                     vectorize[Matrix.simd_width](X.width, sq)
@@ -241,7 +242,7 @@ struct KMeans(Copyable):
                 var x_ptr = X.data.unsafe_offset(row * X.width)
                 var acc: Float32 = 0.0
 
-                def sq_last[simd_width: Int](col: Int) {mut}:
+                def sq_last[simd_width: Int](col: Int) {x_ptr, c_ptr_last, mut acc}:
                     var d = x_ptr.unsafe_load[width=simd_width](col) - c_ptr_last.unsafe_load[width=simd_width](col)
                     acc += (d * d).reduce_add()
                 vectorize[X.simd_width](X.width, sq_last)
@@ -269,12 +270,7 @@ struct KMeans(Copyable):
             for k in range(self.k):
                 var c_ptr = self.centroids_.data.unsafe_offset(k * X.width)
 
-                var dot: Float32 = 0.0
-
-                def mul[simd_width: Int](j: Int) {mut}:
-                    dot += (x_ptr.unsafe_load[width=simd_width](j) *
-                            c_ptr.unsafe_load[width=simd_width](j)).reduce_add()
-                vectorize[X.simd_width](X.width, mul)
+                var dot = dot_unrolled[DType.float32, X.simd_width](x_ptr, c_ptr, X.width)
 
                 var dist = X_norms.data[unsafe_offset=i] - 2.0 * dot + C_norms.data[unsafe_offset=k]
                 d_ptr[unsafe_offset=k] = dist

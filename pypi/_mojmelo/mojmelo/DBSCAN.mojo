@@ -1,4 +1,4 @@
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
 from std.collections import Set
 from mojmelo.utils.algorithm import parallelize
