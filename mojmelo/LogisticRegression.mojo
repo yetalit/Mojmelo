@@ -46,7 +46,33 @@ struct LogisticRegression(CV, Copyable):
         self.bias = 0.0
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
-        """Fit the model."""
+        """Fit the model.
+
+        Args:
+            X: Training features of shape (n_samples, n_features).
+            y: Training labels of shape (n_samples, 1), with values in {0, 1}.
+        """
+        if self.method != 'gradient' and self.method != 'newton':
+            raise Error("LogisticRegression.fit: method must be 'gradient' or 'newton'!")
+        if self.lr <= 0.0:
+            raise Error('LogisticRegression.fit: learning_rate must be positive!')
+        if self.damping < 0.0:
+            raise Error('LogisticRegression.fit: damping must be non-negative!')
+        if self.n_iters <= 0:
+            raise Error('LogisticRegression.fit: n_iters must be positive!')
+        if self.reg_alpha < 0.0:
+            raise Error('LogisticRegression.fit: reg_alpha must be non-negative!')
+        if self.l1_ratio < 0.0 or self.l1_ratio > 1.0:
+            raise Error('LogisticRegression.fit: l1_ratio must be between 0 and 1!')
+        if self.tol < 0.0:
+            raise Error('LogisticRegression.fit: tol must be non-negative!')
+        if self.batch_size < 0:
+            raise Error('LogisticRegression: batch_size must be non-negative!')
+        if X.height == 0:
+            raise Error('LogisticRegression.fit: X must contain at least one sample!')
+        if X.height != y.height:
+            raise Error('LogisticRegression.fit: X and y must have the same number of samples!')
+
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
@@ -60,7 +86,7 @@ struct LogisticRegression(CV, Copyable):
         var l2_lambda = self.reg_alpha * (1.0 - self.l1_ratio)
 
         var prev_cost = math.inf[DType.float32]()
-        var num_b_iters = X.height // self.batch_size if self.batch_size > 0 else 0
+        var num_b_iters = (X.height + self.batch_size - 1) // self.batch_size if self.batch_size > 0 else 0
         var _reg = (self.damping + l2_lambda) * Matrix.eye(X.width)
         for _ in range(self.n_iters):
             if self.batch_size > 0:
@@ -86,6 +112,9 @@ struct LogisticRegression(CV, Copyable):
                     if l2_lambda > 0.0:
                         # L2 regularization
                         dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
+                    if l1_lambda > 0.0:
+                        # L1 regularization
+                        dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                     var db = y_error.mean()
                     if self.method == 'newton':
                         # curvature weights
@@ -98,9 +127,6 @@ struct LogisticRegression(CV, Copyable):
                         self.bias -= db / (Hb + self.damping)
                     else:
                         # gradient descent
-                        if l1_lambda > 0.0:
-                            # L1 regularization
-                            dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                         self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                         self.bias -= self.lr * db
                 if self.tol > 0.0:
@@ -122,6 +148,9 @@ struct LogisticRegression(CV, Copyable):
                 if l2_lambda > 0.0:
                     # L2 regularization
                     dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
+                if l1_lambda > 0.0:
+                    # L1 regularization
+                    dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                 var db = y_error.mean()
                 if self.method == 'newton':
                     # curvature weights
@@ -134,18 +163,17 @@ struct LogisticRegression(CV, Copyable):
                     self.bias -= db / (Hb + self.damping)
                 else:
                     # gradient descent
-                    if l1_lambda > 0.0:
-                        # L1 regularization
-                        dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
                     self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                     self.bias -= self.lr * db
 
     def predict(self, X: Matrix) raises -> Matrix:
         """Predict class for X.
-        
+
         Returns:
             The predicted classes.
         """
+        if self.weights.size == 0:
+            raise Error('LogisticRegression.predict: model is not fitted. Call fit() before predict()!')
         var y_predicted = sigmoid(X * self.weights + self.bias)
         return y_predicted.where(y_predicted >= 0.5, 1.0, 0.0)
 
@@ -170,6 +198,8 @@ struct LogisticRegression(CV, Copyable):
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            if w_size <= 0:
+                raise Error('LogisticRegression.load: corrupted model file (invalid weight count)!')
             var weights = f.read_bytes(4 * w_size)
             model.weights = Matrix(w_size, 1, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())))
             _ = weights
@@ -191,7 +221,7 @@ struct LogisticRegression(CV, Copyable):
         else:
             self.n_iters = 1000
         if 'method' in params:
-            self.method = params['method']
+            self.method = params['method'].lower()
         else:
             self.method = 'gradient'
         if 'reg_alpha' in params:

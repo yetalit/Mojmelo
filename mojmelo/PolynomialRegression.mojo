@@ -67,7 +67,7 @@ struct PolyRegression(CV, Copyable):
         var l2_lambda = self.reg_alpha * (1.0 - self.l1_ratio)
 
         var prev_cost = math.inf[DType.float32]()
-        var num_b_iters = X.height // self.batch_size if self.batch_size > 0 else 0
+        var num_b_iters = (X.height + self.batch_size - 1) // self.batch_size if self.batch_size > 0 else 0
         # gradient descent
         for _ in range(self.n_iters):
             if self.batch_size > 0:

@@ -35,7 +35,7 @@ struct GaussianNB(CV, Copyable):
                 non-negative integers starting at 0.
         """
         if self.var_smoothing < 0.0:
-            raise Error('GaussianNB: var_smoothing must be non-negative!')
+            raise Error('GaussianNB.fit: var_smoothing must be non-negative!')
         if X.height == 0:
             raise Error('GaussianNB.fit: X must contain at least one sample!')
         if X.height != y.height:
@@ -173,7 +173,7 @@ struct MultinomialNB(CV, Copyable):
                 non-negative integers starting at 0.
         """
         if self.alpha < 0.0:
-            raise Error('MultinomialNB: alpha must be non-negative!')
+            raise Error('MultinomialNB.fit: alpha must be non-negative!')
         if X.height == 0:
             raise Error('MultinomialNB.fit: X must contain at least one sample!')
         if X.height != y.height:
@@ -304,7 +304,7 @@ struct BernoulliNB(CV, Copyable):
                 non-negative integers starting at 0.
         """
         if self.alpha < 0.0:
-            raise Error('BernoulliNB: alpha must be non-negative!')
+            raise Error('BernoulliNB.fit: alpha must be non-negative!')
         if X.height == 0:
             raise Error('BernoulliNB.fit: X must contain at least one sample!')
         if X.height != y.height:

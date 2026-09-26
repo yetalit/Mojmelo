@@ -32,6 +32,7 @@ Here is the list of the algorithms:
 * Naive Bayes
     1. GaussianNB
     2. MultinomialNB
+    3. BernoulliNB
 * Decision Tree (Regression/Classification)
 * Random Forest (Regression/Classification)
 * GBDT (Regression/Classification)
@@ -125,13 +126,13 @@ from mojmelo.LinearRegression import LinearRegression
 ```
 You may also want to use the utility codes written for this project:
 ```python 
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import *
 ```
 Here is an example code demonstrating a common training process:
 ```python
 from mojmelo.KNN import KNN
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split, GridSearchCV, LabelEncoder
 from mojmelo.utils.utils import accuracy_score
 from std.python import Python
