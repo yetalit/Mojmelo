@@ -9,13 +9,15 @@ struct MultinomialNB
 
 Naive Bayes classifier for multinomial models.
 
+Suited for discrete count features.
+
 ## Aliases
 
 - `MODEL_ID = 8`
 
 ## Fields
 
-- **alpha** (`Float32`): Additive smoothing parameter.
+- **alpha** (`Float32`): Additive (Laplace/Lidstone) smoothing parameter. Must be non-negative.
 
 ## Implemented traits
 
@@ -42,6 +44,8 @@ fn def __init__(out self, alpha: Float32 = 0)
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)
@@ -64,8 +68,10 @@ Fit Naive Bayes classifier.
 **Args:**
 
 - **self** (`Self`)
-- **X** (`Matrix`)
-- **y** (`Matrix`)
+- **X** (`Matrix`): Training features of shape (n_samples, n_features). Expected to
+    be non-negative counts.
+- **y** (`Matrix`): Training labels of shape (n_samples, 1), encoded as contiguous
+    non-negative integers starting at 0.
 
 **Raises:**
 

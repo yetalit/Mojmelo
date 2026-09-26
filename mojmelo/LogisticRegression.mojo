@@ -109,12 +109,12 @@ struct LogisticRegression(CV, Copyable):
                     var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
                     var X_batch_T = X_batch.T()
                     var dw = (X_batch_T * y_error) / Float32(len(y_batch))
-                    if l2_lambda > 0.0:
-                        # L2 regularization
-                        dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                     if l1_lambda > 0.0:
                         # L1 regularization
                         dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
+                    if l2_lambda > 0.0:
+                        # L2 regularization
+                        dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                     var db = y_error.mean()
                     if self.method == 'newton':
                         # curvature weights
@@ -145,12 +145,12 @@ struct LogisticRegression(CV, Copyable):
 
                 var y_error = y_predicted._elemwise_matrix[sub](y)
                 var dw = (X_T * y_error) / Float32(X.height)
-                if l2_lambda > 0.0:
-                    # L2 regularization
-                    dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                 if l1_lambda > 0.0:
                     # L1 regularization
                     dw = dw._elemwise_matrix[add](l1_lambda * sign(self.weights))
+                if l2_lambda > 0.0:
+                    # L2 regularization
+                    dw = dw._elemwise_matrix[add](l2_lambda * self.weights)
                 var db = y_error.mean()
                 if self.method == 'newton':
                     # curvature weights

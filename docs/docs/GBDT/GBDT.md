@@ -64,6 +64,8 @@ fn def __init__(out self, criterion: String = "log", n_trees: Int = Int(10), min
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)

@@ -53,6 +53,8 @@ fn def __init__(out self, n_trees: Int = Int(10), min_samples_split: Int = Int(2
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)

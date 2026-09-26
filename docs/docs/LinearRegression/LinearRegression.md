@@ -56,6 +56,8 @@ fn def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = Int(100
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)

@@ -6,7 +6,7 @@ Mojo function
 fn def matvec(A: Mat, x: Vec) -> Vec
 ```
 
-Y = A * X, via column-scaled accumulation (each column read once, contiguous). y has length A.rows(), x must have length A.cols().
+Y = A * x. Each task owns a slice of rows of y (no write sharing) and consumes 4 columns per pass, so y is loaded/stored once per 4 FMAs.
 
 **Args:**
 

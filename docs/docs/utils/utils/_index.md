@@ -4,7 +4,7 @@ Mojo module
 
 ## Aliases
 
-- `MODEL_IDS = Array[__literal_size__=Int(13)](String(""), String("Linear Regression"), String("Polynomial Regression"), String("Logistic Regression"), String("KNN"), String("KMeans"), String("SVM"), String("GaussianNB"), String("MultinomialNB"), String("Decision Tree"), String("Random Forest"), String("GBDT"), String("PCA"), __list_literal__=NoneType(None))`
+- `MODEL_IDS = Array[__literal_size__=Int(14)](String(""), String("Linear Regression"), String("Polynomial Regression"), String("Logistic Regression"), String("KNN"), String("KMeans"), String("SVM"), String("GaussianNB"), String("MultinomialNB"), String("Decision Tree"), String("Random Forest"), String("GBDT"), String("PCA"), String("BernoulliNB"), __list_literal__=NoneType(None))`
 
 ## Traits
 
@@ -12,20 +12,9 @@ Mojo module
 
 ## Functions
 
-- [`argn`](argn.md)
 - [`euclidean_distance`](euclidean_distance.md)
 - [`squared_euclidean_distance`](squared_euclidean_distance.md)
 - [`manhattan_distance`](manhattan_distance.md)
-- [`add`](add.md)
-- [`sub`](sub.md)
-- [`mul`](mul.md)
-- [`div`](div.md)
-- [`eq`](eq.md)
-- [`ne`](ne.md)
-- [`gt`](gt.md)
-- [`ge`](ge.md)
-- [`lt`](lt.md)
-- [`le`](le.md)
 - [`sigmoid`](sigmoid.md)
 - [`normal_distr`](normal_distr.md)
 - [`unit_step`](unit_step.md)
@@ -48,7 +37,6 @@ Mojo module
 - [`softmax_h`](softmax_h.md)
 - [`fill_indices`](fill_indices.md)
 - [`fill_indices_list`](fill_indices_list.md)
-- [`cast`](cast.md)
 - [`ids_to_numpy`](ids_to_numpy.md)
 - [`cartesian_product`](cartesian_product.md)
 

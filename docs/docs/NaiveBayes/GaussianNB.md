@@ -9,6 +9,9 @@ struct GaussianNB
 
 Gaussian Naive Bayes (GaussianNB).
 
+Assumes the likelihood of each feature, conditioned on the class, follows
+a Gaussian distribution. Suited for continuous, real-valued features.
+
 ## Aliases
 
 - `MODEL_ID = 7`
@@ -19,7 +22,7 @@ Gaussian Naive Bayes (GaussianNB).
 
 ## Implemented traits
 
-`AnyType`, `Copyable`, `Deinitable`, `Movable`
+`AnyType`, `CV`, `Copyable`, `Deinitable`, `Movable`
 
 ## Methods
 
@@ -38,6 +41,23 @@ fn def __init__(out self, var_smoothing: Float32 = 1.0E-8)
 
 `Self`
 
+```mojo
+fn def __init__(out self, params: Dict[String, String])
+```
+
+Construct from a hyperparameter dictionary.
+
+**Args:**
+
+- **params** (`Dict[String, String]`)
+- **self** (`Self`)
+
+**Returns:**
+
+`Self`
+
+**Raises:**
+
 ### `fit`
 
 ```mojo
@@ -49,8 +69,9 @@ Fit Gaussian Naive Bayes.
 **Args:**
 
 - **self** (`Self`)
-- **X** (`Matrix`)
-- **y** (`Matrix`)
+- **X** (`Matrix`): Training features of shape (n_samples, n_features).
+- **y** (`Matrix`): Training labels of shape (n_samples, 1), encoded as contiguous
+    non-negative integers starting at 0.
 
 **Raises:**
 

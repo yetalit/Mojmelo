@@ -53,6 +53,8 @@ fn def __init__(out self, criterion: String = "gini", min_samples_split: Int = I
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)

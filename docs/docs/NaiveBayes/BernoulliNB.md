@@ -1,29 +1,26 @@
 Mojo struct
 
-# `KNN`
+# `BernoulliNB`
 
 ```mojo
 @memory_only
-struct KNN[EUC: Bool = False]
+struct BernoulliNB
 ```
 
-Classifier implementing the k-nearest neighbors vote.
+Naive Bayes classifier for multivariate Bernoulli models.
+
+Suited for discrete, binary/boolean features. Each feature is binarized
+against `binarize` (if it isn't already boolean) before being modelled
+with an independent Bernoulli distribution per class.
 
 ## Aliases
 
-- `MODEL_ID = 4`
-- `metric_ids = List(String("euc"), String("man"), __list_literal__=NoneType(None))`
-
-## Parameters
-
-- **EUC** (`Bool`): Setting EUC=True lets compiler optimize Euclidean distance calculations.
+- `MODEL_ID = 13`
 
 ## Fields
 
-- **k** (`Int`): Number of neighbors to use.
-- **metric** (`String`): Metric to use for distance computation: Euclidean -> 'euc'; Manhattan -> 'man'.
-- **kdtree** (`KDTree[EUC=EUC]`)
-- **y_train** (`Matrix`)
+- **alpha** (`Float32`): Additive (Laplace/Lidstone) smoothing parameter. Must be non-negative.
+- **binarize** (`Float32`): Threshold for binarizing features: values strictly greater than this become 1, others become 0.
 
 ## Implemented traits
 
@@ -34,20 +31,18 @@ Classifier implementing the k-nearest neighbors vote.
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, k: Int = Int(3), metric: String = "euc")
+fn def __init__(out self, alpha: Float32 = 0, binarize: Float32 = 0)
 ```
 
 **Args:**
 
-- **k** (`Int`)
-- **metric** (`String`)
+- **alpha** (`Float32`)
+- **binarize** (`Float32`)
 - **self** (`Self`)
 
 **Returns:**
 
 `Self`
-
-**Raises:**
 
 ```mojo
 fn def __init__(out self, params: Dict[String, String])
@@ -72,13 +67,14 @@ Construct from a hyperparameter dictionary.
 fn def fit(mut self, X: Matrix, y: Matrix)
 ```
 
-Fit the k-nearest neighbors classifier from the training dataset.
+Fit Bernoulli Naive Bayes classifier.
 
 **Args:**
 
 - **self** (`Self`)
-- **X** (`Matrix`)
-- **y** (`Matrix`)
+- **X** (`Matrix`): Training features of shape (n_samples, n_features).
+- **y** (`Matrix`): Training labels of shape (n_samples, 1), encoded as contiguous
+    non-negative integers starting at 0.
 
 **Raises:**
 
@@ -88,7 +84,7 @@ Fit the k-nearest neighbors classifier from the training dataset.
 fn def predict(self, X: Matrix) -> Matrix
 ```
 
-Predict the class indices for the provided data.
+Predict class for X.
 
 **Args:**
 
@@ -97,7 +93,7 @@ Predict the class indices for the provided data.
 
 **Returns:**
 
-`Matrix`: Class indices for each data sample.
+`Matrix`: The predicted classes.
 
 **Raises:**
 

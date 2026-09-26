@@ -169,23 +169,6 @@ fn def __getitem__(self, row: Int, *, unsafe: Bool) -> Self
 `Self`
 
 ```mojo
-fn def __getitem__(self, row: Int, offset: Bool, start_i: Int) -> Self
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **row** (`Int`)
-- **offset** (`Bool`)
-- **start_i** (`Int`)
-
-**Returns:**
-
-`Self`
-
-**Raises:**
-
-```mojo
 fn def __getitem__(self, row: String, column: Int) -> Self
 ```
 
@@ -217,23 +200,6 @@ fn def __getitem__(self, row: String, column: Int, *, unsafe: Bool) -> Self
 **Returns:**
 
 `Self`
-
-```mojo
-fn def __getitem__(self, offset: Bool, start_i: Int, column: Int) -> Self
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **offset** (`Bool`)
-- **start_i** (`Int`)
-- **column** (`Int`)
-
-**Returns:**
-
-`Self`
-
-**Raises:**
 
 ```mojo
 fn def __getitem__(self, rows: Self) -> Self
@@ -336,20 +302,6 @@ fn def __setitem__(mut self, row: Int, val: Self, *, unsafe: Bool)
 - **unsafe** (`Bool`)
 
 ```mojo
-fn def __setitem__(mut self, row: Int, offset: Bool, start_i: Int, val: Self)
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **row** (`Int`)
-- **offset** (`Bool`)
-- **start_i** (`Int`)
-- **val** (`Self`)
-
-**Raises:**
-
-```mojo
 fn def __setitem__(mut self, row: String, column: Int, val: Self)
 ```
 
@@ -373,20 +325,6 @@ fn def __setitem__(mut self, row: String, column: Int, val: Self, *, unsafe: Boo
 - **column** (`Int`)
 - **val** (`Self`)
 - **unsafe** (`Bool`)
-
-```mojo
-fn def __setitem__(mut self, offset: Bool, start_i: Int, column: Int, val: Self)
-```
-
-**Args:**
-
-- **self** (`Self`)
-- **offset** (`Bool`)
-- **start_i** (`Int`)
-- **column** (`Int`)
-- **val** (`Self`)
-
-**Raises:**
 
 ### `__neg__`
 
@@ -1619,44 +1557,11 @@ fn def reshape(self, height: Int, width: Int) -> Self
 
 `Self`
 
-### `lu_factor`
-
-```mojo
-@staticmethod
-fn def lu_factor(mut A, piv: Pointer[Int, MutAnyOrigin], N: Int)
-```
-
-**Args:**
-
-- **A** (`Self`)
-- **piv** (`Pointer[Int, MutAnyOrigin]`)
-- **N** (`Int`)
-
-**Raises:**
-
-### `lu_solve`
-
-```mojo
-@staticmethod
-fn def lu_solve(A, piv: Pointer[Int, MutAnyOrigin], b: Self, mut x: Self, N: Int, Mi: Int)
-```
-
-**Args:**
-
-- **A** (`Self`)
-- **piv** (`Pointer[Int, MutAnyOrigin]`)
-- **b** (`Self`)
-- **x** (`Self`)
-- **N** (`Int`)
-- **Mi** (`Int`)
-
-**Raises:**
-
 ### `solve`
 
 ```mojo
 @staticmethod
-fn def solve(var A, b: Self) -> Self
+fn def solve(A, b: Self) -> Self
 ```
 
 **Args:**

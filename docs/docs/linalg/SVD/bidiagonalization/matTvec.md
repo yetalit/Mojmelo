@@ -6,7 +6,7 @@ Mojo function
 fn def matTvec(A: Mat, x: Vec) -> Vec
 ```
 
-Y = A^T * X. y has length A.cols(), x must have length A.rows().
+Y = A^T x. One dot per column. Tasks own *groups* of columns sized to ~32K elements so dispatch cost is amortised.
 
 **Args:**
 

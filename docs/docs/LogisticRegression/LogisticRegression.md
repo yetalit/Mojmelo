@@ -60,6 +60,8 @@ fn def __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1.0
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)
@@ -82,8 +84,8 @@ Fit the model.
 **Args:**
 
 - **self** (`Self`)
-- **X** (`Matrix`)
-- **y** (`Matrix`)
+- **X** (`Matrix`): Training features of shape (n_samples, n_features).
+- **y** (`Matrix`): Training labels of shape (n_samples, 1), with values in {0, 1}.
 
 **Raises:**
 

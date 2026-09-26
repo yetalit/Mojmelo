@@ -21,5 +21,7 @@ Mojo package
 
 ## Packages
 
+- [`internal`](internal/_index.md)
+- [`linalg`](linalg/_index.md)
 - [`utils`](utils/_index.md)
 

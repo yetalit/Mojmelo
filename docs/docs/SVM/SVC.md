@@ -84,6 +84,8 @@ fn def __init__(out self, gamma: Float64, C: Float64 = 0, nu: Float64 = 0, kerne
 fn def __init__(out self, params: Dict[String, String])
 ```
 
+Construct from a hyperparameter dictionary.
+
 **Args:**
 
 - **params** (`Dict[String, String]`)
