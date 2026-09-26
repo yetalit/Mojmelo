@@ -87,11 +87,11 @@ struct HDBSCAN:
         """Find clusters based on hierarchical density-based clustering."""
 
         if self.min_samples < 1:
-            raise Error('min_samples cannot be smaller than 1!')
+            raise Error('HDBSCAN.fit: min_samples cannot be smaller than 1!')
         if self.min_cluster_size < 2:
-            raise Error('min_cluster_size cannot be smaller than 2!')
+            raise Error('HDBSCAN.fit: min_cluster_size cannot be smaller than 2!')
         if self.cluster_selection_method != 'eom' and self.cluster_selection_method != 'leaf':
-            raise Error('Invalid cluster_selection_method value!')
+            raise Error('HDBSCAN.fit: Invalid cluster_selection_method value!')
 
         var tree = KDTreeBoruvka(X, min_samples=self.min_samples, leaf_size=max(32, 2 * self.min_samples))
         var boruvka_alg = HDBSCANBoruvka(Pointer[KDTreeBoruvka, MutUntrackedOrigin](unsafe_from_address=Int(Pointer(to=tree))), min_samples=self.min_samples, alpha=self.alpha)

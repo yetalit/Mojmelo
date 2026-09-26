@@ -180,6 +180,7 @@ struct PolyRegression(CV, Copyable):
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'degree' in params:
             self.degree = atol(String(params['degree']))
         else:

@@ -147,6 +147,7 @@ struct LinearRegression(CV, Copyable):
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'learning_rate' in params:
             self.lr = atof(String(params['learning_rate'])).cast[DType.float32]()
         else:

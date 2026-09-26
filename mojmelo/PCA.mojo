@@ -66,7 +66,7 @@ struct PCA(Copyable):
             if svd_info == INFO_NO_CONVERGENCE:
                 print("\nWARNING: SVD didn't converged!")
             else:
-                raise Error("SVD failed!")
+                raise Error("PCA.fit: SVD failed!")
         var S = Matrix.__init__[consume=False](svd.singularValues().data, 1, n_cols)
         self.components = Matrix.__init__[consume=False](svd.matrixV().data, self.n_components, n_cols)
         _ = svd

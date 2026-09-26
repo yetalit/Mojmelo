@@ -17,7 +17,7 @@ trait CV(Deinitable):
         ...
 
 
-comptime MODEL_IDS: Array[String, 13] = ['',
+comptime MODEL_IDS: Array[String, 14] = ['',
     'Linear Regression',
     'Polynomial Regression',
     'Logistic Regression',
@@ -29,7 +29,8 @@ comptime MODEL_IDS: Array[String, 13] = ['',
     'Decision Tree',
     'Random Forest',
     'GBDT',
-    'PCA'
+    'PCA',
+    'BernoulliNB'
                                         ]
 
 @always_inline

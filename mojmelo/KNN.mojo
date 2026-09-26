@@ -95,7 +95,7 @@ struct KNN[EUC: Bool = False](CV, Copyable):
             var k = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
             var metric = materialize[Self.metric_ids]()[f.read_bytes(1)[0]]
             if Self.EUC and metric != 'euc':
-                raise Error('EUC parameter is set to True but the loaded metric value is not Euclidean!')
+                raise Error('KNN.load: EUC parameter is set to True but the loaded metric value is not Euclidean!')
             var n_samples = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var n_features = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             var X = f.read_bytes(4 * n_samples * n_features)
@@ -110,6 +110,7 @@ struct KNN[EUC: Bool = False](CV, Copyable):
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'k' in params:
             self.k = atol(String(params['k']))
         else:

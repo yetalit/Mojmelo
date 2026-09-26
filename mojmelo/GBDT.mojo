@@ -204,6 +204,7 @@ struct GBDT(CV, Copyable):
 		return model^
 
 	def __init__(out self, params: Dict[String, String]) raises:
+		"""Construct from a hyperparameter dictionary."""
 		if 'criterion' in params:
 			self.criterion = params['criterion'].lower()
 		else:

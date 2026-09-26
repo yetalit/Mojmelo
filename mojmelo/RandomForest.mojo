@@ -188,6 +188,7 @@ struct RandomForest(CV, Copyable):
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'n_trees' in params:
             self.n_trees = atol(String(params['n_trees']))
         else:

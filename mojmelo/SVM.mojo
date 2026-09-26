@@ -165,7 +165,7 @@ struct SVC(CV, Copyable):
         var check = svm_check_parameter(prob, param)
         if check != "":
             prob.y.unsafe_free()
-            raise Error(check)
+            raise Error('SVC.fit:', check)
 
         self._model = svm_train(prob, param)
 
@@ -394,6 +394,7 @@ struct SVC(CV, Copyable):
         return support_vectors_^
 
     def __init__(out self, params: Dict[String, String]) raises:
+        """Construct from a hyperparameter dictionary."""
         if 'C' in params:
             self.C = atof(String(params['C']))
         else:
