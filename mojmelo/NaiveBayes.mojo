@@ -288,7 +288,7 @@ struct BernoulliNB(CV, Copyable):
     var _priors: List[Float32]
     comptime MODEL_ID = 13
 
-    def __init__(out self, alpha: Float32 = 1.0, binarize: Float32 = 0.0):
+    def __init__(out self, alpha: Float32 = 0.0, binarize: Float32 = 0.0):
         self.alpha = alpha
         self.binarize = binarize
         self._classes = List[Int]()
@@ -403,7 +403,7 @@ struct BernoulliNB(CV, Copyable):
         if 'alpha' in params:
             self.alpha = atof(String(params['alpha'])).cast[DType.float32]()
         else:
-            self.alpha = 1.0
+            self.alpha = 0.0
         if 'binarize' in params:
             self.binarize = atof(String(params['binarize'])).cast[DType.float32]()
         else:

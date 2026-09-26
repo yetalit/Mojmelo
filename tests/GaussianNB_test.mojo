@@ -1,5 +1,5 @@
 from mojmelo.NaiveBayes import GaussianNB
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split, LabelEncoder
 from mojmelo.utils.utils import accuracy_score
 from std.python import Python

@@ -1,5 +1,5 @@
 from mojmelo.RandomForest import RandomForest
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import mse as mean_squared_error
 from std.python import Python
 import std.random as random

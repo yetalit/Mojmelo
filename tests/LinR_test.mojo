@@ -1,5 +1,5 @@
 from mojmelo.LinearRegression import LinearRegression
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split
 from mojmelo.utils.utils import mse, r2_score
 from std.python import Python

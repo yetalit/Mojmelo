@@ -1,5 +1,5 @@
 from mojmelo.RandomForest import RandomForest
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import accuracy_score
 from std.python import Python
 import std.random as random

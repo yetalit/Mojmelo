@@ -1,5 +1,5 @@
 from mojmelo.KMeans import KMeans
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.utils.utils import ids_to_numpy
 from std.python import Python
 

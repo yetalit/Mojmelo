@@ -1,5 +1,5 @@
 from mojmelo.PCA import PCA
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from std.python import Python
 import std.random as random
 from std.benchmark import keep

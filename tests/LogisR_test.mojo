@@ -1,5 +1,5 @@
 from mojmelo.LogisticRegression import LogisticRegression
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split, GridSearchCV
 from mojmelo.utils.utils import accuracy_score
 from std.python import Python

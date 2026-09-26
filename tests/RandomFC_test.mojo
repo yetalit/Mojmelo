@@ -1,5 +1,5 @@
 from mojmelo.RandomForest import RandomForest
-from mojmelo.utils.Matrix import Matrix
+from mojmelo.linalg.Matrix import Matrix
 from mojmelo.preprocessing import train_test_split
 from mojmelo.utils.utils import accuracy_score
 from std.python import Python
