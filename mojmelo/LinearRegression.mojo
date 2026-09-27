@@ -25,8 +25,8 @@ struct LinearRegression(CV, Copyable):
     """Bias term."""
     comptime MODEL_ID = 1
 
-    def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = -1.0,
-                tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
+    def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
+                tol: Float32 = -1.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.n_iters = n_iters
         self.reg_alpha = reg_alpha
@@ -40,7 +40,27 @@ struct LinearRegression(CV, Copyable):
         self.bias = 0.0
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
-        """Fit the model."""
+        """Fit the model.
+
+        Args:
+            X: Training features of shape (n_samples, n_features).
+            y: Training targets of shape (n_samples, 1).
+        """
+        if self.lr <= 0.0:
+            raise Error('LinearRegression.fit: learning_rate must be positive!')
+        if self.n_iters <= 0:
+            raise Error('LinearRegression.fit: n_iters must be positive!')
+        if self.reg_alpha < 0.0:
+            raise Error('LinearRegression.fit: reg_alpha must be non-negative!')
+        if self.l1_ratio < 0.0 or self.l1_ratio > 1.0:
+            raise Error('LinearRegression.fit: l1_ratio must be between 0 and 1!')
+        if self.batch_size < 0:
+            raise Error('LinearRegression.fit: batch_size must be non-negative!')
+        if X.height == 0:
+            raise Error('LinearRegression.fit: X must contain at least one sample!')
+        if X.height != y.height:
+            raise Error('LinearRegression.fit: X and y must have the same number of samples!')
+
         # init parameters
         self.weights = Matrix.zeros(X.width, 1)
         self.bias = 0.0
@@ -72,7 +92,7 @@ struct LinearRegression(CV, Copyable):
                     var y_batch = y[batch_indices]
 
                     var y_batch_predicted = X_batch * self.weights + self.bias
-                    if self.tol > 0.0:
+                    if self.tol >= 0.0:
                         cost += mse(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     # compute gradients and update parameters
                     var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
@@ -86,14 +106,14 @@ struct LinearRegression(CV, Copyable):
                     var db = y_error.mean()
                     self.weights -= self.lr * dw
                     self.bias -= self.lr * db
-                if self.tol > 0.0:
+                if self.tol >= 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break
                     prev_cost = cost
             else:
                 var y_predicted = X * self.weights + self.bias
 
-                if self.tol > 0.0:
+                if self.tol >= 0.0:
                     var cost = mse(y, y_predicted)
                     if abs(prev_cost - cost) <= self.tol:
                         break
@@ -117,6 +137,8 @@ struct LinearRegression(CV, Copyable):
         Returns:
             The predicted values.
         """
+        if self.weights.size == 0:
+            raise Error('LinearRegression.predict: model is not fitted. Call fit() before predict()!')
         return X * self.weights + self.bias
 
     def save(self, path: String) raises:
@@ -140,6 +162,8 @@ struct LinearRegression(CV, Copyable):
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_size = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            if w_size <= 0:
+                raise Error('LinearRegression.load: corrupted model file (invalid weight count)!')
             var weights = f.read_bytes(4 * w_size)
             model.weights = Matrix(w_size, 1, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())))
             _ = weights
@@ -167,7 +191,7 @@ struct LinearRegression(CV, Copyable):
         if 'tol' in params:
             self.tol = atof(String(params['tol'])).cast[DType.float32]()
         else:
-            self.tol = 0.0
+            self.tol = -1.0
         if 'batch_size' in params:
             self.batch_size = atol(String(params['batch_size']))
         else:
