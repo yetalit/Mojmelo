@@ -30,7 +30,7 @@ from std.utils.coord import Coord, CoordLike, DynamicCoord, coord_to_index_list
 # ===-----------------------------------------------------------------------===#
 
 
-@always_inline
+@inline(.always)
 def _get_nd_indices_from_flat_index[
     element_types: TypeList[Trait=CoordLike, ...],
     //,
@@ -109,7 +109,7 @@ def _get_nd_indices_from_flat_index[
     return res
 
 
-@always_inline
+@inline(.always)
 def _get_nd_indices_from_flat_index(
     flat_index: Int, shape: IndexList, skip_dim: Int, out res: type_of(shape)
 ):
@@ -140,7 +140,7 @@ def _get_nd_indices_from_flat_index(
 # ===-----------------------------------------------------------------------===#
 
 
-@always_inline
+@inline(.always)
 def _reduce_generator_cpu[
     num_reductions: Int,
     init_type: DType,
@@ -271,7 +271,7 @@ def _reduce_along_inner_dimension[
     )
     var simd_compatible_size = align_down(reduce_dim_size, simd_width)
 
-    @always_inline
+    @inline(.always)
     @__parameter
     def simd_reduce_helper_fn[
         in_width: SIMDLength,
@@ -284,13 +284,20 @@ def _reduce_along_inner_dimension[
         ]()
 
         comptime for i in range(num_reductions):
-            out_acc_tup[i] = in_acc_tup[i].reduce[
-                reduce_function[init_type, reduction_idx=i, ...], out_width
-            ]()
+
+            @inline(.always)
+            def reduce_wrapper[
+                width: SIMDLength
+            ](lhs: SIMD[init_type, width], rhs: SIMD[init_type, width]) -> SIMD[
+                init_type, width
+            ]:
+                return reduce_function[init_type, width, i](lhs, rhs)
+
+            out_acc_tup[i] = in_acc_tup[i].reduce[out_width](reduce_wrapper)
 
         return out_acc_tup
 
-    @always_inline
+    @inline(.always)
     @__parameter
     def reduce_rows_unrolled(start_row: Int, end_row: Int):
         # Iterate over the non reduced dimensions.
@@ -302,7 +309,7 @@ def _reduce_along_inner_dimension[
                 flat_index, shape, reduce_dim
             )
 
-            @always_inline
+            @inline(.always)
             @__parameter
             def unrolled_reduce_helper_fn[
                 width: SIMDLength,
@@ -371,7 +378,7 @@ def _reduce_along_inner_dimension[
             indices[reduce_dim] = 0
             output_0_fn(indices, acc_scalar_tup)
 
-    @always_inline
+    @inline(.always)
     @__parameter
     def reduce_rows(i: Int):
         var start_parallel_offset = i * chunk_size
@@ -463,7 +470,7 @@ def _reduce_along_outer_dimension[
 
         for var slice_idx in range(start_parallel_offset, end_parallel_offset):
 
-            @always_inline
+            @inline(.always)
             def reduce_chunk[simd_width: Int](inner_dim_idx: Int) {imm}:
                 var acc_simd_tup = StaticTuple[
                     SIMD[init_type, simd_width], num_reductions

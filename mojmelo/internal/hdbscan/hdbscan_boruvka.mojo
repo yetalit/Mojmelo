@@ -11,13 +11,13 @@ struct UnionFind:
     var parent: List[Int]
     var rank: List[Int]
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, size: Int) raises:
         self.parent = fill_indices_list(size)
         self.rank = List[Int](capacity=size)
         self.rank.resize(size, 0)
 
-    @always_inline
+    @inline(.always)
     def find(mut self, x: Int) -> Int:
         var v = x
         while self.parent[v] != v:
@@ -26,7 +26,7 @@ struct UnionFind:
             v = self.parent[v]
         return v
 
-    @always_inline
+    @inline(.always)
     def unite(mut self, x: Int, y: Int):
         var xr = self.find(x)
         var yr = self.find(y)
@@ -73,7 +73,7 @@ struct HDBSCANBoruvka:
     # Temporary remap buffer, kept alive across rounds to avoid re-alloc
     var component_remap: List[Int]
 
-    @always_inline
+    @inline(.always)
     def __init__(out self,
                  t: Pointer[KDTreeBoruvka, MutUntrackedOrigin],
                  min_samples: Int = 5,
@@ -147,7 +147,7 @@ struct HDBSCANBoruvka:
     #  Mutual reachability distance (squared, deferred sqrt to edge emit) #
     # ------------------------------------------------------------------ #
 
-    @always_inline
+    @inline(.always)
     def mr_rdist(self, var d2: Float32,
                  p: Int,
                  q: Int) -> Float32:

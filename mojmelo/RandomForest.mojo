@@ -5,7 +5,7 @@ from mojmelo.utils.algorithm import parallelize
 from std.memory import Layout
 from std import math, random
 
-@always_inline
+@inline(.always)
 def bootstrap_sample(X: Matrix, y: Matrix) raises -> Tuple[Matrix, Matrix]:
     var idxs = Matrix.rand_choice(X.height, X.height, True, seed = False)
     var unique_idxs = List[Int]()

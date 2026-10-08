@@ -63,7 +63,7 @@ struct HouseholderQR:
     var m_rows: Int
     var m_cols: Int  # number of reflectors == min(original rows, cols)
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.m_qr = Mat(0, 0)
         self.m_hCoeffs = Vec(0)
@@ -127,7 +127,7 @@ struct HouseholderQR:
 
             k += nb
 
-    @always_inline
+    @inline(.always)
     def matrixR(self) -> Mat:
         """The cols x cols (== m_cols x m_cols) upper-triangular R factor,
         as a fresh dense copy — matches Eigen's
@@ -140,7 +140,7 @@ struct HouseholderQR:
                 R[i, j] = self.m_qr[i, j]
         return R^
 
-    @always_inline
+    @inline(.always)
     def apply_q_on_left(self, mut M: Mat):
         """M <- Q * M, i.e. H_0 * H_1 * ... * H_{m_cols-1} * M, applied via
         compact-WY panels of `block_size` reflectors at a time (2 GEMMs per
@@ -190,7 +190,7 @@ struct BDCSVD:
     var m_useQrDecomp: Bool
     var qrDecomp: HouseholderQR
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.m_impl = BDCSVDImpl()
         self.m_isTranspose = False
@@ -209,27 +209,27 @@ struct BDCSVD:
         self.m_useQrDecomp = False
         self.qrDecomp = HouseholderQR()
 
-    @always_inline
+    @inline(.always)
     def setSwitchSize(mut self, s: Int):
         self.m_impl.setAlgoSwap(s)
 
-    @always_inline
+    @inline(.always)
     def info(self) -> ComputationInfo:
         return self.m_info
 
-    @always_inline
+    @inline(.always)
     def singularValues(self) -> Vec:
         return self.m_singularValues.segment(0, len(self.m_singularValues))
 
-    @always_inline
+    @inline(.always)
     def matrixU(self) -> Mat:
         return self.m_matrixU.block(0, 0, self.m_matrixU.rows(), self.m_matrixU.cols())
 
-    @always_inline
+    @inline(.always)
     def matrixV(self) -> Mat:
         return self.m_matrixV.block(0, 0, self.m_matrixV.rows(), self.m_matrixV.cols())
 
-    @always_inline
+    @inline(.always)
     def nonzeroSingularValues(self) -> Int:
         return self.m_nonzeroSingularValues
 
@@ -253,7 +253,7 @@ struct BDCSVD:
         # widened to avoid a regression for relatively square matrices):
         # for a matrix rectangular enough, QR-then-bidiagonalize-R beats
         # bidiagonalizing the full matrix directly.
-        self.m_useQrDecomp = (rows // 4 > cols) or (cols // 4 > rows)
+        self.m_useQrDecomp = (rows // 4 >= cols) or (cols // 4 >= rows)
 
         var compU = computeV
         var compV = computeU
@@ -263,7 +263,7 @@ struct BDCSVD:
             compV = tmp
         self.m_impl.allocate(self.m_diagSize, compU, compV)
 
-    @always_inline
+    @inline(.always)
     def extractSingularValues(mut self, scale: RealScalar):
         var considerZero = REAL_MIN
         self.m_singularValues = Vec(self.m_diagSize)
@@ -281,7 +281,7 @@ struct BDCSVD:
     # (diagonal, superdiagonal). No bidiagonalization step needed.
     # No thinU/thinV parameters here: this path is inherently n x n
     # (rows == cols == diagSize == len(diag)), so thin and full always coincide.
-    @always_inline
+    @inline(.always)
     def compute_bidiagonal(
         mut self, diag: Vec, superdiag: Vec, computeU: Bool, computeV: Bool
     ) -> ComputationInfo:
@@ -359,7 +359,7 @@ struct BDCSVD:
     # via UpperBidiagonalization.
     # Runs the QR pre-pass ("R-Bidiagonalization") for very rectangular
     # inputs, via HouseholderQR.
-    @always_inline
+    @inline(.always)
     def compute(
         mut self, A: Mat, computeU: Bool, computeV: Bool, thinU: Bool = False, thinV: Bool = False
     ) -> ComputationInfo:

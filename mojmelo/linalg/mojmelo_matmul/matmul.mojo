@@ -8,11 +8,11 @@ from std.utils import IndexList
 from std import random
 from .params import *
 
-@always_inline
+@inline(.always)
 def roundup(a: Int, b: Int) -> Int:
     return ((a + b - 1) // b) * b
 
-@always_inline
+@inline(.always)
 def rounddown(a: Int, b: Int) -> Int:
     return (a // b) * b
 
@@ -39,15 +39,15 @@ struct MatLayout(TrivialRegisterPassable, Copyable, Writable):
         self.strides = IndexList[2](shape[1], 1)
         self.shape = IndexList[2](shape[0], shape[1])
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __call__(self, i: Int, j: Int) -> Int:
         return i * self.strides[0] + j * self.strides[1]
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def size(self) -> Int:
         return self.shape[0] * self.shape[1]
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def write_to[W: Writer](self, mut writer: W):
         writer.write(self.shape, ":", self.strides, "\n")
 
@@ -60,45 +60,45 @@ struct Matrix[Type: DType]:
         self.data = alloc(Layout[Scalar[Self.Type]](count=shape[0] * shape[1])).unsafe_leak()
         self.layout = MatLayout(shape)
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __init__(
         out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], var layout: MatLayout
     ):
         self.data = data
         self.layout = layout
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __init__(
         out self, data: Pointer[Scalar[Self.Type], MutUntrackedOrigin], shape: Tuple[Int, Int]
     ):
         self.data = data
         self.layout = MatLayout(shape)
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __getitem__(
         ref [_]self, i: Int, j: Int
     ) -> ref [origin_of(self)] Scalar[Self.Type]:
         return (self.data.unsafe_offset(self.layout(i, j)))[]
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def slice(self, i: Int, j: Int, ir: Int, jr: Int) -> Self:
         return Matrix(
             self.data.unsafe_offset(self.layout(i, j)),
             MatLayout((ir, jr), (self.layout.strides[0], self.layout.strides[1])),
         )
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def shape[dim: Int](self) -> Int:
         return self.layout.shape[dim]
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def stride[dim: Int](self) -> Int:
         return self.layout.strides[dim]
 
     def rand(mut self):
         random.rand(self.data, self.layout.size())
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def load[width: Int, *, dim: Int](self, i: Int, j: Int) -> SIMD[Self.Type, width]:
         var ptr = self.data.unsafe_offset(self.layout(i, j))
         comptime if dim == 0:
@@ -106,7 +106,7 @@ struct Matrix[Type: DType]:
         else:
             return ptr.unsafe_load[width=width]()
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def store[width: Int, *, dim: Int](self, value: SIMD[Self.Type, width], i: Int, j: Int):
         var ptr = self.data.unsafe_offset(self.layout(i, j))
         comptime if dim == 0:
@@ -122,7 +122,7 @@ struct Matrix[Type: DType]:
             writer.write("\n")
 
 
-@always_inline
+@inline(.always)
 def pack_A[
     Type: DType, //, mr: Int, inner_parallel: Bool = False
 ](
@@ -161,7 +161,7 @@ def pack_A[
     return Matrix(Ac_buffer, Ac_layout)
 
 
-@always_inline
+@inline(.always)
 def pack_B[
     Type: DType, //, kc: Int, nr: Int
 ](Bc_buffer: Pointer[Scalar[Type], MutUntrackedOrigin], Bc: Matrix[Type]) -> Matrix[Type]:
@@ -191,7 +191,7 @@ def pack_B[
     return Matrix[Type](Bc_buffer, Bc_layout)
 
 
-@always_inline
+@inline(.always)
 def micro_kernel[
     Type: DType, //, mr: Int, nr: Int, padding: Bool
 ](mut Cr: Matrix[Type], Ar: Matrix[Type], Br: Matrix[Type]):
@@ -261,7 +261,7 @@ def micro_kernel[
                 )
 
 
-@always_inline
+@inline(.always)
 def macro_kernel[
     Type: DType, //, mr: Int, nr: Int
 ](mut Cc: Matrix[Type], Ac: Matrix[Type], Bc: Matrix[Type]):
@@ -286,7 +286,7 @@ def macro_kernel[
     parallelize[parallelize_ir]((Ac.shape[0]() + mr - 1) // mr, n_threads)
 
 
-@always_inline
+@inline(.always)
 def loop_n[
     Type: DType, //, kc: Int, mr: Int, nr: Int
 ](nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type]):
@@ -303,7 +303,7 @@ def loop_n[
         var j = tile_idx * nc_actual
         var tile_n = min(N - j, nc_actual)
 
-        var Bc_buffer = alloc(Layout[Scalar[Type]](count=kc * nc_actual * size_of[Type](), alignment=64)).unsafe_leak()
+        var Bc_buffer = alloc(Layout[Scalar[Type], alignment=.of_bytes[64]()](count=kc * nc_actual * size_of[Type]())).unsafe_leak()
         var Bc = pack_B[kc, nr](Bc_buffer, B.slice(0, j, B.shape[0](), tile_n))
         var Cc = C.slice(0, j, C.shape[0](), tile_n)
         macro_kernel[mr, nr](Cc, A, Bc)
@@ -312,7 +312,7 @@ def loop_n[
     parallelize[process_tile](num_tiles, num_tiles)
 
 
-@always_inline
+@inline(.always)
 def matmul_impl[
     Type: DType, //, kc: Int, mr: Int, nr: Int
 ](mc: Int, nc: Int, mut C: Matrix[Type], A: Matrix[Type], B: Matrix[Type]):
@@ -320,7 +320,7 @@ def matmul_impl[
     var N = C.shape[1]()
     var K = A.shape[1]()
 
-    var Ac_buffer = alloc(Layout[Scalar[Type]](count=mc * kc * size_of[Type](), alignment=64)).unsafe_leak()
+    var Ac_buffer = alloc(Layout[Scalar[Type], alignment=.of_bytes[64]()](count=mc * kc * size_of[Type]())).unsafe_leak()
 
     for i in range(0, M, mc):
         var Cb = C.slice(i, 0, min(M - i, mc), N)
@@ -335,7 +335,7 @@ def matmul_impl[
     Ac_buffer.unsafe_free()
 
 
-@always_inline
+@inline(.always)
 def matmul_params[Type: DType]() -> IndexList[5]:
     comptime mc = 8192 // size_of[Type]()
     comptime N = simd_width_of[Type]()

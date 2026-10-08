@@ -6,11 +6,11 @@ from std.memory import Layout
 from std.collections import BinaryHeap
 from mojmelo.utils.utils import fill_indices_list
 
-@always_inline
+@inline(.always)
 def Abs(val: Float32) -> Float32:
     return abs(val)
 
-@always_inline
+@inline(.always)
 def Squared(val: Float32) -> Float32:
     return val*val
 
@@ -24,27 +24,27 @@ struct KDTreeResult(TrivialRegisterPassable, Comparable):
     var dis: Float32  # its square Euclidean distance
     var idx: Int    # which neighbor was found
 
-    @always_inline
+    @inline(.always)
     def __gt__(self, rhs: Self) -> Bool:
         return self.dis > rhs.dis
 
-    @always_inline
+    @inline(.always)
     def __ge__(self, rhs: Self) -> Bool:
         return self.dis >= rhs.dis
 
-    @always_inline
+    @inline(.always)
     def __lt__(self, rhs: Self) -> Bool:
         return self.dis < rhs.dis
 
-    @always_inline
+    @inline(.always)
     def __le__(self, rhs: Self) -> Bool:
         return self.dis <= rhs.dis
 
-    @always_inline
+    @inline(.always)
     def __eq__(self, rhs: Self) -> Bool:
         return self.dis == rhs.dis
 
-    @always_inline
+    @inline(.always)
     def __ne__(self, rhs: Self) -> Bool:
         return self.dis != rhs.dis
 
@@ -55,11 +55,11 @@ struct KDTreeResultVector(Copyable, Sized):
     def __init__(out self):
         self._self = BinaryHeap[KDTreeResult]()
 
-    @always_inline
+    @inline(.always)
     def __getitem__(self, index: Int) -> KDTreeResult:
         return self._self._data[index]
 
-    @always_inline
+    @inline(.always)
     def __len__(self) -> Int:
         return len(self._self)
 
@@ -99,7 +99,7 @@ struct SearchRecord:
         self.nn = 0
         self.centeridx = self.correltime = 0
 
-@always_inline
+@inline(.always)
 def dis_from_bnd(x: Float32, amin: Float32, amax: Float32) -> Float32:
     if x > amax:
         return x-amax
@@ -159,7 +159,7 @@ struct KDTreeNode[EUC: Bool](Copyable):
                 if nfarther.value()[].box_in_search_range(sr):
                     nfarther.value()[].search(sr)
 
-    @always_inline
+    @inline(.always)
     def box_in_search_range(self, sr: SearchRecord) -> Bool:
         # does the bounding box, represented by minbox[*],maxbox[*]
         # have any point which is within 'sr.ballsize' to 'sr.qv'??

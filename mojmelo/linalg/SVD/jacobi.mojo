@@ -38,7 +38,7 @@ def apply_jacobi_on_right(
             q_ptr.unsafe_store[simd_width](idx, s * vp + c * vq)
         vectorize[SIMD_WIDTH](row_count, blend)
 
-@always_inline
+@inline(.always)
 def apply_rotation_left_rows(mut M: Mat, p: Int, q: Int, rot: JacobiRotation):
     """M.rows[{p,q}] <- rot * M.rows[{p,q}]  (Eigen's applyOnTheLeft)."""
     for j in range(M.cols()):
@@ -47,7 +47,7 @@ def apply_rotation_left_rows(mut M: Mat, p: Int, q: Int, rot: JacobiRotation):
         M[p, j] = rot.c * xp + rot.s * xq
         M[q, j] = -rot.s * xp + rot.c * xq
 
-@always_inline
+@inline(.always)
 def apply_rotation_right_cols(mut M: Mat, p: Int, q: Int, rot: JacobiRotation):
     """M.cols[{p,q}] <- M.cols[{p,q}] * rot  (Eigen's applyOnTheRight)."""
     for i in range(M.rows()):
@@ -56,7 +56,7 @@ def apply_rotation_right_cols(mut M: Mat, p: Int, q: Int, rot: JacobiRotation):
         M[i, p] = rot.c * xp - rot.s * xq
         M[i, q] = rot.s * xp + rot.c * xq
 
-@always_inline
+@inline(.always)
 def apply_rotation_cols_direct(mut M: Mat, p: Int, q: Int, rot: JacobiRotation):
     for i in range(M.rows()):
         var xp = M[i, p]
@@ -69,7 +69,7 @@ def apply_rotation_cols_direct(mut M: Mat, p: Int, q: Int, rot: JacobiRotation):
 # both sides of the symmetric 2x2 matrix [[x, y], [y, z]]
 # diagonalizes it.
 # ------------------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def make_jacobi(x: RealScalar, y: RealScalar, z: RealScalar) -> JacobiRotation:
     var abs_y = abs(y)
     var deno = RealScalar(2) * abs_y
@@ -103,7 +103,7 @@ def make_jacobi(x: RealScalar, y: RealScalar, z: RealScalar) -> JacobiRotation:
     var c = denominator * n
     return JacobiRotation(c, s)
 
-@always_inline
+@inline(.always)
 def jacobi_svd_2x2(M: Mat, p: Int, q: Int) -> Tuple[JacobiRotation, JacobiRotation]:
     var m00 = M[p, p]
     var m01 = M[p, q]

@@ -12,7 +12,7 @@ from mojmelo.utils.utils import fill_indices
 
 comptime TAU = 1e-12
 
-@always_inline
+@inline(.always)
 def powi(base: Float64, times: Int) -> Float64:
     var tmp = base
     var ret = 1.0
@@ -25,7 +25,7 @@ def powi(base: Float64, times: Int) -> Float64:
         t//=2
     return ret
 
-@always_inline
+@inline(.always)
 def dot(var px: Pointer[svm_node, MutUntrackedOrigin], var py: Pointer[svm_node, MutUntrackedOrigin]) -> Float64:
     var sum = 0.0
     while px[].index != -1 and py[].index != -1:
@@ -88,19 +88,19 @@ def k_function(var x: Pointer[svm_node, MutUntrackedOrigin], var y: Pointer[svm_
     else:
         return 0  # Unreachable
 
-@always_inline
+@inline(.always)
 def kernel_linear(k: kernel_params, i: Int, j: Int) -> Float64:
     return dot(k.x[unsafe_offset=i],k.x[unsafe_offset=j])
-@always_inline
+@inline(.always)
 def kernel_poly(k: kernel_params, i: Int, j: Int) -> Float64:
     return powi(k.gamma*dot(k.x[unsafe_offset=i],k.x[unsafe_offset=j])+k.coef0,k.degree)
-@always_inline
+@inline(.always)
 def kernel_rbf(k: kernel_params, i: Int, j: Int) -> Float64:
     return math.exp(-k.gamma*(k.x_square[unsafe_offset=i]+k.x_square[unsafe_offset=j]-2*dot(k.x[unsafe_offset=i],k.x[unsafe_offset=j])))
-@always_inline
+@inline(.always)
 def kernel_sigmoid(k: kernel_params, i: Int, j: Int) -> Float64:
     return math.tanh(k.gamma*dot(k.x[unsafe_offset=i],k.x[unsafe_offset=j])+k.coef0)
-@always_inline
+@inline(.always)
 def kernel_precomputed(k: kernel_params, i: Int, j: Int) -> Float64:
     return k.x[unsafe_offset=i][unsafe_offset=Int(k.x[unsafe_offset=j][unsafe_offset=0].value)].value
 
@@ -110,7 +110,7 @@ struct head_t(RegisterPassable):
     var data: OptionalPointer[Float32, MutUntrackedOrigin]
     var _len: Int		# data[0,len) is cached in this entry
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.prev = None
         self.next = None
@@ -127,7 +127,7 @@ struct Cache:
     var head: OptionalPointer[head_t, MutUntrackedOrigin]
     var lru_head: head_t
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, l_: Int, size_: UInt):
         self.l = l_
         self.size = (size_ - UInt(self.l * size_of[head_t]())) // 4
@@ -159,7 +159,7 @@ struct Cache:
         h[].prev.value()[].next = h
         h[].next.value()[].prev = h
 
-    @always_inline
+    @inline(.always)
     def get_data(mut self, index: Int, data: Pointer[OptionalPointer[Float32, MutUntrackedOrigin], MutUntrackedOrigin], var _len: Int) -> Int:
         var h = self.head.value().unsafe_offset(index)
         if h[]._len:
@@ -189,7 +189,7 @@ struct Cache:
         data[] = h[].data
         return _len
 
-    @always_inline
+    @inline(.always)
     def swap_index(mut self, var i: Int, var j: Int):
         if i==j:
             return
@@ -242,7 +242,7 @@ trait QMatrix:
 #
 #    var kernel_function: def(kernel_params, Int, Int) -> Float64
 #
-#    @always_inline
+#    @inline(.always)
 #    def __init__(out self, l: Int, x_: OptionalPointer[OptionalPointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin], param: svm_parameter):
 #        var x = alloc[OptionalPointer[svm_node, MutUntrackedOrigin]](l)
 #        unsafe_memcpy(dest=x, src=x_, count=l)
@@ -288,7 +288,7 @@ struct SolutionInfo(TrivialRegisterPassable):
     var upper_bound_n: Float64
     var r: Float64	# for Solver_NU
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.obj = 0.0
         self.rho = 0.0
@@ -333,7 +333,7 @@ struct Solver:
     var l: Int
     var unshrink: Bool
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.active_size = 0
         self.y = Pointer[Int8, MutUntrackedOrigin].unsafe_dangling()
@@ -804,7 +804,7 @@ struct Solver_NU:
     var l: Int
     var unshrink: Bool
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.si = SolutionInfo()
         self.active_size = 0
@@ -1291,7 +1291,7 @@ struct SVC_Q(QMatrix):
 
     var kernel_function: def(kernel_params, Int, Int) thin -> Float64
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, prob: svm_problem, param: svm_parameter, y_: OptionalPointer[Int8, MutUntrackedOrigin]):
         # Kernel
         var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=prob.l)).unsafe_leak()
@@ -1368,7 +1368,7 @@ struct ONE_CLASS_Q(QMatrix):
 
     var kernel_function: def(kernel_params, Int, Int) thin -> Float64
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
         var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=prob.l)).unsafe_leak()
@@ -1443,7 +1443,7 @@ struct SVR_Q(QMatrix):
 
     var kernel_function: def(kernel_params, Int, Int) thin -> Float64
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, prob: svm_problem, param: svm_parameter):
         # Kernel
         var x = alloc(Layout[Pointer[svm_node, MutUntrackedOrigin]](count=prob.l)).unsafe_leak()
@@ -2463,11 +2463,11 @@ def svm_cross_validation(prob: svm_problem, param: svm_parameter, var nr_fold: I
     fold_start.unsafe_free()
     perm.unsafe_free()
 
-@always_inline
+@inline(.always)
 def svm_get_svm_type(model: svm_model) -> Int:
     return model.param.svm_type
 
-@always_inline
+@inline(.always)
 def svm_get_nr_class(model: svm_model) -> Int:
     return model.nr_class
 
@@ -2480,7 +2480,7 @@ def svm_get_sv_indices(model: svm_model, indices: OptionalPointer[Int, MutUntrac
     if model.sv_indices:
         unsafe_memcpy(dest=indices.value(), src=model.sv_indices.value(), count=model.l)
 
-@always_inline
+@inline(.always)
 def svm_get_nr_sv(model: svm_model) -> Int:
     return model.l
 
@@ -2620,17 +2620,17 @@ def svm_predict_probability(model: svm_model, x: Pointer[svm_node, MutUntrackedO
     else:
         return svm_predict(model, x)
 
-def svm_decision_function(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin]) -> Tuple[Pointer[Float64, MutUntrackedOrigin], Int]:
+def svm_decision_function(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin]) -> List[Float64]:
     var nr_class = model.nr_class
     var l: Int
-    var dec_values: Pointer[Float64, MutUntrackedOrigin]
     if model.param.svm_type == svm_parameter.ONE_CLASS or model.param.svm_type == svm_parameter.EPSILON_SVR or model.param.svm_type == svm_parameter.NU_SVR:
         l = 1
     else:
         l = nr_class*(nr_class-1)//2
-    dec_values = alloc(Layout[Float64](count=l)).unsafe_leak()
-    _ = svm_predict_values(model, x, dec_values)
-    return dec_values, l
+    var dec_values = List[Float64](capacity=l)
+    dec_values.resize(l, 0)
+    _ = svm_predict_values(model, x, Pointer[Float64, MutUntrackedOrigin](unsafe_from_address=Int(dec_values.unsafe_ptr())))
+    return dec_values^
 
 def svm_free_model_content(mut model_ptr: svm_model):
     if model_ptr.free_sv and model_ptr.l > 0 and model_ptr.SV:

@@ -102,7 +102,7 @@ struct TraceCategory(Equatable, Intable, TrivialRegisterPassable):
     """The integer value representing the trace category. Used for bitwise operations
     when determining if profiling is enabled for a specific category."""
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __eq__(self, rhs: Self) -> Bool:
         """Compares for equality.
 
@@ -114,7 +114,7 @@ struct TraceCategory(Equatable, Intable, TrivialRegisterPassable):
         """
         return self.value == rhs.value
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __ne__(self, rhs: Self) -> Bool:
         """Compares for inequality.
 
@@ -126,7 +126,7 @@ struct TraceCategory(Equatable, Intable, TrivialRegisterPassable):
         """
         return self.value != rhs.value
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __int__(self) -> Int:
         """Converts the trace category to an integer.
 
@@ -160,7 +160,7 @@ struct TraceLevel(Comparable, TrivialRegisterPassable):
     - 2 (THREAD): Thread-level tracing
     """
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, value: Int):
         """Initializes a TraceLevel with the given integer value.
 
@@ -169,7 +169,7 @@ struct TraceLevel(Comparable, TrivialRegisterPassable):
         """
         self.value = value
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __eq__(self, rhs: Self) -> Bool:
         """Compares for equality.
 
@@ -181,7 +181,7 @@ struct TraceLevel(Comparable, TrivialRegisterPassable):
         """
         return self.value == rhs.value
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __lt__(self, rhs: Self) -> Bool:
         """Performs less than comparison.
 
@@ -193,7 +193,7 @@ struct TraceLevel(Comparable, TrivialRegisterPassable):
         """
         return self.value < rhs.value
 
-    @always_inline("nodebug")
+    @inline(.nodebug)
     def __int__(self) -> Int:
         """Converts the trace level to an integer.
 
@@ -208,7 +208,7 @@ struct TraceLevel(Comparable, TrivialRegisterPassable):
 # ===-----------------------------------------------------------------------===#
 
 
-@always_inline
+@inline(.always)
 def is_profiling_enabled[type: TraceCategory, level: TraceLevel]() -> Bool:
     """Returns True if the profiling is enabled for that specific type and
     level and False otherwise.
@@ -235,7 +235,7 @@ def is_profiling_enabled[type: TraceCategory, level: TraceLevel]() -> Bool:
     )
 
 
-@always_inline
+@inline(.always)
 def is_profiling_disabled[type: TraceCategory, level: TraceLevel]() -> Bool:
     """Returns False if the profiling is enabled for that specific type and
     level and True otherwise.
@@ -250,7 +250,7 @@ def is_profiling_disabled[type: TraceCategory, level: TraceLevel]() -> Bool:
     return not is_profiling_enabled[type, level]()
 
 
-@always_inline
+@inline(.always)
 def _is_op_logging_enabled[level: TraceLevel]() -> Bool:
     comptime if logger.DEFAULT_LEVEL == logger.Level.NOTSET:
         return False
@@ -258,25 +258,25 @@ def _is_op_logging_enabled[level: TraceLevel]() -> Bool:
     return level <= TraceLevel.OP
 
 
-@always_inline
+@inline(.always)
 def _is_tracy_enabled() -> Bool:
     """Returns whether the Tracy bridge is enabled in CompilerRT."""
     return external_call["KGEN_CompilerRT_TracyIsEnabled", Int]() != 0
 
 
-@always_inline
+@inline(.always)
 def _is_mojo_profiling_enabled[level: TraceLevel]() -> Bool:
     """Returns whether Mojo profiling is enabled for the specified level."""
     return is_profiling_enabled[TraceCategory.MAX, level]()
 
 
-@always_inline
+@inline(.always)
 def _is_mojo_profiling_disabled[level: TraceLevel]() -> Bool:
     """Returns whether Mojo profiling is disabled for the specified level."""
     return is_profiling_disabled[TraceCategory.MAX, level]()
 
 
-@always_inline
+@inline(.always)
 def _get_enabled_tracing_systems[level: TraceLevel]() -> List[String]:
     """Returns a list of enabled tracing system names.
 
@@ -302,7 +302,7 @@ def _get_enabled_tracing_systems[level: TraceLevel]() -> List[String]:
     return enabled_systems^
 
 
-@always_inline
+@inline(.always)
 def trace_arg(name: String, shape: IndexList) -> String:
     """Helper to stringify the type and shape of a kernel argument for tracing.
 
@@ -321,7 +321,7 @@ def trace_arg(name: String, shape: IndexList) -> String:
     return s
 
 
-@always_inline
+@inline(.always)
 def trace_arg(name: String, shape: IndexList, dtype: DType) -> String:
     """Helper to stringify the type and shape of a kernel argument for tracing.
 
@@ -381,7 +381,7 @@ struct Trace[
     # This constructor is intentionally hidden because Variant is too flexible
     # about what it allows and we want to ensure that only StaticString or
     # String are used.
-    @always_inline
+    @inline(.always)
     def __init__(
         out self,
         *,
@@ -441,7 +441,7 @@ struct Trace[
             self.detail = ""
             self.int_payload = None
 
-    @always_inline
+    @inline(.always)
     def __init__(
         out self,
         var name: String,
@@ -469,7 +469,7 @@ struct Trace[
             color=color,
         )
 
-    @always_inline
+    @inline(.always)
     def __init__(
         out self,
         name: StaticString,
@@ -497,7 +497,7 @@ struct Trace[
             color=color,
         )
 
-    @always_inline
+    @inline(.always)
     def __init__(
         out self,
         name: StringLiteral,
@@ -525,7 +525,7 @@ struct Trace[
             color=color,
         )
 
-    @always_inline
+    @inline(.always)
     def __enter__(mut self) raises:
         """Enters the trace context.
 
@@ -605,7 +605,7 @@ struct Trace[
             "KGEN_CompilerRT_TimeTraceProfilerSetCurrentId", NoneType
         ](self.event_id)
 
-    @always_inline
+    @inline(.always)
     def __exit__(self):
         """Exits the trace context.
 
@@ -634,7 +634,7 @@ struct Trace[
             "KGEN_CompilerRT_TimeTraceProfilerSetCurrentId", NoneType
         ](0)
 
-    @always_inline
+    @inline(.always)
     def name(self) -> String:
         """Returns the name of the trace.
 
@@ -647,7 +647,7 @@ struct Trace[
 
     # WAR: passing detail_fn to __init__ causes internal compiler crash
     @staticmethod
-    @always_inline
+    @inline(.always)
     def _get_detail_str[detail_fn: def() capturing -> String]() -> String:
         """Return the detail str when tracing is enabled and an empty string otherwise.
         """
@@ -659,7 +659,7 @@ struct Trace[
         else:
             return ""
 
-    @always_inline
+    @inline(.always)
     def start(mut self) raises:
         """Start recording trace event.
 
@@ -670,7 +670,7 @@ struct Trace[
         """
         self.__enter__()
 
-    @always_inline
+    @inline(.always)
     def end(mut self) raises:
         """End recording trace event.
 

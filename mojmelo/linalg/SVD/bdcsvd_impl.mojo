@@ -44,7 +44,7 @@ struct BDCSVDImpl:
     var m_numIters: Int
     var m_info: ComputationInfo
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.m_naiveU = Mat(0, 0)
         self.m_naiveV = Mat(0, 0)
@@ -59,31 +59,31 @@ struct BDCSVDImpl:
         self.m_numIters = 0
         self.m_info = INFO_SUCCESS
 
-    @always_inline
+    @inline(.always)
     def algoSwap(self) -> Int:
         return self.m_algoswap
 
-    @always_inline
+    @inline(.always)
     def setAlgoSwap(mut self, s: Int):
         self.m_algoswap = s
 
-    @always_inline
+    @inline(.always)
     def info(self) -> ComputationInfo:
         return self.m_info
 
-    @always_inline
+    @inline(.always)
     def numIters(self) -> Int:
         return self.m_numIters
 
-    @always_inline
+    @inline(.always)
     def naiveU(mut self) -> Mat:
         return self.m_naiveU.block(0, 0, self.m_naiveU.rows(), self.m_naiveU.cols())
 
-    @always_inline
+    @inline(.always)
     def naiveV(mut self) -> Mat:
         return self.m_naiveV.block(0, 0, self.m_naiveV.rows(), self.m_naiveV.cols())
 
-    @always_inline
+    @inline(.always)
     def computed(mut self) -> Mat:
         return self.m_computed.block(0, 0, self.m_computed.rows(), self.m_computed.cols())
 
@@ -119,7 +119,7 @@ struct BDCSVDImpl:
     # scale by the sub-block's own max magnitude, and zero anything below
     # 0.45 * eps * ||B||_max (0.45 == 0.9 * half-unit-roundoff, matching
     # xBDSDC's 0.9 * DLAMCH('E') threshold).
-    @always_inline
+    @inline(.always)
     def splitNegligibleSuperdiagonal(mut self, n: Int):
         if n < 2:
             return
@@ -134,12 +134,12 @@ struct BDCSVDImpl:
     # --------------------------------------------------------------------
     # A = A * B. Eigen packs the mostly-zero rows of A before the multiply
     # to save flops when A is large; NOT ported here.
-    @always_inline
+    @inline(.always)
     def structured_update(mut self, mut A: Mat, B: Mat, n1: Int):
         var result = matmul(A, B)
         A.copyFrom(result)
 
-    @always_inline
+    @inline(.always)
     def computeBaseCase[V: Bool](
         mut self,
         n: Int,
@@ -348,7 +348,7 @@ struct BDCSVDImpl:
     # possibly the (0,0) entry. Fills U / singVals / (V if m_compV).
     # Singular values come back sorted in decreasing order (callers reverse
     # to increasing).
-    @always_inline
+    @inline(.always)
     def computeSVDofM(
         mut self, firstCol: Int, n: Int, mut U: Mat, mut singVals: Vec, mut V: Mat
     ):
@@ -548,7 +548,7 @@ struct BDCSVDImpl:
     # --------------------------------------------------------------------
     # zhat: the perturbation of col0 that lets singular vectors be computed
     # stably (Gu & Eisenstat section 3.1 / LAPACK's xLASD8).
-    @always_inline
+    @inline(.always)
     def perturbCol0(
         mut self,
         col0: Vec,
@@ -652,7 +652,7 @@ struct BDCSVDImpl:
 
     # --------------------------------------------------------------------
     # i >= 1, d_i ~ 0 and z_i != 0: rotate to zero out z_i, set d_i = 0.
-    @always_inline
+    @inline(.always)
     def deflation43(mut self, firstCol: Int, shift: Int, i: Int, size: Int):
         var start = firstCol + shift
         var c = self.m_computed[start, start]
@@ -674,7 +674,7 @@ struct BDCSVDImpl:
     # --------------------------------------------------------------------
     # i, j >= 1, i > j, |d_i - d_j| < eps * ||M||_2: two rotations make
     # z_i == 0 and d_j == d_i.
-    @always_inline
+    @inline(.always)
     def deflation44(
         mut self,
         firstColu: Int,
@@ -708,7 +708,7 @@ struct BDCSVDImpl:
     # --------------------------------------------------------------------
     # Acts on the block from (firstCol+shift, firstCol+shift) to
     # (lastCol+shift, lastCol+shift) inclusive.
-    @always_inline
+    @inline(.always)
     def deflation(
         mut self, firstCol: Int, lastCol: Int, k: Int, firstRowW: Int, firstColW: Int, shift: Int
     ):
@@ -826,7 +826,7 @@ struct BDCSVDImpl:
 # In the original these are static members with no access to `self`; kept as
 # free functions here for the same reason.
 # ------------------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def productOfQuotients(
     firstNumerator: RealScalar,
     firstDenominator: RealScalar,
@@ -840,14 +840,14 @@ def productOfQuotients(
     var q2 = secondNumerator / secondDenominator
     return q1 * q2
 
-@always_inline
+@inline(.always)
 def sequentialQuotient(
     numerator: RealScalar, firstDenominator: RealScalar, secondDenominator: RealScalar
 ) -> RealScalar:
     var q1 = numerator / firstDenominator
     return q1 / secondDenominator
 
-@always_inline
+@inline(.always)
 def secularEq(
     mu: RealScalar, col0: Vec, diag: Vec, perm: IVec, diagShifted: Vec, shift: RealScalar
 ) -> RealScalar:

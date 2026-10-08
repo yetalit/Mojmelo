@@ -5,7 +5,7 @@ struct svm_problem(RegisterPassable):
 	var y: Pointer[Float64, MutUntrackedOrigin]
 	var x: Pointer[Pointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin]
 
-	@always_inline
+	@inline(.always)
 	def __init__(out self):
 		self.l = 0
 		self.y = Pointer[Float64, MutUntrackedOrigin].unsafe_dangling()
