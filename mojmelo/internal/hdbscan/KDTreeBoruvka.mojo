@@ -138,7 +138,9 @@ struct KDTreeBoruvka:
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
-        self.k = 2 * min_samples
+        # fast_hdbscan uses k=min_samples+1 for unweighted branch and
+        # expected_neighbors=min_samples/mean_sample_weight -> k=int(2*expected_neighbors) for sample-weighted branch
+        self.k = min_samples + 1
         self.knn_idx  = alloc(Layout[Int](count=self.n * self.k)).unsafe_leak()
         self.knn_dist = alloc(Layout[Float32](count=self.n * self.k)).unsafe_leak()
         @__parameter
