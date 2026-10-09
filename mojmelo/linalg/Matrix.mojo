@@ -1124,8 +1124,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @inline(.always)
     def argmin(self, axis: Int) -> List[Int]:
+        var vect: List[Int]
         if axis == 0:
-            var vect = List[Int](capacity=self.width)
+            vect = List[Int](capacity=self.width)
             vect.resize(self.width, 0)
             if self.width < 512:
                 for i in range(self.width):
@@ -1135,9 +1136,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 def p0(i: Int):
                     vect[i] = self['', i, unsafe=True].argmin()
                 parallelize[p0](self.width)
-            return vect^
         else:
-            var vect = List[Int](capacity=self.height)
+            vect = List[Int](capacity=self.height)
             vect.resize(self.height, 0)
             if self.height < 512:
                 for i in range(self.height):
@@ -1147,7 +1147,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 def p1(i: Int):
                     vect[i] = self[i, unsafe=True].argmin()
                 parallelize[p1](self.height)
-            return vect^
+        return vect^
 
     @inline(.always)
     def argmax(self) -> Int:
@@ -1161,8 +1161,9 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
 
     @inline(.always)
     def argmax(self, axis: Int) -> List[Int]:
+        var vect: List[Int]
         if axis == 0:
-            var vect = List[Int](capacity=self.width)
+            vect = List[Int](capacity=self.width)
             vect.resize(self.width, 0)
             if self.width < 512:
                 for i in range(self.width):
@@ -1172,9 +1173,8 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 def p0(i: Int):
                     vect[i] = self['', i, unsafe=True].argmax()
                 parallelize[p0](self.width)
-            return vect^
         else:
-            var vect = List[Int](capacity=self.height)
+            vect = List[Int](capacity=self.height)
             vect.resize(self.height, 0)
             if self.height < 512:
                 for i in range(self.height):
@@ -1184,7 +1184,7 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
                 def p1(i: Int):
                     vect[i] = self[i, unsafe=True].argmax()
                 parallelize[p1](self.height)
-            return vect^
+        return vect^
 
     @inline(.always)
     def argmax_f(self, axis: Int) -> Matrix:
@@ -1489,10 +1489,12 @@ struct Matrix(Writable, Copyable, ImplicitlyCopyable, Sized):
         if replace:
             random.randint(result.unsafe_ptr(), size, 0, arang - 1)
         else:
-            _ = fill_indices(arang, Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(result.unsafe_ptr())))
+            var indices = fill_indices(arang)
             for i in range(size):
                 var j = Int(random.random_ui64(UInt64(i), UInt64(arang - 1)))
-                result[i], result[j] = result[j], result[i]
+                indices[unsafe_offset=i], indices[unsafe_offset=j] = indices[unsafe_offset=j], indices[unsafe_offset=i]
+            unsafe_memcpy(dest=result.unsafe_ptr(), src=indices, count=size)
+            indices.unsafe_free()
         return result^
 
     @staticmethod
