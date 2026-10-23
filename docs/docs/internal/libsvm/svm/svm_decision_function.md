@@ -3,7 +3,7 @@ Mojo function
 # `svm_decision_function`
 
 ```mojo
-fn def svm_decision_function(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin]) -> Tuple[Pointer[Float64, MutUntrackedOrigin], Int]
+fn def svm_decision_function(model: svm_model, x: Pointer[svm_node, MutUntrackedOrigin]) -> List[Float64]
 ```
 
 **Args:**
@@ -13,5 +13,5 @@ fn def svm_decision_function(model: svm_model, x: Pointer[svm_node, MutUntracked
 
 **Returns:**
 
-`Tuple[Pointer[Float64, MutUntrackedOrigin], Int]`
+`List[Float64]`
 

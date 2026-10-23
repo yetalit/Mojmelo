@@ -4,13 +4,13 @@ Mojo module
 
 ## Functions
 
+- [`map_reduce`](map_reduce.md)
+- [`reduce`](reduce.md)
 - [`max`](max.md)
 - [`min`](min.md)
 - [`sum`](sum.md)
 - [`product`](product.md)
 - [`mean`](mean.md)
-- [`reduce`](reduce.md)
-- [`reduce_boolean`](reduce_boolean.md)
 - [`variance`](variance.md)
 - [`cumsum`](cumsum.md)
 

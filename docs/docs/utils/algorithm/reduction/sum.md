@@ -3,32 +3,6 @@ Mojo function
 # `sum`
 
 ```mojo
-fn def sum[dtype: DType, input_fn: def[width: Int, rank: Int](IndexList[rank]) capturing thin -> SIMD[dtype, width], output_fn: def[width: SIMDLength, rank: Int](IndexList[rank], SIMD[dtype, width]) capturing thin -> None, /, target: StringSpan[ImmStaticOrigin] = StringSpan("cpu"), *, reduce_dim: Int](input_shape: Coord)
-```
-
-Computes the sum across the input and output shape.
-
-This performs the sum computation on the domain specified by `input_shape`,
-loading the inputs using the `input_fn`. The results are stored using
-the `output_fn`.
-
-**Parameters:**
-
-- **dtype** (`DType`): The dtype of the input and output.
-- **input_fn** (`def[width: Int, rank: Int](IndexList[rank]) capturing thin -> SIMD[dtype, width]`): The function to load the input.
-- **output_fn** (`def[width: SIMDLength, rank: Int](IndexList[rank], SIMD[dtype, width]) capturing thin -> None`): The function to store the output.
-- **target** (`StringSpan[ImmStaticOrigin]`): The target to run on.
-- **reduce_dim** (`Int`): The axis to perform the sum on.
-
-**Args:**
-
-- **input_shape** (`Coord`): The input shape.
-
-**Raises:**
-
-If the operation fails.
-
-```mojo
 fn def sum[dtype: DType](src: Span[Scalar[dtype]]) -> Scalar[dtype]
 ```
 
@@ -51,7 +25,7 @@ Computes the sum of buffer elements.
 If the operation fails.
 
 ```mojo
-fn def sum[dtype: DType, input_fn_1d: def[dtype_: DType, width: Int](idx: Int) capturing thin -> SIMD[dtype_, width]](length: Int) -> Scalar[dtype]
+fn def sum[dtype: DType, InputFn1DType: def[dtype_: DType, width: Int](idx: Int) -> SIMD[dtype_, width] & RegisterPassable & ImplicitlyCopyable](length: Int, input_fn_1d: InputFn1DType) -> Scalar[dtype]
 ```
 
 Computes the sum of a 1D array using a provided input function.
@@ -63,11 +37,13 @@ of the specified width and data type. The reduction is performed using a single 
 **Parameters:**
 
 - **dtype** (`DType`): The data type of the elements to sum.
-- **input_fn_1d** (`def[dtype_: DType, width: Int](idx: Int) capturing thin -> SIMD[dtype_, width]`): A function that takes a data type, SIMD width, and index, and returns a SIMD vector of input values.
+- **InputFn1DType** (`def[dtype_: DType, width: Int](idx: Int) -> SIMD[dtype_, width] & RegisterPassable & ImplicitlyCopyable`): The type of `input_fn_1d` (inferred).
 
 **Args:**
 
 - **length** (`Int`): The number of elements in the 1D array.
+- **input_fn_1d** (`InputFn1DType`): A function that takes a data type, SIMD width, and
+  index, and returns a SIMD vector of input values.
 
 **Returns:**
 

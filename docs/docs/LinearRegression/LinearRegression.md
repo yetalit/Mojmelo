@@ -34,7 +34,7 @@ A Gradient Descent based linear regression with mse as the loss function.
 ### `__init__`
 
 ```mojo
-fn def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = Int(1000), reg_alpha: Float32 = 0, l1_ratio: Float32 = -1, tol: Float32 = 0, batch_size: Int = Int(0), random_state: Int = Int(-1))
+fn def __init__(out self, learning_rate: Float32 = 0.001, n_iters: Int = Int(1000), reg_alpha: Float32 = 0, l1_ratio: Float32 = 0, tol: Float32 = -1, batch_size: Int = Int(0), random_state: Int = Int(-1))
 ```
 
 **Args:**
@@ -80,8 +80,8 @@ Fit the model.
 **Args:**
 
 - **self** (`Self`)
-- **X** (`Matrix`)
-- **y** (`Matrix`)
+- **X** (`Matrix`): Training features of shape (n_samples, n_features).
+- **y** (`Matrix`): Training targets of shape (n_samples, 1).
 
 **Raises:**
 
