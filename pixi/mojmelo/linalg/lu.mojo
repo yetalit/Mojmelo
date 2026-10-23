@@ -5,13 +5,13 @@ from mojmelo.linalg.utils import _max_abs, _axpy, dot_unrolled, mul, elemwise_sc
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def _eps[dtype: DType]() -> Float64:
     comptime if dtype == DType.float64:
         return 2.220446049250313e-16
     return 1.1920929e-07  # float32 / fallback
 
-@always_inline
+@inline(.always)
 def _pivot_row[dtype: DType](a: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, k: Int) -> Int:
     """Row index in k..n-1 with the largest |A[i, k]| (strided, scalar)."""
     var best_row = k
@@ -23,7 +23,7 @@ def _pivot_row[dtype: DType](a: Pointer[Scalar[dtype], MutUntrackedOrigin], n: I
             best_row = i
     return best_row
 
-@always_inline
+@inline(.always)
 def _swap[dtype: DType](r1: Pointer[Scalar[dtype], MutUntrackedOrigin], r2: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int):
     """Swap r1[0:count] with r2[0:count] (must not overlap)."""
     comptime W = simd_width_of[dtype]()
@@ -36,7 +36,7 @@ def _swap[dtype: DType](r1: Pointer[Scalar[dtype], MutUntrackedOrigin], r2: Poin
 
     vectorize[W](count, body)
 
-@always_inline
+@inline(.always)
 def _eliminate[
     dtype: DType
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int) raises:
@@ -73,7 +73,7 @@ def _eliminate[
             _axpy[dtype, W](a.unsafe_offset(i * n + k + 1), ak, width, l)
             _axpy[dtype, W](x.unsafe_offset(i * nrhs), xk, nrhs, l)
 
-@always_inline
+@inline(.always)
 def _back_substitute[
     dtype: DType
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int):
@@ -104,7 +104,7 @@ def _back_substitute[
 # ----------------------------------------------------------------------
 # Public entry point
 # ----------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def lu_solve[
     dtype: DType = DType.float64
 ](a: Pointer[Scalar[dtype], MutUntrackedOrigin], x: Pointer[Scalar[dtype], MutUntrackedOrigin], n: Int, nrhs: Int = 1) raises:

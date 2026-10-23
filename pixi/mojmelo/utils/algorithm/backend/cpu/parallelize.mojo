@@ -28,7 +28,7 @@ from std.utils.numerics import FlushDenormals
 # ===-----------------------------------------------------------------------===#
 
 
-@always_inline
+@inline(.always)
 def sync_parallelize[
     origins: OriginSet,
     //,
@@ -61,7 +61,7 @@ def sync_parallelize[
     sync_parallelize(func_unified, num_work_items)
 
 
-@always_inline
+@inline(.always)
 def sync_parallelize[
     FuncType: def(Int) -> None,
 ](func: FuncType, num_work_items: Int):
@@ -85,7 +85,7 @@ def sync_parallelize[
     # parent. Otherwise parent_id will be zero.
     var parent_id = tracing.get_current_trace_id[TraceLevel.THREAD]()
 
-    @always_inline
+    @inline(.always)
     def func_wrapped(i: Int) {imm}:
         with FlushDenormals():
             try:
@@ -101,9 +101,9 @@ def sync_parallelize[
         func_wrapped(0)
         return
 
-    @always_inline
+    @inline(.always)
     @__parameter
-    async def task_fn(i: Int):
+    __async def task_fn(i: Int):
         func_wrapped(i)
 
     # Run sub-tasks using the 'default' runtime. If the caller is part of
@@ -131,7 +131,7 @@ def sync_parallelize[
     tg.wait()
 
 
-@always_inline
+@inline(.always)
 def parallelize[
     origins: OriginSet, //, func: def(Int) capturing[origins] -> None
 ](num_work_items: Int):
@@ -152,7 +152,7 @@ def parallelize[
     _parallelize_impl(func_unified, num_work_items, parallelism_level())
 
 
-@always_inline
+@inline(.always)
 def parallelize[
     origins: OriginSet, //, func: def(Int) capturing[origins] -> None
 ](num_work_items: Int, num_workers: Int):
@@ -174,7 +174,7 @@ def parallelize[
     _parallelize_impl(func_unified, num_work_items, num_workers)
 
 
-@always_inline
+@inline(.always)
 def parallelize[
     FuncType: def(Int) -> None,
 ](func: FuncType, num_work_items: Int):
@@ -191,7 +191,7 @@ def parallelize[
     _parallelize_impl(func, num_work_items, parallelism_level())
 
 
-@always_inline
+@inline(.always)
 def parallelize[
     FuncType: def(Int) -> None,
 ](
@@ -213,7 +213,7 @@ def parallelize[
     _parallelize_impl(func, num_work_items, num_workers)
 
 
-@always_inline
+@inline(.always)
 def _parallelize_impl[
     FuncType: def(Int) -> None,
 ](
@@ -238,7 +238,7 @@ def _parallelize_impl[
 
     # We coalesce consecutive groups of work items into a single dispatch by
     # using the coarse_grained_func below.
-    @always_inline
+    @inline(.always)
     def coarse_grained_func(
         thread_idx: Int,
     ) {imm func, imm chunk_size, imm extra_items,}:
@@ -256,7 +256,7 @@ def _parallelize_impl[
 # ===-----------------------------------------------------------------------===#
 
 
-@always_inline
+@inline(.always)
 def _get_num_workers(
     problem_size: Int,
     grain_size: Int = 32768,
@@ -339,7 +339,7 @@ def parallelize_over_rows[
     )
     var chunk_size = ceildiv(num_rows, num_workers)
 
-    @always_inline
+    @inline(.always)
     def task_func(
         task_id: Int,
     ) {imm func, imm chunk_size, imm num_rows,}:

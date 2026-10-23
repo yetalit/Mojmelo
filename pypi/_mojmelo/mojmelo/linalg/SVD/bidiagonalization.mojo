@@ -9,7 +9,7 @@ from mojmelo.utils.algorithm import parallelize
 from mojmelo.linalg.utils import mul, elemwise_scalar, _axpy, dot_unrolled
 from .linalg_core import RealScalar, Vec, Mat, SIMD_WIDTH, PAR_ELEMS, matmul, mat_transpose, vec_dot, sub_inplace, matmul_acc
 
-@always_inline
+@inline(.always)
 def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
     var m = len(v)
     if m == 1:
@@ -42,7 +42,7 @@ def make_householder_in_place(mut v: Vec) -> Tuple[RealScalar, RealScalar]:
 # ------------------------------------------------------------------------------
 # Rank-1 Householder updates. Both are O(rows*cols)
 # ------------------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def _householder_left_update_col(
     col_ptr: Pointer[RealScalar, MutUntrackedOrigin],
     ess_data: Pointer[RealScalar, MutUntrackedOrigin],
@@ -75,7 +75,7 @@ def _householder_left_update_col(
             var upd = tail_ptr[unsafe_offset=i] - s * ess_data[unsafe_offset=i * ess_stride]
             tail_ptr[unsafe_offset=i] = upd
 
-@always_inline
+@inline(.always)
 def apply_householder_left(mut M: Mat, essential: Vec, tau: RealScalar):
     """M <- (I - tau * w w^T) * M, where w = [1, essential...] has M.rows() entries."""
     if tau == RealScalar(0):
@@ -98,7 +98,7 @@ def apply_householder_left(mut M: Mat, essential: Vec, tau: RealScalar):
             _householder_left_update_col(base.unsafe_offset(j * col_stride), ess_data, ess_stride, ess_len, tau)
         parallelize[process_col](cols)
 
-@always_inline
+@inline(.always)
 def _householder_right_update_row(
     row_ptr0: Pointer[RealScalar, MutUntrackedOrigin],
     col_stride: Int,
@@ -117,7 +117,7 @@ def _householder_right_update_row(
         var off = (j + 1) * col_stride
         row_ptr0[unsafe_offset=off] = row_ptr0[unsafe_offset=off] - s * ess_data[unsafe_offset=j * ess_stride]
 
-@always_inline
+@inline(.always)
 def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
     """M <- M * (I - tau * w w^T), where w = [1, essential...] has M.cols() entries."""
     if tau == RealScalar(0):
@@ -155,7 +155,7 @@ def apply_householder_right(mut M: Mat, essential: Vec, tau: RealScalar):
 # applied last; index plen-1 = innermost = largest original index, applied
 # first — matching the existing high-to-low loop order).
 # ------------------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = False):
     var plen = V.cols()
     if plen == 0:
@@ -200,7 +200,7 @@ def apply_compact_wy_block(mut C: Mat, V: Mat, taus: Vec, use_transpose: Bool = 
 # ------------------------------------------------------------------------------
 comptime GEMV_ROW_CHUNK = 1024
 
-@always_inline
+@inline(.always)
 def matvec(A: Mat, x: Vec) -> Vec:
     """Y = A * x. Each task owns a slice of rows of y (no write sharing) and
     consumes 4 columns per pass, so y is loaded/stored once per 4 FMAs."""
@@ -258,7 +258,7 @@ def matvec(A: Mat, x: Vec) -> Vec:
         parallelize[do_chunk](nchunks)
     return y^
 
-@always_inline
+@inline(.always)
 def matTvec(A: Mat, x: Vec) -> Vec:
     """Y = A^T x. One dot per column. Tasks own *groups* of columns
     sized to ~32K elements so dispatch cost is amortised."""
@@ -283,7 +283,7 @@ def matTvec(A: Mat, x: Vec) -> Vec:
     parallelize[do_group](ngroups)
     return y^
 
-@always_inline
+@inline(.always)
 def vec_sub_scaled_inplace(mut y: Vec, z: Vec, scale: RealScalar):
     """Y -= scale * Z (elementwise, same length)."""
     var n = len(y)
@@ -295,7 +295,7 @@ def vec_sub_scaled_inplace(mut y: Vec, z: Vec, scale: RealScalar):
         for i in range(n):
             y[i] = y[i] - scale * z[i]
 
-@always_inline
+@inline(.always)
 def vec_scale_inplace(mut y: Vec, scale: RealScalar):
     if y.stride == 1:
         elemwise_scalar[RealScalar.DTYPE, SIMD_WIDTH, mul](y.data, y.data, len(y), scale)
@@ -496,7 +496,7 @@ struct UpperBidiagonalization:
     var m_cols: Int
     var m_isInitialized: Bool
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.m_householder = Mat(0, 0)
         self.m_diag = Vec(0)
@@ -532,18 +532,18 @@ struct UpperBidiagonalization:
         upperbidiagonalization_unblocked(self.m_householder, self.m_diag, self.m_superdiag)
         self.m_isInitialized = True
 
-    @always_inline
+    @inline(.always)
     def bidiagonal_diagonal(self) -> Vec:
         return self.m_diag.segment(0, len(self.m_diag))
 
-    @always_inline
+    @inline(.always)
     def bidiagonal_superdiagonal(self) -> Vec:
         return self.m_superdiag.segment(0, len(self.m_superdiag))
 
     # Apply U_h = H_0 * H_1 * ... * H_{cols-1} to M from the left, i.e.
     # M <- U_h * M. Since U_h*M = H_0*(H_1*(...*(H_{cols-1}*M))), apply the
     # highest-indexed reflector first and work back down to H_0.
-    @always_inline
+    @inline(.always)
     def apply_u_on_left(self, mut M: Mat):
         comptime block_size = 64
         var k_hi = self.m_cols - 1
@@ -567,7 +567,7 @@ struct UpperBidiagonalization:
     # M <- V_h * M. Same reverse application order as apply_u_on_left; the
     # V-side reflectors are shifted one column/row relative to U's, since
     # the (0,0) entry of a bidiagonal's right-hand transform is untouched.
-    @always_inline
+    @inline(.always)
     def apply_v_on_left(self, mut M: Mat):
         comptime block_size = 64
         var k_hi = self.m_cols - 2

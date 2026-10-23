@@ -12,7 +12,7 @@ from std.sys import CompilationTarget, simd_width_of
 
 comptime simd_width: Int = 4 * simd_width_of[DType.int]() if CompilationTarget.is_apple_silicon() else 2 * simd_width_of[DType.int]()
 
-@always_inline
+@inline(.always)
 def arange(start: Int, stop: Int) -> List[Int]:
     var buff = List[Int](capacity=stop - start)
     buff.resize(stop - start, 0)
@@ -304,7 +304,7 @@ struct TreeUnionFind:
     comptime width = 2
     var is_component: List[Bool]
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, size: Int):
         self._data = alloc(Layout[Int](count=size * self.width)).unsafe_leak()
         unsafe_memset_zero(self._data, size * self.width)
@@ -346,7 +346,7 @@ struct TreeUnionFind:
                 args.append(i)
         return args^
 
-    @always_inline
+    @inline(.always)
     def __deinit__(deinit self):
         self._data.unsafe_free()
 
@@ -700,7 +700,7 @@ def simplify_hierarchy(mut condensed_tree: Dict[String, List[Int]], mut lambda_a
 
     var cumulative_skipped = List[Int](capacity=len(n_skipped))
     cumulative_skipped.resize(len(n_skipped), 0)
-    reduction.cumsum(Span(unsafe_ptr=cumulative_skipped._data, length=len(n_skipped)), Span(unsafe_ptr=n_skipped._data, length=len(n_skipped)))
+    reduction.cumsum(Span(unsafe_ptr=cumulative_skipped.unsafe_ptr(), length=len(n_skipped)), Span(unsafe_ptr=n_skipped.unsafe_ptr(), length=len(n_skipped)))
     for idx, parent in enumerate(parent_map):
         var offset = cumulative_skipped[parent - n_points - 1] if (parent - n_points) > 0 else 0
         parent_map[idx] = parent - offset

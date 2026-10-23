@@ -22,7 +22,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
     )
 
     @__parameter
-    @always_inline
+    @inline(.always)
     def cmpeq[
         dtype: DType, simd_width: SIMDLength
     ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
@@ -34,7 +34,7 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
             return a.ge(b)
 
     @__parameter
-    @always_inline
+    @inline(.always)
     def cmp[
         dtype: DType, simd_width: SIMDLength
     ](a: SIMD[dtype, simd_width], b: SIMD[dtype, simd_width]) -> SIMD[
@@ -106,47 +106,47 @@ def argn[is_max: Bool](input: Matrix, output: Matrix):
 
 # ===----------------------------------------------------------------------===#
 
-@always_inline
+@inline(.always)
 def add[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a + b
 
-@always_inline
+@inline(.always)
 def sub[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a - b
 
-@always_inline
+@inline(.always)
 def mul[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a * b
 
-@always_inline
+@inline(.always)
 def div[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[dtype, width]:
     return a / b
 
-@always_inline
+@inline(.always)
 def eq[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.eq(b)
 
-@always_inline
+@inline(.always)
 def ne[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.ne(b)
 
-@always_inline
+@inline(.always)
 def gt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.gt(b)
 
-@always_inline
+@inline(.always)
 def ge[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.ge(b)
 
-@always_inline
+@inline(.always)
 def lt[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.lt(b)
 
-@always_inline
+@inline(.always)
 def le[dtype: DType, width: Int](a: SIMD[dtype, width], b: SIMD[dtype, width]) -> SIMD[DType.bool, width]:
     return a.le(b)
 
-@always_inline
+@inline(.always)
 def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntrackedOrigin], size: Int) -> Pointer[Scalar[des], MutUntrackedOrigin]:
     var ptr = alloc(Layout[Scalar[des]](count=size)).unsafe_leak()
     if size < 262144:
@@ -168,7 +168,7 @@ def cast[src: DType, des: DType, width: Int](data: Pointer[Scalar[src], MutUntra
         vectorize[width](size % width, tail)
     return ptr
 
-@always_inline
+@inline(.always)
 def elemwise_scalar[
     dtype: DType,
     width: Int,
@@ -196,7 +196,7 @@ def elemwise_scalar[
             dstTail.unsafe_store(idx, func(srcTail.unsafe_load[width=simd_width](idx), s))
         vectorize[width](count % width, tail)
 
-@always_inline
+@inline(.always)
 def elemwise_matrix[
     dtype: DType,
     width: Int,
@@ -225,7 +225,7 @@ def elemwise_matrix[
             dstTail.unsafe_store(idx, func(lhsTail.unsafe_load[width=simd_width](idx), rhsTail.unsafe_load[width=simd_width](idx)))
         vectorize[width](count % width, tail)
 
-@always_inline
+@inline(.always)
 def _max_abs[dtype: DType, width: Int](var p: Pointer[Scalar[dtype], MutUntrackedOrigin], count: Int) -> Scalar[dtype]:
     var m = Scalar[dtype](0)
 
@@ -237,7 +237,7 @@ def _max_abs[dtype: DType, width: Int](var p: Pointer[Scalar[dtype], MutUntracke
     vectorize[width](count, findMax)
     return m
 
-@always_inline
+@inline(.always)
 def _axpy[
     dtype: DType,
     width: Int
@@ -255,7 +255,7 @@ def _axpy[
 
     vectorize[width](count, body)
 
-@always_inline
+@inline(.always)
 def dot_unrolled[
     dtype: DType,
     width: Int

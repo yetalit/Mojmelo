@@ -28,7 +28,7 @@ struct PolyRegression(CV, Copyable):
     comptime MODEL_ID = 2
 
     def __init__(out self, degree: Int = 2, learning_rate: Float32 = 0.01, n_iters: Int = 1000, reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
-                tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
+                tol: Float32 = -1.0, batch_size: Int = 0, random_state: Int = -1):
         self.degree = degree
         self.lr = learning_rate
         self.n_iters = n_iters
@@ -49,7 +49,29 @@ struct PolyRegression(CV, Copyable):
         return X_poly^
 
     def fit(mut self, X: Matrix, y: Matrix) raises:
-        """Fit the model."""
+        """Fit the model.
+
+        Args:
+            X: Training features of shape (n_samples, n_features).
+            y: Training targets of shape (n_samples, 1).
+        """
+        if self.degree < 1:
+            raise Error('PolyRegression.fit: degree must be at least 1!')
+        if self.lr <= 0.0:
+            raise Error('PolyRegression.fit: learning_rate must be positive!')
+        if self.n_iters <= 0:
+            raise Error('PolyRegression.fit: n_iters must be positive!')
+        if self.reg_alpha < 0.0:
+            raise Error('PolyRegression.fit: reg_alpha must be non-negative!')
+        if self.l1_ratio < 0.0 or self.l1_ratio > 1.0:
+            raise Error('PolyRegression.fit: l1_ratio must be between 0 and 1!')
+        if self.batch_size < 0:
+            raise Error('PolyRegression.fit: batch_size must be non-negative!')
+        if X.height == 0:
+            raise Error('PolyRegression.fit: X must contain at least one sample!')
+        if X.height != y.height:
+            raise Error('PolyRegression.fit: X and y must have the same number of samples!')
+
         var X_poly = self._polynomial_features(X)
         # init parameters
         self.weights = Matrix.zeros(X.width, self.degree, order='f')
@@ -91,7 +113,7 @@ struct PolyRegression(CV, Copyable):
                     var y_batch_predicted = X_batch * self.weights['', 0] + self.bias
                     for i in range(1, self.degree):
                         y_batch_predicted = y_batch_predicted._elemwise_matrix[add](X_poly[i - 1][batch_indices] * self.weights['', i])
-                    if self.tol > 0.0:
+                    if self.tol >= 0.0:
                         cost += mse(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     # compute gradients and update parameters
                     var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
@@ -107,7 +129,7 @@ struct PolyRegression(CV, Copyable):
                     var db = y_error.mean()
                     self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                     self.bias -= self.lr * db
-                if self.tol > 0.0:
+                if self.tol >= 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break
                     prev_cost = cost
@@ -116,7 +138,7 @@ struct PolyRegression(CV, Copyable):
                 for i in range(1, self.degree):
                     y_predicted = y_predicted._elemwise_matrix[add](X_poly[i - 1] * self.weights['', i])
 
-                if self.tol > 0.0:
+                if self.tol >= 0.0:
                     var cost = mse(y, y_predicted)
                     if abs(prev_cost - cost) <= self.tol:
                         break
@@ -143,6 +165,8 @@ struct PolyRegression(CV, Copyable):
         Returns:
             The predicted values.
         """
+        if self.weights.size == 0:
+            raise Error('PolyRegression.predict: model is not fitted. Call fit() before predict()!')
         var X_poly = self._polynomial_features(X)
         var y_predicted: Matrix = X * self.weights['', 0] + self.bias
         for i in range(1, self.degree):
@@ -171,7 +195,11 @@ struct PolyRegression(CV, Copyable):
             elif id != Self.MODEL_ID:
                 raise Error('Based on the metadata, ', _path, ' belongs to ', materialize[MODEL_IDS]()[id], ' algorithm!')
             var w_height = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
+            if w_height <= 0:
+                raise Error('PolyRegression.load: corrupted model file (invalid feature count)!')
             var degree = Int(f.read_bytes(4).unsafe_ptr().unsafe_bitcast[UInt32]()[])
+            if degree <= 0:
+                raise Error('PolyRegression.load: corrupted model file (invalid degree)!')
             model.degree = degree
             var weights = f.read_bytes(4 * w_height * degree)
             model.weights = Matrix(w_height, degree, Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(weights.unsafe_ptr())), order='f')
@@ -204,7 +232,7 @@ struct PolyRegression(CV, Copyable):
         if 'tol' in params:
             self.tol = atof(String(params['tol'])).cast[DType.float32]()
         else:
-            self.tol = 0.0
+            self.tol = -1.0
         if 'batch_size' in params:
             self.batch_size = atol(String(params['batch_size']))
         else:

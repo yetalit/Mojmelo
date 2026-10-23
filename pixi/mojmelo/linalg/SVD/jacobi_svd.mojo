@@ -65,7 +65,7 @@ struct ColPivHouseholderQR:
     var m_cols: Int  # number of reflectors == min(original rows, cols)
     var m_maxPivot: RealScalar
 
-    @always_inline
+    @inline(.always)
     def __init__(out self):
         self.m_qr = Mat(0, 0)
         self.m_hCoeffs = Vec(0)
@@ -161,7 +161,7 @@ struct ColPivHouseholderQR:
                     else:
                         colNormsUpdated[j] = colNormsUpdated[j] * sqrt(temp)
 
-    @always_inline
+    @inline(.always)
     def matrixR(self) -> Mat:
         """The cols x cols (== m_cols x m_cols) upper-triangular R factor of
         A*P, as a fresh dense copy.
@@ -173,7 +173,7 @@ struct ColPivHouseholderQR:
                 R[i, j] = self.m_qr[i, j]
         return R^
 
-    @always_inline
+    @inline(.always)
     def apply_q_on_left(self, mut M: Mat):
         """M <- Q * M, i.e. H_0 * H_1 * ... * H_{m_cols-1} * M — reflectors
         applied in reverse order, same pattern as
@@ -194,7 +194,7 @@ struct ColPivHouseholderQR:
 # the sweep produces the singular vectors of the *permuted* problem, so row k
 # of that result belongs at row perm[k] (the original, unpermuted index).
 # ------------------------------------------------------------------------------
-@always_inline
+@inline(.always)
 def unpermute_rows(mut M: Mat, perm: IVec):
     var n = len(perm)
     var src = M.copy()
@@ -387,7 +387,7 @@ struct JacobiSVD:
     var sing_vals: Vec
     var status: ComputationInfo
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, compute_v: Bool):
         self.compute_v = compute_v
         self.u = Mat(0, 0)
@@ -402,18 +402,18 @@ struct JacobiSVD:
         # either way, so skipping V's accumulation wouldn't save much.
         self.status = jacobi_svd(m, self.u, self.sing_vals, self.v, thinU, thinV)
 
-    @always_inline
+    @inline(.always)
     def info(self) -> ComputationInfo:
         return self.status
 
-    @always_inline
+    @inline(.always)
     def matrixU(self) -> Mat:
         return self.u.block(0, 0, self.u.rows(), self.u.cols())
 
-    @always_inline
+    @inline(.always)
     def matrixV(self) -> Mat:
         return self.v.block(0, 0, self.v.rows(), self.v.cols())
 
-    @always_inline
+    @inline(.always)
     def singularValues(self) -> Vec:
         return self.sing_vals.segment(0, len(self.sing_vals))

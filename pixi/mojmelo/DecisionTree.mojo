@@ -20,7 +20,7 @@ struct Node(Copyable):
         self.right = right
         self.value = value
 
-    @always_inline
+    @inline(.always)
     def is_leaf_node(self) -> Bool:
         return self.feature == -1
 

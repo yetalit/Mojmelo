@@ -49,7 +49,7 @@ struct KNN[EUC: Bool = False](CV, Copyable):
         parallelize[p](X.height)
         return y_pred^
 
-    @always_inline
+    @inline(.always)
     def _predict(self, x: Matrix) raises -> Float32:
         var kd_results = KDTreeResultVector()
         self.kdtree.n_nearest(Span(unsafe_ptr=x.data, length=x.size), self.k, kd_results)

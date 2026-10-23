@@ -95,16 +95,16 @@ struct BDecisionTree(Copyable, ImplicitlyCopyable):
         new_node.unsafe_write(Node(best_feat, best_thresh, left, right))
         return new_node
 
-@always_inline
+@inline(.always)
 def leaf_score(reg_lambda: Float32, reg_alpha: Float32, g: Matrix, h: Matrix) raises -> Float32:
     var g_sum = g.sum()
     return (-g_sum / (h.sum() + reg_lambda)) - reg_alpha * math.copysign(Float32(1), g_sum)
 
-@always_inline
+@inline(.always)
 def leaf_score_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return (-g_sum / (h_sum + reg_lambda)) - reg_alpha * math.copysign(Float32(1), g_sum)
 
-@always_inline
+@inline(.always)
 def leaf_loss_precompute(reg_lambda: Float32, reg_alpha: Float32, g_sum: Float32, h_sum: Float32) raises -> Float32:
     return (-0.5 * (g_sum ** 2) / (h_sum + reg_lambda)) + reg_alpha * abs(leaf_score_precompute(reg_lambda, reg_alpha, g_sum, h_sum))
 

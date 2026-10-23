@@ -87,7 +87,7 @@ struct GaussianNB(CV, Copyable):
         return y_pred^
 
     # Probability Density Function
-    @always_inline
+    @inline(.always)
     def _pdf(self, class_idx: Int, X: Matrix) raises -> Matrix:
         return normal_distr(X, self._mean[class_idx], self._var[class_idx])
 
@@ -97,11 +97,11 @@ struct GaussianNB(CV, Copyable):
         with open(_path, "w") as f:
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(len(self._classes)).as_bytes())
-            f.write_bytes(Span(unsafe_ptr=self._classes._data.unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(Span(unsafe_ptr=self._classes.unsafe_ptr().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
             f.write_bytes(UInt64(self._mean.width).as_bytes())
             f.write_bytes(Span(unsafe_ptr=self._mean.data.unsafe_bitcast[UInt8](), length=4*self._mean.size))
             f.write_bytes(Span(unsafe_ptr=self._var.data.unsafe_bitcast[UInt8](), length=4*self._var.size))
-            f.write_bytes(Span(unsafe_ptr=self._priors._data.unsafe_bitcast[UInt8](), length=4*len(self._priors)))
+            f.write_bytes(Span(unsafe_ptr=self._priors.unsafe_ptr().unsafe_bitcast[UInt8](), length=4*len(self._priors)))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -119,7 +119,7 @@ struct GaussianNB(CV, Copyable):
                 raise Error('GaussianNB.load: corrupted model file (invalid class count)!')
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)
-            unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
+            unsafe_memcpy(dest=model._classes.unsafe_ptr(), src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
             var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             if X_width <= 0:
                 raise Error('GaussianNB.load: corrupted model file (invalid feature count)!')
@@ -131,7 +131,7 @@ struct GaussianNB(CV, Copyable):
             _ = _var
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
-            unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
+            unsafe_memcpy(dest=model._priors.unsafe_ptr(), src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
@@ -229,10 +229,10 @@ struct MultinomialNB(CV, Copyable):
         with open(_path, "w") as f:
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(UInt64(len(self._classes)).as_bytes())
-            f.write_bytes(Span(unsafe_ptr=self._classes._data.unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(Span(unsafe_ptr=self._classes.unsafe_ptr().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
             f.write_bytes(UInt64(self._class_probs.width).as_bytes())
             f.write_bytes(Span(unsafe_ptr=self._class_probs.data.unsafe_bitcast[UInt8](), length=4*self._class_probs.size))
-            f.write_bytes(Span(unsafe_ptr=self._priors._data.unsafe_bitcast[UInt8](), length=4*len(self._priors)))
+            f.write_bytes(Span(unsafe_ptr=self._priors.unsafe_ptr().unsafe_bitcast[UInt8](), length=4*len(self._priors)))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -250,7 +250,7 @@ struct MultinomialNB(CV, Copyable):
                 raise Error('MultinomialNB.load: corrupted model file (invalid class count)!')
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)
-            unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
+            unsafe_memcpy(dest=model._classes.unsafe_ptr(), src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
             var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             if X_width <= 0:
                 raise Error('MultinomialNB.load: corrupted model file (invalid feature count)!')
@@ -259,7 +259,7 @@ struct MultinomialNB(CV, Copyable):
             _ = _class_probs
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
-            unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
+            unsafe_memcpy(dest=model._priors.unsafe_ptr(), src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:
@@ -364,10 +364,10 @@ struct BernoulliNB(CV, Copyable):
             f.write_bytes(UInt8(Self.MODEL_ID).as_bytes())
             f.write_bytes(self.binarize.as_bytes())
             f.write_bytes(UInt64(len(self._classes)).as_bytes())
-            f.write_bytes(Span(unsafe_ptr=self._classes._data.unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
+            f.write_bytes(Span(unsafe_ptr=self._classes.unsafe_ptr().unsafe_bitcast[UInt8](), length=size_of[DType.int]()*len(self._classes)))
             f.write_bytes(UInt64(self._feature_probs.width).as_bytes())
             f.write_bytes(Span(unsafe_ptr=self._feature_probs.data.unsafe_bitcast[UInt8](), length=4*self._feature_probs.size))
-            f.write_bytes(Span(unsafe_ptr=self._priors._data.unsafe_bitcast[UInt8](), length=4*len(self._priors)))
+            f.write_bytes(Span(unsafe_ptr=self._priors.unsafe_ptr().unsafe_bitcast[UInt8](), length=4*len(self._priors)))
 
     @staticmethod
     def load(path: String) raises -> Self:
@@ -386,7 +386,7 @@ struct BernoulliNB(CV, Copyable):
                 raise Error('BernoulliNB.load: corrupted model file (invalid class count)!')
             model._classes = List[Int](capacity=n_classes)
             model._classes.resize(n_classes, 0)
-            unsafe_memcpy(dest=model._classes._data, src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
+            unsafe_memcpy(dest=model._classes.unsafe_ptr(), src=f.read_bytes(size_of[DType.int]()*n_classes).unsafe_ptr().unsafe_bitcast[Int](), count=n_classes)
             var X_width = Int(f.read_bytes(8).unsafe_ptr().unsafe_bitcast[UInt64]()[])
             if X_width <= 0:
                 raise Error('BernoulliNB.load: corrupted model file (invalid feature count)!')
@@ -395,7 +395,7 @@ struct BernoulliNB(CV, Copyable):
             _ = _feature_probs
             model._priors = List[Float32](capacity=n_classes)
             model._priors.resize(n_classes, 0)
-            unsafe_memcpy(dest=model._priors._data, src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
+            unsafe_memcpy(dest=model._priors.unsafe_ptr(), src=f.read_bytes(4*n_classes).unsafe_ptr().unsafe_bitcast[Float32](), count=n_classes)
         return model^
 
     def __init__(out self, params: Dict[String, String]) raises:

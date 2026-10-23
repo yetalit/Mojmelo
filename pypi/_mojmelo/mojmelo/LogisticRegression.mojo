@@ -30,7 +30,7 @@ struct LogisticRegression(CV, Copyable):
     comptime MODEL_ID = 3
 
     def __init__(out self, learning_rate: Float32 = 0.001, damping: Float32 = 1e-4, n_iters: Int = 1000, method: String = 'gradient', reg_alpha: Float32 = 0.0, l1_ratio: Float32 = 0.0,
-                tol: Float32 = 0.0, batch_size: Int = 0, random_state: Int = -1):
+                tol: Float32 = -1.0, batch_size: Int = 0, random_state: Int = -1):
         self.lr = learning_rate
         self.damping = damping
         self.n_iters = n_iters
@@ -64,8 +64,6 @@ struct LogisticRegression(CV, Copyable):
             raise Error('LogisticRegression.fit: reg_alpha must be non-negative!')
         if self.l1_ratio < 0.0 or self.l1_ratio > 1.0:
             raise Error('LogisticRegression.fit: l1_ratio must be between 0 and 1!')
-        if self.tol < 0.0:
-            raise Error('LogisticRegression.fit: tol must be non-negative!')
         if self.batch_size < 0:
             raise Error('LogisticRegression: batch_size must be non-negative!')
         if X.height == 0:
@@ -104,7 +102,7 @@ struct LogisticRegression(CV, Copyable):
                     var y_batch = y[batch_indices]
 
                     var y_batch_predicted = sigmoid(X_batch * self.weights + self.bias)
-                    if self.tol > 0.0:
+                    if self.tol >= 0.0:
                         cost += cross_entropy(y_batch, y_batch_predicted) / Float32(num_b_iters)
                     var y_error = y_batch_predicted._elemwise_matrix[sub](y_batch)
                     var X_batch_T = X_batch.T()
@@ -129,7 +127,7 @@ struct LogisticRegression(CV, Copyable):
                         # gradient descent
                         self.weights = self.weights._elemwise_matrix[sub](self.lr * dw)
                         self.bias -= self.lr * db
-                if self.tol > 0.0:
+                if self.tol >= 0.0:
                     if abs(prev_cost - cost) <= self.tol:
                         break
                     prev_cost = cost
@@ -137,7 +135,7 @@ struct LogisticRegression(CV, Copyable):
                 # approximate y with sigmoid function
                 var y_predicted = sigmoid(X * self.weights + self.bias)
 
-                if self.tol > 0.0:
+                if self.tol >= 0.0:
                     var cost = cross_entropy(y, y_predicted)
                     if abs(prev_cost - cost) <= self.tol:
                         break
@@ -235,7 +233,7 @@ struct LogisticRegression(CV, Copyable):
         if 'tol' in params:
             self.tol = atof(String(params['tol'])).cast[DType.float32]()
         else:
-            self.tol = 0.0
+            self.tol = -1.0
         if 'batch_size' in params:
             self.batch_size = atol(String(params['batch_size']))
         else:

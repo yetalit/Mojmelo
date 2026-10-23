@@ -152,7 +152,7 @@ struct SVC(CV, Copyable):
                 if val != 0.0:
                     self._x_list[i].append(svm_node(c+1, val))
             self._x_list[i].append(svm_node(-1, 0))
-            self._x_ptr[i] = self._x_list[i]._data
+            self._x_ptr[i] = Pointer[svm_node, MutUntrackedOrigin](unsafe_from_address=Int(self._x_list[i].unsafe_ptr()))
         parallelize[p](X.height)
 
         X_float64.unsafe_free()
@@ -160,7 +160,7 @@ struct SVC(CV, Copyable):
         var prob = svm_problem()
         prob.l = X.height
         prob.y = y.cast_ptr[DType.float64]()
-        prob.x = self._x_ptr._data
+        prob.x = Pointer[Pointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(self._x_ptr.unsafe_ptr()))
 
         var check = svm_check_parameter(prob, param)
         if check != "":
@@ -192,7 +192,7 @@ struct SVC(CV, Copyable):
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
-            y_ptr[unsafe_offset=i] = svm_predict(self._model.value()[], x_list._data)
+            y_ptr[unsafe_offset=i] = svm_predict(self._model.value()[], Pointer[svm_node, MutUntrackedOrigin](unsafe_from_address=Int(x_list.unsafe_ptr())))
             _ = x_list
         parallelize[p](X.height)
 
@@ -222,9 +222,7 @@ struct SVC(CV, Copyable):
                 if val != 0.0:
                     x_list.append(svm_node(c+1, val))
             x_list.append(svm_node(-1, 0))
-            var result = svm_decision_function(self._model.value()[], x_list._data)
-            dec_values[i] = List[Float64](unsafe_uninit_length=result[1])
-            dec_values[i]._data = result[0]
+            dec_values[i] = svm_decision_function(self._model.value()[], Pointer[svm_node, MutUntrackedOrigin](unsafe_from_address=Int(x_list.unsafe_ptr())))
             _ = x_list
         parallelize[p](X.height)
 
@@ -341,7 +339,7 @@ struct SVC(CV, Copyable):
                     if val != 0.0:
                         model._x_list[i].append(svm_node(c+1, val))
                 model._x_list[i].append(svm_node(-1, 0))
-                model._x_ptr[i] = model._x_list[i]._data
+                model._x_ptr[i] = Pointer[svm_node, MutUntrackedOrigin](unsafe_from_address=Int(model._x_list[i].unsafe_ptr()))
             parallelize[p](X_mat.height)
             X_float64.unsafe_free()
 
@@ -366,7 +364,7 @@ struct SVC(CV, Copyable):
             unsafe_memcpy(dest=nSV, src=f.read_bytes(size_of[DType.int]()*nr_class).unsafe_ptr().unsafe_bitcast[Int](), count=nr_class)
             _model[].nr_class = nr_class
             _model[].l = l
-            _model[].SV = model._x_ptr._data
+            _model[].SV = Pointer[Pointer[svm_node, MutUntrackedOrigin], MutUntrackedOrigin](unsafe_from_address=Int(model._x_ptr.unsafe_ptr()))
             _model[].sv_coef = sv_coef
             _model[].rho = rho
             _model[].probA = probA

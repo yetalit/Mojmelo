@@ -7,14 +7,14 @@ from mojmelo.utils.algorithm import parallelize
 from std.sys import size_of
 from std.memory import unsafe_memset_zero, Layout
 
-@always_inline
+@inline(.always)
 def key(idx: Int,
         data: Pointer[Float32, MutUntrackedOrigin],
         dim: Int,
         split_dim: Int) -> Float32:
     return data[unsafe_offset=idx * dim + split_dim]
 
-@always_inline
+@inline(.always)
 def nth_element(
     var first: Pointer[Int, MutUntrackedOrigin],
     nth: Pointer[Int, MutUntrackedOrigin],
@@ -64,7 +64,7 @@ def nth_element(
         else:
             last = first.unsafe_offset(store)
 
-@always_inline
+@inline(.always)
 def node_pair_lower_bound(
     var center1: Pointer[Float32, MutUntrackedOrigin],
     var center2: Pointer[Float32, MutUntrackedOrigin],
@@ -119,7 +119,7 @@ struct KDTreeBoruvka:
     # Single contiguous allocation for ALL node centers: max_nodes × dim floats.
     var _center_arena: Pointer[Float32, MutUntrackedOrigin]
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, data: Matrix, min_samples: Int, leaf_size: Int) raises:
         self.data = data.data
         self.kdtree = KDTree[sort_results=True, EUC=True](data, metric='euc')
@@ -138,7 +138,9 @@ struct KDTreeBoruvka:
         self.proj_buf = List[Float32](capacity=self.n)
         self.proj_buf.resize(self.n, 0.0)
 
-        self.k = 2 * min_samples
+        # fast_hdbscan uses k=min_samples+1 for unweighted branch and
+        # expected_neighbors=min_samples/mean_sample_weight -> k=int(2*expected_neighbors) for sample-weighted branch
+        self.k = min_samples + 1
         self.knn_idx  = alloc(Layout[Int](count=self.n * self.k)).unsafe_leak()
         self.knn_dist = alloc(Layout[Float32](count=self.n * self.k)).unsafe_leak()
         @__parameter
@@ -161,16 +163,16 @@ struct KDTreeBoruvka:
 
         self.build_node(0, 0, self.n)
 
-    @always_inline
+    @inline(.always)
     def __deinit__(deinit self):
         self.core_dist.unsafe_free()
         self._center_arena.unsafe_free()
 
-    @always_inline
+    @inline(.always)
     def left(self, i: Int) -> Int:
         return 2 * i + 1
 
-    @always_inline
+    @inline(.always)
     def right(self, i: Int) -> Int:
         return 2 * i + 2
 
@@ -204,7 +206,7 @@ struct KDTreeBoruvka:
 
     def build_node(mut self, node: Int, start: Int, end: Int):
         self.ensure_node(node)
-        var nd = self.nodes._data.unsafe_offset(node)
+        var nd = self.nodes.unsafe_ptr().unsafe_offset(node)
         nd[].idx_start = start
         nd[].idx_end = end
 
@@ -248,10 +250,10 @@ struct KDTreeBoruvka:
         var mid = (start + end) // 2
 
         nth_element(
-            self.build_idx._data.unsafe_offset(start),
-            self.build_idx._data.unsafe_offset(mid),
-            self.build_idx._data.unsafe_offset(end),
-            self.proj_buf._data.unsafe_offset(start),
+            Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(self.build_idx.unsafe_ptr().unsafe_offset(start))),
+            Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(self.build_idx.unsafe_ptr().unsafe_offset(mid))),
+            Pointer[Int, MutUntrackedOrigin](unsafe_from_address=Int(self.build_idx.unsafe_ptr().unsafe_offset(end))),
+            Pointer[Float32, MutUntrackedOrigin](unsafe_from_address=Int(self.proj_buf.unsafe_ptr().unsafe_offset(start))),
             self.data,
             self.dim,
             split_dim

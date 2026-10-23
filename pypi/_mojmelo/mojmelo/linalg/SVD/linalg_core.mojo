@@ -27,7 +27,7 @@ struct Vec(Sized):
     var stride: Int
     var owns: Bool
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, n: Int):
         self.data = alloc(Layout[RealScalar](count=max(n, 1))).unsafe_leak()
         self.n = n
@@ -35,43 +35,43 @@ struct Vec(Sized):
         self.owns = True
         self.setZero()
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, data: Pointer[RealScalar, MutUntrackedOrigin], n: Int, stride: Int):
         self.data = data
         self.n = n
         self.stride = stride
         self.owns = False
 
-    @always_inline
+    @inline(.always)
     def __deinit__(deinit self):
         if self.owns:
             self.data.unsafe_free()
 
-    @always_inline
+    @inline(.always)
     def __len__(self) -> Int:
         return self.n
 
-    @always_inline
+    @inline(.always)
     def __getitem__(self, i: Int) -> RealScalar:
         return self.data[unsafe_offset=i * self.stride]
 
-    @always_inline
+    @inline(.always)
     def __setitem__(mut self, i: Int, v: RealScalar):
         self.data[unsafe_offset=i * self.stride] = v
 
-    @always_inline
+    @inline(.always)
     def segment(self, start: Int, length: Int) -> Vec:
         return Vec(self.data.unsafe_offset(start * self.stride), length, self.stride)
 
-    @always_inline
+    @inline(.always)
     def head(self, length: Int) -> Vec:
         return self.segment(0, length)
 
-    @always_inline
+    @inline(.always)
     def tail(self, length: Int) -> Vec:
         return self.segment(self.n - length, length)
 
-    @always_inline
+    @inline(.always)
     def copyFrom(self, other: Vec):
         if self.stride == 1 and other.stride == 1:
             unsafe_memcpy(dest=self.data, src=other.data, count=self.n)
@@ -86,7 +86,7 @@ struct Vec(Sized):
             for i in range(self.n):
                 self.data[unsafe_offset=i * self.stride] = RealScalar(0)
 
-    @always_inline
+    @inline(.always)
     def cwiseAbsMax(self) -> RealScalar:
         if self.stride == 1:
             return _max_abs[RealScalar.DTYPE, SIMD_WIDTH](self.data, self.n)
@@ -97,7 +97,7 @@ struct Vec(Sized):
                 m = a
         return m
 
-    @always_inline
+    @inline(.always)
     def norm(self) -> RealScalar:
         var scale = self.cwiseAbsMax()
 
@@ -117,7 +117,7 @@ struct Vec(Sized):
 
         return scale * sqrt(sum)
 
-    @always_inline
+    @inline(.always)
     def reverseInPlace(mut self):
         var i = 0
         var j = self.n - 1
@@ -126,7 +126,7 @@ struct Vec(Sized):
             i += 1
             j -= 1
 
-    @always_inline
+    @inline(.always)
     def stableNormalize(mut self):
         var nrm = self.norm()
         if nrm > 0:
@@ -139,7 +139,7 @@ struct Vec(Sized):
                     self[i] = self[i] / nrm
 
     @staticmethod
-    @always_inline
+    @inline(.always)
     def Unit(n: Int, k: Int) -> Vec:
         var v = Vec(n)
         v[k] = RealScalar(1)
@@ -153,37 +153,37 @@ struct IVec(Sized):
     var n: Int
     var owns: Bool
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, n: Int):
         self.data = alloc(Layout[Int](count=max(n, 1))).unsafe_leak()
         self.n = n
         self.owns = True
         unsafe_memset_zero(self.data, self.n)
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, data: Pointer[Int, MutUntrackedOrigin], n: Int):
         self.data = data
         self.n = n
         self.owns = False
 
-    @always_inline
+    @inline(.always)
     def __deinit__(deinit self):
         if self.owns:
             self.data.unsafe_free()
 
-    @always_inline
+    @inline(.always)
     def __len__(self) -> Int:
         return self.n
 
-    @always_inline
+    @inline(.always)
     def __getitem__(self, i: Int) -> Int:
         return self.data[unsafe_offset=i]
 
-    @always_inline
+    @inline(.always)
     def __setitem__(mut self, i: Int, v: Int):
         self.data[unsafe_offset=i] = v
 
-    @always_inline
+    @inline(.always)
     def segment(self, start: Int, length: Int) -> IVec:
         return IVec(self.data.unsafe_offset(start), length)
 
@@ -201,7 +201,7 @@ struct Mat(Copyable):
     var size: Int
     var owns: Bool
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, rows: Int, cols: Int):
         self.size = max(rows * cols, 1)
         self.data = alloc(Layout[RealScalar](count=self.size)).unsafe_leak()
@@ -212,7 +212,7 @@ struct Mat(Copyable):
         self.owns = True
         self.setZero()
 
-    @always_inline
+    @inline(.always)
     def __init__(
         out self,
         data: Pointer[RealScalar, MutUntrackedOrigin],
@@ -229,7 +229,7 @@ struct Mat(Copyable):
         self.size = self.nrows * self.ncols
         self.owns = False
 
-    @always_inline
+    @inline(.always)
     def __init__(out self, *, copy: Self):
         self.nrows = copy.nrows
         self.ncols = copy.ncols
@@ -245,43 +245,43 @@ struct Mat(Copyable):
                 count=self.nrows,
             )
 
-    @always_inline
+    @inline(.always)
     def __deinit__(deinit self):
         if self.owns:
             self.data.unsafe_free()
 
-    @always_inline
+    @inline(.always)
     def rows(self) -> Int:
         return self.nrows
 
-    @always_inline
+    @inline(.always)
     def cols(self) -> Int:
         return self.ncols
 
-    @always_inline
+    @inline(.always)
     def __getitem__(self, i: Int, j: Int) -> RealScalar:
         return self.data[unsafe_offset=i * self.row_stride + j * self.col_stride]
 
-    @always_inline
+    @inline(.always)
     def __setitem__(mut self, i: Int, j: Int, v: RealScalar):
         self.data[unsafe_offset=i * self.row_stride + j * self.col_stride] = v
 
-    @always_inline
+    @inline(.always)
     def block(self, i: Int, j: Int, rows: Int, cols: Int) -> Mat:
         var offset = i * self.row_stride + j * self.col_stride
         return Mat(self.data.unsafe_offset(offset), rows, cols, self.row_stride, self.col_stride)
 
-    @always_inline
+    @inline(.always)
     def col(self, j: Int) -> Vec:
         var offset = j * self.col_stride
         return Vec(self.data.unsafe_offset(offset), self.nrows, self.row_stride)
 
-    @always_inline
+    @inline(.always)
     def row(self, i: Int) -> Vec:
         var offset = i * self.row_stride
         return Vec(self.data.unsafe_offset(offset), self.ncols, self.col_stride)
 
-    @always_inline
+    @inline(.always)
     def diagonal(self, k: Int = 0) -> Vec:
         # k == 0: main diagonal. k == -1: the first sub-diagonal.
         var offset: Int
@@ -295,7 +295,7 @@ struct Mat(Copyable):
         var step = self.row_stride + self.col_stride
         return Vec(self.data.unsafe_offset(offset), length, step)
 
-    @always_inline
+    @inline(.always)
     def copyFrom(self, other: Mat):
         for j in range(self.ncols):
             unsafe_memcpy(
@@ -304,12 +304,12 @@ struct Mat(Copyable):
                 count=self.nrows,
             )
 
-    @always_inline
+    @inline(.always)
     def setZero(self):
         for j in range(self.ncols):
             unsafe_memset_zero(self.data.unsafe_offset(j * self.col_stride), self.nrows)
 
-    @always_inline
+    @inline(.always)
     def cwiseAbsMax(self) -> RealScalar:
         var m = 0.0
         for j in range(self.ncols):
@@ -321,7 +321,7 @@ struct Mat(Copyable):
             vectorize[SIMD_WIDTH](self.nrows, findMax)
         return m
 
-    @always_inline
+    @inline(.always)
     def swap_cols(mut self, a: Int, b: Int):
         var a_col = Vec(self.nrows)
         a_col.copyFrom(self.col(a))
@@ -337,14 +337,14 @@ struct Mat(Copyable):
 # ------------------------------------------------------------------------------
 comptime PAR_ELEMS = 1 << 16   # don't spawn threads for less work than this
 
-@always_inline
+@inline(.always)
 def swap_vecs(mut a: Vec, mut b: Vec):
     var tmp = Vec(len(a))
     tmp.copyFrom(a)
     a.copyFrom(b)
     b.copyFrom(tmp)
 
-@always_inline
+@inline(.always)
 def vec_dot(a: Vec, b: Vec) -> RealScalar:
     var n = len(a)
     if a.stride == 1 and b.stride == 1:
@@ -354,7 +354,7 @@ def vec_dot(a: Vec, b: Vec) -> RealScalar:
         sum += a[i] * b[i]
     return sum
 
-@always_inline
+@inline(.always)
 def sub_inplace(dst: Mat, src: Mat):
     """Dst -= Src for same-shape column-major views (row_stride == 1)."""
     @__parameter
@@ -371,7 +371,7 @@ def sub_inplace(dst: Mat, src: Mat):
     else:
         parallelize[one_col](dst.cols())
 
-@always_inline
+@inline(.always)
 def reverse_cols(mut m: Mat, count: Int):
     var i = 0
     var j = count - 1
@@ -380,7 +380,7 @@ def reverse_cols(mut m: Mat, count: Int):
         i += 1
         j -= 1
 
-@always_inline
+@inline(.always)
 def mat_transpose(a: Mat) -> Mat:
     var mat = Mat(a.cols(), a.rows())
     var col_stride = a.col_stride
@@ -404,7 +404,7 @@ def mat_transpose(a: Mat) -> Mat:
         parallelize[p](a.rows())
     return mat^
 
-@always_inline
+@inline(.always)
 def mat_identity(rows: Int, cols: Int) -> Mat:
     var m = Mat(rows, cols)
     var n = min(rows, cols)
@@ -417,14 +417,14 @@ def mat_identity(rows: Int, cols: Int) -> Mat:
 
     return m^
 
-@always_inline
+@inline(.always)
 def embed_topleft(dst: Mat, src: Mat, n: Int):
     for i in range(n):
         var col_dst = dst.col(i)
         var col_src = src.col(i)
         unsafe_memcpy(dest=col_dst.data, src=col_src.data, count=n)
 
-@always_inline
+@inline(.always)
 def matmul(a: Mat, b: Mat) -> Mat:
     var result = Mat(a.rows(), b.cols())
 
@@ -436,7 +436,7 @@ def matmul(a: Mat, b: Mat) -> Mat:
 
     return result^
 
-@always_inline
+@inline(.always)
 def matmul_acc(dst: Mat, a: Mat, b: Mat):
     """Dst += a * b."""
     var A_T_rm = GEMM.Matrix[RealScalar.DTYPE](a.data, GEMM.MatLayout((a.cols(), a.rows()), (a.col_stride, a.row_stride)))

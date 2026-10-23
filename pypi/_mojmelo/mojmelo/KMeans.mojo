@@ -86,7 +86,7 @@ struct KMeans(Copyable):
             if i == self.max_iters - 1:
                 self.inertia = dist_from_centroids.min(axis=1).sum()
 
-    @always_inline
+    @inline(.always)
     def _get_centroids(mut self, dist_from_centroids: Matrix, X: Matrix) raises -> Matrix:
         var centroids = Matrix.zeros(self.k, X.width)
         var cluster_sizes = Matrix.zeros(self.k, 1)
@@ -101,7 +101,7 @@ struct KMeans(Copyable):
             elemwise_matrix[DType.float32, centroids.simd_width, add](c_ptr, c_ptr, x_ptr, X.width)
         return centroids / cluster_sizes.where(cluster_sizes == 0.0, 1.0, cluster_sizes)
 
-    @always_inline
+    @inline(.always)
     def _is_converged(mut self, dist_from_centroids: Matrix, centroids_old: Matrix, 
                     labels_old: List[Int], inertia_old: Float32) raises -> Bool:
         if self.converge == 'centroid':
@@ -253,7 +253,7 @@ struct KMeans(Copyable):
                     min_distances.data[unsafe_offset=row] = dists_last.data[unsafe_offset=row]
             inertia_values.data[unsafe_offset=idc] = min_distances.sum()
 
-    @always_inline
+    @inline(.always)
     def _create_labels(self, mut dist_from_centroids: Matrix, X: Matrix, X_norms: Matrix) raises -> List[Int]:
         var labels = List[Int](capacity=X.height)
         labels.resize(X.height, 0)
