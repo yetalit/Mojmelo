@@ -61,7 +61,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
         self.min_samples_split = min_samples_split
         self.max_depth = max_depth
         self.n_feats = n_feats
-        if random_state != -1:
+        if random_state >= 0:
             random.seed(random_state)
         self.root = None
 
@@ -93,7 +93,7 @@ struct DecisionTree(CV, Copyable, ImplicitlyCopyable):
             self.n_feats = -1
         if 'random_state' in params:
             var seed = atol(String(params['random_state']))
-            if seed != -1:
+            if seed >= 0:
                 random.seed(seed)
         else:
             random.seed(42)

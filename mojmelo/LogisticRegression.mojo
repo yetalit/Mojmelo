@@ -40,7 +40,7 @@ struct LogisticRegression(CV, Copyable):
         self.tol = tol
         self.batch_size = batch_size
         self.random_state = random_state
-        if self.random_state != -1:
+        if self.random_state >= 0:
             random.seed(self.random_state)
         self.weights = Matrix(0, 0)
         self.bias = 0.0
@@ -242,7 +242,7 @@ struct LogisticRegression(CV, Copyable):
             self.random_state = atol(String(params['random_state']))
         else:
             self.random_state = -1
-        if self.random_state != -1:
+        if self.random_state >= 0:
             random.seed(self.random_state)
         self.weights = Matrix(0, 0)
         self.bias = 0.0

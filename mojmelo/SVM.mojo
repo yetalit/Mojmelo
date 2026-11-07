@@ -60,7 +60,7 @@ struct SVC(CV, Copyable):
         self.tol = tol
         self.shrinking = shrinking
         self.probability = probability
-        if random_state != -1:
+        if random_state >= 0:
             random.seed(random_state)
         else:
             random.seed()
@@ -81,7 +81,7 @@ struct SVC(CV, Copyable):
         self.tol = tol
         self.shrinking = shrinking
         self.probability = probability
-        if random_state != -1:
+        if random_state >= 0:
             random.seed(random_state)
         else:
             random.seed()
@@ -444,7 +444,7 @@ struct SVC(CV, Copyable):
                 self.probability = False
         else:
             self.probability = False
-        if 'random_state' in params and atol(String(params['random_state'])) != -1:
+        if 'random_state' in params and atol(String(params['random_state'])) >= 0:
             random.seed(atol(String(params['random_state'])))
         else:
             random.seed()
