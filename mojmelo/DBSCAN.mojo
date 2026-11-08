@@ -1,6 +1,6 @@
 from mojmelo.linalg.Matrix import Matrix
+from mojmelo.linalg.utils import _check_finite
 from mojmelo.utils.KDTree import KDTreeResultVector, KDTree
-from std.collections import Set
 from mojmelo.utils.algorithm import parallelize
 
 struct DBSCAN:
@@ -11,9 +11,9 @@ struct DBSCAN:
     """The number of samples in a neighborhood for a point to be considered as a core point."""
     var metric: String
     """Metric to use for distance computation:
-    Euclidean -> 'euc';
-    Manhattan -> 'man'.
-    """
+        Euclidean -> 'euc';
+        Manhattan -> 'man'.
+        """
     var labels: List[Int]
 
     def __init__(out self, eps: Float32 = 1.0, min_samples: Int = 5, metric: String = 'euc') raises:
@@ -24,12 +24,26 @@ struct DBSCAN:
 
     def fit(mut self, X: Matrix) raises:
         """Perform clustering."""
-        self.labels = List[Int](capacity=X.height)
-        self.labels.resize(X.height, -2)
+        if self.metric != 'euc' and self.metric != 'man':
+            raise Error("DBSCAN.fit: unknown metric '" + self.metric + "'; expected 'euc' or 'man'!")
+        if self.eps - self.eps != 0 or not (self.eps > 0):
+            raise Error("DBSCAN.fit: eps must be a positive, finite number!")
+        if self.min_samples < 1:
+            raise Error("DBSCAN.fit: min_samples must be >= 1!")
+        if X.height == 0 or X.width == 0:
+            raise Error("DBSCAN.fit: X must contain at least one sample and one feature!")
+        _check_finite(X, 'DBSCAN.fit')
+
         var kdtree = KDTree(X, self.metric)
 
         var neighborhoods = List[List[Int]](capacity=X.height)
         neighborhoods.resize(X.height, List[Int]())
+        # One slot per sample: each worker writes only to its own index.
+        var errors = List[String](capacity=X.height)
+        errors.resize(X.height, String(''))
+        var failed = List[Bool](capacity=X.height)
+        failed.resize(X.height, False)
+
         @__parameter
         def p(i: Int):
             try:
@@ -38,11 +52,20 @@ struct DBSCAN:
                 for idp in range(len(kd_results)):
                     neighborhoods[i].append(kd_results[idp].idx)
             except e:
-                print('Error:', e)
+                failed[i] = True
+                errors[i] = String(e)
         parallelize[p](X.height)
 
+        # Propagate the first worker failure.
+        for i in range(X.height):
+            if failed[i]:
+                raise Error("DBSCAN.fit: neighborhood query failed for sample " + String(i) + ": " + errors[i])
+
+        # Only touch self.labels once all queries have succeeded.
+        self.labels = List[Int](capacity=X.height)
+        self.labels.resize(X.height, -2)
+
         var current_cluster = 0
-        
         for idx in range(X.height):
             if self.labels[idx] != -2:
                 continue

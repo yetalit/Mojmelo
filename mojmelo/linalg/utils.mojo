@@ -286,3 +286,15 @@ def dot_unrolled[
 
     vectorize[width](count - j, body)
     return acc.reduce_add() + tail
+
+def _check_finite(data: Matrix, fn_name: String) raises:
+    """Raise on NaN or +-inf. `v - v` is 0 for every finite value and NaN otherwise."""
+    var failed = False
+    def check[simd_width: Int](idx: Int) {mut failed, imm}:
+        var v = data.data.unsafe_load[width=simd_width](idx)
+        if v - v != 0:
+            failed = True
+            return
+    vectorize[data.simd_width](data.size, check)
+    if failed:
+        raise Error(fn_name + ': input contains NaN or infinity!')

@@ -1,6 +1,6 @@
 from mojmelo.linalg.Matrix import Matrix
+from mojmelo.linalg.utils import _check_finite
 from mojmelo.utils.utils import CV, cartesian_product
-from std.algorithm import vectorize
 from mojmelo.utils.algorithm import parallelize
 from std.sys import num_performance_cores
 from std.python import Python, PythonObject
@@ -13,37 +13,25 @@ from std import random
 
 def _check_nonempty(data: Matrix, fn_name: String) raises:
     if data.height == 0 or data.width == 0:
-        raise Error(fn_name + ': input matrix is empty')
-
-def _check_finite(data: Matrix, fn_name: String) raises:
-    """Raise on NaN or +-inf. `v - v` is 0 for every finite value and NaN otherwise."""
-    var failed = False
-    def check[simd_width: Int](idx: Int) {mut failed, imm}:
-        var v = data.data.unsafe_load[width=simd_width](idx)
-        if v - v != 0:
-            failed = True
-            return
-    vectorize[data.simd_width](data.size, check)
-    if failed:
-        raise Error(fn_name + ': input contains NaN or infinity')
+        raise Error(fn_name + ': input matrix is empty!')
 
 def _check_feature_range(feature_range: Tuple[Float32, Float32], fn_name: String) raises:
     if not (feature_range[0] < feature_range[1]):
-        raise Error(fn_name + ': feature_range must satisfy min < max')
+        raise Error(fn_name + ': feature_range must satisfy min < max!')
 
 def _check_stats(data: Matrix, a: Matrix, b: Matrix, fn_name: String) raises:
     if a.width != data.width or b.width != data.width:
-        raise Error(fn_name + ': statistics width does not match data width')
+        raise Error(fn_name + ': statistics width does not match data width!')
 
 def _check_xy(X: Matrix, y: Matrix, fn_name: String) raises:
     if X.height == 0:
         raise Error(fn_name + ': X is empty')
     if X.height != y.height:
-        raise Error(fn_name + ': X and y have different numbers of rows')
+        raise Error(fn_name + ': X and y have different numbers of rows!')
 
 def _check_n_splits(n_splits: Int, n_samples: Int, fn_name: String) raises:
     if n_splits < 2 or n_splits > n_samples:
-        raise Error(fn_name + ': n_splits must be between 2 and the number of samples')
+        raise Error(fn_name + ': n_splits must be between 2 and the number of samples!')
 
 def _nonzero(div: Matrix) raises -> Matrix:
     """Replace zero scale factors with 1 so constant features do not divide by zero."""
@@ -65,7 +53,7 @@ def normalize(data: Matrix, norm: String = 'l2') raises -> Tuple[Matrix, Matrix]
     """
     var norm_kind = norm.lower()
     if norm_kind != 'l1' and norm_kind != 'l2':
-        raise Error("normalize: norm must be 'l1' or 'l2', got '" + norm + "'")
+        raise Error("normalize: norm must be 'l1' or 'l2', got '" + norm + "'!")
     _check_nonempty(data, 'normalize')
     _check_finite(data, 'normalize')
 
@@ -133,7 +121,7 @@ def inv_normalize(z: Matrix, norms: Matrix) raises -> Matrix:
         Original data.
     """
     if z.height != norms.height:
-        raise Error('inv_normalize: z and norms have different numbers of rows')
+        raise Error('inv_normalize: z and norms have different numbers of rows!')
     return z.ele_mul(norms)
 
 def MinMaxScaler(data: Matrix, feature_range: Tuple[Float32, Float32] = (0, 1)) raises -> Tuple[Matrix, Matrix, Matrix]:
@@ -246,15 +234,15 @@ def inv_StandardScaler(z: Matrix, mu: Matrix, sigma: Matrix) raises -> Matrix:
 def _train_count(n_samples: Int, test_size: Float32, train_size: Float32) raises -> Int:
     """Number of training rows. Both sides are guaranteed to get at least one row."""
     if n_samples < 2:
-        raise Error('train_test_split: need at least 2 samples')
+        raise Error('train_test_split: need at least 2 samples!')
     var test_ratio: Float64
     if train_size > 0.0:
         if train_size >= 1.0:
-            raise Error('train_test_split: train_size must be in (0, 1)')
+            raise Error('train_test_split: train_size must be in (0, 1)!')
         test_ratio = 1.0 - Float64(train_size)
     else:
         if not (test_size > 0.0 and test_size < 1.0):
-            raise Error('train_test_split: test_size must be in (0, 1)')
+            raise Error('train_test_split: test_size must be in (0, 1)!')
         test_ratio = Float64(test_size)
     var raw = test_ratio * Float64(n_samples)
     var n_test = Int(ceil(raw - 1e-6 * raw))
@@ -309,7 +297,7 @@ struct LabelEncoder:
         """
         var n = len(y)
         if n == 0:
-            raise Error('LabelEncoder.fit_transform: y is empty')
+            raise Error('LabelEncoder.fit_transform: y is empty!')
         self.str_to_index = Dict[String, Int]()
         self.index_to_str = Dict[Int, String]()
         var y_encoded = Matrix(n, 1)
@@ -333,13 +321,13 @@ struct LabelEncoder:
             Encoded labels.
         """
         if len(self.str_to_index) == 0:
-            raise Error('LabelEncoder.transform: encoder is not fitted')
+            raise Error('LabelEncoder.transform: encoder is not fitted!')
         var n = len(y)
         var y_encoded = Matrix(n, 1)
         for i in range(n):
             var str_ = String(y[i])
             if not (str_ in self.str_to_index):
-                raise Error("LabelEncoder.transform: unseen label '" + str_ + "'")
+                raise Error("LabelEncoder.transform: unseen label '" + str_ + "'!")
             y_encoded.data[unsafe_offset=i] = Float32(self.str_to_index[str_])
         return y_encoded^
 
@@ -353,11 +341,10 @@ struct LabelEncoder:
             Original targets Python object.
         """
         if len(self.index_to_str) == 0:
-            raise Error('LabelEncoder.inverse_transform: encoder is not fitted')
+            raise Error('LabelEncoder.inverse_transform: encoder is not fitted!')
         var np = Python.import_module("numpy")
-        var n = y.height * y.width
-        var np_arr = np.empty(n, dtype='object')
-        for i in range(n):
+        var np_arr = np.empty(y.size, dtype='object')
+        for i in range(y.size):
             var v = y.data[unsafe_offset=i]
             if v != v or v < 0.0:
                 raise Error('LabelEncoder.inverse_transform: invalid encoded label at position ' + String(i))
@@ -442,22 +429,22 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
     _check_xy(X, y, 'GridSearchCV')
     _check_n_splits(cv, X.height, 'GridSearchCV')
     if n_jobs < -1:
-        raise Error('GridSearchCV: n_jobs must be -1 or >= 0')
+        raise Error('GridSearchCV: n_jobs must be -1 or >= 0!')
     if len(param_grid) == 0:
-        raise Error('GridSearchCV: param_grid is empty')
+        raise Error('GridSearchCV: param_grid is empty!')
 
     # Snapshot the key order once so params and combinations always line up.
     var keys = List[String]()
     var dict_values = List[List[String]]()
     for key in param_grid.keys():
         if len(param_grid[key]) == 0:
-            raise Error("GridSearchCV: parameter '" + key + "' has no values to try")
+            raise Error("GridSearchCV: parameter '" + key + "' has no values to try!")
         keys.append(key.copy())
         dict_values.append(param_grid[key].copy())
     var combinations = cartesian_product(dict_values)
     var n = len(combinations)
     if n == 0:
-        raise Error('GridSearchCV: no parameter combinations to evaluate')
+        raise Error('GridSearchCV: no parameter combinations to evaluate!')
 
     # Build every candidate up front (cheap, serial); only fitting is parallel.
     var params = List[Dict[String, String]](capacity=n)
@@ -514,7 +501,7 @@ def GridSearchCV[m_type: CV](X: Matrix, y: Matrix, param_grid: Dict[String, List
         if best == -1 or s > scores[best]:
             best = i
     if best == -1:
-        raise Error('GridSearchCV: every candidate produced a NaN score')
+        raise Error('GridSearchCV: every candidate produced a NaN score!')
 
     var best_score = scores[best]
     if neg_score:
